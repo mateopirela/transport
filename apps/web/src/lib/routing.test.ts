@@ -110,6 +110,8 @@ describe('safeNextPath', () => {
     '//evil.example',
     '/\\evil.example',
     '/\t/evil.example',
+    '/a/..//evil.example',
+    '/cliente/..//evil.example?x=1',
     'javascript:alert(1)',
   ])('rejects %s', (next) => {
     expect(safeNextPath(next)).toBeNull();

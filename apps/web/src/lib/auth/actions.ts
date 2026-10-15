@@ -19,7 +19,12 @@ import { formEntries, invalidForm, refillValues, type FormState } from '../forms
 import { homeFor, paths, safeNextPath } from '../routing';
 import { createClient } from '../supabase/server';
 import { loadViewer, type Supabase } from '../viewer';
-import { createCompany, PENDING_COMPANY_KEY, registerPendingCompany } from './company';
+import {
+  completeCompanyPath,
+  createCompany,
+  PENDING_COMPANY_KEY,
+  registerPendingCompany,
+} from './company';
 
 const notConfigured: FormState = { error: authErrors.notConfigured };
 
@@ -49,7 +54,8 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
 
-  await registerPendingCompany(supabase);
+  const companyError = await registerPendingCompany(supabase);
+  if (companyError) redirect(completeCompanyPath(companyError));
   const next = safeNextPath(entries.next);
   if (next) redirect(next);
   await redirectHome(supabase);
@@ -82,7 +88,8 @@ export async function signUpShipper(_prev: FormState, formData: FormData): Promi
 
   // Without email confirmation (not the default) there is a session already.
   if (data.session) {
-    await registerPendingCompany(supabase);
+    const companyError = await registerPendingCompany(supabase);
+    if (companyError) redirect(completeCompanyPath(companyError));
     await redirectHome(supabase);
   }
   redirect(paths.checkEmail);
@@ -101,8 +108,9 @@ export async function requestPasswordReset(
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: await confirmUrl(paths.resetPassword),
   });
-  // Same answer whether or not the account exists, so emails cannot be probed.
-  if (error?.code === 'over_email_send_rate_limit') return { error: authErrors.rateLimited };
+  // Supabase answers the same whether or not the account exists, so emails
+  // cannot be probed; an error here is a service failure (rate limit, SMTP).
+  if (error) return { error: authErrorMessage(error) };
   return { message: authCopy.forgotPassword.sent };
 }
 
@@ -126,7 +134,7 @@ export async function completeCompany(_prev: FormState, formData: FormData): Pro
   if (!supabase) return notConfigured;
 
   const { error } = await createCompany(supabase, parsed.data);
-  if (error) return { error, values: refillValues(entries) };
+  if (error) return { error: authErrors[error], values: refillValues(entries) };
   return redirectHome(supabase);
 }
 

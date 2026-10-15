@@ -249,15 +249,10 @@ export function ResetPasswordForm() {
   );
 }
 
-export function CompleteCompanyForm({ initial }: { initial: Record<string, string> }) {
+export function CompleteCompanyForm({ initial }: { initial: FormState }) {
   const c = authCopy.completeCompany;
   return (
-    <ActionForm
-      action={completeCompany}
-      initial={{ values: initial }}
-      submit={c.submit}
-      pending={c.pending}
-    >
+    <ActionForm action={completeCompany} initial={initial} submit={c.submit} pending={c.pending}>
       {(state) => (
         <>
           <CompanyFields state={state} />

@@ -2,7 +2,7 @@ import type { EmailOtpType } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
-import { registerPendingCompany } from '@/lib/auth/company';
+import { completeCompanyPath, registerPendingCompany } from '@/lib/auth/company';
 import { paths, safeNextPath } from '@/lib/routing';
 import { createClient } from '@/lib/supabase/server';
 
@@ -31,6 +31,9 @@ export async function GET(request: NextRequest) {
 
   // Relative redirects keep the host the user came from (and its cookies).
   if (!supabase || !ok) redirect(`${paths.signIn}?error=enlace`);
-  if (type !== 'recovery') await registerPendingCompany(supabase);
+  if (type !== 'recovery') {
+    const companyError = await registerPendingCompany(supabase);
+    if (companyError) redirect(completeCompanyPath(companyError));
+  }
   redirect(next);
 }

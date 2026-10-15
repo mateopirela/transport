@@ -86,6 +86,7 @@ export function safeNextPath(next: string | null | undefined): string | null {
   if (!next?.startsWith('/') || next.startsWith('//') || next.includes('\\')) return null;
   const base = 'http://localhost';
   const url = new URL(next, base);
-  if (url.origin !== base) return null;
+  // Normalization can turn `/a/..//evil.example` into a protocol-relative path.
+  if (url.origin !== base || url.pathname.startsWith('//')) return null;
   return `${url.pathname}${url.search}`;
 }

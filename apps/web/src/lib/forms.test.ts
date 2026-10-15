@@ -1,7 +1,7 @@
 import { authErrors, shipperSignUpSchema, signInSchema } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
-import { authErrorMessage } from './auth-errors';
+import { authErrorKey, authErrorMessage, isAuthErrorKey } from './auth-errors';
 import { formEntries, invalidForm, refillValues } from './forms';
 
 function formData(entries: Record<string, string>): FormData {
@@ -57,9 +57,24 @@ describe('authErrorMessage', () => {
     [{ code: 'otp_expired' }, authErrors.linkInvalid],
     [{ code: '23505' }, authErrors.rfcTaken],
     [{ code: 'something_new' }, authErrors.generic],
+    [{ code: 'toString' }, authErrors.generic],
     [{ code: null }, authErrors.generic],
     [null, authErrors.generic],
   ])('maps %o', (error, message) => {
     expect(authErrorMessage(error)).toBe(message);
+  });
+});
+
+describe('auth error keys', () => {
+  it('maps codes to copy keys', () => {
+    expect(authErrorKey({ code: '23505' })).toBe('rfcTaken');
+    expect(authErrorKey(undefined)).toBe('generic');
+  });
+
+  it('accepts only known keys from untrusted input', () => {
+    expect(isAuthErrorKey('rfcTaken')).toBe(true);
+    for (const value of ['toString', '__proto__', 'otra cosa', undefined, ['rfcTaken']]) {
+      expect(isAuthErrorKey(value)).toBe(false);
+    }
   });
 });

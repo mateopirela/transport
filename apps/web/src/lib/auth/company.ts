@@ -2,7 +2,8 @@ import 'server-only';
 
 import { companyFormSchema, type CompanyFormValues } from '@transport/shared';
 
-import { authErrorMessage } from '../auth-errors';
+import { authErrorKey, type AuthErrorKey } from '../auth-errors';
+import { paths } from '../routing';
 import type { Supabase } from '../viewer';
 
 /**
@@ -17,7 +18,7 @@ export const PENDING_COMPANY_KEY = 'pending_company';
 export async function createCompany(
   supabase: Supabase,
   company: CompanyFormValues,
-): Promise<{ error?: string }> {
+): Promise<{ error?: AuthErrorKey }> {
   const { error } = await supabase.rpc('create_company', {
     p_legal_name: company.legalName,
     p_rfc: company.rfc,
@@ -25,7 +26,7 @@ export async function createCompany(
     p_contact_email: company.contactEmail,
     p_contact_phone: company.contactPhone,
   });
-  if (error) return { error: authErrorMessage(error) };
+  if (error) return { error: authErrorKey(error) };
   // Best effort: a stale copy is harmless because the RPC refuses a second company.
   await supabase.auth.updateUser({ data: { [PENDING_COMPANY_KEY]: null } });
   return {};
@@ -43,17 +44,23 @@ export async function pendingCompany(
 
 /**
  * After the first sign-in (email confirmed), registers the company saved at
- * sign-up. Failures (e.g. a taken RFC) are left for /completar-registro,
- * which shows the form again so the user can fix the data.
+ * sign-up. Returns the error key when it fails (e.g. a taken RFC), so the
+ * caller can send the user to /completar-registro with the reason.
  */
-export async function registerPendingCompany(supabase: Supabase): Promise<void> {
+export async function registerPendingCompany(supabase: Supabase): Promise<AuthErrorKey | null> {
   const pending = await pendingCompany(supabase);
-  if (!pending) return;
+  if (!pending) return null;
   const { data: profile } = await supabase
     .from('profiles')
     .select('role, company_id')
     .eq('id', pending.userId)
     .maybeSingle();
-  if (profile?.role !== 'shipper' || profile.company_id) return;
-  await createCompany(supabase, pending.company);
+  if (profile?.role !== 'shipper' || profile.company_id) return null;
+  const { error } = await createCompany(supabase, pending.company);
+  return error ?? null;
+}
+
+/** /completar-registro showing why the automatic registration failed. */
+export function completeCompanyPath(error: AuthErrorKey): string {
+  return `${paths.completeCompany}?error=${error}`;
 }

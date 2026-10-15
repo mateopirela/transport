@@ -31,17 +31,29 @@ export function AppShell({
             <span className="hidden text-navy-foreground/75 sm:inline">
               {viewer.company?.legalName ?? viewer.fullName}
             </span>
-            <form action={signOut}>
-              <Button type="submit" variant="ghost" size="sm" className="hover:bg-white/10">
-                {shellCopy.signOut}
-              </Button>
-            </form>
+            <SignOutButton variant="ghost" className="hover:bg-white/10" />
           </div>
         </div>
         <div className="h-0.5 bg-accent" />
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
     </div>
+  );
+}
+
+export function SignOutButton({
+  variant,
+  className,
+}: {
+  variant: 'ghost' | 'link';
+  className?: string;
+}) {
+  return (
+    <form action={signOut}>
+      <Button type="submit" variant={variant} size="sm" className={className}>
+        {shellCopy.signOut}
+      </Button>
+    </form>
   );
 }
 

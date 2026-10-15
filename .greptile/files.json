@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "path": "docs/plan-v1.md",
+      "description": "Block-by-block implementation plan: lifecycle, definition of done (§0.3), conventions (§0.4), architecture and data model (§1), and the scope of every block (§2)."
+    },
+    {
+      "path": "docs/decisiones.md",
+      "description": "Decision log (D01, D02, ...). Confirmed decisions are binding for every PR."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "description": "Contribution conventions: language, money, dates, geography, IDs, soft delete, commits and PR template."
+    }
+  ]
+}

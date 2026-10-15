@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Single source of truth for versions shared by several workspaces.
+catalog:
+  typescript: 6.0.3
+  vitest: 5.0.4

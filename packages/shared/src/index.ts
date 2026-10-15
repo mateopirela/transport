@@ -1,0 +1,7 @@
+// Shared domain package. B02 adds enums, state machines, zod schemas,
+// formatters and copy; B01 adds the generated database types.
+
+/** Locale, currency and time zone fixed for V1 (D02). */
+export const APP_LOCALE = 'es-MX';
+export const APP_CURRENCY = 'MXN';
+export const APP_TIME_ZONE = 'America/Mexico_City';

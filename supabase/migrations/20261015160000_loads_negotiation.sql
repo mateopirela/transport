@@ -699,13 +699,27 @@ begin
     raise exception 'company is not approved' using errcode = '42501';
   end if;
 
-  -- Lock order: load, then offers (shared by every RPC of this file).
-  select * into v_load from public.loads where id = p_load_id for update;
-  if not found or v_load.archived_at is not null then
+  -- Authorize before locking: a carrier may only touch loads that are open or
+  -- that it already negotiated, so it can never lock other shippers' drafts.
+  -- The status is only revealed to carriers that negotiated the load.
+  if not exists (
+    select 1 from public.loads l
+    where l.id = p_load_id
+      and l.archived_at is null
+      and (
+        l.status in ('published', 'negotiating')
+        or exists (
+          select 1 from public.negotiations n where n.load_id = l.id and n.carrier_company_id = v_carrier_id
+        )
+      )
+  ) then
     raise exception 'load not found' using errcode = '42501';
   end if;
+
+  -- Lock order: load, then offers (shared by every RPC of this file). The
+  -- status is re-read under the lock (it may have changed while waiting).
+  select * into v_load from public.loads where id = p_load_id for update;
   if v_load.status not in ('published', 'negotiating') then
-    -- Only reveal the status to carriers that can still see the load.
     if not exists (
       select 1 from public.negotiations n where n.load_id = v_load.id and n.carrier_company_id = v_carrier_id
     ) then
@@ -969,8 +983,10 @@ alter table public.negotiations enable row level security;
 alter table public.offers enable row level security;
 
 -- loads: the owner shipper; approved carriers while the load is open; the
--- carriers that negotiated it; admins. The negotiations subquery is filtered by
--- the negotiations policy, which never reads loads (no recursion).
+-- carriers that negotiated it until another carrier wins it (losing carriers
+-- do not see the winner nor the agreed price); admins. The negotiations
+-- subquery is filtered by the negotiations policy, which never reads loads (no
+-- recursion).
 create policy loads_select
 on public.loads
 for select
@@ -986,9 +1002,12 @@ using (
         and archived_at is null
         and (select public.is_company_approved())
       )
-      or exists (
-        select 1 from public.negotiations n
-        where n.load_id = loads.id and n.carrier_company_id = (select public.auth_fleet_company_id())
+      or (
+        (carrier_company_id is null or carrier_company_id = (select public.auth_fleet_company_id()))
+        and exists (
+          select 1 from public.negotiations n
+          where n.load_id = loads.id and n.carrier_company_id = (select public.auth_fleet_company_id())
+        )
       )
     )
   )

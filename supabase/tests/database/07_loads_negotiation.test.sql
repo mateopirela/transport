@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(77);
+select plan(79);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -407,8 +407,20 @@ select throws_ok(
   $$ select public.make_offer(tests.val('load1'), 100) $$, '55000', null, 'a contracted load accepts no offers'
 );
 select is(
-  (select status::text from public.loads where id = tests.val('load1')), 'contracted',
-  'a carrier that negotiated the load still sees it'
+  (select count(*) from public.loads where id = tests.val('load1')), 0::bigint,
+  'a losing carrier no longer sees the load (nor the winner or the agreed price)'
+);
+select results_eq(
+  $$ select status::text, status_reason from public.offers where id = tests.val('offerB1b') $$,
+  $$ values ('rejected', 'other_offer_accepted') $$,
+  'a losing carrier still sees why its offer was closed'
+);
+
+select tests.login('a5000000-0000-4000-8000-000000000004');
+select results_eq(
+  $$ select status::text, agreed_price_cents from public.loads where id = tests.val('load1') $$,
+  $$ values ('contracted', 3150000::bigint) $$,
+  'the winning carrier sees the contracted load and the agreed price'
 );
 
 select tests.login('a5000000-0000-4000-8000-000000000006');

@@ -158,7 +158,7 @@ describe('acceptPendingInvitation', () => {
 
 describe('secure storage failures', () => {
   const broken = (store: Partial<PendingInvitationStore>) => {
-    const { actions, backend } = setup();
+    const { backend } = setup();
     const pending: PendingInvitationStore = {
       get: async () => null,
       set: async () => undefined,

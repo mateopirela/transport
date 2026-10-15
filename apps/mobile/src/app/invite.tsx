@@ -47,12 +47,15 @@ function OperatorSignUp({ initialCode }: { initialCode: string }) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Saving the code before switching to sign-in.
+  const [leaving, setLeaving] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   const set = (field: keyof typeof values) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
 
   async function submit() {
+    if (submitting || leaving) return;
     setFormError(null);
     const parsed = validateForm(operatorSignUpSchema, values);
     setErrors(parsed.ok ? {} : parsed.errors);
@@ -66,8 +69,19 @@ function OperatorSignUp({ initialCode }: { initialCode: string }) {
 
   /** Operators who already have an account sign in; the code waits for them. */
   async function signInInstead() {
+    if (submitting || leaving) return;
+    setFormError(null);
     const parsed = invitationCodeField.safeParse(values.invitationCode);
-    if (parsed.success) await actions.rememberInvitation(parsed.data);
+    if (parsed.success) {
+      setLeaving(true);
+      const saved = await actions.rememberInvitation(parsed.data);
+      setLeaving(false);
+      // Without the saved code the operator would have to find it again.
+      if (!saved.ok) {
+        setFormError(mobileErrorCopy[saved.error]);
+        return;
+      }
+    }
     router.replace('/sign-in');
   }
 
@@ -127,8 +141,19 @@ function OperatorSignUp({ initialCode }: { initialCode: string }) {
         autoComplete="new-password"
         textContentType="newPassword"
       />
-      <Button label={copy.createAccountAction} onPress={submit} loading={submitting} />
-      <Button label={copy.haveAccountAction} variant="link" onPress={signInInstead} />
+      <Button
+        label={copy.createAccountAction}
+        onPress={submit}
+        loading={submitting}
+        disabled={leaving}
+      />
+      <Button
+        label={copy.haveAccountAction}
+        variant="link"
+        onPress={signInInstead}
+        loading={leaving}
+        disabled={submitting}
+      />
     </Screen>
   );
 }

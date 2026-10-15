@@ -30,7 +30,15 @@ export function InvitationSection({
   pending: InvitationRow | null;
   onChanged: () => Promise<void>;
 }) {
-  const [issued, setIssued] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [created, setCreated] = useState<{
+    invitationId: string;
+    code: string;
+    expiresAt: string;
+  } | null>(null);
+  // Show the code only while it is still the pending invitation: once it is
+  // revoked (new code, cancel, or the operator's email changed) or expires,
+  // it can no longer be accepted and must not be shared.
+  const issued = created && pending?.id === created.invitationId ? created : null;
   const [busy, setBusy] = useState<'create' | 'revoke' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,12 +56,12 @@ export function InvitationSection({
   }
 
   const create = () =>
-    run('create', async () => setIssued(await createInvitation(client, operatorId)));
+    run('create', async () => setCreated(await createInvitation(client, operatorId)));
 
   const revoke = (invitationId: string) =>
     run('revoke', async () => {
       await revokeInvitation(client, invitationId);
-      setIssued(null);
+      setCreated(null);
     });
 
   function share(code: string) {

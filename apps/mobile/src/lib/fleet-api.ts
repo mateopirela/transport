@@ -256,11 +256,11 @@ export async function archiveOperator(client: Supabase, id: string): Promise<voi
 export async function createInvitation(
   client: Supabase,
   operatorId: string,
-): Promise<{ code: string; expiresAt: string }> {
+): Promise<{ invitationId: string; code: string; expiresAt: string }> {
   const rows = check(await client.rpc('create_operator_invitation', { p_operator_id: operatorId }));
   const row = rows[0];
   if (!row) throw new Error('create_operator_invitation returned no row');
-  return { code: row.code, expiresAt: row.expires_at };
+  return { invitationId: row.invitation_id, code: row.code, expiresAt: row.expires_at };
 }
 
 export async function revokeInvitation(client: Supabase, invitationId: string): Promise<void> {

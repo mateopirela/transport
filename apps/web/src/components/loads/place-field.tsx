@@ -39,15 +39,19 @@ export function PlaceField({
   const container = useRef<HTMLDivElement>(null);
   const id = `field-${name}`;
 
+  // A failed or incomplete pick clears the field: the previous place must not
+  // be saved silently in its place.
   const onSelect = useEffectEvent((place: PlaceValue | null, problem: string | null) => {
     setIssue(problem);
-    if (place) onChange(place);
+    onChange(place);
   });
 
   useEffect(() => {
     if (!key) return;
     let cancelled = false;
     let element: google.maps.places.PlaceAutocompleteElement | null = null;
+    // Only the latest pick may update the field (details load asynchronously).
+    let latest = 0;
     loadGoogleMaps(key)
       .then(() => google.maps.importLibrary('places'))
       .then(({ PlaceAutocompleteElement }) => {
@@ -55,6 +59,9 @@ export function PlaceField({
         element = new PlaceAutocompleteElement({ includedRegionCodes: ['mx'] });
         element.id = id;
         element.addEventListener('gmp-select', async (event) => {
+          const request = ++latest;
+          const current = () => !cancelled && request === latest;
+          onSelect(null, null);
           try {
             const { placePrediction } = event as google.maps.places.PlacePredictionSelectEvent;
             const { place } = await placePrediction.toPlace().fetchFields({
@@ -67,9 +74,9 @@ export function PlaceField({
               lng: place.location?.lng(),
               addressComponents: place.addressComponents,
             });
-            onSelect(picked, picked ? null : c.placeIncomplete);
+            if (current()) onSelect(picked, picked ? null : c.placeIncomplete);
           } catch {
-            onSelect(null, c.placeError);
+            if (current()) onSelect(null, c.placeError);
           }
         });
         container.current.append(element);

@@ -3,6 +3,43 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          company_id: string | null;
+          id: string;
+          new_data: Json | null;
+          occurred_at: string;
+          old_data: Json | null;
+          record_id: string | null;
+          table_name: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          company_id?: string | null;
+          id?: string;
+          new_data?: Json | null;
+          occurred_at?: string;
+          old_data?: Json | null;
+          record_id?: string | null;
+          table_name: string;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          company_id?: string | null;
+          id?: string;
+          new_data?: Json | null;
+          occurred_at?: string;
+          old_data?: Json | null;
+          record_id?: string | null;
+          table_name?: string;
+        };
+        Relationships: [];
+      };
       companies: {
         Row: {
           archived_at: string | null;
@@ -52,6 +89,134 @@ export interface Database {
         };
         Relationships: [];
       };
+      document_requirements: {
+        Row: {
+          archived_at: string | null;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          code: string;
+          company_type?: Database['public']['Enums']['company_type'] | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_required?: boolean;
+          name: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry?: boolean;
+          sort_order?: number;
+          taxpayer_type?: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          code?: string;
+          company_type?: Database['public']['Enums']['company_type'] | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_required?: boolean;
+          name?: string;
+          owner_type?: Database['public']['Enums']['document_owner_type'];
+          requires_expiry?: boolean;
+          sort_order?: number;
+          taxpayer_type?: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      documents: {
+        Row: {
+          archived_at: string | null;
+          company_id: string;
+          created_at: string;
+          expires_at: string | null;
+          file_name: string | null;
+          id: string;
+          mime_type: string | null;
+          owner_id: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requirement_id: string;
+          review_notes: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          size_bytes: number | null;
+          status: Database['public']['Enums']['verification_status'];
+          storage_path: string;
+          submitted_by: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          company_id: string;
+          created_at?: string;
+          expires_at?: string | null;
+          file_name?: string | null;
+          id?: string;
+          mime_type?: string | null;
+          owner_id: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requirement_id: string;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          size_bytes?: number | null;
+          status?: Database['public']['Enums']['verification_status'];
+          storage_path: string;
+          submitted_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          company_id?: string;
+          created_at?: string;
+          expires_at?: string | null;
+          file_name?: string | null;
+          id?: string;
+          mime_type?: string | null;
+          owner_id?: string;
+          owner_type?: Database['public']['Enums']['document_owner_type'];
+          requirement_id?: string;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          size_bytes?: number | null;
+          status?: Database['public']['Enums']['verification_status'];
+          storage_path?: string;
+          submitted_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'documents_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'documents_requirement_id_fkey';
+            columns: ['requirement_id'];
+            isOneToOne: false;
+            referencedRelation: 'document_requirements';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           company_id: string | null;
@@ -99,6 +264,30 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['user_role'];
       };
+      company_missing_requirements: {
+        Args: { p_company_id: string };
+        Returns: {
+          archived_at: string | null;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'document_requirements';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       create_company: {
         Args: {
           p_contact_email?: string;
@@ -109,11 +298,48 @@ export interface Database {
         };
         Returns: string;
       };
+      document_owner_company_id: {
+        Args: {
+          p_owner_id: string;
+          p_owner_type: Database['public']['Enums']['document_owner_type'];
+        };
+        Returns: string;
+      };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
+      review_company: {
+        Args: { p_company_id: string; p_decision: string; p_notes?: string };
+        Returns: Database['public']['Enums']['verification_status'];
+      };
+      review_document: {
+        Args: {
+          p_decision: string;
+          p_document_id: string;
+          p_expires_at?: string;
+          p_notes?: string;
+        };
+        Returns: Database['public']['Enums']['verification_status'];
+      };
+      submit_document: {
+        Args: {
+          p_expires_at?: string;
+          p_file_name?: string;
+          p_owner_id: string;
+          p_owner_type: Database['public']['Enums']['document_owner_type'];
+          p_requirement_id: string;
+          p_storage_path: string;
+        };
+        Returns: string;
+      };
+      taxpayer_type_for_rfc: {
+        Args: { p_rfc: string };
+        Returns: Database['public']['Enums']['taxpayer_type'];
+      };
     };
     Enums: {
       company_type: 'shipper' | 'carrier';
+      document_owner_type: 'company' | 'vehicle' | 'operator';
+      taxpayer_type: 'moral' | 'fisica';
       user_role: 'shipper' | 'carrier' | 'operator' | 'admin';
       verification_status: 'pending_review' | 'approved' | 'rejected' | 'expired' | 'suspended';
     };
@@ -226,6 +452,8 @@ export const Constants = {
   public: {
     Enums: {
       company_type: ['shipper', 'carrier'],
+      document_owner_type: ['company', 'vehicle', 'operator'],
+      taxpayer_type: ['moral', 'fisica'],
       user_role: ['shipper', 'carrier', 'operator', 'admin'],
       verification_status: ['pending_review', 'approved', 'rejected', 'expired', 'suspended'],
     },

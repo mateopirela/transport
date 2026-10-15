@@ -11,17 +11,22 @@
 
 ```
 plan (este doc) ─▶ rama v1/<id>-<slug> ─▶ implementación + tests ─▶ checks locales
-     ─▶ push + PR (plantilla) ─▶ CI ─▶ revisión de Greptile ─▶ corrección de hallazgos (máx. 3 rondas)
-     ─▶ gate de merge (D14) ─▶ merge a main ─▶ desbloquea los bloques dependientes
+     ─▶ push + PR (plantilla) ─▶ CI verde ─▶ revisión de Greptile
+          ├─ aprobado ─────────────────────────────────▶ merge a main ─▶ desbloquea los dependientes
+          └─ no aprobado ─▶ corregir ─▶ push ─▶ revisión de Greptile de nuevo (se repite el ciclo)
 ```
 
 - **Rama:** `v1/B07-chat-schema`. **Título del PR:** `[B07] Chat y notificaciones: esquema`.
 - **Tamaño objetivo:** menos de ~800 líneas cambiadas por PR, sin contar archivos generados ni lockfiles. Si un bloque crece de más, se divide en `B07a`/`B07b`.
 - **Un bloque solo toca su alcance.** Si encuentra algo fuera de alcance, lo anota en la sección "Seguimiento" del PR y no lo arregla ahí.
-- **Revisión de Greptile:** usa la app de GitHub sobre el PR, o el CLI (`greptile:review`) sobre la rama. El agente debe responder **cada** comentario: lo corrige o explica por qué no aplica. Un hallazgo de severidad alta sin resolver bloquea el merge.
-- **Gate de merge (D14, pendiente):**
-  - Opción A, aprobación humana: Mateo aprueba cada PR.
-  - Opción B, auto-merge: si CI está verde y Greptile no deja hallazgos sin resolver, se hace merge solo. En los bloques marcados 🔒 siempre aprueba un humano.
+- **Revisión de Greptile:** la hace la app de GitHub sobre el PR (Greptile está activado en el repo). El CLI (`greptile review`) sirve para revisar la rama antes de abrir el PR y llegar más limpio. El agente responde **cada** comentario: lo corrige o explica en el hilo por qué no aplica.
+- **Gate de merge (D14):** **Greptile decide.**
+  - Si Greptile **aprueba**, se hace merge (squash) a `main` y se borra la rama.
+  - Si Greptile **no aprueba**, el agente corrige, hace push y pide una nueva revisión (comentario `@greptileai review`). El ciclo se repite hasta que apruebe.
+  - "Aprobado" significa que la revisión más reciente de Greptile no deja comentarios sin resolver y su puntuación de confianza es de 4/5 o más.
+  - Si después de **5 rondas** sigue sin aprobar, o si el agente y Greptile no se ponen de acuerdo en un hallazgo, el PR se detiene y se escala a Mateo, sin hacer merge.
+  - CI en verde es requisito previo: no se pide revisión con CI en rojo.
+- **Bloques 🔒:** tienen **revisión reforzada**. Se pide a Greptile con instrucciones extra de seguridad (`--instructions` / `@greptileai` con foco en RLS, concurrencia y privacidad) y el agente corre también `/security-review` antes de abrir el PR. El gate sigue siendo Greptile.
 
 ### 0.2 Olas y paralelismo
 
@@ -51,7 +56,7 @@ Las pistas web (Ola 3) y móvil (Ola 4) corren **en paralelo** cuando las Olas 1
 - [ ] Los tipos de BD están regenerados (`pnpm db:types`) si cambió el esquema.
 - [ ] No se agregan secretos al repo. Las variables nuevas se documentan en `.env.example`.
 - [ ] La descripción del PR usa la plantilla: qué, por qué, cómo probar, capturas, riesgos y seguimiento.
-- [ ] Greptile no deja hallazgos sin resolver.
+- [ ] Greptile aprueba el PR (D14).
 
 ### 0.4 Convenciones
 
@@ -183,7 +188,7 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 #### B04 · Flota
 - **Depende de:** B01.
 - **Alcance:**
-  - `vehicles`, `operators`, `operator_invitations` (código o enlace de un solo uso con expiración), `carrier_routes` y `vehicle_availability`.
+  - `vehicles`, `operators`, `operator_invitations` (código o enlace de un solo uso con expiración, ligado al email del operador; D15: el operador crea su contraseña al aceptar), `carrier_routes` y `vehicle_availability`.
   - RPC `accept_operator_invitation`.
   - Un transportista solo administra su flota. Un operador ve su propio perfil y la unidad que tiene asignada.
   - Caso "hombre-camión" (D13): un usuario `carrier` puede tener también un registro de operador.
@@ -332,7 +337,7 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 - **Alcance:**
   - Expo con Expo Router; `eas.json` con perfiles `development`, `preview` y `production`. Desde el inicio se usa **dev build**, porque la ubicación en segundo plano no corre en Expo Go.
   - Supabase con sesión guardada en `expo-secure-store`.
-  - Login, registro de transportista y "unirme con invitación" para operadores.
+  - Login con email y contraseña, registro de transportista y "unirme con invitación" para operadores (abre el enlace, confirma email y crea contraseña; D15).
   - Navegación por rol (tabs del transportista como en el mockup del deck: Inicio, Unidades, Cargas, Viajes, Más; vista de operador).
   - Registro de push token. Manejo offline básico (banner sin conexión).
 - **Aceptación:** builds de desarrollo para iOS y Android compilan; el login funciona contra Supabase local.
@@ -439,9 +444,9 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 
 | Qué | Para qué bloque | Responsable |
 |---|---|---|
-| Docker Desktop, Node LTS, pnpm, Supabase CLI y GitHub CLI en la máquina | B00 y B01 | Mateo |
-| Greptile instalado en el repo `mateopirela/transport` (app de GitHub) o CLI autenticado | Todos | Mateo |
-| Decidir D14 (gate de merge) y D15 (acceso de operadores) | B00, B04 y B17 | Mateo + JP |
+| ✅ Docker (Colima), Node, pnpm, Supabase CLI y GitHub CLI en la máquina | B00 y B01 | Mateo |
+| ✅ CLI de Greptile con sesión iniciada · ⏳ Greptile activado en el repo `mateopirela/transport` | Todos | Mateo |
+| ✅ D14 (gate de merge) y D15 (acceso de operadores) decididos | B00, B04 y B17 | Mateo |
 | Cuenta de Expo/EAS | B17 | Mateo |
 | Clave de Google Maps Platform con facturación (Places, Maps JS, Maps SDK y Routes) | B08, B13 y B19 | Mateo |
 | Lista oficial de documentos por perfil (D16) | Reemplaza la seed de B03; no bloquea | JP |

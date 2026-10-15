@@ -17,7 +17,7 @@ Cada decisión tiene fecha y estado. Si algo cambia, se agrega una entrada nueva
 | D11 | 2026-10-14 | Cada evento del viaje se guarda con **hora y ubicación** (llegada, inicio y fin de carga y descarga), para entrenar después la predicción de disponibilidad | Confirmada |
 | D12 | 2026-10-14 | La lista de documentos requeridos se guarda **como datos** (tabla de requisitos) y no fija en el código, para cargar después la lista de JP sin migraciones de lógica | Confirmada |
 | D13 | 2026-10-14 | Un transportista independiente ("hombre-camión") puede registrarse **también como operador** de su propia empresa | Propuesta |
-| D14 | — | Gate de merge de los PR: ¿aprobación humana o auto-merge con CI verde + Greptile limpio? | Pendiente |
-| D15 | — | Acceso de operadores: ¿email + contraseña con invitación, u OTP por SMS (tiene costo)? | Pendiente |
+| D14 | 2026-10-14 | Gate de merge: **se hace merge cuando Greptile aprueba el PR.** Si no lo aprueba, se corrige y se vuelve a revisar hasta que lo apruebe. No hay aprobación humana por PR | Confirmada |
+| D15 | 2026-10-14 | Los operadores entran con **email y contraseña mediante invitación** de su transportista. No hay OTP por SMS | Confirmada |
 | D16 | — | Lista oficial de documentos legales por perfil (JP) | Pendiente |
 | D17 | — | ¿Integrar la API del GPS de la flota de JP? (V1 usa la ubicación del teléfono) | Pendiente |

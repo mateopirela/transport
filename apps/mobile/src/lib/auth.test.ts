@@ -116,7 +116,10 @@ describe('acceptPendingInvitation', () => {
   it('accepts the stored code once and clears it', async () => {
     const { actions, backend, pending, stored } = setup();
     await pending.set('ABCDEFGH23456789');
-    expect(await actions.acceptPendingInvitation()).toEqual({ ok: true, value: undefined });
+    expect(await actions.acceptPendingInvitation()).toEqual({
+      code: 'ABCDEFGH23456789',
+      result: { ok: true, value: undefined },
+    });
     expect(backend.acceptInvitation).toHaveBeenCalledWith('ABCDEFGH23456789');
     expect(stored()).toBeNull();
   });
@@ -133,7 +136,7 @@ describe('acceptPendingInvitation', () => {
       });
       await pending.set('ABCDEFGH23456789');
       const result = await actions.acceptPendingInvitation();
-      expect(result?.ok).toBe(false);
+      expect(result?.result.ok).toBe(false);
       expect(stored()).toBeNull();
     }
   });
@@ -145,8 +148,60 @@ describe('acceptPendingInvitation', () => {
       }),
     });
     await pending.set('ABCDEFGH23456789');
-    expect(await actions.acceptPendingInvitation()).toEqual({ ok: false, error: 'network' });
+    expect(await actions.acceptPendingInvitation()).toEqual({
+      code: 'ABCDEFGH23456789',
+      result: { ok: false, error: 'network' },
+    });
     expect(stored()).toBe('ABCDEFGH23456789');
+  });
+});
+
+describe('secure storage failures', () => {
+  const broken = (store: Partial<PendingInvitationStore>) => {
+    const { actions, backend } = setup();
+    const pending: PendingInvitationStore = {
+      get: async () => null,
+      set: async () => undefined,
+      clear: async () => undefined,
+      ...store,
+    };
+    return { actions: createAuthActions(backend, pending, { redirectTo: 'x' }), backend };
+  };
+  const boom = async (): Promise<never> => {
+    throw new Error('Keychain unavailable');
+  };
+
+  it('returns a handled error instead of throwing', async () => {
+    const { actions, backend } = broken({ set: boom });
+    expect(await actions.signUpOperator(operator)).toEqual({ ok: false, error: 'unknown' });
+    expect(backend.signUp).not.toHaveBeenCalled();
+    expect(
+      await broken({ clear: boom }).actions.signUpCarrier({
+        email: 'c@x.mx',
+        password: 'camion2026',
+        fullName: 'Ana',
+        phone: '8112345678',
+      }),
+    ).toEqual({ ok: false, error: 'unknown' });
+  });
+
+  it('treats an unreadable stored code as no code', async () => {
+    expect(await broken({ get: boom }).actions.acceptPendingInvitation()).toBeNull();
+  });
+
+  it('still accepts and signs out when the code cannot be cleared', async () => {
+    const { actions, backend } = broken({ clear: boom });
+    expect(await actions.acceptInvitation('ABCDEFGH23456789')).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    await actions.signOut();
+    expect(backend.signOut).toHaveBeenCalled();
+  });
+
+  it('turns a rejected backend call into a handled error', async () => {
+    const { actions } = setup({ signIn: boom });
+    expect(await actions.signIn('a@b.mx', 'x')).toEqual({ ok: false, error: 'unknown' });
   });
 });
 

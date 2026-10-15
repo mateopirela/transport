@@ -42,47 +42,71 @@ export type Result<T = void> = { ok: true; value: T } | { ok: false; error: Mobi
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
 const fail = (error: unknown): Result<never> => ({ ok: false, error: toErrorKey(error) });
 
+/** Runs an action so that a thrown error (e.g. SecureStore) becomes a handled result. */
+async function guarded<T>(action: () => Promise<Result<T>>): Promise<Result<T>> {
+  try {
+    return await action();
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 export type SignUpOutcome = 'signed_in' | 'check_email';
+
+/** Outcome of accepting the stored invitation; `code` lets the UI offer a retry. */
+export interface PendingAcceptance {
+  code: string;
+  result: Result;
+}
 
 export function createAuthActions(
   backend: AuthBackend,
   pending: PendingInvitationStore,
   { redirectTo }: { redirectTo: string },
 ) {
-  async function acceptInvitation(code: string): Promise<Result> {
-    const { error } = await backend.acceptInvitation(code);
-    if (!error) {
-      await pending.clear();
-      return ok(undefined);
-    }
-    const key = toErrorKey(error);
-    // Codes that can never succeed are dropped so they are not retried forever.
-    if (isFinalInvitationError(key)) await pending.clear();
-    return { ok: false, error: key };
+  /** Forgets the stored code; a storage failure must not block the caller. */
+  const forgetPending = () => pending.clear().catch(() => undefined);
+
+  function acceptInvitation(code: string): Promise<Result> {
+    return guarded(async () => {
+      const { error } = await backend.acceptInvitation(code);
+      if (!error) {
+        await forgetPending();
+        return ok(undefined);
+      }
+      const key = toErrorKey(error);
+      // Codes that can never succeed are dropped so they are not retried forever.
+      if (isFinalInvitationError(key)) await forgetPending();
+      return { ok: false, error: key };
+    });
   }
 
   return {
-    async signIn(email: string, password: string): Promise<Result> {
-      const { error } = await backend.signIn(email, password);
-      return error ? fail(error) : ok(undefined);
+    signIn(email: string, password: string): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.signIn(email, password);
+        return error ? fail(error) : ok(undefined);
+      });
     },
 
-    async signUpCarrier(input: {
+    signUpCarrier(input: {
       email: string;
       password: string;
       fullName: string;
       phone: string;
     }): Promise<Result<SignUpOutcome>> {
-      // A previous, unfinished operator sign-up must not leak into this account.
-      await pending.clear();
-      const { error, hasSession } = await backend.signUp({
-        email: input.email,
-        password: input.password,
-        redirectTo,
-        metadata: { role: 'carrier', full_name: input.fullName, phone: input.phone },
+      return guarded(async () => {
+        // A previous, unfinished operator sign-up must not leak into this account.
+        await pending.clear();
+        const { error, hasSession } = await backend.signUp({
+          email: input.email,
+          password: input.password,
+          redirectTo,
+          metadata: { role: 'carrier', full_name: input.fullName, phone: input.phone },
+        });
+        if (error) return fail(error);
+        return ok(hasSession ? 'signed_in' : 'check_email');
       });
-      if (error) return fail(error);
-      return ok(hasSession ? 'signed_in' : 'check_email');
     },
 
     /**
@@ -90,63 +114,77 @@ export function createAuthActions(
      * account is created so it survives the e-mail confirmation; it is
      * accepted as soon as there is a session.
      */
-    async signUpOperator(input: {
+    signUpOperator(input: {
       email: string;
       password: string;
       fullName: string;
       invitationCode: string;
     }): Promise<Result<SignUpOutcome>> {
-      await pending.set(input.invitationCode);
-      const { error, hasSession } = await backend.signUp({
-        email: input.email,
-        password: input.password,
-        redirectTo,
-        metadata: { role: 'operator', full_name: input.fullName },
+      return guarded(async () => {
+        await pending.set(input.invitationCode);
+        const { error, hasSession } = await backend.signUp({
+          email: input.email,
+          password: input.password,
+          redirectTo,
+          metadata: { role: 'operator', full_name: input.fullName },
+        });
+        if (error) {
+          await forgetPending();
+          return fail(error);
+        }
+        // With a session the profile reloads and the join screen accepts the
+        // stored code (acceptPendingInvitation): a single path, so the code is
+        // never submitted twice concurrently.
+        return ok(hasSession ? 'signed_in' : 'check_email');
       });
-      if (error) {
-        await pending.clear();
-        return fail(error);
-      }
-      // With a session the profile reloads and the join screen accepts the
-      // stored code (acceptPendingInvitation): a single path, so the code is
-      // never submitted twice concurrently.
-      return ok(hasSession ? 'signed_in' : 'check_email');
     },
 
     acceptInvitation,
 
-    /** Accepts the stored invitation, if any. Null when there is none. */
-    async acceptPendingInvitation(): Promise<Result | null> {
-      const code = await pending.get();
-      return code ? acceptInvitation(code) : null;
+    /**
+     * Accepts the stored invitation, if any. Null when there is none (or it
+     * cannot be read). The code is returned so the screen can offer a retry
+     * after a transient failure, such as no connection.
+     */
+    async acceptPendingInvitation(): Promise<PendingAcceptance | null> {
+      const code = await pending.get().catch(() => null);
+      return code ? { code, result: await acceptInvitation(code) } : null;
     },
 
-    async completeEmailConfirmation(code: string): Promise<Result> {
-      const { error } = await backend.exchangeCode(code);
-      return error ? fail(error) : ok(undefined);
+    completeEmailConfirmation(code: string): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.exchangeCode(code);
+        return error ? fail(error) : ok(undefined);
+      });
     },
 
-    async createCompany(input: {
+    createCompany(input: {
       legalName: string;
       rfc: string;
       contactName: string;
       contactEmail: string;
       contactPhone: string;
     }): Promise<Result> {
-      const { error } = await backend.createCompany({
-        p_legal_name: input.legalName,
-        p_rfc: input.rfc,
-        p_contact_name: input.contactName,
-        p_contact_email: input.contactEmail,
-        p_contact_phone: input.contactPhone,
+      return guarded(async () => {
+        const { error } = await backend.createCompany({
+          p_legal_name: input.legalName,
+          p_rfc: input.rfc,
+          p_contact_name: input.contactName,
+          p_contact_email: input.contactEmail,
+          p_contact_phone: input.contactPhone,
+        });
+        return error ? fail(error) : ok(undefined);
       });
-      return error ? fail(error) : ok(undefined);
     },
 
-    /** Signs out locally even if the server call fails, and forgets any pending code. */
+    /**
+     * Forgets any pending code and signs out. The sign-out always runs, even if
+     * clearing the code fails; the backend drops the local session even when
+     * the server call fails.
+     */
     async signOut(): Promise<void> {
-      await pending.clear();
-      await backend.signOut();
+      await forgetPending();
+      await Promise.resolve(backend.signOut()).catch(() => undefined);
     },
   };
 }

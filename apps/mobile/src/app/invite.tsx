@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CheckEmail } from '../components/check-email';
 import { Button, Field, Loading, Notice, Screen, Title } from '../components/ui';
 import { invitationCodeParam } from '../lib/deep-links';
+import { isFinalInvitationError } from '../lib/errors';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import { useSession } from '../providers/session';
 
@@ -136,11 +137,22 @@ function AcceptInvitation({ initialCode }: { initialCode: string }) {
   useEffect(() => {
     if (triedPending.current) return;
     triedPending.current = true;
-    void actions.acceptPendingInvitation().then(async (result) => {
-      if (result?.ok) await refreshProfile();
-      else if (result) setFormError(mobileErrorCopy[result.error]);
-      setCheckingPending(false);
-    });
+    void (async () => {
+      try {
+        const pending = await actions.acceptPendingInvitation();
+        if (!pending) return;
+        if (pending.result.ok) {
+          await refreshProfile();
+          return;
+        }
+        setFormError(mobileErrorCopy[pending.result.error]);
+        // A transient failure (e.g. no connection) keeps the code: prefill it
+        // so the operator can retry with one tap.
+        if (!isFinalInvitationError(pending.result.error)) setCode(pending.code);
+      } finally {
+        setCheckingPending(false);
+      }
+    })();
   }, [actions, refreshProfile]);
 
   async function submit() {
@@ -149,10 +161,13 @@ function AcceptInvitation({ initialCode }: { initialCode: string }) {
     setCodeError(parsed.success ? undefined : parsed.error.issues[0]?.message);
     if (!parsed.success) return;
     setSubmitting(true);
-    const result = await actions.acceptInvitation(parsed.data);
-    if (result.ok) await refreshProfile();
-    else setFormError(mobileErrorCopy[result.error]);
-    setSubmitting(false);
+    try {
+      const result = await actions.acceptInvitation(parsed.data);
+      if (result.ok) await refreshProfile();
+      else setFormError(mobileErrorCopy[result.error]);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (checkingPending) return <Loading label={copy.accepting} />;

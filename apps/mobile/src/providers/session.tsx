@@ -35,13 +35,22 @@ interface ProfileState {
   error: boolean;
 }
 
+/** Never rejects: any failure shows the "problem" screen with a retry. */
 async function loadProfile(client: Supabase, userId: string): Promise<ProfileState> {
-  const { data, error } = await client
-    .from('profiles')
-    .select(PROFILE_SELECT)
-    .eq('id', userId)
-    .maybeSingle();
-  return { userId, profile: data ? toProfileDetails(data) : null, error: Boolean(error) || !data };
+  try {
+    const { data, error } = await client
+      .from('profiles')
+      .select(PROFILE_SELECT)
+      .eq('id', userId)
+      .maybeSingle();
+    return {
+      userId,
+      profile: data ? toProfileDetails(data) : null,
+      error: Boolean(error) || !data,
+    };
+  } catch {
+    return { userId, profile: null, error: true };
+  }
 }
 
 export function SessionProvider({

@@ -106,6 +106,66 @@ describe('createChunkedStorage', () => {
     expect(await storage.getItem('k')).toBe('old-value');
   });
 
+  /** Backend that throws once on the n-th call of `op`, simulating a crash there. */
+  function crashingAt(backend: KeyValueBackend, op: 'setItem' | 'removeItem', n: number) {
+    let calls = 0;
+    return {
+      ...backend,
+      [op]: async (key: string, value: string) => {
+        calls += 1;
+        if (calls === n) throw new Error('app killed');
+        return op === 'setItem' ? backend.setItem(key, value) : backend.removeItem(key);
+      },
+    } as KeyValueBackend;
+  }
+
+  const chunkKeys = (data: Map<string, string>) =>
+    [...data.keys()].filter((key) => /^k\.[A-Za-z0-9]+\.\d+$/u.test(key)).sort();
+
+  it('cleans chunks of a write interrupted before the manifest switch', async () => {
+    const { data, backend } = memoryBackend();
+    let n = 0;
+    const gen = () => `g${++n}`;
+    await createChunkedStorage(backend, { chunkSize: 4, newGeneration: gen }).setItem(
+      'k',
+      'aaaaaaaa',
+    );
+    // Journal (1), chunk 0 (2), chunk 1 (3), manifest (4): die at the manifest.
+    // The catch path cannot clean up either, as if the process had died.
+    const dying = crashingAt({ ...backend, removeItem: async () => undefined }, 'setItem', 4);
+    await expect(
+      createChunkedStorage(dying, { chunkSize: 4, newGeneration: gen }).setItem('k', 'bbbbbbbb'),
+    ).rejects.toThrow();
+    expect(chunkKeys(data)).toEqual(['k.g1.0', 'k.g1.1', 'k.g2.0', 'k.g2.1']);
+
+    const storage = createChunkedStorage(backend, { chunkSize: 4, newGeneration: gen });
+    expect(await storage.getItem('k')).toBe('aaaaaaaa');
+    await storage.setItem('k', 'cccc');
+    expect(chunkKeys(data)).toEqual(['k.g3.0']);
+    expect(data.has('k.journal')).toBe(false);
+  });
+
+  it('cleans the previous generation when interrupted after the switch', async () => {
+    const { data, backend } = memoryBackend();
+    let n = 0;
+    const gen = () => `g${++n}`;
+    await createChunkedStorage(backend, { chunkSize: 4, newGeneration: gen }).setItem(
+      'k',
+      'aaaaaaaa',
+    );
+    // Die while deleting the old chunks.
+    const dying = crashingAt(backend, 'removeItem', 1);
+    await expect(
+      createChunkedStorage(dying, { chunkSize: 4, newGeneration: gen }).setItem('k', 'bbbbbbbb'),
+    ).rejects.toThrow();
+
+    const storage = createChunkedStorage(backend, { chunkSize: 4 });
+    expect(await storage.getItem('k')).toBe('bbbbbbbb');
+    // Sign-out removes the current value and the orphans of the old one.
+    await storage.removeItem('k');
+    expect(data.size).toBe(0);
+  });
+
   it('treats a missing chunk as no session', async () => {
     const { data, backend } = memoryBackend();
     const storage = createChunkedStorage(backend, { chunkSize: 4, newGeneration: () => 'g' });

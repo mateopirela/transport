@@ -10,6 +10,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { PageHeading } from '@/components/app-shell';
+import { Notice } from '@/components/auth-forms';
 import { Table } from '@/components/ui/table';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
@@ -60,6 +61,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
     new_data: unknown;
   }[] = [];
   const names = new Map<string, string>();
+  let loadError = !supabase;
   if (supabase) {
     let query = supabase
       .from('audit_log')
@@ -67,14 +69,22 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
       .order('occurred_at', { ascending: false })
       .limit(LIMIT);
     if (companyId) query = query.eq('company_id', companyId);
-    entries = (await query).data ?? [];
+    const result = await query;
+    loadError = result.error !== null;
+    entries = result.data ?? [];
 
     const actorIds = [...new Set(entries.flatMap((e) => (e.actor_id ? [e.actor_id] : [])))];
-    const companyIds = [...new Set(entries.flatMap((e) => (e.company_id ? [e.company_id] : [])))];
+    const companyIds = [
+      ...new Set([
+        ...(companyId ? [companyId] : []),
+        ...entries.flatMap((e) => (e.company_id ? [e.company_id] : [])),
+      ]),
+    ];
     const [actors, companies] = await Promise.all([
       supabase.from('profiles').select('id, full_name').in('id', actorIds),
       supabase.from('companies').select('id, legal_name').in('id', companyIds),
     ]);
+    // Names are cosmetic; a failed lookup falls back to the id.
     for (const a of actors.data ?? []) names.set(a.id, a.full_name ?? a.id);
     for (const company of companies.data ?? []) names.set(company.id, company.legal_name);
   }
@@ -90,7 +100,9 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
           </Link>
         </p>
       )}
-      {entries.length === 0 ? (
+      {loadError ? (
+        <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
+      ) : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">{c.empty}</p>
       ) : (
         <Table headers={[col.date, col.actor, col.action, col.record, col.company, col.changes]}>

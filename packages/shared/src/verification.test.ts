@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  companyContactSchema,
   companyReviewSchema,
   documentReviewSchema,
   submitDocumentSchema,
@@ -167,6 +168,21 @@ describe('requirementProgress', () => {
     });
   });
 
+  it('asks for a new document when the requirement now needs an expiry date', () => {
+    const [noDate, withDate] = requirementProgress(
+      [req('a', { requires_expiry: true }), req('b', { requires_expiry: true })],
+      [
+        doc('a', { status: 'approved' }),
+        doc('b', { status: 'approved', expires_at: '2030-01-01T00:00:00Z' }),
+      ],
+      owner,
+      now,
+    );
+    expect(noDate?.state).toBe('missing');
+    expect(noDate?.document?.status).toBe('approved');
+    expect(withDate?.state).toBe('approved');
+  });
+
   it('defaults to the current time', () => {
     const [first] = requirementProgress([req('a')], [doc('a', { status: 'approved' })], owner);
     expect(first?.state).toBe('approved');
@@ -290,6 +306,38 @@ describe('verification schemas', () => {
       companyReviewSchema.safeParse({ companyId, decision: 'suspend', notes: 'Fraude' }).success,
     ).toBe(true);
     expect(companyReviewSchema.safeParse({ companyId, decision: 'delete' }).success).toBe(false);
+  });
+
+  it('validates and normalizes the company contact', () => {
+    const valid = {
+      legalName: '  Distribuidora del Norte SA de CV ',
+      contactName: 'Laura Martínez',
+      contactEmail: ' Laura@Ejemplo.MX ',
+      contactPhone: '+52 (81) 1234-5678',
+    };
+    expect(companyContactSchema.parse(valid)).toEqual({
+      legalName: 'Distribuidora del Norte SA de CV',
+      contactName: 'Laura Martínez',
+      contactEmail: 'laura@ejemplo.mx',
+      contactPhone: '8112345678',
+    });
+    const errors = (input: Record<string, unknown>) => {
+      const result = companyContactSchema.safeParse(input);
+      return result.success
+        ? {}
+        : Object.fromEntries(result.error.issues.map((i) => [i.path[0], i.message]));
+    };
+    expect(errors({ ...valid, legalName: '   ' })).toEqual({
+      legalName: 'Este campo es obligatorio.',
+    });
+    expect(errors({ ...valid, contactName: undefined })).toHaveProperty('contactName');
+    expect(errors({ ...valid, contactEmail: 'laura@' })).toHaveProperty('contactEmail');
+    expect(errors({ ...valid, contactPhone: '12345' })).toHaveProperty('contactPhone');
+    expect(errors({ ...valid, legalName: 'x'.repeat(201) })).toEqual({
+      legalName: 'Máximo 200 caracteres.',
+    });
+    expect(errors({ ...valid, contactName: 'x'.repeat(121) })).toHaveProperty('contactName');
+    expect(companyContactSchema.safeParse(null).success).toBe(false);
   });
 
   it('validates a document submission', () => {

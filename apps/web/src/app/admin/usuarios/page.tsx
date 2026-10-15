@@ -59,9 +59,18 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
         </Button>
       </form>
 
-      {result?.error && <Notice tone="error">{adminCopy.errors.generic}</Notice>}
-      {users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{c.empty}</p>
+      {!result || result.error ? (
+        <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
+      ) : users.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {c.empty}{' '}
+          {page > 1 && (
+            // An out-of-range page has no total to compute the last one; go back to the start.
+            <Link href={pageHref(1)} className="text-accent hover:underline">
+              {c.firstPage}
+            </Link>
+          )}
+        </p>
       ) : (
         <>
           <Table

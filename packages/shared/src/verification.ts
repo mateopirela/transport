@@ -96,12 +96,15 @@ export function requirementProgress<R extends Requirement, D extends SubmittedDo
         )
         .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0] ?? null;
     let state: RequirementState = document?.status ?? 'missing';
-    if (
-      state === 'approved' &&
-      document?.expires_at &&
-      Date.parse(document.expires_at) <= now.getTime()
-    ) {
-      state = 'expired';
+    if (state === 'approved' && document) {
+      if (document.expires_at && Date.parse(document.expires_at) <= now.getTime()) {
+        state = 'expired';
+      } else if (requirement.requires_expiry && !document.expires_at) {
+        // The requirement started asking for an expiry date after this
+        // approval: SQL no longer counts it (company_missing_requirements),
+        // so the owner must send a new one.
+        state = 'missing';
+      }
     }
     return { requirement, document, state };
   });

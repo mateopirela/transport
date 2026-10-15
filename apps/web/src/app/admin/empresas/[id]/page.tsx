@@ -8,6 +8,7 @@ import {
   toMexicoCityDate,
   userRoleLabels,
   uuidField,
+  type SubmittedDocument,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -27,6 +28,35 @@ const d = adminCopy.document;
 
 export const metadata: Metadata = { title: adminCopy.queue.title };
 
+/** File link and, while pending, the review form; anchored for links from the queue. */
+function DocumentControls({
+  document,
+  requiresExpiry,
+}: {
+  document: SubmittedDocument;
+  requiresExpiry: boolean;
+}) {
+  return (
+    <div id={`doc-${document.id}`} className="scroll-mt-24 space-y-3">
+      <a
+        href={adminDocumentFilePath(document.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-accent hover:underline"
+      >
+        {d.view} ↗
+      </a>
+      {document.status === 'pending_review' && (
+        <DocumentReviewForm
+          documentId={document.id}
+          requiresExpiry={requiresExpiry}
+          expiresOn={document.expires_at ? toMexicoCityDate(document.expires_at) : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
 /** Admin view of one company: data, documents (company, units, operators) and decisions. */
 export default async function AdminCompanyPage({ params }: PageProps<'/admin/empresas/[id]'>) {
   const { id } = await params;
@@ -39,7 +69,8 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
     supabase.from('profiles').select('id, full_name, role').eq('company_id', id),
   ]);
   if (!verification) notFound();
-  const { company, owners } = verification;
+  if (members.error) throw new Error(`Could not load members: ${members.error.message}`);
+  const { company, owners, unlisted } = verification;
   const [companyOwner, ...fleet] = owners;
   const summary = companyOwner ? progressSummary(companyOwner.progress) : null;
   const missing = summary ? summary.required - summary.approved : 0;
@@ -67,30 +98,37 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                 progress={owner.progress}
                 action={({ requirement, document }) =>
                   document && (
-                    <div id={`doc-${document.id}`} className="scroll-mt-24 space-y-3">
-                      <a
-                        href={adminDocumentFilePath(document.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-accent hover:underline"
-                      >
-                        {d.view} ↗
-                      </a>
-                      {document.status === 'pending_review' && (
-                        <DocumentReviewForm
-                          documentId={document.id}
-                          requiresExpiry={requirement.requires_expiry}
-                          expiresOn={
-                            document.expires_at ? toMexicoCityDate(document.expires_at) : undefined
-                          }
-                        />
-                      )}
-                    </div>
+                    <DocumentControls
+                      document={document}
+                      requiresExpiry={requirement.requires_expiry}
+                    />
                   )
                 }
               />
             </section>
           ))}
+          {unlisted.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-xl">{c.unlisted}</h2>
+              <p className="text-sm text-muted-foreground">{c.unlistedHint}</p>
+              <ul className="divide-y rounded-lg border">
+                {unlisted.map((item) => (
+                  <li key={item.document.id} className="space-y-3 p-4">
+                    <p className="font-medium">
+                      {item.requirementName}
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        {documentOwnerTypeLabels[item.ownerType]}: {item.ownerLabel}
+                      </span>
+                    </p>
+                    <DocumentControls
+                      document={item.document}
+                      requiresExpiry={item.requiresExpiry}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {company.type === 'carrier' && (
             <>
               {!fleet.some((o) => o.ownerType === 'vehicle') && (

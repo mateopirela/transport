@@ -140,6 +140,9 @@ export const adminCopy = {
           ? 'Falta aprobar 1 documento obligatorio.'
           : `Falta aprobar ${n} documentos obligatorios.`,
     audit: 'Ver auditoría de la empresa',
+    unlisted: 'Otros documentos pendientes',
+    unlistedHint:
+      'Su requisito o su unidad u operador ya no está activo, pero siguen en la cola. Revísalos aquí.',
   },
   document: {
     view: 'Ver archivo',
@@ -173,6 +176,7 @@ export const adminCopy = {
     manage: 'Gestionar empresa',
     count: (shown: number, total: number) => `Mostrando ${shown} de ${total}`,
     previous: 'Anterior',
+    firstPage: 'Volver a la primera página',
     next: 'Siguiente',
     never: 'Nunca',
   },
@@ -222,5 +226,6 @@ export const adminCopy = {
     expiryRequired: 'Este documento necesita fecha de vencimiento.',
     expired: 'La fecha de vencimiento ya pasó.',
     fileUnavailable: 'No pudimos abrir el archivo.',
+    loadFailed: 'No pudimos cargar la información. Recarga la página.',
   },
 } as const;

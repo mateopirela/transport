@@ -24,7 +24,14 @@ const timeFormat = new Intl.DateTimeFormat(APP_LOCALE, {
   hourCycle: 'h23',
 });
 
+const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
+
 function toDate(value: Date | string | number): Date {
+  // A bare YYYY-MM-DD parses as UTC midnight, which is the previous day in
+  // Mexico City. Calendar dates (e.g. a license expiry) use formatCalendarDate.
+  if (typeof value === 'string' && CALENDAR_DATE.test(value)) {
+    throw new RangeError(`Use formatCalendarDate for date-only values: ${value}`);
+  }
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) throw new RangeError(`Invalid date: ${String(value)}`);
   return date;
@@ -33,6 +40,26 @@ function toDate(value: Date | string | number): Date {
 /** Date in Mexico City, e.g. "14 oct 2026". */
 export function formatDate(value: Date | string | number): string {
   return dateFormat.format(toDate(value)).replaceAll('.', '');
+}
+
+const calendarDateFormat = new Intl.DateTimeFormat(APP_LOCALE, {
+  timeZone: 'UTC',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+/** A calendar date without time (Postgres `date`), e.g. "2099-12-31" → "31 dic 2099". */
+export function formatCalendarDate(value: string): string {
+  const match = CALENDAR_DATE.exec(value);
+  const date = match
+    ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+    : null;
+  // Reject impossible dates such as 2026-02-30 instead of rolling them over.
+  if (!date || date.toISOString().slice(0, 10) !== value) {
+    throw new RangeError(`Invalid calendar date: ${value}`);
+  }
+  return calendarDateFormat.format(date).replaceAll('.', '');
 }
 
 /** 24-hour time in Mexico City, e.g. "18:05". */

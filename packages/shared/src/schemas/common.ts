@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { validationMessages as m } from '../copy/validation';
 import { MAX_AMOUNT_CENTS } from '../money';
 
+/** Error for a missing or malformed form object; the fields carry their own messages. */
+export const formError = { error: m.required };
+
 /** Trimmed, required text with a maximum length. */
 export const requiredText = (max: number) =>
   z
@@ -14,7 +17,7 @@ export const requiredText = (max: number) =>
 /** Optional free text: empty strings become `undefined`. */
 export const optionalText = (max: number) =>
   z
-    .string()
+    .string({ error: m.invalidText })
     .trim()
     .max(max, { error: m.tooLong(max) })
     .transform((value) => (value === '' ? undefined : value))
@@ -26,7 +29,7 @@ export const enumField = <const T extends readonly [string, ...string[]]>(values
 /** A list of enum values without duplicates. */
 export const enumList = <const T extends readonly [string, ...string[]]>(values: T) =>
   z
-    .array(enumField(values))
+    .array(enumField(values), { error: m.invalidOption })
     .refine((items) => new Set(items).size === items.length, { error: m.duplicateItems });
 
 export const emailField = z
@@ -51,7 +54,7 @@ export const positiveNumber = (max: number) =>
   z
     .number({ error: m.positiveNumber })
     .positive({ error: m.positiveNumber })
-    .max(max, { error: m.positiveNumber });
+    .max(max, { error: m.numberTooHigh(max) });
 
 /** ISO 8601 timestamp with an explicit offset, as stored in `timestamptz`. */
 export const dateTimeField = z.iso.datetime({ offset: true, error: m.dateTime });
@@ -71,14 +74,17 @@ const MEXICO_BOUNDS = { minLat: 14.3, maxLat: 32.8, minLng: -118.6, maxLng: -86.
 
 /** A geocoded place (Google Places), with city and state for fast filters. */
 export const placeSchema = z
-  .object({
-    address: requiredText(300),
-    city: requiredText(120),
-    state: requiredText(120),
-    lat: z.number({ error: m.outsideMexico }),
-    lng: z.number({ error: m.outsideMexico }),
-    placeId: optionalText(300),
-  })
+  .object(
+    {
+      address: requiredText(300),
+      city: requiredText(120),
+      state: requiredText(120),
+      lat: z.number({ error: m.outsideMexico }),
+      lng: z.number({ error: m.outsideMexico }),
+      placeId: optionalText(300),
+    },
+    { error: m.placeRequired },
+  )
   .refine(
     ({ lat, lng }) =>
       lat >= MEXICO_BOUNDS.minLat &&
@@ -91,7 +97,7 @@ export type PlaceInput = z.input<typeof placeSchema>;
 
 /** A time window; `end` must be after `start`. */
 export const timeWindowSchema = z
-  .object({ start: dateTimeField, end: dateTimeField })
+  .object({ start: dateTimeField, end: dateTimeField }, { error: m.dateTime })
   .refine(({ start, end }) => Date.parse(end) > Date.parse(start), {
     error: m.windowOrder,
     path: ['end'],

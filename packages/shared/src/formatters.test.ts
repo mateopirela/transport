@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatCalendarDate,
   formatDate,
   formatDateTime,
   formatDistance,
@@ -50,8 +51,16 @@ describe('date and time in Mexico City', () => {
     expect(formatDateTime(instant)).toBe('14 oct 2026, 18:05');
   });
 
-  it('throws on invalid dates', () => {
+  it('throws on invalid dates and on date-only strings', () => {
     expect(() => formatDate('not a date')).toThrow(RangeError);
+    expect(() => formatDate('2099-12-31')).toThrow(RangeError);
+  });
+
+  it('formats calendar dates without shifting the day', () => {
+    expect(formatCalendarDate('2099-12-31')).toBe('31 dic 2099');
+    expect(formatCalendarDate('2026-01-01')).toBe('1 ene 2026');
+    expect(() => formatCalendarDate('2026-02-30')).toThrow(RangeError);
+    expect(() => formatCalendarDate('31/12/2099')).toThrow(RangeError);
   });
 });
 

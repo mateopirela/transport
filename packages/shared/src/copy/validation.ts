@@ -2,6 +2,8 @@
 
 export const validationMessages = {
   required: 'Este campo es obligatorio.',
+  invalidText: 'Escribe un texto válido.',
+  placeRequired: 'Selecciona una ubicación de la lista.',
   invalidOption: 'Selecciona una opción válida.',
   tooLong: (max: number) => `Máximo ${max} caracteres.`,
   email: 'Escribe un correo electrónico válido.',
@@ -12,6 +14,7 @@ export const validationMessages = {
   rfcDate: 'La fecha dentro del RFC no es válida.',
   rfcGeneric: 'No se aceptan RFC genéricos.',
   positiveNumber: 'Escribe una cantidad mayor a cero.',
+  numberTooHigh: (max: number) => `El valor máximo es ${max.toLocaleString('es-MX')}.`,
   wholeNumber: 'Escribe un número entero.',
   amount: 'Escribe un monto válido en pesos, con máximo 2 decimales.',
   amountTooHigh: 'El monto es demasiado alto.',

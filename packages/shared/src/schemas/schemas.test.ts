@@ -31,6 +31,57 @@ const GDL = {
   lng: -103.35,
 };
 
+describe('Spanish messages (D02)', () => {
+  const known = new Set(
+    (Object.values(m) as unknown[]).filter((value): value is string => typeof value === 'string'),
+  );
+  const isCopy = (message: string) =>
+    known.has(message) || /^(Máximo \d+ caracteres|El valor máximo es [\d,]+)\.$/u.test(message);
+
+  it.each([
+    ['load', loadFormSchema],
+    ['offer', offerFormSchema],
+    ['vehicle', vehicleFormSchema],
+    ['company', companyFormSchema],
+    ['operator', operatorFormSchema],
+  ] as const)(
+    '%s form reports only copy/ messages for incomplete or malformed input',
+    (_, schema) => {
+      const inputs: unknown[] = [
+        undefined,
+        null,
+        'texto',
+        {},
+        Object.fromEntries(
+          [
+            'origin',
+            'destination',
+            'pickupWindow',
+            'deliveryWindow',
+            'specialRequirements',
+            'features',
+            'notes',
+            'conditions',
+            'fleetNumber',
+            'tradeName',
+            'modelYear',
+            'weightKg',
+            'capacityKg',
+          ].map((key) => [key, 42]),
+        ),
+        { origin: {}, pickupWindow: {}, specialRequirements: [1], features: 'x', weightKg: 1e9 },
+      ];
+      for (const input of inputs) {
+        const result = schema.safeParse(input);
+        expect(result.success).toBe(false);
+        for (const issue of result.error?.issues ?? []) {
+          expect(isCopy(issue.message), `${issue.path.join('.')}: ${issue.message}`).toBe(true);
+        }
+      }
+    },
+  );
+});
+
 describe('common fields', () => {
   it('normalizes emails and Mexican phones', () => {
     expect(emailField.parse('  Ana@Example.COM ')).toBe('ana@example.com');

@@ -6,6 +6,7 @@ import {
   amountCentsField,
   enumField,
   enumList,
+  formError,
   onlyWhenValid,
   optionalText,
   placeSchema,
@@ -19,20 +20,23 @@ const SAME_PLACE_DEGREES = 0.01;
 
 /** Form to create or edit a load (shipper web). */
 export const loadFormSchema = z
-  .object({
-    origin: placeSchema,
-    destination: placeSchema,
-    pickupWindow: timeWindowSchema,
-    deliveryWindow: timeWindowSchema,
-    cargoType: enumField(CARGO_TYPES),
-    description: requiredText(500),
-    weightKg: positiveNumber(80_000),
-    volumeM3: positiveNumber(200).optional(),
-    unitType: enumField(UNIT_TYPES),
-    specialRequirements: enumList(SPECIAL_REQUIREMENTS).default([]),
-    proposedPriceCents: amountCentsField,
-    notes: optionalText(1000),
-  })
+  .object(
+    {
+      origin: placeSchema,
+      destination: placeSchema,
+      pickupWindow: timeWindowSchema,
+      deliveryWindow: timeWindowSchema,
+      cargoType: enumField(CARGO_TYPES),
+      description: requiredText(500),
+      weightKg: positiveNumber(80_000),
+      volumeM3: positiveNumber(200).optional(),
+      unitType: enumField(UNIT_TYPES),
+      specialRequirements: enumList(SPECIAL_REQUIREMENTS).default([]),
+      proposedPriceCents: amountCentsField,
+      notes: optionalText(1000),
+    },
+    formError,
+  )
   .refine(
     ({ pickupWindow, deliveryWindow }) =>
       Date.parse(deliveryWindow.end) > Date.parse(pickupWindow.start),

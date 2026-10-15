@@ -3,7 +3,14 @@ import { z } from 'zod';
 import { validationMessages as m } from '../copy/validation';
 import { COMPANY_TYPES } from '../enums';
 import { parseRfc } from '../rfc';
-import { emailField, enumField, onlyWhenValid, phoneField, requiredText } from './common';
+import {
+  emailField,
+  enumField,
+  formError,
+  onlyWhenValid,
+  phoneField,
+  requiredText,
+} from './common';
 
 export const PERSON_TYPES = ['moral', 'fisica'] as const;
 
@@ -18,17 +25,20 @@ export const rfcField = z.string({ error: m.rfcFormat }).transform((value, ctx) 
 
 /** Company registration (shipper web, carrier app). */
 export const companyFormSchema = z
-  .object({
-    type: enumField(COMPANY_TYPES),
-    /** Persona moral (company) or física (individual, e.g. an owner-operator, D13). */
-    personType: enumField(PERSON_TYPES),
-    legalName: requiredText(200),
-    tradeName: requiredText(200).optional(),
-    rfc: rfcField,
-    contactName: requiredText(120),
-    contactEmail: emailField,
-    contactPhone: phoneField,
-  })
+  .object(
+    {
+      type: enumField(COMPANY_TYPES),
+      /** Persona moral (company) or física (individual, e.g. an owner-operator, D13). */
+      personType: enumField(PERSON_TYPES),
+      legalName: requiredText(200),
+      tradeName: requiredText(200).optional(),
+      rfc: rfcField,
+      contactName: requiredText(120),
+      contactEmail: emailField,
+      contactPhone: phoneField,
+    },
+    formError,
+  )
   .superRefine(({ personType, rfc }, ctx) => {
     const expected = personType === 'moral' ? 12 : 13;
     if (rfc.length !== expected) {

@@ -35,6 +35,7 @@ export const mobileInviteCopy = {
   codeLabel: 'Código de invitación',
   createAccountAction: 'Crear cuenta y unirme',
   acceptAction: 'Unirme',
+  haveAccountAction: 'Ya tengo cuenta: iniciar sesión y unirme',
   accepting: 'Uniéndote a tu transportista…',
   acceptedTitle: '¡Listo!',
   pendingCodeNotice: 'Al confirmar tu correo te uniremos automáticamente a tu transportista.',

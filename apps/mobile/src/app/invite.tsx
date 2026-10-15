@@ -5,7 +5,7 @@ import {
   mobileInviteCopy as copy,
   operatorSignUpSchema,
 } from '@transport/shared';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { CheckEmail } from '../components/check-email';
@@ -36,6 +36,7 @@ export default function Invite() {
 
 function OperatorSignUp({ initialCode }: { initialCode: string }) {
   const { actions } = useSession();
+  const router = useRouter();
   const [values, setValues] = useState({
     invitationCode: initialCode,
     fullName: '',
@@ -61,6 +62,13 @@ function OperatorSignUp({ initialCode }: { initialCode: string }) {
     setSubmitting(false);
     if (!result.ok) setFormError(mobileErrorCopy[result.error]);
     else if (result.value === 'check_email') setSentTo(parsed.data.email);
+  }
+
+  /** Operators who already have an account sign in; the code waits for them. */
+  async function signInInstead() {
+    const parsed = invitationCodeField.safeParse(values.invitationCode);
+    if (parsed.success) await actions.rememberInvitation(parsed.data);
+    router.replace('/sign-in');
   }
 
   if (sentTo) {
@@ -120,6 +128,7 @@ function OperatorSignUp({ initialCode }: { initialCode: string }) {
         textContentType="newPassword"
       />
       <Button label={copy.createAccountAction} onPress={submit} loading={submitting} />
+      <Button label={copy.haveAccountAction} variant="link" onPress={signInInstead} />
     </Screen>
   );
 }

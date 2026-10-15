@@ -142,6 +142,17 @@ export function createAuthActions(
     acceptInvitation,
 
     /**
+     * Keeps an invitation code for an operator who already has an account: it
+     * is accepted on the join screen right after signing in.
+     */
+    rememberInvitation(code: string): Promise<Result> {
+      return guarded(async () => {
+        await pending.set(code);
+        return ok(undefined);
+      });
+    },
+
+    /**
      * Accepts the stored invitation, if any. Null when there is none (or it
      * cannot be read). The code is returned so the screen can offer a retry
      * after a transient failure, such as no connection.

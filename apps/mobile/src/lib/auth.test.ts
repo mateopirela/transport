@@ -106,6 +106,21 @@ describe('signUpOperator (D15)', () => {
   });
 });
 
+describe('rememberInvitation', () => {
+  it('keeps the code for an existing operator who signs in instead', async () => {
+    const { actions, backend, stored } = setup();
+    expect(await actions.rememberInvitation('ABCDEFGH23456789')).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(stored()).toBe('ABCDEFGH23456789');
+    await actions.signIn('op@x.mx', 'camion2026');
+    const accepted = await actions.acceptPendingInvitation();
+    expect(accepted?.result.ok).toBe(true);
+    expect(backend.acceptInvitation).toHaveBeenCalledWith('ABCDEFGH23456789');
+  });
+});
+
 describe('acceptPendingInvitation', () => {
   it('does nothing without a stored code', async () => {
     const { actions, backend } = setup();

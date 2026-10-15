@@ -681,6 +681,54 @@ export interface Database {
         Args: { p_rfc: string };
         Returns: Database['public']['Enums']['taxpayer_type'];
       };
+      vehicle_expired_requirements: {
+        Args: { p_vehicle_id: string };
+        Returns: {
+          archived_at: string | null;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'document_requirements';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      vehicle_missing_requirements: {
+        Args: { p_vehicle_id: string };
+        Returns: {
+          archived_at: string | null;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'document_requirements';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
     };
     Enums: {
       availability_source: 'manual' | 'trip_estimate';

@@ -1,7 +1,7 @@
 // Domain enums. Values are the English identifiers stored in Postgres; the
 // Spanish labels live in ./copy/catalogs.ts. Enums that already exist in SQL
 // come from the generated types (./db.ts) so they cannot drift; the rest must
-// match the SQL enums their blocks create (B04-B06).
+// match the SQL enums their blocks create (B04-B05).
 import { Constants } from './db';
 
 const DB_ENUMS = Constants.public.Enums;
@@ -41,20 +41,22 @@ export type OfferStatus = (typeof OFFER_STATUSES)[number];
 export const OFFER_SIDES = ['shipper', 'carrier'] as const;
 export type OfferSide = (typeof OFFER_SIDES)[number];
 
-export const TRIP_STATUSES = [
-  'pending_assignment',
-  'assigned',
-  'en_route_to_pickup',
-  'at_pickup',
-  'loading',
-  'in_transit',
-  'at_delivery',
-  'unloading',
-  'delivered',
-  'closed',
-  'cancelled',
-] as const;
+export const TRIP_STATUSES = DB_ENUMS.trip_status;
 export type TripStatus = (typeof TRIP_STATUSES)[number];
+
+/** Entries of a trip's timeline (trip_events, B06). */
+export const TRIP_EVENT_TYPES = DB_ENUMS.trip_event_type;
+export type TripEventType = (typeof TRIP_EVENT_TYPES)[number];
+
+/** Moment of the trip a photo documents (trip_evidence, B06). */
+export const EVIDENCE_STAGES = DB_ENUMS.evidence_stage;
+export type EvidenceStage = (typeof EVIDENCE_STAGES)[number];
+
+export const INCIDENT_KINDS = DB_ENUMS.incident_kind;
+export type IncidentKind = (typeof INCIDENT_KINDS)[number];
+
+export const INCIDENT_STATUSES = DB_ENUMS.incident_status;
+export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
 export const VEHICLE_KINDS = ['tractor', 'rigid', 'trailer'] as const;
 export type VehicleKind = (typeof VEHICLE_KINDS)[number];

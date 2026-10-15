@@ -82,6 +82,13 @@ returns void
 language sql
 as $$
   select extensions.dblink_exec('setup', $sql$
+    -- Accepted offers create trips (B06); their timeline is immutable, so the
+    -- guard is lifted only for this cleanup.
+    alter table public.trip_events disable trigger trip_events_immutable;
+    delete from public.trip_events
+    where trip_id in (select id from public.trips where shipper_company_id = 'c5100000-0000-4000-8000-000000000001');
+    alter table public.trip_events enable trigger trip_events_immutable;
+    delete from public.trips where shipper_company_id = 'c5100000-0000-4000-8000-000000000001';
     update public.loads
     set status = 'draft', accepted_offer_id = null, carrier_company_id = null, agreed_price_cents = null,
         contracted_at = null

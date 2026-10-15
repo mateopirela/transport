@@ -37,4 +37,7 @@ export const validationMessages = {
   uuid: 'Identificador no válido.',
   invitationCode: 'Escribe el código de invitación que te enviaron.',
   reasonRequired: 'Escribe el motivo.',
+  coordinates: 'La ubicación no es válida.',
+  fileHash: 'La huella del archivo no es válida.',
+  tooManyItems: (max: number) => `Máximo ${max} elementos por envío.`,
 } as const;

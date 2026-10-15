@@ -285,6 +285,45 @@ after insert or update or delete on public.loads
 for each row execute function public.audit_admin_action();
 
 -- ---------------------------------------------------------------------------
+-- Internal: share-lock a company row and tell whether it is approved. RPCs
+-- call it after taking the load lock, right before writing: a suspension that
+-- committed while the RPC waited is seen (the row is re-read), and one that
+-- starts later waits until the RPC commits. Share locks do not conflict with
+-- each other, so concurrent RPCs never block on it.
+-- ---------------------------------------------------------------------------
+create function public.lock_company_approved(p_company_id uuid)
+returns boolean
+language plpgsql
+set search_path = ''
+as $$
+begin
+  perform 1 from public.companies c
+  where c.id = p_company_id and c.status = 'approved' and c.archived_at is null
+  for share;
+  return found;
+end;
+$$;
+
+revoke all on function public.lock_company_approved(uuid) from public, anon, authenticated;
+
+-- Internal: fail unless the pickup window of a load is still open. Used by the
+-- RPCs that move a negotiation forward (counter, accept) while holding the
+-- load lock; rejecting and withdrawing stay possible after the deadline.
+create function public.assert_pickup_open(p_load_id uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if (select l.pickup_window_end <= now() from public.loads l where l.id = p_load_id) then
+    raise exception 'pickup window already ended' using errcode = '55000';
+  end if;
+end;
+$$;
+
+revoke all on function public.assert_pickup_open(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Internal: validate a load payload and write its fields into `p_load`.
 -- The payload is the output of loadFormSchema (packages/shared), as JSON:
 --   { origin: {address, city, state, lat, lng, placeId?}, destination: {...},
@@ -503,7 +542,7 @@ begin
   if v_load.status not in ('draft', 'published', 'negotiating') then
     raise exception 'cannot edit a load in status %', v_load.status using errcode = '55000';
   end if;
-  if v_load.status <> 'draft' and not public.is_company_approved() then
+  if v_load.status <> 'draft' and not public.lock_company_approved(v_load.shipper_company_id) then
     raise exception 'company is not approved' using errcode = '42501';
   end if;
 
@@ -571,7 +610,7 @@ begin
   if not found then
     raise exception 'load not found' using errcode = '42501';
   end if;
-  if not public.is_company_approved() then
+  if not public.lock_company_approved(v_load.shipper_company_id) then
     raise exception 'company is not approved' using errcode = '42501';
   end if;
   if v_load.status <> 'draft' then
@@ -730,6 +769,11 @@ begin
   if v_load.pickup_window_end <= now() then
     raise exception 'pickup window already ended' using errcode = '55000';
   end if;
+  -- Re-checked under the load lock: the carrier may have been suspended while
+  -- this call waited for it.
+  if not public.lock_company_approved(v_carrier_id) then
+    raise exception 'company is not approved' using errcode = '42501';
+  end if;
 
   perform public.check_offer_fields(v_carrier_id, 'carrier', p_amount_cents, v_conditions, p_vehicle_id);
 
@@ -798,7 +842,9 @@ begin
   if v_load_status not in ('published', 'negotiating') then
     raise exception 'load is no longer open (status %)', v_load_status using errcode = '55000';
   end if;
-  if p_by = 'counterparty' and not public.is_company_approved() then
+  if p_by = 'counterparty' and not public.lock_company_approved(
+    case v_caller_side when 'shipper' then v_offer.shipper_company_id else v_offer.carrier_company_id end
+  ) then
     raise exception 'company is not approved' using errcode = '42501';
   end if;
 
@@ -831,6 +877,7 @@ declare
   v_conditions text := nullif(btrim(p_conditions), '');
   v_new_id uuid;
 begin
+  perform public.assert_pickup_open(v_offer.load_id);
   perform public.check_offer_fields(v_offer.carrier_company_id, v_side, p_amount_cents, v_conditions, p_vehicle_id);
 
   update public.offers
@@ -930,12 +977,11 @@ declare
   v_uid uuid := (select auth.uid());
   v_offer public.offers := public.lock_offer_for_response(p_offer_id, 'counterparty');
 begin
-  if not exists (
-    select 1 from public.companies c
-    where c.id in (v_offer.shipper_company_id, v_offer.carrier_company_id)
-      and c.status = 'approved' and c.archived_at is null
-    having count(*) = 2
-  ) then
+  perform public.assert_pickup_open(v_offer.load_id);
+  -- Share-locks both companies (always shipper, then carrier) so neither can be
+  -- suspended between this check and the commit.
+  if not public.lock_company_approved(v_offer.shipper_company_id)
+     or not public.lock_company_approved(v_offer.carrier_company_id) then
     raise exception 'both companies must be approved to contract' using errcode = '55000';
   end if;
 

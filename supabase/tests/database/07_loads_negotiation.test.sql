@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(79);
+select plan(83);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -469,6 +469,39 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- Pickup deadline: once the pickup window ended, pending offers can only be
+-- closed (rejected or withdrawn), never countered or accepted.
+-- ---------------------------------------------------------------------------
+select tests.login('a5000000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load4', public.create_load(tests.payload());
+select public.publish_load(tests.val('load4'));
+select tests.login('a5000000-0000-4000-8000-000000000004');
+insert into tests.vals select 'offerA4', public.make_offer(tests.val('load4'), 3000000);
+select tests.login('a5000000-0000-4000-8000-000000000005');
+insert into tests.vals select 'offerB4', public.make_offer(tests.val('load4'), 3100000);
+reset role;
+update public.loads
+set pickup_window_start = now() - interval '2 hours', pickup_window_end = now() - interval '1 hour'
+where id = tests.val('load4');
+select tests.login('a5000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select throws_ok(
+  $$ select public.accept_offer(tests.val('offerA4')) $$, '55000', null,
+  'an offer cannot be accepted after the pickup window ended'
+);
+select throws_ok(
+  $$ select public.counter_offer(tests.val('offerA4'), 2900000) $$, '55000', null,
+  'an offer cannot be countered after the pickup window ended'
+);
+select lives_ok(
+  $$ select public.reject_offer(tests.val('offerB4')) $$, 'an offer can still be rejected after the pickup window'
+);
+select tests.login('a5000000-0000-4000-8000-000000000004');
+select lives_ok(
+  $$ select public.withdraw_offer(tests.val('offerA4')) $$, 'an offer can still be withdrawn after the pickup window'
+);
+
+-- ---------------------------------------------------------------------------
 -- Invariants (as table owner)
 -- ---------------------------------------------------------------------------
 reset role;
@@ -486,7 +519,9 @@ select ok(
 select ok(
   not has_function_privilege('authenticated', 'public.create_trip_for_accepted_offer(uuid)', 'execute')
   and not has_function_privilege('authenticated', 'public.apply_load_payload(public.loads, jsonb)', 'execute')
-  and not has_function_privilege('authenticated', 'public.lock_offer_for_response(uuid, text)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.lock_offer_for_response(uuid, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.lock_company_approved(uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'public.assert_pickup_open(uuid)', 'execute'),
   'internal helpers are not callable by clients'
 );
 

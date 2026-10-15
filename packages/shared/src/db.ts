@@ -914,6 +914,7 @@ export interface Database {
           isSetofReturn: false;
         };
       };
+      assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_fleet_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_operator_id: { Args: Record<PropertyKey, never>; Returns: string };
@@ -996,6 +997,7 @@ export interface Database {
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
+      lock_company_approved: { Args: { p_company_id: string }; Returns: boolean };
       lock_offer_for_response: {
         Args: { p_by: string; p_offer_id: string };
         Returns: {

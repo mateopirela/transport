@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
 
   // Relative redirects keep the host the user came from (and its cookies).
   if (!supabase || !ok) redirect(`${paths.signIn}?error=enlace`);
-  if (type !== 'recovery') {
+  // A recovery link always ends on the password form, whatever the company
+  // state: PKCE recovery links carry `code` without `type`, so check `next` too.
+  const isRecovery = type === 'recovery' || next === paths.resetPassword;
+  if (!isRecovery) {
     const companyError = await registerPendingCompany(supabase);
     if (companyError) redirect(completeCompanyPath(companyError));
   }

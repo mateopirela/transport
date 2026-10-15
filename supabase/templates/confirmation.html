@@ -2,6 +2,22 @@
 <html lang="es-MX">
   <body style="font-family: Arial, sans-serif; color: #131f33">
     <h2>Confirma tu correo</h2>
+    {{ if eq .RedirectTo "transport://auth/callback" }}
+    <p>Gracias por registrarte. Abre este enlace desde el teléfono donde creaste tu cuenta:</p>
+    <p>
+      <a
+        href="{{ .ConfirmationURL }}"
+        style="
+          background: #2f7bf0;
+          color: #ffffff;
+          padding: 12px 20px;
+          border-radius: 6px;
+          text-decoration: none;
+        "
+        >Confirmar correo</a
+      >
+    </p>
+    {{ else }}
     <p>Gracias por registrar tu empresa. Para activar tu cuenta, confirma tu correo:</p>
     <p>
       <a
@@ -16,6 +32,7 @@
         >Confirmar correo</a
       >
     </p>
+    {{ end }}
     <p>Si no creaste esta cuenta, ignora este mensaje.</p>
   </body>
 </html>

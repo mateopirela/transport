@@ -5,3 +5,7 @@ dist/
 docs/
 .next/
 next-env.d.ts
+# Expo: generated native projects and caches (see apps/mobile/.gitignore)
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/.expo/

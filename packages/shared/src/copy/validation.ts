@@ -33,4 +33,5 @@ export const validationMessages = {
   licenseExpired: 'La licencia está vencida.',
   duplicateItems: 'Hay opciones repetidas.',
   uuid: 'Identificador no válido.',
+  invitationCode: 'Escribe el código de invitación que te enviaron.',
 } as const;

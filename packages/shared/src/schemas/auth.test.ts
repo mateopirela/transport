@@ -4,8 +4,11 @@ import type { z } from 'zod';
 import { authMessages as a } from '../copy/auth';
 import { validationMessages as m } from '../copy/validation';
 import {
+  carrierSignUpSchema,
   companyFromShipperSignUp,
+  invitationCodeField,
   newPasswordSchema,
+  operatorSignUpSchema,
   passwordResetRequestSchema,
   shipperSignUpSchema,
   signInSchema,
@@ -121,6 +124,46 @@ describe('shipperSignUpSchema', () => {
       contactName: 'Ana López',
       contactEmail: 'ana@empresa.mx',
       contactPhone: '8112345678',
+    });
+  });
+});
+
+describe('mobile sign-up (B17)', () => {
+  const account = {
+    fullName: '  Juan Pérez ',
+    email: ' Juan@Example.MX ',
+    password: 'camion2026',
+    passwordConfirmation: 'camion2026',
+  };
+  const CODE = 'ABCD-EFGH-2345-6789';
+
+  it('normalizes invitation codes like the database', () => {
+    expect(invitationCodeField.parse(' abcd-efgh 2345-6789 ')).toBe('ABCDEFGH23456789');
+    for (const bad of ['', 'ABCD', 'ABCDEFGH2345678I', 'A'.repeat(17), 'ABCD$EFGH2345678']) {
+      expect(issues(invitationCodeField, bad)).toEqual({ '': m.invitationCode });
+    }
+  });
+
+  it('parses a carrier sign-up', () => {
+    expect(carrierSignUpSchema.parse({ ...account, phone: '+52 81 1234 5678' })).toEqual({
+      fullName: 'Juan Pérez',
+      email: 'juan@example.mx',
+      phone: '8112345678',
+      password: 'camion2026',
+      passwordConfirmation: 'camion2026',
+    });
+    expect(
+      issues(carrierSignUpSchema, { ...account, phone: '8112345678', passwordConfirmation: 'x2' }),
+    ).toEqual({ passwordConfirmation: a.passwordMismatch });
+  });
+
+  it('parses an operator sign-up with its invitation code', () => {
+    expect(operatorSignUpSchema.parse({ ...account, invitationCode: CODE })).toMatchObject({
+      email: 'juan@example.mx',
+      invitationCode: 'ABCDEFGH23456789',
+    });
+    expect(issues(operatorSignUpSchema, { ...account, invitationCode: '' })).toEqual({
+      invitationCode: m.invitationCode,
     });
   });
 });

@@ -11,6 +11,7 @@
     "lint:root": "eslint --max-warnings=0 *.js",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "db:types": "sh scripts/db-types.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

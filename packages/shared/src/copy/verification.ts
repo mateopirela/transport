@@ -65,6 +65,13 @@ export const onboardingCopy = {
     uploaded: 'Documento enviado. Lo revisaremos pronto.',
     chooseFile: 'Selecciona un archivo.',
   },
+  requestReview: {
+    title: '¿Ya corregiste lo necesario?',
+    description:
+      'Si tus documentos ya están en orden y corregiste los datos de la empresa, pide que revisemos tu cuenta de nuevo.',
+    submit: 'Solicitar nueva revisión',
+    pending: 'Enviando…',
+  },
   errors: {
     generic: 'No pudimos guardar el cambio. Inténtalo de nuevo.',
     upload: 'No pudimos subir el archivo. Revisa tu conexión e inténtalo de nuevo.',
@@ -101,6 +108,12 @@ export const adminCopy = {
           ? 'Falta aprobar 1 documento'
           : `Falta aprobar ${n} documentos`,
     open: 'Revisar',
+  },
+  pager: {
+    range: (from: number, to: number, total: number) => `${from}–${to} de ${total}`,
+    previous: 'Anterior',
+    next: 'Siguiente',
+    first: 'Volver a la primera página',
   },
   columns: {
     company: 'Empresa',
@@ -174,10 +187,6 @@ export const adminCopy = {
     empty: 'No hay usuarios que coincidan.',
     noCompany: 'Sin empresa',
     manage: 'Gestionar empresa',
-    count: (shown: number, total: number) => `Mostrando ${shown} de ${total}`,
-    previous: 'Anterior',
-    firstPage: 'Volver a la primera página',
-    next: 'Siguiente',
     never: 'Nunca',
   },
   audit: {

@@ -637,6 +637,10 @@ export interface Database {
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
+      request_company_review: {
+        Args: Record<PropertyKey, never>;
+        Returns: Database['public']['Enums']['verification_status'];
+      };
       review_company: {
         Args: { p_company_id: string; p_decision: string; p_notes?: string };
         Returns: Database['public']['Enums']['verification_status'];

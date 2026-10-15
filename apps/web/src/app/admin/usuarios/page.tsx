@@ -4,10 +4,12 @@ import Link from 'next/link';
 
 import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
+import { Pager } from '@/components/pager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table } from '@/components/ui/table';
 import { StatusBadge } from '@/components/verification';
+import { parsePage, withParams } from '@/lib/pagination';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -27,7 +29,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
   await requireAccess(paths.adminUsers);
   const params = await searchParams;
   const query = single(params.q);
-  const page = Math.min(Math.max(Number.parseInt(single(params.pagina), 10) || 1, 1), 1000);
+  const page = parsePage(params.pagina);
 
   const supabase = await createClient();
   const result = supabase
@@ -39,8 +41,10 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
     : null;
   const users = result?.data ?? [];
   const total = users[0]?.total_count ?? 0;
-  const pageHref = (n: number) =>
-    `${paths.adminUsers}?${new URLSearchParams({ ...(query && { q: query }), pagina: String(n) }).toString()}`;
+  const pageHref = (n: number) => withParams(paths.adminUsers, { q: query }, { pagina: n });
+  const pager = (
+    <Pager page={page} pageSize={PAGE_SIZE} shown={users.length} total={total} href={pageHref} />
+  );
 
   return (
     <>
@@ -62,15 +66,10 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
       {!result || result.error ? (
         <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
       ) : users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {c.empty}{' '}
-          {page > 1 && (
-            // An out-of-range page has no total to compute the last one; go back to the start.
-            <Link href={pageHref(1)} className="text-accent hover:underline">
-              {c.firstPage}
-            </Link>
-          )}
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{c.empty}</p>
+          {pager}
+        </div>
       ) : (
         <>
           <Table
@@ -103,19 +102,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
               </tr>
             ))}
           </Table>
-          <div className="mt-4 flex items-center gap-4 text-sm">
-            <span className="text-muted-foreground">{c.count(users.length, total)}</span>
-            {page > 1 && (
-              <Link href={pageHref(page - 1)} className="text-accent hover:underline">
-                {c.previous}
-              </Link>
-            )}
-            {page * PAGE_SIZE < total && (
-              <Link href={pageHref(page + 1)} className="text-accent hover:underline">
-                {c.next}
-              </Link>
-            )}
-          </div>
+          <div className="mt-4">{pager}</div>
         </>
       )}
     </>

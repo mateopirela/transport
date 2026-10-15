@@ -1,9 +1,11 @@
--- Admin user directory (B12): admin_list_users is admin-only, returns email
--- and company, searches literally and validates its paging arguments.
+-- Verification panel (B12): admin_list_users is admin-only, returns email
+-- and company, searches literally and validates its paging arguments;
+-- request_company_review only moves the caller's own rejected company back
+-- to pending_review.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(19);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -125,6 +127,55 @@ select throws_ok(
 select throws_ok(
   $$ select * from public.admin_list_users(null, 10, -1) $$,
   '22023', 'offset must not be negative', 'offset cannot be negative'
+);
+
+-- ---------------------------------------------------------------------------
+-- request_company_review
+-- ---------------------------------------------------------------------------
+reset role;
+select ok(
+  not has_function_privilege('anon', 'public.request_company_review()', 'execute'),
+  'anon cannot execute request_company_review'
+);
+update public.companies set status = 'rejected', status_reason = 'RFC no coincide'
+where id = 'c0000000-0000-4000-8000-00000000000a';
+set local role authenticated;
+
+-- The carrier's company is pending, not rejected.
+select tests.login('a0000000-0000-4000-8000-000000000002');
+select throws_ok(
+  $$ select public.request_company_review() $$,
+  '55000', 'cannot request a review in status pending_review',
+  'a company that is not rejected cannot request a review'
+);
+select tests.login('a0000000-0000-4000-8000-000000000003');
+select throws_ok(
+  $$ select public.request_company_review() $$,
+  '42501', 'only shipper or carrier members can request a review',
+  'an operator cannot request a review'
+);
+select tests.login('a0000000-0000-4000-8000-000000000005');
+select throws_ok(
+  $$ select public.request_company_review() $$,
+  '42501', 'only shipper or carrier members can request a review',
+  'an admin uses review_company instead'
+);
+
+select tests.login('a0000000-0000-4000-8000-000000000001');
+select is(
+  public.request_company_review(), 'pending_review'::public.verification_status,
+  'a member of a rejected company requests another review'
+);
+select results_eq(
+  $$ select status::text, status_reason from public.companies
+     where id = 'c0000000-0000-4000-8000-00000000000a' $$,
+  $$ values ('pending_review', 'RFC no coincide') $$,
+  'the company is back in review and keeps the previous reason for the reviewer'
+);
+select throws_ok(
+  $$ select public.request_company_review() $$,
+  '55000', 'cannot request a review in status pending_review',
+  'a second request fails'
 );
 
 select * from finish();

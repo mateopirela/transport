@@ -6,7 +6,7 @@ import { Notice } from '@/components/auth-forms';
 import { DocumentUpload } from '@/components/document-upload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RequirementList } from '@/components/verification';
-import { CompanyContactForm } from '@/components/verification-forms';
+import { CompanyContactForm, RequestReviewForm } from '@/components/verification-forms';
 import { paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -82,7 +82,7 @@ export default async function AccountInReviewPage() {
             { label: o.steps.review, state: docsDone ? 'current' : 'todo' },
           ]}
         />
-        {company?.status_reason && (
+        {company?.status_reason && (status === 'rejected' || status === 'suspended') && (
           <div className="mb-6">
             <Notice tone="error">
               {c.reasonLabel}: {company.status_reason}
@@ -91,6 +91,17 @@ export default async function AccountInReviewPage() {
         )}
         {company && (
           <div className="space-y-6">
+            {status === 'rejected' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{o.requestReview.title}</CardTitle>
+                  <CardDescription>{o.requestReview.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RequestReviewForm />
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle>{o.documents.title}</CardTitle>

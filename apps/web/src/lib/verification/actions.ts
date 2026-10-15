@@ -80,6 +80,17 @@ export async function registerDocument(input: unknown): Promise<{ error?: string
   return {};
 }
 
+/** Shipper: sends a rejected company back to the review queue. */
+export async function requestCompanyReview(): Promise<FormState> {
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+  // The RPC checks the role and that the caller's company is rejected.
+  const { error } = await supabase.rpc('request_company_review');
+  if (error) return { error: onboardingCopy.errors.generic };
+  revalidatePath(paths.review);
+  return {};
+}
+
 /** Admin: approves or rejects a document. */
 export async function reviewDocument(_prev: FormState, formData: FormData): Promise<FormState> {
   const entries = formEntries(formData);

@@ -7,7 +7,12 @@ import { ActionForm, Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { FormState } from '@/lib/forms';
-import { reviewCompany, reviewDocument, updateCompanyContact } from '@/lib/verification/actions';
+import {
+  requestCompanyReview,
+  reviewCompany,
+  reviewDocument,
+  updateCompanyContact,
+} from '@/lib/verification/actions';
 
 /** Shipper: company name and contact, editable while in review. */
 export function CompanyContactForm({ values }: { values: Record<string, string> }) {
@@ -47,6 +52,20 @@ export function CompanyContactForm({ values }: { values: Record<string, string> 
         </div>
       )}
     </ActionForm>
+  );
+}
+
+/** Shipper: asks for another review of a rejected company. */
+export function RequestReviewForm() {
+  const c = onboardingCopy.requestReview;
+  const [state, action, pending] = useActionState(requestCompanyReview, {});
+  return (
+    <form action={action} className="space-y-3">
+      {state.error && <Notice tone="error">{state.error}</Notice>}
+      <Button type="submit" variant="accent" disabled={pending}>
+        {pending ? c.pending : c.submit}
+      </Button>
+    </form>
   );
 }
 

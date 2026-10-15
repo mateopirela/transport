@@ -4,8 +4,8 @@ import type { DocumentOwnerType } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
 
-/** Rows shown per queue; the oldest first, so nothing waits forever. */
-const QUEUE_LIMIT = 100;
+/** Rows per queue page; the oldest first, so nothing waits forever. */
+export const QUEUE_PAGE_SIZE = 50;
 
 function check<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(`Admin query failed: ${result.error.message}`);
@@ -43,17 +43,18 @@ export async function loadQueueCounts(supabase: Supabase) {
 }
 
 /** Companies in review with how many required company documents they still miss. */
-export async function loadPendingCompanies(supabase: Supabase) {
-  const companies = check(
-    await supabase
-      .from('companies')
-      .select('id, legal_name, rfc, type, created_at')
-      .eq('status', 'pending_review')
-      .is('archived_at', null)
-      .order('created_at')
-      .limit(QUEUE_LIMIT),
-  );
-  return Promise.all(
+export async function loadPendingCompanies(supabase: Supabase, page: number) {
+  const from = (page - 1) * QUEUE_PAGE_SIZE;
+  const result = await supabase
+    .from('companies')
+    .select('id, legal_name, rfc, type, created_at', { count: 'exact' })
+    .eq('status', 'pending_review')
+    .is('archived_at', null)
+    .order('created_at')
+    .order('id')
+    .range(from, from + QUEUE_PAGE_SIZE - 1);
+  const companies = check(result);
+  const rows = await Promise.all(
     companies.map(async (company) => {
       const missing = check(
         await supabase.rpc('company_missing_requirements', { p_company_id: company.id }),
@@ -61,21 +62,24 @@ export async function loadPendingCompanies(supabase: Supabase) {
       return { ...company, missing: missing.length };
     }),
   );
+  return { rows, total: result.count ?? rows.length };
 }
 
 /** Pending documents of companies, vehicles and operators, with a readable owner. */
-export async function loadPendingDocuments(supabase: Supabase) {
-  const documents = check(
-    await supabase
-      .from('documents')
-      .select(
-        'id, owner_type, owner_id, created_at, company:companies(id, legal_name), requirement:document_requirements(name)',
-      )
-      .eq('status', 'pending_review')
-      .is('archived_at', null)
-      .order('created_at')
-      .limit(QUEUE_LIMIT),
-  );
+export async function loadPendingDocuments(supabase: Supabase, page: number) {
+  const from = (page - 1) * QUEUE_PAGE_SIZE;
+  const result = await supabase
+    .from('documents')
+    .select(
+      'id, owner_type, owner_id, created_at, company:companies(id, legal_name), requirement:document_requirements(name)',
+      { count: 'exact' },
+    )
+    .eq('status', 'pending_review')
+    .is('archived_at', null)
+    .order('created_at')
+    .order('id')
+    .range(from, from + QUEUE_PAGE_SIZE - 1);
+  const documents = check(result);
   const ids = (type: DocumentOwnerType) =>
     documents.filter((d) => d.owner_type === type).map((d) => d.owner_id);
   const [vehicles, operators] = await Promise.all([
@@ -86,7 +90,7 @@ export async function loadPendingDocuments(supabase: Supabase) {
     ...check(vehicles).map((v) => [v.id, v.plate] as const),
     ...check(operators).map((o) => [o.id, o.full_name] as const),
   ]);
-  return documents.map((d) => ({
+  const rows = documents.map((d) => ({
     id: d.id,
     ownerType: d.owner_type,
     ownerName: d.owner_type === 'company' ? d.company.legal_name : (names.get(d.owner_id) ?? '—'),
@@ -95,4 +99,5 @@ export async function loadPendingDocuments(supabase: Supabase) {
     requirementName: d.requirement.name,
     createdAt: d.created_at,
   }));
+  return { rows, total: result.count ?? rows.length };
 }

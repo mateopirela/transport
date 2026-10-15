@@ -107,9 +107,12 @@ export function createChunkedStorage(
     await backend.removeItem(journalKey(base));
   }
 
+  /** Adds generations to the journal, keeping the ones already recorded. */
   async function writeJournal(base: string, entries: (Manifest | null)[]): Promise<void> {
-    const present = entries.filter((entry): entry is Manifest => entry !== null);
-    await backend.setItem(journalKey(base), present.map(formatEntry).join(','));
+    const recorded = parseJournal(await backend.getItem(journalKey(base)));
+    const all = [...recorded, ...entries.filter((entry): entry is Manifest => entry !== null)];
+    const unique = [...new Map(all.map((entry) => [entry.generation, entry])).values()];
+    await backend.setItem(journalKey(base), unique.map(formatEntry).join(','));
   }
 
   // Operations run one at a time so concurrent writes cannot interleave chunks.
@@ -165,11 +168,14 @@ export function createChunkedStorage(
       serialize(async () => {
         const base = toStoreKey(key);
         const previous = parseManifest(await backend.getItem(base));
-        await sweep(base, previous);
-        await writeJournal(base, [previous]);
+        // Journal the generation so a crash below still gets it cleaned up,
+        // but never let a failed write (e.g. storage full) block the removal.
+        await writeJournal(base, [previous]).catch(() => undefined);
+        // Deleting the manifest invalidates the value: from here on getItem
+        // returns null even if the cleanup below fails.
         await backend.removeItem(base);
-        await removeChunks(base, previous);
-        await backend.removeItem(journalKey(base));
+        await removeChunks(base, previous).catch(() => undefined);
+        await sweep(base, null).catch(() => undefined);
       }),
   };
 }

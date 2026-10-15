@@ -166,6 +166,40 @@ describe('createChunkedStorage', () => {
     expect(data.size).toBe(0);
   });
 
+  it('removes the value even when storage cannot be written (e.g. full)', async () => {
+    const { data, backend } = memoryBackend();
+    await createChunkedStorage(backend, { chunkSize: 4 }).setItem('k', 'abcdefgh');
+    const full: KeyValueBackend = {
+      ...backend,
+      setItem: async () => {
+        throw new Error('storage full');
+      },
+    };
+    const storage = createChunkedStorage(full, { chunkSize: 4 });
+    await storage.removeItem('k');
+    expect(await storage.getItem('k')).toBeNull();
+    expect(data.size).toBe(0);
+  });
+
+  it('invalidates the value even if deleting its chunks fails', async () => {
+    const { data, backend } = memoryBackend();
+    await createChunkedStorage(backend, { chunkSize: 4 }).setItem('k', 'abcdefgh');
+    let removals = 0;
+    const flaky: KeyValueBackend = {
+      ...backend,
+      removeItem: async (key) => {
+        removals += 1;
+        if (removals > 1) throw new Error('keychain busy');
+        await backend.removeItem(key);
+      },
+    };
+    await createChunkedStorage(flaky, { chunkSize: 4 }).removeItem('k');
+    expect(data.has('k')).toBe(false);
+    // The journal lets the next operation finish the cleanup.
+    await createChunkedStorage(backend, { chunkSize: 4 }).removeItem('k');
+    expect(data.size).toBe(0);
+  });
+
   it('treats a missing chunk as no session', async () => {
     const { data, backend } = memoryBackend();
     const storage = createChunkedStorage(backend, { chunkSize: 4, newGeneration: () => 'g' });

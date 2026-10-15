@@ -79,6 +79,8 @@ export const mobileSystemCopy = {
   missingConfigTitle: 'Falta configuración',
   missingConfigBody:
     'La app no tiene la dirección del servidor. Revisa EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY.',
+  /** Android notification channel name (shown in the system settings). */
+  notificationChannel: 'Avisos generales',
   profileLoadFailed: 'No pudimos cargar tu perfil. Revisa tu conexión e inténtalo de nuevo.',
 } as const;
 

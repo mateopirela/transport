@@ -1,3 +1,4 @@
+import { mobileSystemCopy } from '@transport/shared';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -35,7 +36,7 @@ export async function registerPushToken(
     if (Platform.OS === 'android') {
       // Android 13+ only shows the permission prompt once a channel exists.
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'General',
+        name: mobileSystemCopy.notificationChannel,
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     }

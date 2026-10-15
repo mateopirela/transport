@@ -40,6 +40,63 @@ export interface Database {
         };
         Relationships: [];
       };
+      carrier_routes: {
+        Row: {
+          archived_at: string | null;
+          company_id: string;
+          created_at: string;
+          destination_city: string;
+          destination_location: unknown;
+          destination_state: string;
+          id: string;
+          notes: string | null;
+          origin_city: string;
+          origin_location: unknown;
+          origin_state: string;
+          unit_types: Database['public']['Enums']['unit_type'][];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          company_id: string;
+          created_at?: string;
+          destination_city: string;
+          destination_location?: unknown;
+          destination_state: string;
+          id?: string;
+          notes?: string | null;
+          origin_city: string;
+          origin_location?: unknown;
+          origin_state: string;
+          unit_types?: Database['public']['Enums']['unit_type'][];
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          company_id?: string;
+          created_at?: string;
+          destination_city?: string;
+          destination_location?: unknown;
+          destination_state?: string;
+          id?: string;
+          notes?: string | null;
+          origin_city?: string;
+          origin_location?: unknown;
+          origin_state?: string;
+          unit_types?: Database['public']['Enums']['unit_type'][];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'carrier_routes_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       companies: {
         Row: {
           archived_at: string | null;
@@ -217,6 +274,125 @@ export interface Database {
           },
         ];
       };
+      operator_invitations: {
+        Row: {
+          accepted_at: string | null;
+          accepted_by: string | null;
+          code_hash: string;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          email: string;
+          expires_at: string;
+          id: string;
+          operator_id: string;
+          revoked_at: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          code_hash: string;
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          email: string;
+          expires_at: string;
+          id?: string;
+          operator_id: string;
+          revoked_at?: string | null;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          code_hash?: string;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          email?: string;
+          expires_at?: string;
+          id?: string;
+          operator_id?: string;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operator_invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operator_invitations_operator_fkey';
+            columns: ['company_id', 'operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'operators';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
+      operators: {
+        Row: {
+          archived_at: string | null;
+          company_id: string;
+          created_at: string;
+          email: string | null;
+          full_name: string;
+          id: string;
+          license_expires_on: string | null;
+          license_number: string | null;
+          license_type: Database['public']['Enums']['license_type'] | null;
+          phone: string | null;
+          profile_id: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          company_id: string;
+          created_at?: string;
+          email?: string | null;
+          full_name: string;
+          id?: string;
+          license_expires_on?: string | null;
+          license_number?: string | null;
+          license_type?: Database['public']['Enums']['license_type'] | null;
+          phone?: string | null;
+          profile_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          company_id?: string;
+          created_at?: string;
+          email?: string | null;
+          full_name?: string;
+          id?: string;
+          license_expires_on?: string | null;
+          license_number?: string | null;
+          license_type?: Database['public']['Enums']['license_type'] | null;
+          phone?: string | null;
+          profile_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operators_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operators_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           company_id: string | null;
@@ -256,14 +432,143 @@ export interface Database {
           },
         ];
       };
+      vehicle_availability: {
+        Row: {
+          archived_at: string | null;
+          available_from: string;
+          city: string;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          location: unknown;
+          source: Database['public']['Enums']['availability_source'];
+          state: string;
+          vehicle_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          available_from: string;
+          city: string;
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          location: unknown;
+          source?: Database['public']['Enums']['availability_source'];
+          state: string;
+          vehicle_id: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          available_from?: string;
+          city?: string;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          location?: unknown;
+          source?: Database['public']['Enums']['availability_source'];
+          state?: string;
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'vehicle_availability_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_availability_vehicle_fkey';
+            columns: ['company_id', 'vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
+      vehicles: {
+        Row: {
+          archived_at: string | null;
+          capacity_kg: number | null;
+          capacity_m3: number | null;
+          company_id: string;
+          created_at: string;
+          current_operator_id: string | null;
+          features: Database['public']['Enums']['special_requirement'][];
+          fleet_number: string | null;
+          id: string;
+          kind: Database['public']['Enums']['vehicle_kind'];
+          model_year: number | null;
+          plate: string;
+          unit_type: Database['public']['Enums']['unit_type'] | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          capacity_kg?: number | null;
+          capacity_m3?: number | null;
+          company_id: string;
+          created_at?: string;
+          current_operator_id?: string | null;
+          features?: Database['public']['Enums']['special_requirement'][];
+          fleet_number?: string | null;
+          id?: string;
+          kind: Database['public']['Enums']['vehicle_kind'];
+          model_year?: number | null;
+          plate: string;
+          unit_type?: Database['public']['Enums']['unit_type'] | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          capacity_kg?: number | null;
+          capacity_m3?: number | null;
+          company_id?: string;
+          created_at?: string;
+          current_operator_id?: string | null;
+          features?: Database['public']['Enums']['special_requirement'][];
+          fleet_number?: string | null;
+          id?: string;
+          kind?: Database['public']['Enums']['vehicle_kind'];
+          model_year?: number | null;
+          plate?: string;
+          unit_type?: Database['public']['Enums']['unit_type'] | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'vehicles_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicles_current_operator_fkey';
+            columns: ['company_id', 'current_operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'operators';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
     };
     Views: Record<never, never>;
     Functions: {
+      accept_operator_invitation: { Args: { p_code: string }; Returns: string };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
+      auth_fleet_company_id: { Args: Record<PropertyKey, never>; Returns: string };
+      auth_operator_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['user_role'];
       };
+      clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
       company_missing_requirements: {
         Args: { p_company_id: string };
         Returns: {
@@ -298,6 +603,14 @@ export interface Database {
         };
         Returns: string;
       };
+      create_operator_invitation: {
+        Args: { p_operator_id: string; p_valid_for_hours?: number };
+        Returns: {
+          code: string;
+          expires_at: string;
+          invitation_id: string;
+        }[];
+      };
       document_owner_company_id: {
         Args: {
           p_owner_id: string;
@@ -320,6 +633,18 @@ export interface Database {
         };
         Returns: Database['public']['Enums']['verification_status'];
       };
+      revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
+      set_vehicle_availability: {
+        Args: {
+          p_available_from: string;
+          p_city: string;
+          p_latitude: number;
+          p_longitude: number;
+          p_state: string;
+          p_vehicle_id: string;
+        };
+        Returns: string;
+      };
       submit_document: {
         Args: {
           p_expires_at?: string;
@@ -337,10 +662,36 @@ export interface Database {
       };
     };
     Enums: {
+      availability_source: 'manual' | 'trip_estimate';
       company_type: 'shipper' | 'carrier';
       document_owner_type: 'company' | 'vehicle' | 'operator';
+      license_type: 'B' | 'C' | 'E';
+      special_requirement:
+        | 'temperature_control'
+        | 'hazmat_permit'
+        | 'liftgate'
+        | 'tarp'
+        | 'cargo_securing'
+        | 'security_escort'
+        | 'team_drivers'
+        | 'extended_cargo_insurance'
+        | 'loading_crew';
       taxpayer_type: 'moral' | 'fisica';
+      unit_type:
+        | 'dry_van'
+        | 'refrigerated'
+        | 'flatbed'
+        | 'lowboy'
+        | 'hopper'
+        | 'tanker'
+        | 'container_chassis'
+        | 'cage'
+        | 'stake_bed'
+        | 'torton'
+        | 'rabon'
+        | 'pickup_3_5t';
       user_role: 'shipper' | 'carrier' | 'operator' | 'admin';
+      vehicle_kind: 'tractor' | 'rigid' | 'trailer';
       verification_status: 'pending_review' | 'approved' | 'rejected' | 'expired' | 'suspended';
     };
     CompositeTypes: Record<never, never>;
@@ -451,10 +802,38 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      availability_source: ['manual', 'trip_estimate'],
       company_type: ['shipper', 'carrier'],
       document_owner_type: ['company', 'vehicle', 'operator'],
+      license_type: ['B', 'C', 'E'],
+      special_requirement: [
+        'temperature_control',
+        'hazmat_permit',
+        'liftgate',
+        'tarp',
+        'cargo_securing',
+        'security_escort',
+        'team_drivers',
+        'extended_cargo_insurance',
+        'loading_crew',
+      ],
       taxpayer_type: ['moral', 'fisica'],
+      unit_type: [
+        'dry_van',
+        'refrigerated',
+        'flatbed',
+        'lowboy',
+        'hopper',
+        'tanker',
+        'container_chassis',
+        'cage',
+        'stake_bed',
+        'torton',
+        'rabon',
+        'pickup_3_5t',
+      ],
       user_role: ['shipper', 'carrier', 'operator', 'admin'],
+      vehicle_kind: ['tractor', 'rigid', 'trailer'],
       verification_status: ['pending_review', 'approved', 'rejected', 'expired', 'suspended'],
     },
   },

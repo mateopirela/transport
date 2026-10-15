@@ -106,6 +106,14 @@ describe('expiredRequirementIds', () => {
     ).toEqual([]);
   });
 
+  it('treats a document marked expired like an approved one past its date', () => {
+    const marked = { ...doc('r-card', 'approved', null), status: 'expired' as const };
+    expect(expiredRequirementIds([card], [marked], owner, NOW)).toEqual(['r-card']);
+    expect(
+      expiredRequirementIds([card], [marked, doc('r-card', 'approved', null)], owner, NOW),
+    ).toEqual([]);
+  });
+
   it('ignores missing documents and other owners', () => {
     expect(
       expiredRequirementIds(

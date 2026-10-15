@@ -38,11 +38,12 @@ export function AvailabilitySection({
   blocked: boolean;
   onChanged: () => Promise<void>;
 }) {
-  const now = mexicoCityParts(new Date());
+  // Editing keeps the saved moment unless the carrier changes it.
+  const initial = mexicoCityParts(current ? new Date(current.available_from) : new Date());
   const [values, setValues] = useState({
     cityId: (current && findCityPreset(current.city, current.state)?.id) ?? 'mty',
-    date: now.date,
-    time: now.time,
+    date: initial.date,
+    time: initial.time,
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);

@@ -1,10 +1,11 @@
 -- Vehicle readiness (B18): required vehicle documents that are missing or
--- expired, visibility of that information by role and company, and the
--- expired-documents check of set_vehicle_availability.
+-- expired, visibility of that information by role and company, the
+-- expired-documents check of set_vehicle_availability, and the revocation of
+-- pending operator invitations when the operator's email changes.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select plan(27);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -217,6 +218,63 @@ select is(
 select lives_ok(
   $$ select public.set_vehicle_availability('e1000000-0000-4000-8000-0000000000a2', now(), 25.67, -100.31, 'Monterrey', 'Nuevo León') $$,
   'after renewal the unit can be made available'
+);
+
+-- A document marked `expired` (e.g. by an expiry job) also blocks the unit.
+reset role;
+update public.documents set status = 'expired'
+where owner_id = 'e1000000-0000-4000-8000-0000000000a2' and status = 'approved' and expires_at > now()
+  and requirement_id = tests.requirement('vehicle_insurance_policy');
+
+select tests.login('f1000000-0000-4000-8000-000000000001');
+set local role authenticated;
+
+select results_eq(
+  $$ select code from public.vehicle_expired_requirements('e1000000-0000-4000-8000-0000000000a2') $$,
+  array['vehicle_insurance_policy'],
+  'a document with status expired is reported as expired'
+);
+select throws_ok(
+  $$ select public.set_vehicle_availability('e1000000-0000-4000-8000-0000000000a2', now(), 25.67, -100.31, 'Monterrey', 'Nuevo León') $$,
+  '55000',
+  'vehicle has expired documents: vehicle_insurance_policy',
+  'a document with status expired blocks availability'
+);
+
+-- ---------------------------------------------------------------------------
+-- Changing an operator's email revokes its pending invitations
+-- ---------------------------------------------------------------------------
+insert into public.operators (id, company_id, full_name, email) values
+  ('d1000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000a', 'Omar', 'omar@a.test');
+select ok(
+  (select count(*) = 1 from public.create_operator_invitation('d1000000-0000-4000-8000-0000000000a1')),
+  'the carrier invites its operator'
+);
+
+update public.operators set phone = '8112345678' where id = 'd1000000-0000-4000-8000-0000000000a1';
+select is(
+  (select count(*)::int from public.operator_invitations
+   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
+  1,
+  'other changes keep the pending invitation'
+);
+
+update public.operators set email = 'omar.diaz@a.test' where id = 'd1000000-0000-4000-8000-0000000000a1';
+select is(
+  (select count(*)::int from public.operator_invitations
+   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
+  0,
+  'changing the email revokes the pending invitation'
+);
+select ok(
+  (select count(*) = 1 from public.create_operator_invitation('d1000000-0000-4000-8000-0000000000a1')),
+  'the carrier issues a new invitation'
+);
+select is(
+  (select email from public.operator_invitations
+   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
+  'omar.diaz@a.test',
+  'the new invitation goes to the corrected email'
 );
 
 select * from finish();

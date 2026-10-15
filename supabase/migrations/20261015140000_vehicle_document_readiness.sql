@@ -9,6 +9,8 @@
 --     document has expired. The app shows these units as "no disponible".
 --   * set_vehicle_availability (B04) now refuses a unit with expired
 --     documents. Same signature, privileges and checks otherwise.
+--   * Changing an operator's email revokes its pending invitations: an
+--     invitation is bound to the email it was sent to (D15).
 --
 -- Both helpers are security invoker: callers only see what RLS lets them see
 -- (the carrier, its own units; an admin, any unit). No new tables.
@@ -44,9 +46,9 @@ $$;
 revoke all on function public.vehicle_missing_requirements(uuid) from public, anon;
 grant execute on function public.vehicle_missing_requirements(uuid) to authenticated, service_role;
 
--- review_document archives the previously approved document when a new one is
--- approved, so each requirement has at most one active approved document: if
--- it is past its expiry date, the requirement is expired.
+-- A required document is expired when it has no current approved document
+-- (vehicle_missing_requirements) and an active one that expired: marked
+-- `expired` (e.g. by a future expiry job) or approved and past its date.
 create function public.vehicle_expired_requirements(p_vehicle_id uuid)
 returns setof public.document_requirements
 language sql
@@ -61,9 +63,8 @@ as $$
     where d.requirement_id = m.id
       and d.owner_type = 'vehicle'
       and d.owner_id = p_vehicle_id
-      and d.status = 'approved'
       and d.archived_at is null
-      and d.expires_at <= now()
+      and (d.status = 'expired' or (d.status = 'approved' and d.expires_at <= now()))
   )
   order by m.sort_order, m.code;
 $$;
@@ -139,3 +140,33 @@ begin
   return v_id;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Operator invitations are bound to the email they were sent to
+-- (accept_operator_invitation compares it). When the carrier corrects the
+-- email, pending invitations can never be accepted, so they are revoked and
+-- the carrier issues a new one. security definer because clients have no
+-- write privileges on operator_invitations; it only touches rows of the
+-- updated operator.
+-- ---------------------------------------------------------------------------
+create function public.operators_revoke_invitations_on_email_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.operator_invitations
+  set revoked_at = now()
+  where operator_id = new.id and accepted_at is null and revoked_at is null;
+  return new;
+end;
+$$;
+
+revoke all on function public.operators_revoke_invitations_on_email_change() from public, anon, authenticated;
+
+create trigger operators_revoke_invitations_on_email_change
+after update of email on public.operators
+for each row
+when (old.email is distinct from new.email)
+execute function public.operators_revoke_invitations_on_email_change();

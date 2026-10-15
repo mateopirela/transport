@@ -23,8 +23,8 @@ export function vehicleReadiness(
 }
 
 /**
- * Required requirements whose approved document expired and has no current
- * approved replacement. Mirrors `vehicle_expired_requirements` in SQL: a
+ * Required requirements whose document expired (status `expired`, or approved
+ * and past its date) and has no current approved replacement. Mirrors `vehicle_expired_requirements` in SQL: a
  * renewal still in review does not lift the block.
  */
 export function expiredRequirementIds(
@@ -36,23 +36,25 @@ export function expiredRequirementIds(
   owner: { type: DocumentOwnerType; id: string },
   now: Date = new Date(),
 ): string[] {
-  const approved = documents.filter(
-    (d) =>
-      d.archived_at === null &&
-      d.status === 'approved' &&
-      d.owner_type === owner.type &&
-      d.owner_id === owner.id,
+  const active = documents.filter(
+    (d) => d.archived_at === null && d.owner_type === owner.type && d.owner_id === owner.id,
   );
-  const isExpired = (expiresAt: string | null) =>
+  const pastExpiry = (expiresAt: string | null) =>
     expiresAt !== null && Date.parse(expiresAt) <= now.getTime();
+  // Expired: marked `expired` (e.g. by an expiry job) or approved and past its date.
+  const isExpired = (d: (typeof active)[number]) =>
+    d.status === 'expired' || (d.status === 'approved' && pastExpiry(d.expires_at));
   return requirements
     .filter((r) => r.is_required)
     .filter((r) => {
-      const docs = approved.filter((d) => d.requirement_id === r.id);
+      const docs = active.filter((d) => d.requirement_id === r.id);
       const current = docs.some(
-        (d) => !isExpired(d.expires_at) && (!r.requires_expiry || d.expires_at !== null),
+        (d) =>
+          d.status === 'approved' &&
+          !pastExpiry(d.expires_at) &&
+          (!r.requires_expiry || d.expires_at !== null),
       );
-      return !current && docs.some((d) => isExpired(d.expires_at));
+      return !current && docs.some(isExpired);
     })
     .map((r) => r.id);
 }

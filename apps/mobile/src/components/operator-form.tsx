@@ -118,7 +118,13 @@ export function OperatorForm({
         label={copy.licenseTypeLabel}
         options={LICENSE_OPTIONS}
         value={form.licenseType}
-        onChange={(licenseType) => setForm((current) => ({ ...current, licenseType }))}
+        // Tapping the selected type again clears it (the field is optional).
+        onChange={(licenseType) =>
+          setForm((current) => ({
+            ...current,
+            licenseType: current.licenseType === licenseType ? undefined : licenseType,
+          }))
+        }
         error={errors.licenseType}
       />
       <Field

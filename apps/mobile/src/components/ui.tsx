@@ -15,10 +15,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, fonts, spacing } from '../theme';
 
-/** Scrollable screen that keeps inputs above the keyboard. */
-export function Screen({ children }: { children: ReactNode }) {
+/**
+ * Scrollable screen that keeps inputs above the keyboard. `belowHeader` for
+ * screens under a navigation header, which already covers the top inset.
+ */
+export function Screen({
+  children,
+  belowHeader = false,
+}: {
+  children: ReactNode;
+  belowHeader?: boolean;
+}) {
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={styles.safe}
+      edges={belowHeader ? ['left', 'right'] : ['top', 'left', 'right']}
+    >
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

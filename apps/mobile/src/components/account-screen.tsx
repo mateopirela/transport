@@ -1,13 +1,13 @@
 import { mobileAuthCopy, mobileNavCopy as nav, userRoleLabels } from '@transport/shared';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '../providers/session';
 import { colors, spacing } from '../theme';
 import { Button, Screen, Title } from './ui';
 
-/** "Más" tab: who is signed in, and sign-out. */
-export function AccountScreen() {
+/** "Más" tab: who is signed in, and sign-out. `children` go above the account card. */
+export function AccountScreen({ children }: { children?: ReactNode }) {
   const { session, profile, actions } = useSession();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -24,6 +24,7 @@ export function AccountScreen() {
 
   return (
     <Screen>
+      {children}
       <Title>{nav.account}</Title>
       {profile?.companyName ? <Text style={styles.company}>{profile.companyName}</Text> : null}
       <View style={styles.card}>

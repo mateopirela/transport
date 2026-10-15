@@ -3,6 +3,7 @@
 export * from './constants';
 export * from './copy';
 export * from './enums';
+export * from './fleet';
 export * from './formatters';
 export * from './invitation-code';
 export * from './money';

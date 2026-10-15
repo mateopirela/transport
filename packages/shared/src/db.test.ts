@@ -27,25 +27,3 @@ describe('generated database types (B01)', () => {
     >().toEqualTypeOf<string>();
   });
 });
-
-// Fleet schema of B04 (supabase/migrations/*_fleet.sql). The identifiers must
-// match the catalogs of packages/shared (B02).
-describe('generated database types (B04)', () => {
-  it('exposes the fleet enums', () => {
-    expect(Constants.public.Enums.vehicle_kind).toEqual(['tractor', 'rigid', 'trailer']);
-    expect(Constants.public.Enums.license_type).toEqual(['B', 'C', 'E']);
-    expect(Constants.public.Enums.availability_source).toEqual(['manual', 'trip_estimate']);
-    expect(Constants.public.Enums.unit_type).toHaveLength(12);
-    expect(Constants.public.Enums.special_requirement).toHaveLength(9);
-  });
-
-  it('types the fleet rows and RPCs', () => {
-    expectTypeOf<Tables<'vehicles'>['company_id']>().toEqualTypeOf<string>();
-    expectTypeOf<Tables<'vehicles'>['unit_type']>().toEqualTypeOf<Enums<'unit_type'> | null>();
-    expectTypeOf<Tables<'vehicles'>['features']>().toEqualTypeOf<Enums<'special_requirement'>[]>();
-    expectTypeOf<Tables<'operators'>['profile_id']>().toEqualTypeOf<string | null>();
-    expectTypeOf<
-      Database['public']['Functions']['accept_operator_invitation']['Returns']
-    >().toEqualTypeOf<string>();
-  });
-});

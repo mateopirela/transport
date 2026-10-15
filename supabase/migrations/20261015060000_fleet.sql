@@ -755,3 +755,29 @@ using (
   company_id = (select public.auth_fleet_company_id())
   or (select public.is_admin())
 );
+
+-- ---------------------------------------------------------------------------
+-- Documents (B03) for vehicles and operators: B03 left
+-- document_owner_company_id() accepting only company owners until the fleet
+-- tables existed. Same signature, privileges and behavior for companies.
+-- ---------------------------------------------------------------------------
+create or replace function public.document_owner_company_id(
+  p_owner_type public.document_owner_type,
+  p_owner_id uuid
+)
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  case p_owner_type
+    when 'company' then
+      return (select c.id from public.companies c where c.id = p_owner_id);
+    when 'vehicle' then
+      return (select v.company_id from public.vehicles v where v.id = p_owner_id);
+    when 'operator' then
+      return (select o.company_id from public.operators o where o.id = p_owner_id);
+  end case;
+end;
+$$;

@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(73);
+select plan(75);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -519,6 +519,31 @@ select throws_ok(
   $$ select public.accept_operator_invitation('0000000000000000') $$,
   '42501', null,
   'anon cannot accept invitations'
+);
+
+-- ---------------------------------------------------------------------------
+-- Documents (B03) can now be owned by vehicles and operators
+-- ---------------------------------------------------------------------------
+reset role;
+select results_eq(
+  $$ select public.document_owner_company_id('vehicle', 'e0000000-0000-4000-8000-0000000000b1'),
+            public.document_owner_company_id('operator', 'd0000000-0000-4000-8000-0000000000a1'),
+            public.document_owner_company_id('company', 'c0000000-0000-4000-8000-00000000000a') $$,
+  $$ values ('c0000000-0000-4000-8000-00000000000b'::uuid,
+             'c0000000-0000-4000-8000-00000000000a'::uuid,
+             'c0000000-0000-4000-8000-00000000000a'::uuid) $$,
+  'document owners resolve to the company of the vehicle or operator'
+);
+
+select tests.login('b0000000-0000-4000-8000-000000000001');
+set local role authenticated;
+select throws_ok(
+  $$ select public.submit_document(
+       (select id from public.document_requirements where code = 'vehicle_registration_card'),
+       'vehicle', 'e0000000-0000-4000-8000-0000000000b1',
+       'c0000000-0000-4000-8000-00000000000a/vehicle/e0000000-0000-4000-8000-0000000000b1/f0000000-0000-4000-8000-000000000001.pdf') $$,
+  '42501', null,
+  'a carrier cannot submit documents for another company vehicle'
 );
 
 reset role;

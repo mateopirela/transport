@@ -234,8 +234,8 @@ select throws_ok(
   $$ select public.submit_document(
        tests.requirement('vehicle_registration_card'), 'vehicle', 'f0000000-0000-4000-8000-0000000000aa',
        'c0000000-0000-4000-8000-00000000000a/vehicle/f0000000-0000-4000-8000-0000000000aa/f0000000-0000-4000-8000-000000000008.pdf') $$,
-  '0A000', null,
-  'vehicle documents wait for the fleet tables (B04)'
+  '42501', null,
+  'documents for a vehicle of no company of the caller are rejected (fleet tables, B04)'
 );
 
 -- Direct writes are not allowed: only the RPCs change documents.

@@ -1,5 +1,6 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
-import { NextResponse, type NextRequest } from 'next/server';
+import { redirect } from 'next/navigation';
+import type { NextRequest } from 'next/server';
 
 import { registerPendingCompany } from '@/lib/auth/company';
 import { paths, safeNextPath } from '@/lib/routing';
@@ -28,9 +29,8 @@ export async function GET(request: NextRequest) {
     ok = !(await supabase.auth.exchangeCodeForSession(code)).error;
   }
 
-  if (!supabase || !ok) {
-    return NextResponse.redirect(new URL(`${paths.signIn}?error=enlace`, request.url));
-  }
+  // Relative redirects keep the host the user came from (and its cookies).
+  if (!supabase || !ok) redirect(`${paths.signIn}?error=enlace`);
   if (type !== 'recovery') await registerPendingCompany(supabase);
-  return NextResponse.redirect(new URL(next, request.url));
+  redirect(next);
 }

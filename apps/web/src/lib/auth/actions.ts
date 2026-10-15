@@ -16,11 +16,22 @@ import { redirect } from 'next/navigation';
 import { authErrorMessage } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
-import { paths, safeNextPath } from '../routing';
+import { homeFor, paths, safeNextPath } from '../routing';
 import { createClient } from '../supabase/server';
+import { loadViewer, type Supabase } from '../viewer';
 import { createCompany, PENDING_COMPANY_KEY, registerPendingCompany } from './company';
 
 const notConfigured: FormState = { error: authErrors.notConfigured };
+
+/**
+ * Sends the user straight to their home. Redirecting to `/` instead would
+ * chain a second redirect, which the client router does not follow after a
+ * Server Action.
+ */
+async function redirectHome(supabase: Supabase): Promise<never> {
+  const viewer = await loadViewer(supabase);
+  redirect(viewer ? homeFor(viewer) : paths.signIn);
+}
 
 async function confirmUrl(next?: string): Promise<string> {
   const origin = (await headers()).get('origin');
@@ -39,7 +50,10 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
 
   await registerPendingCompany(supabase);
-  redirect(safeNextPath(entries.next) ?? paths.home);
+  const next = safeNextPath(entries.next);
+  if (next) redirect(next);
+  await redirectHome(supabase);
+  return {};
 }
 
 export async function signUpShipper(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -69,7 +83,7 @@ export async function signUpShipper(_prev: FormState, formData: FormData): Promi
   // Without email confirmation (not the default) there is a session already.
   if (data.session) {
     await registerPendingCompany(supabase);
-    redirect(paths.home);
+    await redirectHome(supabase);
   }
   redirect(paths.checkEmail);
 }
@@ -101,7 +115,7 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) return { error: authErrorMessage(error) };
-  redirect(paths.home);
+  return redirectHome(supabase);
 }
 
 export async function completeCompany(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -113,7 +127,7 @@ export async function completeCompany(_prev: FormState, formData: FormData): Pro
 
   const { error } = await createCompany(supabase, parsed.data);
   if (error) return { error, values: refillValues(entries) };
-  redirect(paths.home);
+  return redirectHome(supabase);
 }
 
 export async function signOut(): Promise<void> {

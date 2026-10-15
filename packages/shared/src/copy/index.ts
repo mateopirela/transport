@@ -3,6 +3,7 @@
 export * from './auth';
 export * from './catalogs';
 export * from './fleet';
+export * from './loads';
 export * from './mobile';
 export * from './permissions';
 export * from './validation';

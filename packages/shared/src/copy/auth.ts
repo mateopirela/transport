@@ -95,7 +95,6 @@ export const shellCopy = {
   shipperHome: {
     title: 'Inicio',
     description: 'Aquí verás tus cargas, ofertas y viajes.',
-    comingSoon: 'Muy pronto podrás publicar cargas desde aquí.',
   },
   adminHome: {
     title: 'Panel de administración',

@@ -387,8 +387,10 @@ select is(
   (select count(*) from public.offers where load_id = tests.val('load1') and status = 'accepted'), 1::bigint,
   'exactly one accepted offer'
 );
-select todo('B06: accept_offer creates the trip', 1);
-select isnt(tests.val('trip1'), null, 'accept_offer returns the new trip id');
+select is(
+  (select load_id from public.trips where id = tests.val('trip1')), tests.val('load1'),
+  'accept_offer returns the id of the trip it created (B06)'
+);
 
 select throws_ok(
   $$ select public.accept_offer(tests.val('offerB1b')) $$, '55000', null, 'a rejected offer cannot be accepted'

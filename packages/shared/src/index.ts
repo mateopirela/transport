@@ -11,6 +11,7 @@ export * from './money';
 export * from './rfc';
 export * from './schemas';
 export * from './state-machines';
+export * from './trips';
 export * from './verification';
 
 export type { Database, Enums, Json, Tables, TablesInsert, TablesUpdate } from './db';

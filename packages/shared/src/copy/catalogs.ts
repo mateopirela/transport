@@ -3,11 +3,15 @@
 import type {
   CargoType,
   CompanyType,
+  EvidenceStage,
+  IncidentKind,
+  IncidentStatus,
   LicenseType,
   LoadStatus,
   OfferSide,
   OfferStatus,
   SpecialRequirement,
+  TripEventType,
   TripStatus,
   UnitType,
   UserRole,
@@ -72,6 +76,44 @@ export const tripStatusLabels: Record<TripStatus, string> = {
   delivered: 'Entregado',
   closed: 'Cerrado',
   cancelled: 'Cancelado',
+};
+
+export const tripEventTypeLabels: Record<TripEventType, string> = {
+  created: 'Viaje creado',
+  assigned: 'Unidad y operador asignados',
+  departed: 'Salida',
+  arrived_at_pickup: 'Llegada a recolección',
+  loading_started: 'Inicio de carga',
+  loading_finished: 'Fin de carga',
+  arrived_at_delivery: 'Llegada a destino',
+  unloading_started: 'Inicio de descarga',
+  unloading_finished: 'Fin de descarga',
+  delivery_confirmed: 'Entrega confirmada',
+  cancelled: 'Viaje cancelado',
+  unload_estimate_updated: 'Fin estimado de descarga actualizado',
+  incident_reported: 'Incidencia reportada',
+  incident_resolved: 'Incidencia resuelta',
+};
+
+export const evidenceStageLabels: Record<EvidenceStage, string> = {
+  pickup: 'Recolección',
+  delivery: 'Entrega',
+  incident: 'Incidencia',
+};
+
+export const incidentKindLabels: Record<IncidentKind, string> = {
+  delay: 'Retraso',
+  mechanical_failure: 'Falla mecánica',
+  accident: 'Accidente',
+  cargo_damage: 'Daño a la mercancía',
+  theft: 'Robo',
+  road_blockade: 'Bloqueo de carretera',
+  other: 'Otra',
+};
+
+export const incidentStatusLabels: Record<IncidentStatus, string> = {
+  open: 'Abierta',
+  resolved: 'Resuelta',
 };
 
 export const vehicleKindLabels: Record<VehicleKind, string> = {

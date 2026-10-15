@@ -5,5 +5,6 @@ export * from './fleet';
 export * from './load';
 export * from './offer';
 export * from './operator';
+export * from './trip';
 export * from './vehicle';
 export * from './verification';

@@ -565,7 +565,17 @@ begin
     raise exception 'company is not approved' using errcode = '42501';
   end if;
 
-  -- Locked so that archiving the unit waits for (and then sees) this trip.
+  -- Both rows are locked (for share) so that archiving the operator or the
+  -- unit waits for this trip and then sees it. Operator first, then unit: the
+  -- same order as archiving an operator (operators_release_vehicles), so the
+  -- two never deadlock. Only operators with an account can record the trip.
+  perform 1 from public.operators o
+  where o.id = p_operator_id and o.company_id = v_trip.carrier_company_id
+    and o.archived_at is null and o.profile_id is not null
+  for share;
+  if not found then
+    raise exception 'operator not found or without account' using errcode = '22023';
+  end if;
   perform 1 from public.vehicles v
   where v.id = p_vehicle_id and v.company_id = v_trip.carrier_company_id and v.archived_at is null
   for share;
@@ -574,14 +584,6 @@ begin
   end if;
   if exists (select 1 from public.vehicle_expired_requirements(p_vehicle_id)) then
     raise exception 'vehicle has expired documents' using errcode = '55000';
-  end if;
-  -- Only operators with an account can record the trip.
-  perform 1 from public.operators o
-  where o.id = p_operator_id and o.company_id = v_trip.carrier_company_id
-    and o.archived_at is null and o.profile_id is not null
-  for share;
-  if not found then
-    raise exception 'operator not found or without account' using errcode = '22023';
   end if;
 
   update public.trips

@@ -2,7 +2,8 @@
 --   1. two acceptances of different offers on the same load;
 --   2. an acceptance and a new offer on the same load;
 --   3. an acceptance and a withdrawal of the same offer;
---   4. a new offer from a carrier suspended while it waits for the load lock.
+--   4. a new offer from a carrier suspended while it waits for the load lock;
+--   5. an acceptance that gets the load lock after the pickup deadline.
 -- In every case the second call waits for the load lock and then fails with a
 -- clear error (55000, or 42501 when the caller lost access); a load never ends
 -- with two accepted offers.
@@ -14,7 +15,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(16);
+select plan(18);
 
 create schema tests;
 
@@ -329,6 +330,51 @@ select is(
   '0',
   'no offer exists from the suspended carrier'
 );
+
+-- ---------------------------------------------------------------------------
+-- 5. An acceptance that waits for the load lock past the pickup deadline.
+-- ---------------------------------------------------------------------------
+select extensions.dblink_exec('setup', $sql$
+  insert into public.loads (id, shipper_company_id, status,
+    origin_address, origin_city, origin_state, origin_lat, origin_lng,
+    destination_address, destination_city, destination_state, destination_lat, destination_lng,
+    pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end,
+    cargo_type, description, weight_kg, unit_type, proposed_price_cents, published_at)
+  values ('f5100000-0000-4000-8000-000000000005', 'c5100000-0000-4000-8000-000000000001', 'negotiating',
+    'Centro', 'Monterrey', 'Nuevo León', 25.6866, -100.3161,
+    'Centro', 'Guadalajara', 'Jalisco', 20.6597, -103.3496,
+    now() - interval '1 hour', clock_timestamp() + interval '2 seconds', now() + interval '1 day',
+    now() + interval '2 days', 'general', 'Carga de prueba', 1000, 'dry_van', 3000000, now());
+  insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id) values
+    ('f5200000-0000-4000-8000-0000000000a5', 'f5100000-0000-4000-8000-000000000005',
+     'c5100000-0000-4000-8000-000000000001', 'c5100000-0000-4000-8000-000000000002');
+  insert into public.offers (id, negotiation_id, load_id, shipper_company_id, carrier_company_id, side, amount_cents)
+  values ('f5300000-0000-4000-8000-0000000000a5', 'f5200000-0000-4000-8000-0000000000a5',
+    'f5100000-0000-4000-8000-000000000005', 'c5100000-0000-4000-8000-000000000001',
+    'c5100000-0000-4000-8000-000000000002', 'carrier', 2900000);
+$sql$);
+
+select extensions.dblink_exec('s1', 'begin');
+select * from extensions.dblink('s1', $sql$
+  select id::text from public.loads where id = 'f5100000-0000-4000-8000-000000000005' for update
+$sql$) as t(id text);
+
+-- s2's transaction (and its now()) starts before the deadline.
+select tests.begin_as('s2', 'a5100000-0000-4000-8000-000000000001');
+select extensions.dblink_send_query('s2', $sql$
+  select public.accept_offer('f5300000-0000-4000-8000-0000000000a5')::text
+$sql$);
+
+select ok(tests.wait_until_blocked('s2'), 'an acceptance waits for the load lock');
+select pg_sleep(2.5);
+select extensions.dblink_exec('s1', 'commit');
+select throws_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(trip_id text) $$,
+  '55000', null,
+  'an acceptance that got the lock after the pickup deadline fails'
+);
+select * from extensions.dblink_get_result('s2', false) as t(trip_id text);
+select extensions.dblink_exec('s2', 'rollback');
 
 select tests.cleanup();
 select extensions.dblink_disconnect('s1');

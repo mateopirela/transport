@@ -309,13 +309,16 @@ revoke all on function public.lock_company_approved(uuid) from public, anon, aut
 -- Internal: fail unless the pickup window of a load is still open. Used by the
 -- RPCs that move a negotiation forward (counter, accept) while holding the
 -- load lock; rejecting and withdrawing stay possible after the deadline.
+-- Deadlines are compared with clock_timestamp(), not now(): now() is frozen
+-- at transaction start and a call may have waited for the lock past the
+-- deadline.
 create function public.assert_pickup_open(p_load_id uuid)
 returns void
 language plpgsql
 set search_path = ''
 as $$
 begin
-  if (select l.pickup_window_end <= now() from public.loads l where l.id = p_load_id) then
+  if (select l.pickup_window_end <= clock_timestamp() from public.loads l where l.id = p_load_id) then
     raise exception 'pickup window already ended' using errcode = '55000';
   end if;
 end;
@@ -547,7 +550,7 @@ begin
   end if;
 
   v_load := public.apply_load_payload(v_load, p_load);
-  if v_load.status <> 'draft' and v_load.pickup_window_end <= now() then
+  if v_load.status <> 'draft' and v_load.pickup_window_end <= clock_timestamp() then
     raise exception 'invalid load: pickup window already ended' using errcode = '22023';
   end if;
 
@@ -616,7 +619,7 @@ begin
   if v_load.status <> 'draft' then
     raise exception 'cannot publish a load in status %', v_load.status using errcode = '55000';
   end if;
-  if v_load.pickup_window_end <= now() then
+  if v_load.pickup_window_end <= clock_timestamp() then
     raise exception 'pickup window already ended' using errcode = '22023';
   end if;
 
@@ -766,7 +769,7 @@ begin
     end if;
     raise exception 'cannot offer on a load in status %', v_load.status using errcode = '55000';
   end if;
-  if v_load.pickup_window_end <= now() then
+  if v_load.pickup_window_end <= clock_timestamp() then
     raise exception 'pickup window already ended' using errcode = '55000';
   end if;
   -- Re-checked under the load lock: the carrier may have been suspended while

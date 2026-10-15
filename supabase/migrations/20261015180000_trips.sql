@@ -697,7 +697,7 @@ set search_path = ''
 as $$
 declare
   v_trip public.trips := public.lock_trip_as_operator(p_trip_id);
-  v_occurred_at timestamptz := coalesce(p_occurred_at, now());
+  v_occurred_at timestamptz := p_occurred_at;
   v_event_id uuid;
 begin
   if p_client_event_id is not null then
@@ -706,6 +706,15 @@ begin
     if found then
       return v_event_id;
     end if;
+  end if;
+
+  -- Without a device time, use server time but never before the previous
+  -- status event: the device clock may run ahead of the server.
+  if v_occurred_at is null then
+    select greatest(now(), max(e.occurred_at)) into v_occurred_at from public.trip_events e
+    where e.trip_id = v_trip.id
+      and e.event_type in ('departed', 'arrived_at_pickup', 'loading_started', 'loading_finished',
+                           'arrived_at_delivery', 'unloading_started', 'unloading_finished');
   end if;
 
   if v_trip.status <> 'unloading' then

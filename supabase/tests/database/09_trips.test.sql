@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(115);
+select plan(116);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -422,9 +422,9 @@ select throws_ok(
   '22023', null, 'the estimate must be plausible'
 );
 select lives_ok(
-  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() - interval '90 seconds',
+  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() + interval '30 seconds',
                                      20.6597, -103.3496, null, now() + interval '3 days') $$,
-  'the operator starts unloading with an estimated end'
+  'the operator starts unloading with an estimated end (device clock 30 s ahead)'
 );
 select is(
   (select estimated_unload_end_at from public.trips where id = tests.val('trip1')), now() + interval '3 days',
@@ -443,7 +443,7 @@ set local role authenticated;
 select lives_ok(
   $$ select public.set_estimated_unload_end(tests.val('trip1'), now() + interval '5 days', null,
                                             'f6000000-0000-4000-8000-0000000000e2') $$,
-  'the operator updates the estimate while unloading'
+  'the operator updates the estimate without a device time while the device clock is ahead'
 );
 select lives_ok(
   $$ select public.set_estimated_unload_end(tests.val('trip1'), now() + interval '5 days', null,
@@ -455,6 +455,12 @@ select results_eq(
      where trip_id = tests.val('trip1') and event_type = 'unload_estimate_updated' $$,
   $$ values (1::bigint, now() + interval '5 days') $$,
   'every estimate is kept in the timeline'
+);
+select is(
+  (select occurred_at from public.trip_events
+   where trip_id = tests.val('trip1') and event_type = 'unload_estimate_updated'),
+  now() + interval '30 seconds',
+  'without a device time the estimate is not dated before the start of unloading'
 );
 reset role;
 select results_eq(

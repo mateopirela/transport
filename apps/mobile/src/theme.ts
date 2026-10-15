@@ -14,6 +14,8 @@ export const colors = {
   dangerSurface: '#FEF3F2',
   warning: '#B54708',
   warningSurface: '#FFFAEB',
+  success: '#067647',
+  successSurface: '#ECFDF3',
   info: '#1D4ED8',
   infoSurface: '#EFF4FF',
   onAccent: '#FFFFFF',

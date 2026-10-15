@@ -19,6 +19,8 @@ export const validationMessages = {
   amount: 'Escribe un monto válido en pesos, con máximo 2 decimales.',
   amountTooHigh: 'El monto es demasiado alto.',
   dateTime: 'Escribe una fecha y hora válidas.',
+  time: 'Escribe una hora válida (HH:MM).',
+  documentExpired: 'El documento ya está vencido.',
   date: 'Escribe una fecha válida (AAAA-MM-DD).',
   windowOrder: 'La hora de fin debe ser posterior a la de inicio.',
   deliveryBeforePickup: 'La entrega no puede terminar antes de que empiece la recolección.',

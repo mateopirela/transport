@@ -1,0 +1,33 @@
+// Spanish validation messages used by the zod form schemas (../schemas).
+
+export const validationMessages = {
+  required: 'Este campo es obligatorio.',
+  invalidOption: 'Selecciona una opción válida.',
+  tooLong: (max: number) => `Máximo ${max} caracteres.`,
+  email: 'Escribe un correo electrónico válido.',
+  phone: 'Escribe un teléfono de 10 dígitos.',
+  rfcFormat: 'El RFC no tiene un formato válido.',
+  rfcMoral: 'El RFC de una persona moral tiene 12 caracteres.',
+  rfcFisica: 'El RFC de una persona física tiene 13 caracteres.',
+  rfcDate: 'La fecha dentro del RFC no es válida.',
+  rfcGeneric: 'No se aceptan RFC genéricos.',
+  positiveNumber: 'Escribe una cantidad mayor a cero.',
+  wholeNumber: 'Escribe un número entero.',
+  amount: 'Escribe un monto válido en pesos, con máximo 2 decimales.',
+  amountTooHigh: 'El monto es demasiado alto.',
+  dateTime: 'Escribe una fecha y hora válidas.',
+  date: 'Escribe una fecha válida (AAAA-MM-DD).',
+  windowOrder: 'La hora de fin debe ser posterior a la de inicio.',
+  deliveryBeforePickup: 'La entrega no puede terminar antes de que empiece la recolección.',
+  sameOriginDestination: 'El origen y el destino no pueden ser el mismo lugar.',
+  outsideMexico: 'La ubicación debe estar en México.',
+  plate: 'Escribe unas placas válidas (5 a 8 letras o números).',
+  vehicleYear: 'Escribe un año de modelo válido.',
+  unitTypeRequired: 'Selecciona el tipo de unidad.',
+  capacityRequired: 'Escribe la capacidad de carga.',
+  tractorNoBody:
+    'Un tractocamión no lleva tipo de unidad ni capacidad; regístralos en el remolque.',
+  licenseExpired: 'La licencia está vencida.',
+  duplicateItems: 'Hay opciones repetidas.',
+  uuid: 'Identificador no válido.',
+} as const;

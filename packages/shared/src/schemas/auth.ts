@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { authMessages as a } from '../copy/auth';
 import { validationMessages as m } from '../copy/validation';
+import { isInvitationCode, normalizeInvitationCode } from '../invitation-code';
 import {
   emailField,
   enumField,
@@ -93,3 +94,45 @@ export function companyFromShipperSignUp(values: ShipperSignUpValues): CompanyFo
     contactPhone: values.phone,
   };
 }
+
+// --- Mobile app (B17): carrier sign-up and operator invitations (D15) -------
+
+/**
+ * Invitation code as typed or received in a link: normalized like the
+ * database does (uppercase, without spaces or hyphens) and checked against
+ * the format that create_operator_invitation issues (../invitation-code).
+ */
+export const invitationCodeField = z
+  .string({ error: m.invitationCode })
+  .transform(normalizeInvitationCode)
+  .refine(isInvitationCode, { error: m.invitationCode });
+
+/** Carrier self sign-up (mobile). The company is registered after the account exists. */
+export const carrierSignUpSchema = z
+  .object(
+    {
+      fullName: requiredText(120),
+      email: emailField,
+      phone: phoneField,
+      password: newPasswordField,
+      passwordConfirmation: passwordConfirmationField,
+    },
+    formError,
+  )
+  .superRefine(checkPasswordsMatch, onlyWhenValid);
+export type CarrierSignUpValues = z.output<typeof carrierSignUpSchema>;
+
+/** Operator sign-up through a carrier's invitation (D15). */
+export const operatorSignUpSchema = z
+  .object(
+    {
+      invitationCode: invitationCodeField,
+      fullName: requiredText(120),
+      email: emailField,
+      password: newPasswordField,
+      passwordConfirmation: passwordConfirmationField,
+    },
+    formError,
+  )
+  .superRefine(checkPasswordsMatch, onlyWhenValid);
+export type OperatorSignUpValues = z.output<typeof operatorSignUpSchema>;

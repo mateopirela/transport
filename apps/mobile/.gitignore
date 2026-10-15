@@ -1,0 +1,21 @@
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Generated native projects (Continuous Native Generation: `expo prebuild`)
+/ios
+/android
+.kotlin/
+
+# Signing material never goes in the repo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Metro
+.metro-health-check*

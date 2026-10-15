@@ -1,0 +1,180 @@
+import {
+  invitationCodeField,
+  mobileAuthCopy,
+  mobileErrorCopy,
+  mobileInviteCopy as copy,
+  operatorSignUpSchema,
+} from '@transport/shared';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+
+import { CheckEmail } from '../components/check-email';
+import { Button, Field, Loading, Notice, Screen, Title } from '../components/ui';
+import { invitationCodeParam } from '../lib/deep-links';
+import { validateForm, type FieldErrors } from '../lib/forms';
+import { useSession } from '../providers/session';
+
+/**
+ * "Unirme con invitación" (D15). Opened from the carrier's link
+ * (transport://invite?code=…) or from the sign-in screen.
+ *   - Signed out: create the operator account; the code is accepted once the
+ *     e-mail is confirmed.
+ *   - Signed in as an operator without a carrier: accept the stored code
+ *     automatically, or type one.
+ */
+export default function Invite() {
+  const { area } = useSession();
+  const params = useLocalSearchParams<{ code?: string | string[] }>();
+  const initialCode = invitationCodeParam(params.code);
+  return area === 'join' ? (
+    <AcceptInvitation initialCode={initialCode} />
+  ) : (
+    <OperatorSignUp initialCode={initialCode} />
+  );
+}
+
+function OperatorSignUp({ initialCode }: { initialCode: string }) {
+  const { actions } = useSession();
+  const [values, setValues] = useState({
+    invitationCode: initialCode,
+    fullName: '',
+    email: '',
+    password: '',
+    passwordConfirmation: '',
+  });
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const set = (field: keyof typeof values) => (text: string) =>
+    setValues((current) => ({ ...current, [field]: text }));
+
+  async function submit() {
+    setFormError(null);
+    const parsed = validateForm(operatorSignUpSchema, values);
+    setErrors(parsed.ok ? {} : parsed.errors);
+    if (!parsed.ok) return;
+    setSubmitting(true);
+    const result = await actions.signUpOperator(parsed.data);
+    setSubmitting(false);
+    if (!result.ok) setFormError(mobileErrorCopy[result.error]);
+    else if (result.value === 'check_email') setSentTo(parsed.data.email);
+  }
+
+  if (sentTo) {
+    return (
+      <CheckEmail email={sentTo}>
+        <Notice tone="info">{copy.pendingCodeNotice}</Notice>
+      </CheckEmail>
+    );
+  }
+
+  return (
+    <Screen>
+      <Title subtitle={copy.subtitle}>{copy.title}</Title>
+      {formError ? <Notice tone="danger">{formError}</Notice> : null}
+      <Field
+        label={copy.codeLabel}
+        value={values.invitationCode}
+        onChangeText={set('invitationCode')}
+        error={errors.invitationCode}
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
+      <Field
+        label={mobileAuthCopy.fullNameLabel}
+        value={values.fullName}
+        onChangeText={set('fullName')}
+        error={errors.fullName}
+        autoComplete="name"
+        textContentType="name"
+      />
+      <Field
+        label={mobileAuthCopy.emailLabel}
+        value={values.email}
+        onChangeText={set('email')}
+        error={errors.email}
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        textContentType="username"
+      />
+      <Field
+        label={mobileAuthCopy.passwordLabel}
+        value={values.password}
+        onChangeText={set('password')}
+        error={errors.password}
+        secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
+      />
+      <Field
+        label={mobileAuthCopy.passwordConfirmLabel}
+        value={values.passwordConfirmation}
+        onChangeText={set('passwordConfirmation')}
+        error={errors.passwordConfirmation}
+        secureTextEntry
+        autoComplete="new-password"
+        textContentType="newPassword"
+      />
+      <Button label={copy.createAccountAction} onPress={submit} loading={submitting} />
+    </Screen>
+  );
+}
+
+function AcceptInvitation({ initialCode }: { initialCode: string }) {
+  const { actions, refreshProfile } = useSession();
+  const [code, setCode] = useState(initialCode);
+  const [codeError, setCodeError] = useState<string | undefined>();
+  const [formError, setFormError] = useState<string | null>(null);
+  const [checkingPending, setCheckingPending] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const triedPending = useRef(false);
+
+  // First try the code saved at sign-up (it survives the e-mail confirmation).
+  useEffect(() => {
+    if (triedPending.current) return;
+    triedPending.current = true;
+    void actions.acceptPendingInvitation().then(async (result) => {
+      if (result?.ok) await refreshProfile();
+      else if (result) setFormError(mobileErrorCopy[result.error]);
+      setCheckingPending(false);
+    });
+  }, [actions, refreshProfile]);
+
+  async function submit() {
+    setFormError(null);
+    const parsed = invitationCodeField.safeParse(code);
+    setCodeError(parsed.success ? undefined : parsed.error.issues[0]?.message);
+    if (!parsed.success) return;
+    setSubmitting(true);
+    const result = await actions.acceptInvitation(parsed.data);
+    if (result.ok) await refreshProfile();
+    else setFormError(mobileErrorCopy[result.error]);
+    setSubmitting(false);
+  }
+
+  if (checkingPending) return <Loading label={copy.accepting} />;
+
+  return (
+    <Screen>
+      <Title subtitle={copy.subtitle}>{copy.title}</Title>
+      {formError ? <Notice tone="danger">{formError}</Notice> : null}
+      <Field
+        label={copy.codeLabel}
+        value={code}
+        onChangeText={setCode}
+        error={codeError}
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
+      <Button label={copy.acceptAction} onPress={submit} loading={submitting} />
+      <Button
+        label={mobileAuthCopy.signOut}
+        variant="link"
+        onPress={() => void actions.signOut()}
+      />
+    </Screen>
+  );
+}

@@ -18,6 +18,16 @@ El trabajo se organiza en **bloques**: cada bloque de [docs/plan-v1.md](docs/pla
 | `pnpm test`                         | Vitest en todos los paquetes                            |
 | `pnpm format` / `pnpm format:check` | Prettier: formatea / verifica (CI corre `format:check`) |
 
+Base de datos (Supabase local, requiere Docker):
+
+| Comando                    | Qué hace                                                                    |
+| -------------------------- | --------------------------------------------------------------------------- |
+| `supabase start`           | Levanta Supabase local (o `supabase db start` para solo Postgres)           |
+| `supabase db reset`        | Recrea la BD aplicando todas las migraciones de `supabase/migrations/`      |
+| `supabase test db`         | Corre los tests pgTAP de `supabase/tests/`                                  |
+| `pnpm db:types`            | Regenera `packages/shared/src/db.ts` (CI falla si quedó desactualizado)     |
+| `supabase migration new x` | Crea una migración nueva; cada tabla nueva lleva RLS y pgTAP en el mismo PR |
+
 Turborepo cachea las tareas; para filtrar por paquete: `pnpm turbo run test --filter=@transport/shared`.
 
 ## Estructura

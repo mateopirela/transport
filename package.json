@@ -11,6 +11,7 @@
     "lint:root": "eslint --max-warnings=0 *.js",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "db:types": "supabase gen types typescript --local --schema public > packages/shared/src/db.ts && eslint --fix packages/shared/src/db.ts && prettier --write packages/shared/src/db.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

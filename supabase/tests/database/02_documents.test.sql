@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(70);
+select plan(71);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -489,6 +489,12 @@ select throws_ok(
   $$ select public.review_company('c0000000-0000-4000-8000-00000000000a', 'reject', 'x') $$,
   '55000', null,
   'an approved company cannot be rejected (suspend it instead)'
+);
+update public.document_requirements set requires_expiry = true where code = 'proof_of_address';
+select results_eq(
+  $$ select code from public.company_missing_requirements('c0000000-0000-4000-8000-00000000000a') $$,
+  $$ values ('proof_of_address') $$,
+  'documents approved without expiry stop counting when the requirement starts requiring one'
 );
 
 -- Persona física (company C) does not need the acta constitutiva.

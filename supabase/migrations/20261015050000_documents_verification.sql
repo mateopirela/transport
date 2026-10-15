@@ -291,6 +291,9 @@ as $$
         and d.owner_id = c.id
         and d.status = 'approved'
         and d.archived_at is null
+        -- A requirement that later starts requiring an expiry date no longer
+        -- accepts documents approved without one.
+        and (not r.requires_expiry or d.expires_at is not null)
         and (d.expires_at is null or d.expires_at > now())
     )
   order by r.sort_order, r.code;

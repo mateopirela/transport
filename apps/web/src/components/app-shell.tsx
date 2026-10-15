@@ -8,10 +8,13 @@ import type { ViewerDetails } from '@/lib/viewer';
 /** Header and frame of the signed-in area (Cliente or Admin). */
 export function AppShell({
   area,
+  nav,
   viewer,
   children,
 }: {
   area?: string;
+  /** Section links shown under the header (Admin). */
+  nav?: readonly { href: string; label: string }[];
   viewer: ViewerDetails;
   children: React.ReactNode;
 }) {
@@ -36,6 +39,22 @@ export function AppShell({
         </div>
         <div className="h-0.5 bg-accent" />
       </header>
+      {nav && (
+        <nav className="border-b bg-card">
+          <ul className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 text-sm sm:px-6">
+            {nav.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className="inline-block px-3 py-3 whitespace-nowrap text-muted-foreground hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
     </div>
   );

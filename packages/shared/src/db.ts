@@ -561,6 +561,23 @@ export interface Database {
     Views: Record<never, never>;
     Functions: {
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
+      admin_list_users: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string };
+        Returns: {
+          company_id: string;
+          company_legal_name: string;
+          company_rfc: string;
+          company_status: Database['public']['Enums']['verification_status'];
+          company_type: Database['public']['Enums']['company_type'];
+          created_at: string;
+          email: string;
+          full_name: string;
+          id: string;
+          last_sign_in_at: string;
+          role: Database['public']['Enums']['user_role'];
+          total_count: number;
+        }[];
+      };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_fleet_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_operator_id: { Args: Record<PropertyKey, never>; Returns: string };

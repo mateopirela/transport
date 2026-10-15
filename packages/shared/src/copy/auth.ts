@@ -100,17 +100,17 @@ export const shellCopy = {
   adminHome: {
     title: 'Panel de administración',
     description: 'Verificación de empresas, supervisión de cargas y viajes, e incidencias.',
-    comingSoon: 'La cola de verificación estará disponible muy pronto.',
   },
   review: {
     pending_review: {
       title: 'Tu cuenta está en revisión',
       description:
-        'Estamos verificando los datos de tu empresa. Te avisaremos por correo cuando quede aprobada; mientras tanto no podrás publicar cargas.',
+        'Sube los documentos de tu empresa para que podamos verificarla. Mientras tu cuenta está en revisión no podrás publicar cargas.',
     },
     rejected: {
       title: 'No pudimos aprobar tu cuenta',
-      description: 'Revisa el motivo, corrige lo necesario y escríbenos para volver a revisarla.',
+      description:
+        'Revisa el motivo y los documentos rechazados. Al subirlos de nuevo, tu cuenta vuelve a revisión.',
     },
     suspended: {
       title: 'Tu cuenta está suspendida',

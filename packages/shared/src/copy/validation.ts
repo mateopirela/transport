@@ -34,4 +34,5 @@ export const validationMessages = {
   duplicateItems: 'Hay opciones repetidas.',
   uuid: 'Identificador no válido.',
   invitationCode: 'Escribe el código de invitación que te enviaron.',
+  reasonRequired: 'Escribe el motivo.',
 } as const;

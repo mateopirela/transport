@@ -91,8 +91,7 @@ function ExistingOperator({ id }: { id: string }) {
               <InvitationSection
                 client={carrier.client}
                 companyName={carrier.companyName}
-                operatorId={operator.id}
-                pending={operator.invitation}
+                operator={operator}
                 onChanged={reload}
               />
             )}

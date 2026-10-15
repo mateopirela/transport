@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 
-import { createInvitation, revokeInvitation, type InvitationRow } from '../lib/fleet-api';
+import { createInvitation, revokeInvitation, type OperatorSummary } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import type { Supabase } from '../lib/supabase';
 import { colors, spacing } from '../theme';
@@ -20,25 +20,31 @@ const copy = fleetCopy.invitation;
 export function InvitationSection({
   client,
   companyName,
-  operatorId,
-  pending,
+  operator,
   onChanged,
 }: {
   client: Supabase;
   companyName: string;
-  operatorId: string;
-  pending: InvitationRow | null;
+  /** Latest loaded operator; a new object after every successful refresh. */
+  operator: OperatorSummary;
   onChanged: () => Promise<void>;
 }) {
+  const pending = operator.invitation;
   const [created, setCreated] = useState<{
     invitationId: string;
     code: string;
     expiresAt: string;
+    /** The operator as loaded when the code was created. */
+    loadedBefore: OperatorSummary;
   } | null>(null);
-  // Show the code only while it is still the pending invitation: once it is
-  // revoked (new code, cancel, or the operator's email changed) or expires,
-  // it can no longer be accepted and must not be shared.
-  const issued = created && pending?.id === created.invitationId ? created : null;
+  // Show the code until a refresh says it is no longer the pending invitation
+  // (replaced, cancelled, revoked by an email change, or expired): then it can
+  // no longer be accepted and must not be shared. If the refresh after
+  // creating it fails, the code stays visible.
+  const issued =
+    created && (operator === created.loadedBefore || pending?.id === created.invitationId)
+      ? created
+      : null;
   const [busy, setBusy] = useState<'create' | 'revoke' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +62,10 @@ export function InvitationSection({
   }
 
   const create = () =>
-    run('create', async () => setCreated(await createInvitation(client, operatorId)));
+    run('create', async () => {
+      const invitation = await createInvitation(client, operator.id);
+      setCreated({ ...invitation, loadedBefore: operator });
+    });
 
   const revoke = (invitationId: string) =>
     run('revoke', async () => {

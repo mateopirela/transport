@@ -79,6 +79,16 @@ export function PlaceField({
             if (current()) onSelect(null, c.placeError);
           }
         });
+        // Typing again discards the picked place (and any details still loading):
+        // what is saved must always match a suggestion the person chose.
+        element.addEventListener('input', () => {
+          latest += 1;
+          onSelect(null, null);
+        });
+        // Places failing at runtime (quota, key restrictions): use the presets.
+        element.addEventListener('gmp-error', () => {
+          if (!cancelled) setFailed(true);
+        });
         container.current.append(element);
       })
       .catch(() => {

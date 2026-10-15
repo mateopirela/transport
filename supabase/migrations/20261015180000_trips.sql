@@ -82,6 +82,20 @@ $$;
 revoke all on function public.trip_is_active(public.trip_status) from public, anon;
 grant execute on function public.trip_is_active(public.trip_status) to authenticated, service_role;
 
+-- Statuses in which the assigned operator and unit still have work to do on
+-- the trip (assigned, on the road, or delivered with evidence pending).
+create function public.trip_in_operator_hands(p_status public.trip_status)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_status = 'assigned' or public.trip_is_active(p_status) or p_status = 'delivered';
+$$;
+
+revoke all on function public.trip_in_operator_hands(public.trip_status) from public, anon;
+grant execute on function public.trip_in_operator_hands(public.trip_status) to authenticated, service_role;
+
 -- Operator events: the status each one requires and the status it leads to.
 -- Mirrors OPERATOR_TRIP_EVENTS in packages/shared/src/trips.ts.
 create function public.trip_event_transition(p_event public.trip_event_type, out from_status public.trip_status,
@@ -551,10 +565,11 @@ begin
     raise exception 'company is not approved' using errcode = '42501';
   end if;
 
-  if not exists (
-    select 1 from public.vehicles v
-    where v.id = p_vehicle_id and v.company_id = v_trip.carrier_company_id and v.archived_at is null
-  ) then
+  -- Locked so that archiving the unit waits for (and then sees) this trip.
+  perform 1 from public.vehicles v
+  where v.id = p_vehicle_id and v.company_id = v_trip.carrier_company_id and v.archived_at is null
+  for share;
+  if not found then
     raise exception 'vehicle not found' using errcode = '22023';
   end if;
   if exists (select 1 from public.vehicle_expired_requirements(p_vehicle_id)) then
@@ -1219,6 +1234,29 @@ using (
   )
 );
 
+-- vehicles (B04) + the operator assigned to a trip with that unit, while the
+-- trip is in their hands (the fleet assignment may name another operator).
+-- The subquery is filtered by trips_select, which never reads vehicles.
+drop policy vehicles_select on public.vehicles;
+create policy vehicles_select
+on public.vehicles
+for select
+to authenticated
+using (
+  company_id = (select public.auth_fleet_company_id())
+  or (current_operator_id is not null and current_operator_id = (select public.auth_operator_id()))
+  or (select public.is_admin())
+  or (
+    (select public.auth_operator_id()) is not null
+    and exists (
+      select 1 from public.trips t
+      where t.vehicle_id = vehicles.id
+        and t.operator_id = (select public.auth_operator_id())
+        and public.trip_in_operator_hands(t.status)
+    )
+  )
+);
+
 -- loads (B05) + the operator assigned to the load's trip, who needs origin,
 -- destination and instructions. Otherwise identical to B05.
 drop policy loads_select on public.loads;
@@ -1292,3 +1330,41 @@ using (
   bucket_id = 'evidence'
   and exists (select 1 from public.trips t where t.id::text = split_part(objects.name, '/', 1))
 );
+
+-- ---------------------------------------------------------------------------
+-- Fleet guards: an operator or a unit cannot be archived while a trip is in
+-- their hands (otherwise the trip could never reach delivery). Reassign the
+-- trip first while it is still `assigned`. assign_trip locks both rows, so a
+-- concurrent archive waits for it and then sees the trip.
+-- ---------------------------------------------------------------------------
+create function public.fleet_block_archive_with_trips()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1 from public.trips t
+    where (case tg_table_name when 'operators' then t.operator_id else t.vehicle_id end) = new.id
+      and public.trip_in_operator_hands(t.status)
+  ) then
+    raise exception 'cannot archive: it is assigned to a trip in progress' using errcode = '55000';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.fleet_block_archive_with_trips() from public, anon, authenticated;
+
+create trigger operators_block_archive_with_trips
+before update of archived_at on public.operators
+for each row
+when (old.archived_at is null and new.archived_at is not null)
+execute function public.fleet_block_archive_with_trips();
+
+create trigger vehicles_block_archive_with_trips
+before update of archived_at on public.vehicles
+for each row
+when (old.archived_at is null and new.archived_at is not null)
+execute function public.fleet_block_archive_with_trips();

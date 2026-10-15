@@ -1564,6 +1564,10 @@ export interface Database {
         Args: { p_event: Database['public']['Enums']['trip_event_type'] };
         Returns: Record<string, unknown>;
       };
+      trip_in_operator_hands: {
+        Args: { p_status: Database['public']['Enums']['trip_status'] };
+        Returns: boolean;
+      };
       trip_is_active: {
         Args: { p_status: Database['public']['Enums']['trip_status'] };
         Returns: boolean;

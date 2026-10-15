@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(116);
+select plan(122);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -247,6 +247,34 @@ select is(
   (select count(*) from public.loads where id in (tests.val('load1'), tests.val('load2'))), 1::bigint,
   'the assigned operator sees the load of its trip, and no other'
 );
+select is(
+  (select count(*) from public.vehicles
+   where id in ('e6000000-0000-4000-8000-000000000003', 'e6000000-0000-4000-8000-000000000004')),
+  1::bigint,
+  'the assigned operator sees the unit of its trip without the fleet assignment'
+);
+select tests.login('a6000000-0000-4000-8000-000000000006');
+select is(
+  (select count(*) from public.vehicles where id = 'e6000000-0000-4000-8000-000000000003'), 0::bigint,
+  'a reassigned operator no longer sees the unit of the trip'
+);
+
+select tests.login('a6000000-0000-4000-8000-000000000003');
+select throws_ok(
+  $$ update public.operators set archived_at = now() where id = 'd6000000-0000-4000-8000-000000000005' $$,
+  '55000', 'cannot archive: it is assigned to a trip in progress',
+  'the carrier cannot archive the operator of a trip in progress'
+);
+select throws_ok(
+  $$ update public.vehicles set archived_at = now() where id = 'e6000000-0000-4000-8000-000000000003' $$,
+  '55000', 'cannot archive: it is assigned to a trip in progress',
+  'the carrier cannot archive the unit of a trip in progress'
+);
+select lives_ok(
+  $$ update public.operators set archived_at = now() where id = 'd6000000-0000-4000-8000-000000000009' $$,
+  'operators without a trip in progress can still be archived'
+);
+select tests.login('a6000000-0000-4000-8000-000000000005');
 
 -- ---------------------------------------------------------------------------
 -- record_trip_event: only the assigned operator, in order
@@ -682,6 +710,10 @@ select throws_ok(
   $$ select public.record_trip_locations(tests.val('trip1'),
        jsonb_build_array(jsonb_build_object('recordedAt', now(), 'lat', 20.66, 'lng', -103.35))) $$,
   '55000', null, 'no location is accepted once the trip is closed'
+);
+select is(
+  (select count(*) from public.vehicles where id = 'e6000000-0000-4000-8000-000000000003'), 0::bigint,
+  'once the trip is closed the operator no longer sees the unit through it'
 );
 
 -- ---------------------------------------------------------------------------

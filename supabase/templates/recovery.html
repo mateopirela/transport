@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es-MX">
+  <body style="font-family: Arial, sans-serif; color: #131f33">
+    <h2>Recupera tu contraseña</h2>
+    <p>Recibimos una solicitud para cambiar la contraseña de tu cuenta.</p>
+    <p>
+      <a
+        href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/restablecer"
+        style="
+          background: #2f7bf0;
+          color: #ffffff;
+          padding: 12px 20px;
+          border-radius: 6px;
+          text-decoration: none;
+        "
+        >Crear una nueva contraseña</a
+      >
+    </p>
+    <p>El enlace vence en una hora. Si no pediste el cambio, ignora este mensaje.</p>
+  </body>
+</html>

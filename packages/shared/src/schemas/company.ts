@@ -23,6 +23,21 @@ export const rfcField = z.string({ error: m.rfcFormat }).transform((value, ctx) 
   return z.NEVER;
 });
 
+/** The RFC length must match the person type: 12 for moral, 13 for física. */
+export function checkRfcMatchesPersonType(
+  { personType, rfc }: { personType: (typeof PERSON_TYPES)[number]; rfc: string },
+  ctx: z.RefinementCtx,
+): void {
+  const expected = personType === 'moral' ? 12 : 13;
+  if (rfc.length !== expected) {
+    ctx.addIssue({
+      code: 'custom',
+      message: personType === 'moral' ? m.rfcMoral : m.rfcFisica,
+      path: ['rfc'],
+    });
+  }
+}
+
 /** Company registration (shipper web, carrier app). */
 export const companyFormSchema = z
   .object(
@@ -39,16 +54,7 @@ export const companyFormSchema = z
     },
     formError,
   )
-  .superRefine(({ personType, rfc }, ctx) => {
-    const expected = personType === 'moral' ? 12 : 13;
-    if (rfc.length !== expected) {
-      ctx.addIssue({
-        code: 'custom',
-        message: personType === 'moral' ? m.rfcMoral : m.rfcFisica,
-        path: ['rfc'],
-      });
-    }
-  }, onlyWhenValid);
+  .superRefine(checkRfcMatchesPersonType, onlyWhenValid);
 
 export type CompanyFormInput = z.input<typeof companyFormSchema>;
 export type CompanyFormValues = z.output<typeof companyFormSchema>;

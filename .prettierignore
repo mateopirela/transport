@@ -3,3 +3,5 @@ coverage/
 dist/
 .turbo/
 docs/
+.next/
+next-env.d.ts

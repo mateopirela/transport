@@ -1,21 +1,19 @@
 // Domain enums. Values are the English identifiers stored in Postgres; the
-// Spanish labels live in ./copy/catalogs.ts. Keep these lists in sync with the
-// SQL enums (B01 and later blocks) and with the generated types in ./db.ts.
+// Spanish labels live in ./copy/catalogs.ts. Enums that already exist in SQL
+// come from the generated types (./db.ts) so they cannot drift; the rest must
+// match the SQL enums their blocks create (B04-B06).
+import { Constants } from './db';
 
-export const COMPANY_TYPES = ['shipper', 'carrier'] as const;
+const DB_ENUMS = Constants.public.Enums;
+
+export const COMPANY_TYPES = DB_ENUMS.company_type;
 export type CompanyType = (typeof COMPANY_TYPES)[number];
 
-export const USER_ROLES = ['shipper', 'carrier', 'operator', 'admin'] as const;
+export const USER_ROLES = DB_ENUMS.user_role;
 export type UserRole = (typeof USER_ROLES)[number];
 
 /** Shared by companies and documents (plan §1.1). */
-export const VERIFICATION_STATUSES = [
-  'pending_review',
-  'approved',
-  'rejected',
-  'expired',
-  'suspended',
-] as const;
+export const VERIFICATION_STATUSES = DB_ENUMS.verification_status;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
 export const LOAD_STATUSES = [

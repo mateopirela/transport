@@ -177,21 +177,32 @@ before update on public.vehicles
 for each row execute function public.set_updated_at();
 
 -- Archived units drop their operator; only active operators can be assigned.
+--
+-- The operator row is read FOR SHARE, which conflicts with the row lock taken
+-- by an update that archives it, so an assignment and an archival of the same
+-- operator serialize: if the archival commits first, the assignment re-reads
+-- the archived row and fails; if the assignment commits first, the archival's
+-- operators_release_vehicles (a later statement, with a newer snapshot) sees it
+-- and clears it. Either way no unit stays assigned to an archived operator.
 create function public.vehicles_check_operator()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
+declare
+  v_archived_at timestamptz;
 begin
   if new.archived_at is not null then
     new.current_operator_id := null;
   elsif new.current_operator_id is not null
-        and (tg_op = 'INSERT' or new.current_operator_id is distinct from old.current_operator_id)
-        and exists (
-          select 1 from public.operators o
-          where o.id = new.current_operator_id and o.archived_at is not null
-        ) then
-    raise exception 'cannot assign an archived operator' using errcode = '23514';
+        and (tg_op = 'INSERT' or new.current_operator_id is distinct from old.current_operator_id) then
+    select o.archived_at into v_archived_at
+    from public.operators o
+    where o.id = new.current_operator_id
+    for share;
+    if v_archived_at is not null then
+      raise exception 'cannot assign an archived operator' using errcode = '23514';
+    end if;
   end if;
   return new;
 end;
@@ -362,6 +373,8 @@ begin
     raise exception 'p_valid_for_hours must be between 1 and 720' using errcode = '22023';
   end if;
 
+  -- Lock order (shared with accept_operator_invitation): operator, then its
+  -- invitations.
   select * into v_operator from public.operators where id = p_operator_id for update;
   if not found or v_operator.company_id is distinct from public.auth_fleet_company_id() then
     raise exception 'operator not found' using errcode = '42501';
@@ -445,6 +458,7 @@ declare
   v_email text;
   v_email_confirmed_at timestamptz;
   v_invitation public.operator_invitations%rowtype;
+  v_operator_id uuid;
   v_code text := upper(regexp_replace(coalesce(p_code, ''), '[\s-]', '', 'g'));
 begin
   if v_uid is null then
@@ -457,6 +471,16 @@ begin
   end if;
   if v_profile.company_id is not null then
     raise exception 'user already belongs to a company' using errcode = '42501';
+  end if;
+
+  -- Lock order shared with create_operator_invitation: the operator row first,
+  -- then its invitation, so a concurrent re-issue cannot deadlock with this.
+  -- An invitation's operator_id never changes, so it can be read unlocked.
+  select i.operator_id into v_operator_id
+  from public.operator_invitations i
+  where i.code_hash = sha256(convert_to(v_code, 'UTF8'));
+  if found then
+    perform 1 from public.operators o where o.id = v_operator_id for update;
   end if;
 
   select * into v_invitation

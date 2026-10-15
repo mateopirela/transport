@@ -15,8 +15,18 @@ export const paths = {
   review: '/cuenta-en-revision',
   shipper: '/cliente',
   admin: '/admin',
+  adminQueue: '/admin/verificacion',
+  adminUsers: '/admin/usuarios',
+  adminAudit: '/admin/auditoria',
   mobileOnly: '/solo-app',
 } as const;
+
+/** Admin company detail (verification of its documents, fleet and status). */
+export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;
+
+/** Admin-only redirect to a short-lived signed URL of a document's file. */
+export const adminDocumentFilePath = (documentId: string) =>
+  `/admin/documentos/${documentId}/archivo`;
 
 /** The signed-in user as far as routing is concerned; `null` when signed out. */
 export type Viewer = {

@@ -4,3 +4,4 @@ export * from './auth';
 export * from './catalogs';
 export * from './mobile';
 export * from './validation';
+export * from './verification';

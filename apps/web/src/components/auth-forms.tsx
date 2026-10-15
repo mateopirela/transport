@@ -21,7 +21,7 @@ const f = authCopy.fields;
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
 /** A form bound to a server action, with its global error or notice. */
-function ActionForm({
+export function ActionForm({
   action,
   initial = {},
   submit,
@@ -69,7 +69,7 @@ export function Notice({
   );
 }
 
-function Field({
+export function Field({
   name,
   label,
   state,

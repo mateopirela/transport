@@ -274,6 +274,284 @@ export interface Database {
           },
         ];
       };
+      loads: {
+        Row: {
+          accepted_offer_id: string | null;
+          agreed_price_cents: number | null;
+          archived_at: string | null;
+          cancellation_reason: string | null;
+          cancelled_at: string | null;
+          cargo_type: Database['public']['Enums']['cargo_type'];
+          carrier_company_id: string | null;
+          contracted_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          delivery_window_end: string;
+          delivery_window_start: string;
+          description: string;
+          destination_address: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_location: unknown;
+          destination_place_id: string | null;
+          destination_state: string;
+          id: string;
+          notes: string | null;
+          origin_address: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_location: unknown;
+          origin_place_id: string | null;
+          origin_state: string;
+          pickup_window_end: string;
+          pickup_window_start: string;
+          proposed_price_cents: number;
+          published_at: string | null;
+          shipper_company_id: string;
+          special_requirements: Database['public']['Enums']['special_requirement'][];
+          status: Database['public']['Enums']['load_status'];
+          unit_type: Database['public']['Enums']['unit_type'];
+          updated_at: string;
+          volume_m3: number | null;
+          weight_kg: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_offer_id?: string | null;
+          agreed_price_cents?: number | null;
+          archived_at?: string | null;
+          cancellation_reason?: string | null;
+          cancelled_at?: string | null;
+          cargo_type: Database['public']['Enums']['cargo_type'];
+          carrier_company_id?: string | null;
+          contracted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          delivery_window_end: string;
+          delivery_window_start: string;
+          description: string;
+          destination_address: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_location?: never;
+          destination_place_id?: string | null;
+          destination_state: string;
+          id?: string;
+          notes?: string | null;
+          origin_address: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_location?: never;
+          origin_place_id?: string | null;
+          origin_state: string;
+          pickup_window_end: string;
+          pickup_window_start: string;
+          proposed_price_cents: number;
+          published_at?: string | null;
+          shipper_company_id: string;
+          special_requirements?: Database['public']['Enums']['special_requirement'][];
+          status?: Database['public']['Enums']['load_status'];
+          unit_type: Database['public']['Enums']['unit_type'];
+          updated_at?: string;
+          volume_m3?: number | null;
+          weight_kg: number;
+        };
+        Update: {
+          accepted_offer_id?: string | null;
+          agreed_price_cents?: number | null;
+          archived_at?: string | null;
+          cancellation_reason?: string | null;
+          cancelled_at?: string | null;
+          cargo_type?: Database['public']['Enums']['cargo_type'];
+          carrier_company_id?: string | null;
+          contracted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          delivery_window_end?: string;
+          delivery_window_start?: string;
+          description?: string;
+          destination_address?: string;
+          destination_city?: string;
+          destination_lat?: number;
+          destination_lng?: number;
+          destination_location?: never;
+          destination_place_id?: string | null;
+          destination_state?: string;
+          id?: string;
+          notes?: string | null;
+          origin_address?: string;
+          origin_city?: string;
+          origin_lat?: number;
+          origin_lng?: number;
+          origin_location?: never;
+          origin_place_id?: string | null;
+          origin_state?: string;
+          pickup_window_end?: string;
+          pickup_window_start?: string;
+          proposed_price_cents?: number;
+          published_at?: string | null;
+          shipper_company_id?: string;
+          special_requirements?: Database['public']['Enums']['special_requirement'][];
+          status?: Database['public']['Enums']['load_status'];
+          unit_type?: Database['public']['Enums']['unit_type'];
+          updated_at?: string;
+          volume_m3?: number | null;
+          weight_kg?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'loads_accepted_offer_fkey';
+            columns: ['accepted_offer_id'];
+            isOneToOne: false;
+            referencedRelation: 'offers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'loads_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'loads_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      negotiations: {
+        Row: {
+          carrier_company_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          load_id: string;
+          shipper_company_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          carrier_company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          load_id: string;
+          shipper_company_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          carrier_company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          load_id?: string;
+          shipper_company_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'negotiations_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'negotiations_load_fkey';
+            columns: ['load_id', 'shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id', 'shipper_company_id'];
+          },
+        ];
+      };
+      offers: {
+        Row: {
+          amount_cents: number;
+          carrier_company_id: string;
+          conditions: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          load_id: string;
+          negotiation_id: string;
+          parent_offer_id: string | null;
+          responded_at: string | null;
+          responded_by: string | null;
+          shipper_company_id: string;
+          side: Database['public']['Enums']['offer_side'];
+          status: Database['public']['Enums']['offer_status'];
+          status_reason: string | null;
+          vehicle_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_cents: number;
+          carrier_company_id: string;
+          conditions?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          load_id: string;
+          negotiation_id: string;
+          parent_offer_id?: string | null;
+          responded_at?: string | null;
+          responded_by?: string | null;
+          shipper_company_id: string;
+          side: Database['public']['Enums']['offer_side'];
+          status?: Database['public']['Enums']['offer_status'];
+          status_reason?: string | null;
+          vehicle_id?: string | null;
+        };
+        Update: {
+          amount_cents?: number;
+          carrier_company_id?: string;
+          conditions?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          load_id?: string;
+          negotiation_id?: string;
+          parent_offer_id?: string | null;
+          responded_at?: string | null;
+          responded_by?: string | null;
+          shipper_company_id?: string;
+          side?: Database['public']['Enums']['offer_side'];
+          status?: Database['public']['Enums']['offer_status'];
+          status_reason?: string | null;
+          vehicle_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'offers_negotiation_fkey';
+            columns: ['negotiation_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'negotiations';
+            referencedColumns: ['id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+          },
+          {
+            foreignKeyName: 'offers_parent_offer_id_fkey';
+            columns: ['parent_offer_id'];
+            isOneToOne: false;
+            referencedRelation: 'offers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'offers_vehicle_fkey';
+            columns: ['carrier_company_id', 'vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
       operator_invitations: {
         Row: {
           accepted_at: string | null;
@@ -560,6 +838,7 @@ export interface Database {
     };
     Views: Record<never, never>;
     Functions: {
+      accept_offer: { Args: { p_offer_id: string }; Returns: string };
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
       admin_list_users: {
         Args: { p_limit?: number; p_offset?: number; p_search?: string };
@@ -578,12 +857,82 @@ export interface Database {
           total_count: number;
         }[];
       };
+      apply_load_payload: {
+        Args: {
+          p_load: Omit<
+            Database['public']['Tables']['loads']['Row'],
+            Database['public']['Tables']['loads']['ComputedFields']
+          >;
+          p_payload: Json;
+        };
+        Returns: {
+          accepted_offer_id: string | null;
+          agreed_price_cents: number | null;
+          archived_at: string | null;
+          cancellation_reason: string | null;
+          cancelled_at: string | null;
+          cargo_type: Database['public']['Enums']['cargo_type'];
+          carrier_company_id: string | null;
+          contracted_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          delivery_window_end: string;
+          delivery_window_start: string;
+          description: string;
+          destination_address: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_location: unknown;
+          destination_place_id: string | null;
+          destination_state: string;
+          id: string;
+          notes: string | null;
+          origin_address: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_location: unknown;
+          origin_place_id: string | null;
+          origin_state: string;
+          pickup_window_end: string;
+          pickup_window_start: string;
+          proposed_price_cents: number;
+          published_at: string | null;
+          shipper_company_id: string;
+          special_requirements: Database['public']['Enums']['special_requirement'][];
+          status: Database['public']['Enums']['load_status'];
+          unit_type: Database['public']['Enums']['unit_type'];
+          updated_at: string;
+          volume_m3: number | null;
+          weight_kg: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'loads';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_fleet_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_operator_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['user_role'];
+      };
+      auth_shipper_company_id: { Args: Record<PropertyKey, never>; Returns: string };
+      cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
+      check_offer_fields: {
+        Args: {
+          p_amount_cents: number;
+          p_carrier_company_id: string;
+          p_conditions: string;
+          p_side: Database['public']['Enums']['offer_side'];
+          p_vehicle_id: string;
+        };
+        Returns: undefined;
       };
       clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
       company_missing_requirements: {
@@ -610,6 +959,15 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      counter_offer: {
+        Args: {
+          p_amount_cents: number;
+          p_conditions?: string;
+          p_offer_id: string;
+          p_vehicle_id?: string;
+        };
+        Returns: string;
+      };
       create_company: {
         Args: {
           p_contact_email?: string;
@@ -620,6 +978,7 @@ export interface Database {
         };
         Returns: string;
       };
+      create_load: { Args: { p_load: Json }; Returns: string };
       create_operator_invitation: {
         Args: { p_operator_id: string; p_valid_for_hours?: number };
         Returns: {
@@ -628,6 +987,7 @@ export interface Database {
           invitation_id: string;
         }[];
       };
+      create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
       document_owner_company_id: {
         Args: {
           p_owner_id: string;
@@ -637,6 +997,45 @@ export interface Database {
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
+      lock_company_approved: { Args: { p_company_id: string }; Returns: boolean };
+      lock_offer_for_response: {
+        Args: { p_by: string; p_offer_id: string };
+        Returns: {
+          amount_cents: number;
+          carrier_company_id: string;
+          conditions: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          load_id: string;
+          negotiation_id: string;
+          parent_offer_id: string | null;
+          responded_at: string | null;
+          responded_by: string | null;
+          shipper_company_id: string;
+          side: Database['public']['Enums']['offer_side'];
+          status: Database['public']['Enums']['offer_status'];
+          status_reason: string | null;
+          vehicle_id: string | null;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'offers';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      make_offer: {
+        Args: {
+          p_amount_cents: number;
+          p_conditions?: string;
+          p_load_id: string;
+          p_vehicle_id?: string;
+        };
+        Returns: string;
+      };
+      publish_load: { Args: { p_load_id: string }; Returns: undefined };
+      reject_offer: { Args: { p_offer_id: string; p_reason?: string }; Returns: undefined };
       request_company_review: {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['verification_status'];
@@ -677,10 +1076,12 @@ export interface Database {
         };
         Returns: string;
       };
+      sync_load_negotiation_status: { Args: { p_load_id: string }; Returns: undefined };
       taxpayer_type_for_rfc: {
         Args: { p_rfc: string };
         Returns: Database['public']['Enums']['taxpayer_type'];
       };
+      update_load: { Args: { p_load: Json; p_load_id: string }; Returns: undefined };
       vehicle_expired_requirements: {
         Args: { p_vehicle_id: string };
         Returns: {
@@ -729,12 +1130,36 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      withdraw_offer: { Args: { p_offer_id: string }; Returns: undefined };
     };
     Enums: {
       availability_source: 'manual' | 'trip_estimate';
+      cargo_type:
+        | 'general'
+        | 'palletized'
+        | 'perishable'
+        | 'dry_bulk'
+        | 'liquid_bulk'
+        | 'hazardous'
+        | 'oversized'
+        | 'containerized'
+        | 'vehicles'
+        | 'construction_materials'
+        | 'livestock';
       company_type: 'shipper' | 'carrier';
       document_owner_type: 'company' | 'vehicle' | 'operator';
       license_type: 'B' | 'C' | 'E';
+      load_status:
+        | 'draft'
+        | 'published'
+        | 'negotiating'
+        | 'contracted'
+        | 'in_progress'
+        | 'completed'
+        | 'cancelled'
+        | 'expired';
+      offer_side: 'shipper' | 'carrier';
+      offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       special_requirement:
         | 'temperature_control'
         | 'hazmat_permit'
@@ -872,9 +1297,34 @@ export const Constants = {
   public: {
     Enums: {
       availability_source: ['manual', 'trip_estimate'],
+      cargo_type: [
+        'general',
+        'palletized',
+        'perishable',
+        'dry_bulk',
+        'liquid_bulk',
+        'hazardous',
+        'oversized',
+        'containerized',
+        'vehicles',
+        'construction_materials',
+        'livestock',
+      ],
       company_type: ['shipper', 'carrier'],
       document_owner_type: ['company', 'vehicle', 'operator'],
       license_type: ['B', 'C', 'E'],
+      load_status: [
+        'draft',
+        'published',
+        'negotiating',
+        'contracted',
+        'in_progress',
+        'completed',
+        'cancelled',
+        'expired',
+      ],
+      offer_side: ['shipper', 'carrier'],
+      offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
       special_requirement: [
         'temperature_control',
         'hazmat_permit',

@@ -1,0 +1,54 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax", "style"],
+  "autoReview": ["open", "push", "rebase"],
+  "statusCheck": true,
+  "ignorePatterns": "pnpm-lock.yaml\ndocs/fuentes/**\npackages/shared/src/db.ts",
+  "instructions": "Repo: freight-transport platform for Mexico (V1). Each PR implements exactly one block of docs/plan-v1.md; its title starts with the block id, e.g. [B05]. Check the PR against that block's scope and the definition of done (§0.3); flag out-of-scope changes. Code, identifiers and DB names are in English; UI copy and product docs are in Spanish. Authorization lives in Postgres (RLS + validated RPCs); apps only use the anon key and the user's JWT.",
+  "rules": [
+    {
+      "id": "rls-required",
+      "rule": "Every new table in a migration must enable Row Level Security in the same migration and define explicit policies for each operation it allows (select, insert, update, delete). A table without RLS, or a policy using `using (true)` / `with check (true)` for non-public data, is a blocking issue.",
+      "scope": ["supabase/**"],
+      "severity": "high"
+    },
+    {
+      "id": "security-definer-search-path",
+      "rule": "Every `security definer` function must set a fixed `search_path` (e.g. `set search_path = ''` or `public, pg_temp`), validate the caller explicitly (auth.uid(), role, company) and be revoked from `public`/`anon` unless intentionally exposed.",
+      "scope": ["supabase/**"],
+      "severity": "high"
+    },
+    {
+      "id": "transitions-via-rpc",
+      "rule": "State transitions (loads, offers, trips, documents, companies) must happen only through a Postgres RPC that validates the transition and the actor. Flag RLS policies that let clients update a `status` column directly, and app code that calls `.update({ status })` (or equivalent) instead of `.rpc(...)`.",
+      "severity": "high"
+    },
+    {
+      "id": "pgtap-tests-required",
+      "rule": "Schema changes (new tables, policies, RPCs) must come with pgTAP tests under supabase/tests covering the role x operation matrix, including access from another company. New pure logic (state machines, scoring, validators, formatters) must come with Vitest tests.",
+      "severity": "medium"
+    },
+    {
+      "id": "no-secrets",
+      "rule": "No secrets in the repository: API keys, service-role keys, JWT secrets, DSNs with credentials, passwords or tokens must never be committed, hardcoded or logged. Values come from environment variables documented (with empty or placeholder values) in .env.example. The Supabase service role must never reach web or mobile client code.",
+      "severity": "high"
+    },
+    {
+      "id": "spanish-ui-copy",
+      "rule": "All user-facing text (UI, emails, push notifications, error messages shown to users) must be in Spanish and live in packages/shared/src/copy/, not inline in components. Code identifiers, DB names and commit messages stay in English.",
+      "scope": ["apps/**", "packages/shared/**", "supabase/functions/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "money-and-dates",
+      "rule": "Money is stored as integer MXN cents (bigint) and formatted with Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }); never use floating point for money. Timestamps are timestamptz and are displayed in America/Mexico_City.",
+      "severity": "medium"
+    },
+    {
+      "id": "ci-and-review-integrity",
+      "rule": "Changes to .github/workflows or .greptile must not remove or weaken existing checks, review rules or strictness (e.g. deleting jobs, adding `continue-on-error`, skipping tests, lowering strictness, disabling rules). Workflows must keep least-privilege `permissions`, avoid `pull_request_target` with checkout of PR code, and pin third-party actions to a full commit SHA.",
+      "scope": [".github/**", ".greptile/**"],
+      "severity": "high"
+    }
+  ]
+}

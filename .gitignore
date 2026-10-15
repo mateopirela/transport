@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build and tool output
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Environment: never commit secrets; document variables in .env.example
+.env
+.env.*
+!.env.example
+
+# OS and editors
+.DS_Store
+*.log
+.idea/
+
+# Local agent worktrees
+.claude/worktrees/

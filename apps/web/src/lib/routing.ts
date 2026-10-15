@@ -14,12 +14,18 @@ export const paths = {
   completeCompany: '/completar-registro',
   review: '/cuenta-en-revision',
   shipper: '/cliente',
+  shipperLoads: '/cliente/cargas',
+  newLoad: '/cliente/cargas/nueva',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
   adminAudit: '/admin/auditoria',
   mobileOnly: '/solo-app',
 } as const;
+
+/** Shipper load detail and edit screens (B13). */
+export const loadPath = (loadId: string) => `/cliente/cargas/${loadId}`;
+export const editLoadPath = (loadId: string) => `/cliente/cargas/${loadId}/editar`;
 
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;

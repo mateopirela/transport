@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(111);
+select plan(115);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -267,6 +267,11 @@ select throws_ok(
   $$ select public.record_trip_event(tests.val('trip1'), 'departed', now(), 25.6) $$, '22023', null,
   'a location needs both coordinates'
 );
+select throws_ok(
+  $$ select public.record_trip_event(tests.val('trip1'), 'departed', now()) $$, '22023',
+  'the location of the event is required',
+  'every operator status event needs its location (D11)'
+);
 select tests.login('a6000000-0000-4000-8000-000000000003');
 select throws_ok(
   $$ select public.record_trip_event(tests.val('trip1'), 'departed', now()) $$, '42501', null,
@@ -320,10 +325,14 @@ select is(
   'departing puts the load in progress'
 );
 select lives_ok(
-  $$ select public.record_trip_event(tests.val('trip1'), 'arrived_at_pickup', now() - interval '210 seconds');
-     select public.record_trip_event(tests.val('trip1'), 'loading_started', now() - interval '180 seconds');
-     select public.record_trip_event(tests.val('trip1'), 'loading_finished', now() - interval '150 seconds');
-     select public.record_trip_event(tests.val('trip1'), 'arrived_at_delivery', now() - interval '120 seconds') $$,
+  $$ select public.record_trip_event(tests.val('trip1'), 'arrived_at_pickup', now() - interval '210 seconds',
+                                     25.7001, -100.2502);
+     select public.record_trip_event(tests.val('trip1'), 'loading_started', now() - interval '180 seconds',
+                                     25.7001, -100.2502);
+     select public.record_trip_event(tests.val('trip1'), 'loading_finished', now() - interval '150 seconds',
+                                     25.7001, -100.2502);
+     select public.record_trip_event(tests.val('trip1'), 'arrived_at_delivery', now() - interval '120 seconds',
+                                     20.6597, -103.3496) $$,
   'the operator advances the trip in order'
 );
 select is(
@@ -378,7 +387,7 @@ select is(tests.visible('trip_locations'), 0::bigint, 'another operator does not
 select tests.login('a6000000-0000-4000-8000-000000000001');
 select is(tests.visible('trip_locations'), 2::bigint, 'the shipper sees the locations while the trip is active');
 select is(
-  (select count(*) from public.trip_point_locations(tests.val('trip1'))), 1::bigint,
+  (select count(*) from public.trip_point_locations(tests.val('trip1'))), 5::bigint,
   'the shipper sees the event locations while the trip is active'
 );
 select tests.login('a6000000-0000-4000-8000-000000000002');
@@ -397,12 +406,19 @@ select is(tests.visible('trip_locations'), 2::bigint, 'the carrier sees its trip
 -- ---------------------------------------------------------------------------
 select tests.login('a6000000-0000-4000-8000-000000000005');
 select throws_ok(
-  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() - interval '90 seconds') $$,
+  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() - interval '130 seconds',
+                                     20.6597, -103.3496, null, now() + interval '3 days') $$,
+  '22023', 'occurred_at is before the previous event of the trip',
+  'an event cannot happen before the previous one (device clock moved back)'
+);
+select throws_ok(
+  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() - interval '90 seconds',
+                                     20.6597, -103.3496) $$,
   '22023', null, 'starting to unload needs the estimated end of unloading'
 );
 select throws_ok(
   $$ select public.record_trip_event(tests.val('trip1'), 'unloading_started', now() - interval '90 seconds',
-                                     null, null, null, now() + interval '60 days') $$,
+                                     20.6597, -103.3496, null, now() + interval '60 days') $$,
   '22023', null, 'the estimate must be plausible'
 );
 select lives_ok(
@@ -567,9 +583,19 @@ select throws_ok(
 select tests.login('a6000000-0000-4000-8000-000000000004');
 select is(tests.visible('incidents'), 0::bigint, 'another carrier does not see the incident');
 select tests.login('a6000000-0000-4000-8000-000000000007');
+select throws_ok(
+  $$ select public.resolve_incident(tests.val('incident1'), rpad('Se reprogramó la cita de descarga', 2001, '.')) $$,
+  '22023', null, 'a resolution is at most 2000 characters'
+);
 select lives_ok(
-  $$ select public.resolve_incident(tests.val('incident1'), 'Se reprogramó la cita de descarga') $$,
-  'an admin resolves the incident'
+  $$ select public.resolve_incident(tests.val('incident1'), rpad('Se reprogramó la cita de descarga', 2000, '.')) $$,
+  'an admin resolves the incident (2000 characters fit)'
+);
+select is(
+  (select char_length(notes) from public.trip_events
+   where incident_id = tests.val('incident1') and event_type = 'incident_resolved'),
+  2000,
+  'the whole resolution is kept in the timeline'
 );
 select throws_ok(
   $$ select public.resolve_incident(tests.val('incident1'), 'Otra vez') $$, '55000', null,
@@ -588,7 +614,8 @@ set local role authenticated;
 -- ---------------------------------------------------------------------------
 select tests.login('a6000000-0000-4000-8000-000000000005');
 select lives_ok(
-  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_finished', now() + interval '1 minute') $$,
+  $$ select public.record_trip_event(tests.val('trip1'), 'unloading_finished', now() + interval '1 minute',
+                                     20.6597, -103.3496) $$,
   'the operator finishes unloading'
 );
 select results_eq(
@@ -622,7 +649,7 @@ select tests.login('a6000000-0000-4000-8000-000000000003');
 select is(tests.visible('trip_locations'), 3::bigint, 'the carrier keeps the trip locations');
 select is(
   (select array_agg(source order by source) from public.trip_point_locations(tests.val('trip1'))),
-  array['event', 'event', 'evidence'],
+  array['event', 'event', 'event', 'event', 'event', 'event', 'event', 'evidence'],
   'the carrier keeps the event and evidence locations'
 );
 select throws_ok(

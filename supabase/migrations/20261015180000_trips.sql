@@ -213,7 +213,8 @@ create table public.trip_events (
   accuracy_m real constraint trip_events_accuracy_range check (accuracy_m >= 0 and accuracy_m <= 100000),
   estimated_unload_end_at timestamptz,
   incident_id uuid,
-  notes text constraint trip_events_notes_length check (char_length(notes) <= 1000),
+  -- Up to 2000: incident resolutions are copied here; other notes stop at 1000 in their RPCs.
+  notes text constraint trip_events_notes_length check (char_length(notes) <= 2000),
   actor_id uuid references auth.users (id) on delete set null,
   actor_role public.user_role,
   -- Idempotency key from the device's offline queue (B21).
@@ -409,6 +410,30 @@ $$;
 
 revoke all on function public.assert_coordinates(double precision, double precision) from public, anon, authenticated;
 
+-- Fail unless an operator event keeps the order of the timeline: not before
+-- the assignment (5 minutes of clock skew, it is server time) nor before the
+-- previous operator status event (device time). Call it holding the trip lock.
+create function public.assert_trip_event_order(p_trip public.trips, p_at timestamptz)
+returns void
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  if p_at < p_trip.assigned_at - interval '5 minutes' or exists (
+    select 1 from public.trip_events e
+    where e.trip_id = p_trip.id
+      and e.event_type in ('departed', 'arrived_at_pickup', 'loading_started', 'loading_finished',
+                           'arrived_at_delivery', 'unloading_started', 'unloading_finished')
+      and e.occurred_at > p_at
+  ) then
+    raise exception 'occurred_at is before the previous event of the trip' using errcode = '22023';
+  end if;
+end;
+$$;
+
+revoke all on function public.assert_trip_event_order(public.trips, timestamptz) from public, anon, authenticated;
+
 -- Lock and return a trip that the caller operates (assigned operator).
 create function public.lock_trip_as_operator(p_trip_id uuid)
 returns public.trips
@@ -601,6 +626,11 @@ begin
     raise exception 'cannot record % on a trip in status %', p_event_type, v_trip.status using errcode = '55000';
   end if;
   perform public.assert_trip_timestamp(v_trip, p_occurred_at, 'occurred_at');
+  perform public.assert_trip_event_order(v_trip, p_occurred_at);
+  -- D11: every operator status event keeps its time and its location.
+  if p_latitude is null or p_longitude is null then
+    raise exception 'the location of the event is required' using errcode = '22023';
+  end if;
   perform public.assert_coordinates(p_latitude, p_longitude);
   if char_length(v_notes) > 1000 then
     raise exception 'notes are too long' using errcode = '22023';
@@ -682,6 +712,7 @@ begin
     raise exception 'cannot estimate the end of unloading in status %', v_trip.status using errcode = '55000';
   end if;
   perform public.assert_trip_timestamp(v_trip, v_occurred_at, 'occurred_at');
+  perform public.assert_trip_event_order(v_trip, v_occurred_at);
   if p_estimated_unload_end_at is null or p_estimated_unload_end_at < v_occurred_at - interval '1 day'
      or p_estimated_unload_end_at > v_occurred_at + interval '30 days' then
     raise exception 'estimated end of unloading is out of range' using errcode = '22023';
@@ -969,7 +1000,14 @@ begin
     raise exception 'trip not found' using errcode = '42501';
   end if;
   select * into v_trip from public.trips where id = p_trip_id for update;
-  if not found then
+  -- Re-checked under the lock: the trip may have been reassigned meanwhile.
+  if not found or not coalesce(
+    public.is_admin()
+    or v_trip.shipper_company_id = public.auth_shipper_company_id()
+    or v_trip.carrier_company_id = public.auth_fleet_company_id()
+    or v_trip.operator_id = public.auth_operator_id(),
+    false
+  ) then
     raise exception 'trip not found' using errcode = '42501';
   end if;
   if v_trip.status = 'cancelled' then

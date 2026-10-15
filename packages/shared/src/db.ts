@@ -1290,6 +1290,16 @@ export interface Database {
       };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
+      assert_trip_event_order: {
+        Args: {
+          p_at: string;
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+        };
+        Returns: undefined;
+      };
       assert_trip_timestamp: {
         Args: {
           p_at: string;

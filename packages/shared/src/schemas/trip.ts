@@ -27,9 +27,21 @@ export const locationPointSchema = z.object(
     recordedAt: dateTimeField,
     lat: latitude,
     lng: longitude,
-    accuracyM: z.number().min(0).max(100_000).optional(),
-    speedMps: z.number().min(0).max(100).optional(),
-    headingDeg: z.number().min(0).lt(360).optional(),
+    accuracyM: z
+      .number({ error: m.coordinates })
+      .min(0, { error: m.coordinates })
+      .max(100_000, { error: m.coordinates })
+      .optional(),
+    speedMps: z
+      .number({ error: m.coordinates })
+      .min(0, { error: m.coordinates })
+      .max(100, { error: m.coordinates })
+      .optional(),
+    headingDeg: z
+      .number({ error: m.coordinates })
+      .min(0, { error: m.coordinates })
+      .lt(360, { error: m.coordinates })
+      .optional(),
   },
   { error: m.coordinates },
 );

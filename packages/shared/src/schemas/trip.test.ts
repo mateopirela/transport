@@ -28,6 +28,19 @@ describe('location points', () => {
     expect(locationPointSchema.safeParse(null).error?.issues[0]?.message).toBe(m.coordinates);
   });
 
+  it('reports invalid readings in Spanish', () => {
+    for (const reading of [
+      { accuracyM: -1 },
+      { accuracyM: 'x' },
+      { speedMps: 101 },
+      { headingDeg: 360 },
+    ]) {
+      expect(
+        locationPointSchema.safeParse({ ...POINT, ...reading }).error?.issues[0]?.message,
+      ).toBe(m.coordinates);
+    }
+  });
+
   it('limits a batch to 500 points', () => {
     expect(locationBatchSchema.safeParse(Array.from({ length: 500 }, () => POINT)).success).toBe(
       true,

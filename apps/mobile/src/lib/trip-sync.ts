@@ -207,11 +207,24 @@ async function runFlush(client: Supabase): Promise<void> {
 }
 
 let flushing: Promise<void> | null = null;
+let runAgain = false;
 
-/** Sends the queue in order; concurrent calls share the same run. */
+/**
+ * Sends the queue in order; concurrent calls share the same run. A call that
+ * arrives during a run (e.g. the photos it waited for just became available)
+ * makes it run once more when it ends, so that wakeup is never lost.
+ */
 export function flushTripQueue(client: Supabase): Promise<void> {
-  if (flushing) return flushing;
-  const run = runFlush(client).finally(() => {
+  if (flushing) {
+    runAgain = true;
+    return flushing;
+  }
+  const run = (async () => {
+    do {
+      runAgain = false;
+      await runFlush(client);
+    } while (runAgain);
+  })().finally(() => {
     if (flushing === run) flushing = null;
   });
   flushing = run;

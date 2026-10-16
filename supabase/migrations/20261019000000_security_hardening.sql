@@ -13,7 +13,7 @@
 --
 -- Functions are not covered by the default-privilege change: PUBLIC's EXECUTE
 -- on new functions is a global default that a per-schema rule cannot remove.
--- The pgTAP suite (00 and 17) catches any security definer function that
+-- The pgTAP suite (00 and 18) catches any security definer function that
 -- anon can run or that authenticated can run without being reviewed.
 
 alter default privileges for role postgres in schema public

@@ -408,7 +408,7 @@ export async function handleDispatch(request: Request, deps: Dependencies): Prom
     }
   } catch (error) {
     // Fail closed: without the counter nothing is sent.
-    console.error('rate limit failed', error instanceof Error ? error.message : errorName(error));
+    log.error('rate limit failed', { error });
     return json({ error: 'upstream_error' }, 502);
   }
 

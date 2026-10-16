@@ -67,6 +67,7 @@ async function consumeRateLimit(
   anonKey: string,
   authorization: string,
   fetch: FetchLike,
+  log: Logger,
 ): Promise<Response | null> {
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_rate_limit`, {
@@ -84,7 +85,7 @@ async function consumeRateLimit(
       if (response.status === 401 || error.code === '42501') {
         return json({ error: 'unauthorized' }, 401);
       }
-      console.error('consume_rate_limit failed', response.status, error.code);
+      log.error('consume_rate_limit failed', { status: response.status, code: error.code });
       return json({ error: 'upstream_error' }, 502);
     }
     const retryAfter: unknown = await response.json();
@@ -97,7 +98,7 @@ async function consumeRateLimit(
     return null;
   } catch (error) {
     // Fail closed: without the counter there is no Routes spending.
-    console.error('consume_rate_limit failed', error instanceof Error ? error.message : error);
+    log.error('consume_rate_limit failed', { error });
     return json({ error: 'upstream_error' }, 502);
   }
 }
@@ -210,7 +211,7 @@ export async function handleRecommendations(
   }
   if (!input) return json({ error: 'invalid_request' }, 400);
 
-  const refusal = await consumeRateLimit(supabaseUrl, anonKey, authorization, deps.fetch);
+  const refusal = await consumeRateLimit(supabaseUrl, anonKey, authorization, deps.fetch, log);
   if (refusal) return refusal;
 
   let candidates: MatchCandidate[];

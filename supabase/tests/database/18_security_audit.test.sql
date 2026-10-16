@@ -206,6 +206,8 @@ select set_eq(
     -- Chat and notifications (B07).
     'send_message', 'mark_conversation_read', 'register_push_token', 'unregister_push_token',
     'mark_notifications_read',
+    -- Product analytics (B25): records the caller's own event.
+    'track_product_event',
     -- Rate limits (B24).
     'consume_rate_limit'
   ],

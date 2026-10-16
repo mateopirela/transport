@@ -8,7 +8,7 @@
 --   every row they can read in every table (and Storage object) must belong
 --   to their own company, by the ownership rules of tests.ownership.
 -- * Update: same check for the rows they manage to update in the tables that
---   accept direct updates. Clients cannot delete (17_security_audit).
+--   accept direct updates. Clients cannot delete (18_security_audit).
 -- * RPCs: the outsiders call every client RPC on the seed's rows. Each call
 --   must fail, or change nothing and return nothing.
 --
@@ -119,6 +119,9 @@ values (tests.val('trip'), 'carta_porte', tests.val('trip') || '/a2400000-0000-4
         'carta-porte.pdf', '5eed0001-0000-4000-8000-000000000005');
 insert into public.rate_limit_counters (bucket, subject, window_start, hits)
 values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
+insert into public.product_events (name, user_id, user_role, company_id, properties)
+values ('recommendations_viewed', '5eed0001-0000-4000-8000-000000000005', 'carrier', tests.val('carrier_company'),
+        '{"recommendations": 3}');
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -131,6 +134,7 @@ insert into tests.ownership values
   ('public.document_expiry_notices', 'false'),
   ('public.route_distance_cache', 'false'),
   ('public.rate_limit_counters', 'false'),
+  ('public.product_events', 'false'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -423,7 +427,7 @@ insert into tests.self_scoped values
   ('auth_role'), ('auth_company_id'), ('auth_shipper_company_id'), ('auth_fleet_company_id'), ('auth_operator_id'),
   ('is_admin'), ('is_company_approved'), ('has_location_consent'), ('create_company'), ('request_company_review'),
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
-  ('consume_rate_limit');
+  ('consume_rate_limit'), ('track_product_event');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,

@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(42);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -120,13 +120,13 @@ insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg
 
 -- Photos are not what these tests are about (B23 covers the gate).
 update public.trip_evidence_requirements set min_photos = 0;
--- Every required document of V approved, so matching considers it (B08).
+-- Every required document of V and W approved, so matching considers them (B08).
 insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
 select v.company_id, r.id, 'vehicle', v.id, v.company_id || '/vehicle/' || v.id || '/' || gen_random_uuid() || '.pdf',
        'approved', case when r.requires_expiry then now() + interval '1 year' end
 from public.vehicles v
 cross join public.document_requirements r
-where v.id = 'ef200000-0000-4000-8000-000000000001'
+where v.company_id = 'cf200000-0000-4000-8000-000000000002'
   and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
 
 -- ---------------------------------------------------------------------------
@@ -354,6 +354,27 @@ select is(
 select is_empty(
   $$ select * from tests.active_availability('ef200000-0000-4000-8000-000000000002') $$,
   'assigning W to a trip ends the estimate W had'
+);
+
+-- W also gets trip E (MTY -> GDL), which ends after trip B (GDL -> MTY):
+-- matching starts W where the last of its trips ends.
+set local role authenticated;
+select tests.login('af200000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load_e', public.create_load(tests.payload(false, 4));
+select public.publish_load(tests.val('load_e'));
+select tests.login('af200000-0000-4000-8000-000000000002');
+insert into tests.vals select 'offer_e', public.make_offer(tests.val('load_e'), 3000000);
+select tests.login('af200000-0000-4000-8000-000000000001');
+insert into tests.vals select 'trip_e', public.accept_offer(tests.val('offer_e'));
+select tests.login('af200000-0000-4000-8000-000000000002');
+select public.assign_trip(tests.val('trip_e'), 'ef200000-0000-4000-8000-000000000002',
+                          'df200000-0000-4000-8000-000000000004');
+reset role;
+select results_eq(
+  $$ select start_city, available_from
+     from public.match_pairs('ef200000-0000-4000-8000-000000000002', tests.val('load_d'), 1000) $$,
+  $$ select 'Guadalajara'::text, delivery_window_end from public.loads where id = tests.val('load_e') $$,
+  'a unit with two assigned trips starts where the later one ends'
 );
 
 -- ---------------------------------------------------------------------------

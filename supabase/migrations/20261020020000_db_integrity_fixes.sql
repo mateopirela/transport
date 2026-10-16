@@ -519,6 +519,9 @@ as $$
                     and t2.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
                                       'at_delivery', 'unloading'))
                ) as available_from,
+               -- Orders the unit's trips of one priority: the last to end is
+               -- where the unit will be.
+               coalesce(t.estimated_unload_end_at, l.delivery_window_end) as ends_at,
                true as is_return_trip, l.origin_location as home_location
         from public.trips t
         join public.loads l on l.id = t.load_id
@@ -530,7 +533,7 @@ as $$
            -- its assignment is committed to it: it starts from that trip.
            or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = u.id)
         union all
-        select 3, a.id, a.location, a.city, a.state, a.available_from, a.source = 'trip_estimate',
+        select 3, a.id, a.location, a.city, a.state, a.available_from, a.available_from, a.source = 'trip_estimate',
                case when a.source = 'trip_estimate' then (
                  select l.origin_location
                  from public.trips t
@@ -544,7 +547,7 @@ as $$
           and a.archived_at is null
           and (p_availability_id is null or a.id = p_availability_id)
       ) x
-      order by x.priority, x.available_from desc
+      order by x.priority, x.ends_at desc
       limit 1
     ) s
   )

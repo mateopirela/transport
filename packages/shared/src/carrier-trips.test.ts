@@ -11,6 +11,7 @@ import {
   locationFreshness,
   mapPointUrl,
   projectToBox,
+  tripDocumentFileIssue,
   tripDocumentStoragePath,
   type AssignableOperator,
   type AssignableUnit,
@@ -37,6 +38,14 @@ describe('tripDocumentStoragePath', () => {
     expect(() => tripDocumentStoragePath({ tripId: 'x', fileId, mimeType: 'image/png' })).toThrow(
       RangeError,
     );
+  });
+
+  it('accepts what the trip-documents bucket accepts (15 MB, PDF or image)', () => {
+    const mb = 1024 * 1024;
+    expect(tripDocumentFileIssue({ size: 12 * mb, type: 'application/pdf' })).toBeNull();
+    expect(tripDocumentFileIssue({ size: 16 * mb, type: 'application/pdf' })).toBe('tooLarge');
+    expect(tripDocumentFileIssue({ size: 0, type: 'image/jpeg' })).toBe('empty');
+    expect(tripDocumentFileIssue({ size: mb, type: 'image/heic' })).toBe('type');
   });
 
   it('allows documents unless the trip was cancelled', () => {

@@ -1,9 +1,9 @@
 import {
   canAddTripDocuments,
   carrierTripsCopy,
-  documentFileIssueMessages,
   formatDateTime,
   TRIP_DOCUMENT_KINDS,
+  tripDocumentFileIssue,
   tripDocumentKindLabels,
   toOptions,
   type TripDocumentKind,
@@ -14,7 +14,7 @@ import { useState } from 'react';
 
 import { carrierTripErrorMessage } from '../lib/carrier-trip-errors';
 import { tripDocumentUrl, uploadTripDocument, type TripDocument } from '../lib/carrier-trips-api';
-import { pickDocument, type PickSource } from '../lib/document-upload';
+import { pickDocument, type PickOutcome, type PickSource } from '../lib/document-upload';
 import type { Supabase } from '../lib/supabase';
 import { Card, ChoiceChips, SectionTitle } from './fleet-ui';
 import { Body, Button, Notice } from './ui';
@@ -51,14 +51,21 @@ export function TripDocumentsSection({
 
   async function upload(source: PickSource) {
     setMessage(null);
-    const picked = await pickDocument(source).catch(() => null);
-    if (!picked || picked.status === 'cancelled') return;
+    let picked: PickOutcome;
+    try {
+      // The trip-documents bucket rules (15 MB, PDF or image), not the company documents' ones.
+      picked = await pickDocument(source, tripDocumentFileIssue);
+    } catch {
+      setMessage({ tone: 'danger', text: copy.pickFailed });
+      return;
+    }
+    if (picked.status === 'cancelled') return;
     if (picked.status === 'denied') {
       setMessage({ tone: 'danger', text: copy.cameraDenied });
       return;
     }
     if (picked.status === 'invalid') {
-      setMessage({ tone: 'danger', text: documentFileIssueMessages[picked.issue] });
+      setMessage({ tone: 'danger', text: copy.fileIssues[picked.issue] });
       return;
     }
     setBusy(true);

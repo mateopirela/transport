@@ -30,6 +30,14 @@ interface SessionContextValue {
 
 const UNREGISTER_TIMEOUT_MS = 3000;
 
+/** Waits for `promise` (ignoring its outcome) at most UNREGISTER_TIMEOUT_MS. */
+function withTimeout(promise: Promise<unknown>): Promise<unknown> {
+  return Promise.race([
+    promise.catch(() => undefined),
+    new Promise((resolve) => setTimeout(resolve, UNREGISTER_TIMEOUT_MS)),
+  ]);
+}
+
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 interface ProfileState {
@@ -69,8 +77,12 @@ export function SessionProvider({
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [pushUserId, setPushUserId] = useState<string | null>(null);
-  // The token this device registered for the signed-in user, removed on sign-out.
+  // The token this device registered for the signed-in user, removed on
+  // sign-out; the registration in flight, which sign-out waits for; and
+  // whether a sign-out is running (no new registration starts meanwhile).
   const pushToken = useRef<string | null>(null);
+  const pushRegistration = useRef<Promise<unknown> | null>(null);
+  const signingOut = useRef(false);
 
   useEffect(() => {
     // Emits INITIAL_SESSION first, then every sign-in, refresh and sign-out.
@@ -114,16 +126,21 @@ export function SessionProvider({
   useEffect(() => {
     if (!userId || (area !== 'carrier' && area !== 'operator')) return;
     let cancelled = false;
-    void registerPushToken(easProjectId, async (token, platform) => {
+    const registration = registerPushToken(easProjectId, async (token, platform) => {
+      if (signingOut.current) throw new Error('signing out');
       const { error } = await client.rpc('register_push_token', {
         p_token: token,
         p_platform: platform,
       });
       if (error) throw error;
+      // Kept even if this effect was cleaned up meanwhile: sign-out removes it.
+      pushToken.current = token;
     }).then((result) => {
-      if (cancelled || result.status !== 'registered') return;
-      pushToken.current = result.token;
-      setPushUserId(userId);
+      if (!cancelled && result.status === 'registered') setPushUserId(userId);
+    });
+    pushRegistration.current = registration;
+    void registration.finally(() => {
+      if (pushRegistration.current === registration) pushRegistration.current = null;
     });
     return () => {
       cancelled = true;
@@ -140,17 +157,22 @@ export function SessionProvider({
       // session ends (the RPC needs it). Best effort: sign-out never waits
       // more than a few seconds for it.
       async signOut() {
-        const token = pushToken.current;
-        pushToken.current = null;
-        if (token) {
-          await Promise.race([
-            Promise.resolve(client.rpc('unregister_push_token', { p_token: token })).catch(
-              () => undefined,
-            ),
-            new Promise((resolve) => setTimeout(resolve, UNREGISTER_TIMEOUT_MS)),
-          ]);
+        signingOut.current = true;
+        try {
+          // A registration still in flight may save the token on the server
+          // after this point: wait for it so that token is removed too.
+          if (pushRegistration.current) await withTimeout(pushRegistration.current);
+          const token = pushToken.current;
+          pushToken.current = null;
+          if (token) {
+            await withTimeout(
+              Promise.resolve(client.rpc('unregister_push_token', { p_token: token })),
+            );
+          }
+          await auth.signOut();
+        } finally {
+          signingOut.current = false;
         }
-        await auth.signOut();
       },
     };
   }, [client]);

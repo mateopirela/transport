@@ -150,20 +150,47 @@ function summarize(
   };
 }
 
-/** The carrier's trips (latest 100) with their load, assignment and last position. */
+/** Statuses of finished trips: the history section, paged. */
+const FINISHED_STATUSES: TripStatus[] = ['delivered', 'closed', 'cancelled'];
+
+/** Finished trips shown at first, and added by each "Ver más". */
+export const HISTORY_PAGE_SIZE = 20;
+
+export interface CarrierTripList {
+  trips: CarrierTripSummary[];
+  /** There are finished trips beyond `historyLimit`. */
+  hasMoreHistory: boolean;
+}
+
+/**
+ * The carrier's trips with their load, assignment and last position: every
+ * unfinished trip (to assign, upcoming, on the road), however old, plus the
+ * `historyLimit` most recently changed finished ones.
+ */
 export async function listCarrierTrips(
   client: Supabase,
   companyId: string,
-): Promise<CarrierTripSummary[]> {
-  const trips = check(
-    await client
+  historyLimit: number = HISTORY_PAGE_SIZE,
+): Promise<CarrierTripList> {
+  const [open, finished] = await Promise.all([
+    client
       .from('trips')
       .select(TRIP_COLUMNS)
       .eq('carrier_company_id', companyId)
-      .order('created_at', { ascending: false })
-      .limit(100),
-  );
-  if (trips.length === 0) return [];
+      .not('status', 'in', `(${FINISHED_STATUSES.join(',')})`),
+    client
+      .from('trips')
+      .select(TRIP_COLUMNS)
+      .eq('carrier_company_id', companyId)
+      .in('status', FINISHED_STATUSES)
+      .order('updated_at', { ascending: false })
+      .order('id')
+      .limit(historyLimit + 1),
+  ]);
+  const history = check(finished);
+  const trips = [...check(open), ...history.slice(0, historyLimit)];
+  const hasMoreHistory = history.length > historyLimit;
+  if (trips.length === 0) return { trips: [], hasMoreHistory };
   const [loads, names, positions] = await Promise.all([
     client
       .from('loads')
@@ -182,10 +209,13 @@ export async function listCarrierTrips(
   ]);
   const loadById = new Map(check(loads).map((l) => [l.id, l]));
   const positionByTrip = new Map(positions);
-  return trips.flatMap((trip) => {
-    const load = loadById.get(trip.load_id);
-    return load ? [summarize(trip, load, names, positionByTrip.get(trip.id) ?? null)] : [];
-  });
+  return {
+    trips: trips.flatMap((trip) => {
+      const load = loadById.get(trip.load_id);
+      return load ? [summarize(trip, load, names, positionByTrip.get(trip.id) ?? null)] : [];
+    }),
+    hasMoreHistory,
+  };
 }
 
 export type CarrierTripEvent = Pick<

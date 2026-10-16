@@ -1,7 +1,12 @@
 // Spanish copy of the carrier's trips in the app (B20): won trips, assigning
 // the unit and the operator, monitoring trips on the road, the history and the
 // trip documents (Carta Porte, D09). The chat reuses chatCopy.
-import type { AssignmentBlocker, AssignmentWarning, CarrierTripGroup } from '../carrier-trips';
+import type {
+  AssignmentBlocker,
+  AssignmentWarning,
+  CarrierTripGroup,
+  TripDocumentFileIssue,
+} from '../carrier-trips';
 
 const minutesAgo = (minutes: number) =>
   minutes < 1 ? 'hace un momento' : minutes === 1 ? 'hace 1 min' : `hace ${minutes} min`;
@@ -27,8 +32,8 @@ export const carrierTripsCopy = {
     pickup: (date: string) => `Recolección: ${date}`,
     assignedTo: (unit: string, operator: string) => `${unit} · ${operator}`,
     unassigned: 'Sin unidad ni operador',
-    assignAction: 'Asignar operador',
     refresh: 'Actualizar',
+    moreHistory: 'Ver más viajes',
   },
   monitor: {
     title: 'Viajes en el mapa',
@@ -115,6 +120,12 @@ export const carrierTripsCopy = {
     cameraDenied:
       'No tenemos permiso para usar la cámara. Actívalo en la configuración del teléfono.',
     openFailed: 'No pudimos abrir el documento. Inténtalo de nuevo.',
+    pickFailed: 'No pudimos preparar el archivo. Inténtalo de nuevo.',
+    fileIssues: {
+      empty: 'El archivo está vacío.',
+      tooLarge: 'El archivo pesa más de 15 MB.',
+      type: 'Sube un PDF o una imagen (JPG, PNG o WEBP).',
+    } satisfies Record<TripDocumentFileIssue, string>,
   },
   errors: {
     notFound: 'Este viaje ya no está disponible.',

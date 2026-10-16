@@ -230,6 +230,22 @@ export const TRIP_DOCUMENT_MIME_TYPES = {
   'image/webp': 'webp',
 } as const satisfies Record<string, string>;
 
+/** Size limit of the `trip-documents` bucket (15 MB). */
+export const TRIP_DOCUMENT_MAX_BYTES = 15 * 1024 * 1024;
+
+export type TripDocumentFileIssue = 'empty' | 'tooLarge' | 'type';
+
+/** Why a file cannot be a trip document, or `null` when the bucket accepts it. */
+export function tripDocumentFileIssue(file: {
+  size: number;
+  type: string;
+}): TripDocumentFileIssue | null {
+  if (file.size <= 0) return 'empty';
+  if (file.size > TRIP_DOCUMENT_MAX_BYTES) return 'tooLarge';
+  if (!Object.hasOwn(TRIP_DOCUMENT_MIME_TYPES, file.type)) return 'type';
+  return null;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
 /**

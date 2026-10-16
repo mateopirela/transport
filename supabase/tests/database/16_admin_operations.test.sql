@@ -89,6 +89,20 @@ from (values
 where p.id = c.uid;
 update public.profiles set role = 'admin' where id = 'a1600000-0000-4000-8000-000000000007';
 
+-- KPI rows that already exist (e.g. the demo seed), read as the admin before
+-- this test adds any: the pilot summary is checked against them plus the
+-- fixtures, so it does not depend on what the database already holds.
+select tests.login('a1600000-0000-4000-8000-000000000007');
+create table tests.kpi_before as select * from public.kpi_pilot_summary;
+create table tests.unload_errors_before as
+select unload_estimate_error_minutes as minutes from public.kpi_trip_metrics
+where unload_estimate_error_minutes is not null;
+create table tests.approvals_before as
+select minutes_to_approval as minutes from public.kpi_carrier_onboarding
+where minutes_to_approval is not null and company_id::text not like 'c1600000-%';
+select set_config('request.jwt.claims', '', true);
+grant select on tests.kpi_before, tests.unload_errors_before, tests.approvals_before to authenticated;
+
 insert into public.operators (id, company_id, profile_id, full_name) values
   ('d1600000-0000-4000-8000-000000000005', 'c1600000-0000-4000-8000-000000000003',
    'a1600000-0000-4000-8000-000000000005', 'Óscar Operador');
@@ -346,12 +360,19 @@ select results_eq(
   $$ select loads_published, offers_total, trips_total, return_trips, unload_estimates_measured,
             avg_abs_unload_error_minutes, median_minutes_to_carrier_approval
      from public.kpi_pilot_summary $$,
-  $$ values (3::bigint, 4::bigint, 3::bigint, 1::bigint, 1::bigint, 30.0::numeric, 2880.0::numeric) $$,
+  $$ select b.loads_published + 3, b.offers_total + 4, b.trips_total + 3, b.return_trips + 1,
+            b.unload_estimates_measured + 1,
+            (select round(avg(abs(x.minutes)), 1)
+             from (select minutes from tests.unload_errors_before union all select 30.0) x),
+            (select round(percentile_cont(0.5) within group (order by x.minutes)::numeric, 1)
+             from (select minutes from tests.approvals_before union all select 2880.0) x)
+     from tests.kpi_before b $$,
   'the pilot summary aggregates the KPI views'
 );
 select is(
   (select total_avoided_empty_km from public.kpi_pilot_summary),
-  (select avoided_empty_km from public.kpi_trip_metrics where trip_id = tests.val('trip3')),
+  (select b.total_avoided_empty_km + m.avoided_empty_km
+   from tests.kpi_before b, public.kpi_trip_metrics m where m.trip_id = tests.val('trip3')),
   'the avoided empty km add up over the trips'
 );
 

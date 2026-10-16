@@ -67,6 +67,24 @@ as $$
   where user_id = p_user and type::text = p_type and dispatched_at is null;
 $$;
 
+-- Runs the stale-location cron and returns how many reminders it sent for
+-- this test's trip, so active trips already in the database (e.g. the demo
+-- seed's) do not change the result.
+create function tests.remind_stale(p_stale_after interval default interval '3 hours')
+returns integer
+language plpgsql
+as $$
+declare
+  v_before integer;
+begin
+  select count(*) into v_before from public.notifications
+  where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text;
+  perform public.remind_stale_trip_locations(p_stale_after);
+  return (select count(*) from public.notifications
+          where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text) - v_before;
+end;
+$$;
+
 grant execute on all functions in schema tests to authenticated, service_role;
 grant select, insert on tests.vals to authenticated, service_role;
 
@@ -203,7 +221,8 @@ select results_eq(
   'a notification older than a day is closed as stale instead of pushed'
 );
 select is(
-  (select count(*)::int from public.notifications where dispatch_error = 'stale' and dispatched_at is not null),
+  (select count(*)::int from public.notifications where dispatch_error = 'stale' and dispatched_at is not null
+     and user_id::text like 'a9000000-%'),
   21, 'one claim closes the whole backlog of old notifications'
 );
 select throws_ok(
@@ -473,33 +492,35 @@ select public.assign_trip(tests.val('trip'), 'e9000000-0000-4000-8000-0000000000
 reset role;
 select set_config('request.jwt.claims', '', true);
 
-select is(public.remind_stale_trip_locations(), 0, 'an assigned trip that has not started is not reminded');
+select is(tests.remind_stale(), 0, 'an assigned trip that has not started is not reminded');
 
 update public.trips set status = 'in_transit', started_at = now() - interval '5 hours' where id = tests.val('trip');
 insert into public.trip_locations (trip_id, recorded_at, latitude, longitude)
 values (tests.val('trip'), now() - interval '4 hours', 20.9, -102.0);
 
-select is(public.remind_stale_trip_locations(interval '3 hours'), 1, 'a trip 4 h without location is reminded');
+select is(tests.remind_stale(interval '3 hours'), 1, 'a trip 4 h without location is reminded');
 select results_eq(
   $$ select user_id, (data ->> 'hoursWithoutLocation')::int, data ->> 'tripId', data ->> 'originCity'
-     from public.notifications where type = 'trip_location_stale' $$,
+     from public.notifications
+     where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text $$,
   $$ values ('a9000000-0000-4000-8000-000000000005'::uuid, 4, tests.val('trip')::text, 'Guadalajara'::text) $$,
   'the reminder goes to the assigned operator with the hours and the route'
 );
-select is(public.remind_stale_trip_locations(interval '3 hours'), 0, 'one reminder per gap');
-select is(public.remind_stale_trip_locations(interval '5 hours'), 0, 'a longer threshold is not reached');
+select is(tests.remind_stale(interval '3 hours'), 0, 'one reminder per gap');
+select is(tests.remind_stale(interval '5 hours'), 0, 'a longer threshold is not reached');
 
 -- The reminder went out 3.5 h ago; a point arrived 3 h ago (closing that gap)
 -- and nothing since: a new gap, a new reminder.
-update public.notifications set created_at = now() - interval '210 minutes' where type = 'trip_location_stale';
+update public.notifications set created_at = now() - interval '210 minutes'
+where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text;
 insert into public.trip_locations (trip_id, recorded_at, latitude, longitude)
 values (tests.val('trip'), now() - interval '3 hours', 21.0, -102.1);
-select is(public.remind_stale_trip_locations(interval '3 hours'), 1, 'a new gap after a new point is reminded again');
+select is(tests.remind_stale(interval '3 hours'), 1, 'a new gap after a new point is reminded again');
 insert into public.trip_locations (trip_id, recorded_at, latitude, longitude)
 values (tests.val('trip'), now() - interval '1 minute', 21.1, -102.2);
-select is(public.remind_stale_trip_locations(interval '15 minutes'), 0, 'a recent location is not reminded');
+select is(tests.remind_stale(interval '15 minutes'), 0, 'a recent location is not reminded');
 update public.trips set status = 'delivered', delivered_at = now() where id = tests.val('trip');
-select is(public.remind_stale_trip_locations(interval '15 minutes'), 0, 'a delivered trip is not reminded');
+select is(tests.remind_stale(interval '15 minutes'), 0, 'a delivered trip is not reminded');
 select throws_ok(
   $$ select public.remind_stale_trip_locations(interval '1 minute') $$, '22023', null,
   'the threshold is validated'

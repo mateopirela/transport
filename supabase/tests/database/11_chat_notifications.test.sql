@@ -91,6 +91,10 @@ as $$ select count(*) from public.messages where conversation_id = p_conversatio
 
 grant execute on all functions in schema tests to authenticated;
 
+-- Notifications that already exist (e.g. from the demo seed): the global
+-- counts below only look at the ones this test creates.
+create table tests.preexisting_notifications as select id from public.notifications;
+
 -- Users: ...01 shipper S1 and ...02 shipper S2 (company S)   ...03 shipper T
 --        ...04 carrier A   ...05 carrier B   ...06 operator O of A
 --        ...07 operator P of A   ...08 admin
@@ -448,7 +452,8 @@ select results_eq(
   'accept_offer opens the conversation of the trip'
 );
 select is(
-  (select count(*) from public.notifications where type = 'trip_status_changed'), 0::bigint,
+  (select count(*) from public.notifications where type = 'trip_status_changed'
+     and id not in (select id from tests.preexisting_notifications)), 0::bigint,
   'the creation of the trip is not a status notification (the acceptance covers it)'
 );
 
@@ -565,7 +570,8 @@ select is(tests.notified('a7000000-0000-4000-8000-000000000002', 'document_rejec
   'every shipper of the company');
 select is(
   (select count(*) from public.notifications where type in ('document_rejected', 'document_approved')
-     and user_id not in ('a7000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000002')),
+     and user_id not in ('a7000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000002')
+     and id not in (select id from tests.preexisting_notifications)),
   0::bigint, 'no other company is notified'
 );
 

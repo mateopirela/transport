@@ -58,7 +58,7 @@ Crear los environments `staging` y `production` con estos **secretos** (los mism
 | `VERCEL_PROJECT_ID`     | igual que el anterior                                                |
 | `EXPO_TOKEN`            | expo.dev → Access tokens (robot user)                                |
 
-En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_ limitado a `main` y `v*`. Variables (no secretas): `ASC_APP_ID` en `production` (id numérico de la app en App Store Connect) y, si se usa, `WEB_STAGING_ALIAS` en `staging` (p. ej. `staging.<dominio>`).
+En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_ limitado a `main` y `v*`. Variables (no secretas): `EAS_PROJECT_ID` a nivel repositorio (ver §3.4), `ASC_APP_ID` en `production` (id numérico de la app en App Store Connect) y, si se usa, `WEB_STAGING_ALIAS` en `staging` (p. ej. `staging.<dominio>`).
 
 ### 3.3 Vercel (web)
 
@@ -69,7 +69,7 @@ En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_
 
 ### 3.4 Expo / EAS y tiendas
 
-1. `cd apps/mobile && npx eas-cli init` (crea el proyecto) → guardar el id como `EXPO_PUBLIC_EAS_PROJECT_ID`.
+1. `cd apps/mobile && npx eas-cli init` (crea el proyecto) → guardar el id como `EXPO_PUBLIC_EAS_PROJECT_ID` (local) y como **variable del repositorio** `EAS_PROJECT_ID` en GitHub (Settings → Variables → Actions; es público). **Mobile release** la necesita en el runner: EAS identifica el proyecto con `app.config.ts` antes de poder leer sus variables remotas.
 2. Variables de EAS (expo.dev → Environment variables) en `preview` (staging) y `production`: `EXPO_PUBLIC_SUPABASE_URL` (https), `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_EAS_PROJECT_ID`, `EXPO_PUBLIC_SITE_URL`, `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_IOS`, `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY_ANDROID`, `EXPO_PUBLIC_SENTRY_DSN`, `APP_BUNDLE_ID` y, como secretos, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`.
 3. Apple Developer: crear el App ID con el bundle id, la app en App Store Connect (su id va a `ASC_APP_ID`) y una API key de App Store Connect; cargar certificados y la key con `npx eas-cli credentials` (una vez, en modo interactivo).
 4. Google Play Console: crear la app, subir **a mano** el primer AAB (Google lo exige) y una cuenta de servicio con acceso a la API; cargar su JSON con `npx eas-cli credentials`. El envío usa la pista `internal` con estado `draft`; cuando la app ya tenga una versión publicada en esa pista, cambiar `releaseStatus` a `completed` en `apps/mobile/eas.json`.
@@ -97,7 +97,7 @@ En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_
 | Web                        | Inmediato: Vercel → Deployments → el despliegue anterior → _Instant Rollback_ (o `vercel rollback`). Después, corregir en `main`.                                                                                                                       |
 | Edge Functions             | **Release production** sobre el tag anterior con `migrate` **desactivado**: vuelve a desplegar funciones y web de esa versión sin tocar la BD.                                                                                                          |
 | Migración (BD)             | No hay "deshacer" automático. Se escribe una migración nueva que compense (_roll forward_), se prueba en staging y se libera. Si hubo pérdida o corrupción de datos: restaurar con PITR al minuto anterior al despliegue (Dashboard → Database → Backups). |
-| App móvil                  | No hay actualizaciones OTA en la V1. En TestFlight, expirar la build mala y dejar disponible la anterior; en Play, promover de nuevo la versión anterior en la pista interna. Corregir y sacar otra build.                                              |
+| App móvil                  | No hay actualizaciones OTA en la V1. iOS: en TestFlight, expirar la build mala (los testers pueden instalar la anterior). Android: Play no regresa a un `versionCode` menor, así que promover la versión anterior no sirve a quien ya instaló la mala; correr **Mobile release** sobre el tag anterior (perfil `production`, `submit` activado): `autoIncrement` con versiones remotas le da un `versionCode` mayor y reemplaza a la mala. Después, corregir y sacar otra build. |
 | Secreto filtrado           | Rotarlo en su origen (Supabase, Vercel, Expo, Resend, Google), actualizar el secreto del environment y volver a desplegar. Revisar los logs de acceso.                                                                                                  |
 
 Si un despliegue falla a la mitad (p. ej. migraciones aplicadas pero falló la web), basta con volver a correr el workflow: `db push` solo aplica lo pendiente y los demás pasos son idempotentes.

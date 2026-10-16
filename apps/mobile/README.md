@@ -49,6 +49,16 @@ Con EAS (cuando exista la cuenta): `eas build --profile development` (dispositiv
 - **Sin señal** (`src/lib/location-store.ts`, `location-queue.ts`): cola en SQLite; se envía en lotes de hasta 500 puntos a `record_trip_locations` cuando hay 30 puntos o el más viejo tiene 5 min, y al volver a la app.
 - Se prueba en un dispositivo real (no en Expo Go): ver la checklist del PR de B22.
 
+## Cargas recomendadas y negociación (B19)
+
+- **Inicio** (empresa aprobada): primero **Viajes de regreso**, las mejores cargas para cada unidad con viaje en curso (salen cerca de su destino después del fin estimado de descarga), y después **Cargas recomendadas**, la mejor unidad para cada carga, con el desglose del score (`matchExplanation`). Lo arma `buildCarrierFeed` en `@transport/shared`.
+- **Recomendaciones:** por cada unidad se llama a la Edge Function `recommendations` (B08). Si la función no responde (por ejemplo, sin `supabase functions serve`), la app llama a `match_candidates` con el JWT del usuario y ordena con el mismo código puro (`recommend`), con distancias estimadas.
+- **Cargas:** búsqueda de cargas abiertas por origen, destino y tipo de unidad (ciudades del corredor, `CITY_PRESETS`), y la lista de **Mis negociaciones**.
+- **Detalle de carga:** ruta esquemática con los km en vacío de la unidad compatible más cercana (`match_candidates`) y los km con carga estimados; "Abrir en mapas" abre la ruta en la app de mapas del teléfono (no necesita clave). El mapa embebido queda para cuando existan las claves de Google Maps.
+- **Negociación:** "Aceptar el precio propuesto" (oferta por el precio del cliente), "Negociar" (oferta o contraoferta con monto, condiciones y unidad), "Aceptar" o "Rechazar" la contraoferta del cliente y "Retirar" la oferta propia. Todo pasa por las RPC de B05, que validan actor y estado; la pantalla se actualiza por Realtime cuando el cliente responde.
+- **Chat** de la negociación (B07): mensajes de texto en tiempo real (`send_message`, idempotente al reintentar) y lectura (`mark_conversation_read`). Los adjuntos que mande el cliente se indican, pero todavía no se abren desde la app.
+- Para probar con la seed: `jorge.villarreal@demo.test` ve arriba la carga GDL → MTY para `CS53-01`, que está descargando en Guadalajara.
+
 ## Verificación
 
 ```sh

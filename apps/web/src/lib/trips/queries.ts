@@ -105,7 +105,9 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     await Promise.all([
       supabase
         .from('trip_events')
-        .select('id, event_type, occurred_at, estimated_unload_end_at, incident_id, notes')
+        .select(
+          'id, event_type, occurred_at, estimated_unload_end_at, incident_id, notes, received_by_name',
+        )
         .eq('trip_id', trip.id)
         .order('occurred_at')
         .order('recorded_at'),

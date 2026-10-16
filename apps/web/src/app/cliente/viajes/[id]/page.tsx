@@ -145,6 +145,9 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
                           )}
                         </p>
                       )}
+                      {event.received_by_name && (
+                        <p>{c.timeline.receivedBy(event.received_by_name)}</p>
+                      )}
                       {event.notes && <p className="text-muted-foreground">{event.notes}</p>}
                     </li>
                   );

@@ -48,6 +48,7 @@ export const clientTripsCopy = {
     title: 'Línea de tiempo',
     empty: 'Aún no hay eventos.',
     estimate: (at: string) => `Fin estimado: ${at}`,
+    receivedBy: (name: string) => `Recibió: ${name}`,
     incident: (kind: string, description: string) => `${kind}: ${description}`,
   },
   evidence: {

@@ -3,6 +3,8 @@ import {
   carrierNegotiationState,
   cityPreset,
   CITY_PRESETS,
+  formatMxn,
+  sortOffers,
   toOptions,
   UNIT_TYPES,
   unitTypeLabels,
@@ -10,7 +12,7 @@ import {
 } from '@transport/shared';
 import { useCallback, useState } from 'react';
 
-import { ChoiceChips, Loaded, SectionTitle } from '../../../components/fleet-ui';
+import { Card, ChoiceChips, Loaded, SectionTitle } from '../../../components/fleet-ui';
 import { LoadCard } from '../../../components/load-card';
 import { Body, Button, Screen, Title } from '../../../components/ui';
 import { listNegotiations, searchLoads } from '../../../lib/loads-api';
@@ -94,17 +96,22 @@ export default function LoadsTab() {
           items.length === 0 ? (
             <Body>{copy.noNegotiations}</Body>
           ) : (
-            items.map((n) => (
-              <LoadCard
-                key={n.negotiationId}
-                load={n.load}
-                footer={
-                  carrierLoadsCopy.negotiation.states[
-                    carrierNegotiationState(n.offers, n.load.status)
-                  ]
-                }
-              />
-            ))
+            items.map((n) => {
+              // Hidden load: contracted with another carrier (loads_select).
+              const state = carrierNegotiationState(n.offers, n.load?.status ?? 'contracted');
+              const footer = carrierLoadsCopy.negotiation.states[state];
+              if (n.load) return <LoadCard key={n.negotiationId} load={n.load} footer={footer} />;
+              const latest = sortOffers(n.offers).at(-1);
+              return (
+                <Card
+                  key={n.negotiationId}
+                  title={copy.unavailableLoad}
+                  subtitle={latest ? copy.lastOffer(formatMxn(latest.amount_cents)) : null}
+                >
+                  <Body>{footer}</Body>
+                </Card>
+              );
+            })
           )
         }
       </Loaded>

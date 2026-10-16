@@ -55,11 +55,23 @@ export function ChatPanel({
 
   useEffect(() => {
     let active = true;
-    // Subscribe first, then load: a message sent in between arrives either way.
-    const unsubscribe = watchMessages(client, conversationId, (m) => add([m]));
-    listMessages(client, conversationId)
-      .then((page) => active && add(page))
-      .catch(() => active && setLoadFailed(true));
+    const load = () =>
+      listMessages(client, conversationId)
+        .then((page) => {
+          if (!active) return;
+          setLoadFailed(false);
+          add(page);
+        })
+        .catch(() => active && setLoadFailed(true));
+    // Loads now, and again each time Realtime (re)joins: messages sent before
+    // the subscription or while disconnected are merged without duplicates.
+    const unsubscribe = watchMessages(
+      client,
+      conversationId,
+      (m) => add([m]),
+      () => void load(),
+    );
+    void load();
     return () => {
       active = false;
       unsubscribe();
@@ -117,6 +129,8 @@ export function ChatPanel({
         }}
         maxLength={MAX_MESSAGE_LENGTH}
         multiline
+        // Locked while sending: the sent text is the one cleared afterwards.
+        editable={!sending}
       />
       <Button
         label={sending ? chatCopy.sending : chatCopy.send}

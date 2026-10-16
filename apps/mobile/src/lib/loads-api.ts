@@ -208,14 +208,15 @@ export async function searchLoads(client: Supabase, filters: LoadFilters) {
 
 export interface CarrierNegotiationSummary {
   negotiationId: string;
-  load: CarrierLoad;
+  /** Null when the load was contracted with another carrier. */
+  load: CarrierLoad | null;
   offers: NegotiationOffer[];
 }
 
 const OFFER_COLUMNS =
   'id, negotiation_id, side, amount_cents, conditions, vehicle_id, status, status_reason, created_at';
 
-/** The carrier's negotiations whose load it still sees, most recent first. */
+/** The carrier's negotiations, most recent first. */
 export async function listNegotiations(
   client: Supabase,
   companyId: string,
@@ -247,18 +248,13 @@ export async function listNegotiations(
   ]);
   const loadById = new Map(check(loads).map((l) => [l.id, l]));
   const allOffers = check(offers);
-  return negotiations.flatMap((n) => {
-    const load = loadById.get(n.load_id);
-    return load
-      ? [
-          {
-            negotiationId: n.id,
-            load,
-            offers: allOffers.filter((o) => o.negotiation_id === n.id),
-          },
-        ]
-      : [];
-  });
+  // A load another carrier won is no longer visible (loads_select), but the
+  // negotiation and its offers are: it stays listed, without the load.
+  return negotiations.map((n) => ({
+    negotiationId: n.id,
+    load: loadById.get(n.load_id) ?? null,
+    offers: allOffers.filter((o) => o.negotiation_id === n.id),
+  }));
 }
 
 export interface LoadNegotiation {
@@ -345,8 +341,9 @@ export async function withdrawOffer(client: Supabase, offerId: string) {
 
 /**
  * Calls `onChange` when an offer of the load changes (Realtime applies the
- * offers select policy, so only the carrier's own negotiation arrives).
- * Returns the unsubscribe function.
+ * offers select policy, so only the carrier's own negotiation arrives), and
+ * each time the channel (re)joins, so changes made while it was disconnected
+ * are not missed. Returns the unsubscribe function.
  */
 export function watchLoadOffers(client: Supabase, loadId: string, onChange: () => void) {
   const channel = client
@@ -356,6 +353,8 @@ export function watchLoadOffers(client: Supabase, loadId: string, onChange: () =
       { event: '*', schema: 'public', table: 'offers', filter: `load_id=eq.${loadId}` },
       onChange,
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onChange();
+    });
   return () => void client.removeChannel(channel);
 }

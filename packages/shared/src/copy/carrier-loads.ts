@@ -35,6 +35,8 @@ export const carrierLoadsCopy = {
     results: (count: number) => (count === 1 ? '1 carga' : `${count} cargas`),
     negotiations: 'Mis negociaciones',
     noNegotiations: 'Todavía no has ofertado en ninguna carga.',
+    unavailableLoad: 'Carga ya no disponible',
+    lastOffer: (price: string) => `Última oferta: ${price}`,
   },
   detail: {
     title: 'Detalle de la carga',

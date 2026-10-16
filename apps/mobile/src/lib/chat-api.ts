@@ -52,11 +52,17 @@ export async function markRead(client: Supabase, conversationId: string): Promis
   await client.rpc('mark_conversation_read', { p_conversation_id: conversationId });
 }
 
-/** Calls `onMessage` for each new message of the conversation. Returns the unsubscribe function. */
+/**
+ * Calls `onMessage` for each new message of the conversation, and `onJoin`
+ * each time the channel (re)joins: the caller loads the latest messages then,
+ * so none sent before the subscription or while disconnected is missed.
+ * Returns the unsubscribe function.
+ */
 export function watchMessages(
   client: Supabase,
   conversationId: string,
   onMessage: (message: ChatMessage) => void,
+  onJoin: () => void,
 ) {
   const channel = client
     .channel(`chat:${conversationId}`)
@@ -70,6 +76,8 @@ export function watchMessages(
       },
       (payload) => onMessage(toChatMessage(payload.new as Parameters<typeof toChatMessage>[0])),
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onJoin();
+    });
   return () => void client.removeChannel(channel);
 }

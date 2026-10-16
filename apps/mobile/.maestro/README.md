@@ -26,11 +26,11 @@ Las capturas de cada paso (`takeScreenshot`) quedan en `e2e/mobile-results/scree
    # apps/mobile/.env
    EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321      # o el puerto de tu API
    EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key de supabase status>
-   EXPO_PUBLIC_E2E_FAKE_CAMERA=1
+   EXPO_PUBLIC_E2E_FAKE_CAMERA=1                         # solo iOS (ver Notas)
    ```
 
    - iOS: `pnpm --filter @transport/mobile exec expo run:ios --device <id del simulador> --no-bundler`.
-   - Android: `pnpm --filter @transport/mobile android` (`EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321`).
+   - Android: `pnpm --filter @transport/mobile android` (`EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321`), **sin** `EXPO_PUBLIC_E2E_FAKE_CAMERA`: en Android los flujos toman la foto con la cámara del emulador (`subflows/shutter.yaml`) y, con la cámara de prueba, esperarían un obturador que nunca aparece.
 
 4. **Metro** corriendo: `pnpm --filter @transport/mobile exec expo start --dev-client --port 8090` (o el puerto que quieras).
 5. **Docker** accesible desde la terminal (el flujo 06 para y arranca el contenedor de Kong de tu proyecto, `supabase_kong_<project_id>`).
@@ -56,7 +56,7 @@ Un flujo suelto, sin el script: `maestro --device <id> test -e APP_ID=mx.transpo
 
 ## Notas
 
-- **Cámara:** las fotos de evidencia solo se toman con la cámara (B23) y el simulador de iOS no tiene. Con `EXPO_PUBLIC_E2E_FAKE_CAMERA=1`, **solo en una build de desarrollo** (`__DEV__`), "Tomar foto" / "Agregar foto" devuelven una foto fija ([src/lib/e2e-camera.ts](../src/lib/e2e-camera.ts)); la compresión, el hash, la cola, la subida y la RPC son las reales. Las builds de release ignoran la variable. En Android, sin la variable, `subflows/shutter.yaml` toma la foto con la app de cámara del emulador.
+- **Cámara:** las fotos de evidencia solo se toman con la cámara (B23) y el simulador de iOS no tiene. Con `EXPO_PUBLIC_E2E_FAKE_CAMERA=1`, **solo en una build de desarrollo** (`__DEV__`), "Tomar foto" / "Agregar foto" devuelven una foto fija ([src/lib/e2e-camera.ts](../src/lib/e2e-camera.ts)); la compresión, el hash, la cola, la subida y la RPC son las reales. Las builds de release ignoran la variable. Es solo para iOS: en Android `subflows/take-photo.yaml` siempre pasa por `subflows/shutter.yaml` (app de cámara del emulador), así que ahí la variable va vacía.
 - **Sin conexión:** el simulador de iOS comparte la red de la Mac y Maestro no puede apagarla (`setAirplaneMode` solo existe en Android). El script "tira" la API parando el contenedor de Kong de tu Supabase local; para la app es lo mismo que perder la red (las peticiones fallan y todo se queda en la cola), salvo que el aviso "Sin conexión" de NetInfo no aparece. Para probarlo a mano: `docker stop supabase_kong_<project_id>`, reporta la incidencia, `docker start supabase_kong_<project_id>` y "Enviar ahora". El script siempre vuelve a arrancar el contenedor al terminar, aunque falle un flujo.
 - **Dev client:** cada flujo abre la app con `DEV_CLIENT_URL`, así no toma el bundle de otro Metro que corra en la misma máquina (p. ej. en 8081).
 - **Ubicación:** `launchApp` concede ubicación "Siempre" y cámara; los flujos fijan la ubicación con `setLocation` (Apodaca para la recolección, Guadalajara para la entrega) para que cada evento guarde su lugar (D11).

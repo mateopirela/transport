@@ -20,7 +20,15 @@
 //   MAESTRO_BIN      Maestro CLI (default `maestro`)
 //   SUPABASE_PROJECT_ID and the SUPABASE_*_PORT variables of scripts/local-ports.sh, as for `supabase start`.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -177,6 +185,8 @@ function collectScreenshots() {
   console.log(`Screenshots: ${target}`);
 }
 
+// `needs`: the step that sets up what a flow expects, run first when the run
+// starts at that flow (--from).
 const steps = [
   { name: '01-carrier-offer', run: () => flow('01-carrier-offer') },
   { name: 'shipper-accepts', run: (status) => shipperAccepts(status) },
@@ -185,19 +195,51 @@ const steps = [
   { name: '04-carrier-counteroffer', run: () => flow('04-carrier-counteroffer') },
   { name: '05-operator-pickup', run: () => flow('05-operator-pickup') },
   { name: 'api-down', run: () => apiDown() },
-  { name: '06-operator-incident-offline', run: () => flow('06-operator-incident-offline') },
+  {
+    name: '06-operator-incident-offline',
+    needs: 'api-down',
+    run: () => flow('06-operator-incident-offline'),
+  },
   { name: 'api-up', run: (status) => apiUp(status) },
   { name: '07-operator-delivery', run: () => flow('07-operator-delivery') },
 ];
 
-const start = from ? steps.findIndex((s) => s.name === from) : 0;
+let start = from ? steps.findIndex((s) => s.name === from) : 0;
 if (start < 0) throw new Error(`unknown step ${from}: ${steps.map((s) => s.name).join(', ')}`);
+const needs = steps[start]?.needs;
+if (needs) start = steps.findIndex((s) => s.name === needs);
+const pending = steps.slice(start);
+
+// Results of the steps about to run are replaced, never mixed with an older run.
+rmSync(join(output, 'screenshots'), { recursive: true, force: true });
+for (const step of pending)
+  rmSync(join(output, 'maestro', step.name), { recursive: true, force: true });
+
+/** Starts the gateway again if a step left it stopped. Synchronous: also runs on signals. */
+function restoreGateway() {
+  const gateway = gatewayContainer();
+  const running = capture('docker', ['inspect', '-f', '{{.State.Running}}', gateway]).trim();
+  if (running === 'true') return false;
+  run('docker', ['start', gateway]);
+  return true;
+}
+
+// Ctrl-C or a kill during the offline flow must not leave the local API down.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    try {
+      if (restoreGateway()) console.log('API gateway started again.');
+    } finally {
+      process.exit(130);
+    }
+  });
+}
 
 if (reset) run('supabase', ['db', 'reset']);
 const status = supabaseStatus();
 let failed = false;
 try {
-  for (const step of steps.slice(start)) {
+  for (const step of pending) {
     console.log(`\n=== ${step.name}`);
     await step.run(status);
   }
@@ -206,9 +248,7 @@ try {
   console.error(error instanceof Error ? error.message : error);
 } finally {
   // Never leave the local API down.
-  const gateway = gatewayContainer();
-  const running = capture('docker', ['inspect', '-f', '{{.State.Running}}', gateway]).trim();
-  if (running !== 'true') await apiUp(status);
+  if (restoreGateway()) await apiUp(status);
   collectScreenshots();
 }
 process.exit(failed ? 1 : 0);

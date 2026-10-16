@@ -52,7 +52,7 @@ async function uploadMissingDocuments(page: Page) {
   for (let left = await forms.count(); left > 0; left -= 1) {
     // A form leaves `forms` as soon as its upload starts (its button reads
     // "Subiendo…") and never comes back: once sent it only shows the
-    // confirmation until the refresh removes it.
+    // confirmation until the revalidated page removes it.
     const form = forms.first();
     await form.getByLabel(onboardingCopy.documents.file).setInputFiles(SAMPLE_PDF);
     const expiry = form.getByLabel(onboardingCopy.documents.expiresOn);

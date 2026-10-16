@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(33);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -275,6 +275,20 @@ select throws_ok(
   $$ select * from public.shipper_trip_parties(array_fill(gen_random_uuid(), array[101])) $$,
   '22023', null, 'at most 100 trips per call'
 );
+
+-- ---------------------------------------------------------------------------
+-- Immutable for every role, the table owner included
+-- ---------------------------------------------------------------------------
+reset role;
+select throws_ok(
+  $$ update public.trip_documents set file_name = 'x' where id = tests.val('doc1') $$,
+  '42501', null, 'not even the owner updates a trip document'
+);
+select throws_ok(
+  $$ delete from public.trip_documents where id = tests.val('doc1') $$,
+  '42501', null, 'not even the owner deletes a trip document'
+);
+set local role authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Cancelled trips take no new documents

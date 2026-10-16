@@ -17,8 +17,11 @@ describe('notificationHref', () => {
     expect(notificationHref('offer_received', { loadId: LOAD })).toBe(`/cliente/cargas/${LOAD}`);
   });
 
-  it('opens the load of a trip', () => {
+  it('opens the trip, or its load when the trip id is missing', () => {
     expect(notificationHref('trip_status_changed', { loadId: LOAD, tripId: NEGOTIATION })).toBe(
+      `/cliente/viajes/${NEGOTIATION}`,
+    );
+    expect(notificationHref('trip_assigned', { loadId: LOAD, tripId: 'x' })).toBe(
       `/cliente/cargas/${LOAD}`,
     );
   });

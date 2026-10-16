@@ -3,6 +3,8 @@
 
 export const clientTripsCopy = {
   nav: 'Viajes',
+  /** Link from a contracted load to its trip. */
+  loadLink: 'Seguir el viaje',
   list: {
     title: 'Viajes',
     description: 'Sigue tus cargas contratadas, desde la asignación hasta la entrega.',
@@ -27,7 +29,6 @@ export const clientTripsCopy = {
     operator: 'Operador',
     notAssigned: 'Por asignar',
     unloadEstimate: 'Fin estimado de descarga',
-    unloadEstimateValue: (at: string) => `Fin estimado de descarga: ${at}`,
     cancelled: (reason: string) => `Viaje cancelado: ${reason}`,
   },
   map: {

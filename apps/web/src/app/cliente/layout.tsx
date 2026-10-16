@@ -1,4 +1,4 @@
-import { loadsCopy, notificationsInboxCopy, shellCopy } from '@transport/shared';
+import { clientTripsCopy, loadsCopy, notificationsInboxCopy, shellCopy } from '@transport/shared';
 
 import { AppShell } from '@/components/app-shell';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
@@ -14,6 +14,7 @@ export default async function ShipperLayout({ children }: { children: React.Reac
     { href: paths.shipper, label: loadsCopy.nav.home },
     { href: paths.shipperLoads, label: loadsCopy.nav.loads },
     { href: paths.newLoad, label: loadsCopy.nav.newLoad },
+    { href: paths.shipperTrips, label: clientTripsCopy.nav },
     {
       href: paths.shipperNotifications,
       label: notificationsInboxCopy.nav,

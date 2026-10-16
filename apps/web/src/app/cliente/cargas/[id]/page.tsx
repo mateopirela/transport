@@ -1,5 +1,6 @@
 import {
   cargoTypeLabels,
+  clientTripsCopy,
   formatDateTime,
   formatMxn,
   loadsCopy,
@@ -22,7 +23,8 @@ import { buttonVariants } from '@/components/ui/button';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
 import { shipperLoadActions } from '@/lib/loads/status';
 import { getOfferBoard } from '@/lib/offers/queries';
-import { editLoadPath, loadPath, paths } from '@/lib/routing';
+import { editLoadPath, loadPath, paths, tripPath } from '@/lib/routing';
+import { findLoadTripId } from '@/lib/trips/queries';
 
 const c = loadsCopy.detail;
 const number = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
@@ -40,6 +42,8 @@ export default async function LoadDetailPage({
   const { aviso } = await searchParams;
   const offers = load.status === 'draft' ? [] : await getOfferBoard(supabase, load);
   const actions = shipperLoadActions(load.status);
+  // accept_offer creates the trip together with the acceptance (B06).
+  const tripId = load.accepted_offer_id ? await findLoadTripId(supabase, companyId, load.id) : null;
   const range = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
 
@@ -105,6 +109,11 @@ export default async function LoadDetailPage({
             />
           </section>
           <aside className="space-y-3">
+            {tripId && (
+              <Link href={tripPath(tripId)} className={buttonVariants({ variant: 'accent' })}>
+                {clientTripsCopy.loadLink}
+              </Link>
+            )}
             {actions.publish && <PublishLoadButton loadId={load.id} />}
             {actions.edit && (
               <Link href={editLoadPath(load.id)} className={buttonVariants({ variant: 'outline' })}>

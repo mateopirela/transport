@@ -35,6 +35,13 @@ comment on table public.trip_documents is
 
 create index trip_documents_trip_idx on public.trip_documents (trip_id, created_at);
 
+-- Stored documents are kept as uploaded (B06 reject_mutation): no role
+-- updates, deletes or truncates them.
+create trigger trip_documents_immutable before update or delete on public.trip_documents
+for each row execute function public.reject_mutation();
+create trigger trip_documents_no_truncate before truncate on public.trip_documents
+for each statement execute function public.reject_mutation();
+
 -- Read-only for clients (column list keeps future columns opt-in).
 revoke all on table public.trip_documents from anon, authenticated;
 grant select (id, trip_id, kind, storage_path, file_name, mime_type, size_bytes, uploaded_by, created_at)

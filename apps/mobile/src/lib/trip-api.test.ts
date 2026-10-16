@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Supabase } from './supabase';
-import { incidentAttempt, reportIncident } from './trip-api';
+import { sendQueuedAction } from './trip-api';
+import type { QueuedIncidentAction } from './trip-queue';
 
 const TRIP = '00000000-0000-4000-8000-000000000001';
 const KEY = '00000000-0000-4000-8000-0000000000aa';
@@ -18,16 +19,21 @@ function fakeClient(error: unknown = null) {
   return { client, calls };
 }
 
-describe('reportIncident', () => {
-  it('sends the idempotency key of the report with the incident', async () => {
+const report: QueuedIncidentAction = {
+  kind: 'incident',
+  id: KEY,
+  tripId: TRIP,
+  occurredAt: '2026-10-15T10:00:00.000Z',
+  incidentKind: 'delay',
+  description: 'Tráfico',
+  lat: 25.7,
+  lng: -100.3,
+};
+
+describe('sendQueuedAction: incident (F7)', () => {
+  it('reports the incident with its original time and its id as idempotency key', async () => {
     const { client, calls } = fakeClient();
-    await reportIncident(
-      client,
-      TRIP,
-      { kind: 'delay', description: 'Tráfico' },
-      { lat: 25.7, lng: -100.3 },
-      KEY,
-    );
+    await sendQueuedAction(client, report);
     expect(calls).toEqual([
       {
         fn: 'report_incident',
@@ -35,6 +41,7 @@ describe('reportIncident', () => {
           p_trip_id: TRIP,
           p_kind: 'delay',
           p_description: 'Tráfico',
+          p_occurred_at: '2026-10-15T10:00:00.000Z',
           p_latitude: 25.7,
           p_longitude: -100.3,
           p_client_event_id: KEY,
@@ -44,37 +51,16 @@ describe('reportIncident', () => {
   });
 
   it('sends the same key on a retry, and no location when there is none', async () => {
+    const offline = { ...report, lat: null, lng: null };
     const failing = fakeClient({ code: '08006', message: 'connection lost' });
-    await expect(
-      reportIncident(failing.client, TRIP, { kind: 'other', description: 'x' }, null, KEY),
-    ).rejects.toMatchObject({ code: '08006' });
+    await expect(sendQueuedAction(failing.client, offline)).rejects.toMatchObject({
+      code: '08006',
+    });
 
     const retry = fakeClient();
-    await reportIncident(retry.client, TRIP, { kind: 'other', description: 'x' }, null, KEY);
+    await sendQueuedAction(retry.client, offline);
     expect(retry.calls[0]?.args).toEqual(failing.calls[0]?.args);
     expect(retry.calls[0]?.args).not.toHaveProperty('p_latitude');
     expect(retry.calls[0]?.args).toHaveProperty('p_client_event_id', KEY);
-  });
-});
-
-describe('incidentAttempt', () => {
-  const values = { kind: 'delay', description: 'Tráfico' } as const;
-  let n = 0;
-  const newKey = () => `key-${++n}`;
-
-  it('keeps the key when the same report is retried', () => {
-    const first = incidentAttempt(null, TRIP, values, newKey);
-    expect(incidentAttempt(first, TRIP, { ...values }, newKey)).toBe(first);
-  });
-
-  it('gives an edited report, or one of another trip, a new key', () => {
-    const first = incidentAttempt(null, TRIP, values, newKey);
-    const edited = incidentAttempt(first, TRIP, { ...values, description: 'Choque' }, newKey);
-    expect(edited.key).not.toBe(first.key);
-    expect(edited.values.description).toBe('Choque');
-    expect(incidentAttempt(first, TRIP, { ...values, kind: 'other' }, newKey).key).not.toBe(
-      first.key,
-    );
-    expect(incidentAttempt(first, KEY, values, newKey).key).not.toBe(first.key);
   });
 });

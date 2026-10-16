@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   duePhotos,
+  evidenceRpcArgs,
   flushPhotos,
   hasPendingPhotos,
+  incidentPhotoCount,
   isDuplicateUpload,
   isRetryableUploadError,
   MissingPhotoFileError,
@@ -208,5 +210,72 @@ describe('flushPhotos', () => {
     expect(result.failed).toEqual([
       { ...first, attempts: 2, nextAttemptAt: new Date(NOW.getTime() + 30_000).toISOString() },
     ]);
+  });
+});
+
+describe('photos of an incident reported offline (F7)', () => {
+  const KEY = '2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f';
+
+  it('keeps the key of the report and still reads queues saved before it', () => {
+    const byKey = photo('incident', { incidentId: null, incidentKey: KEY });
+    const older = photo('incident');
+    expect(parseStoredPhotos(JSON.stringify({ pending: [byKey, older], sent: [] }))).toEqual({
+      pending: [byKey, older],
+      sent: [],
+    });
+    expect(
+      parseStoredPhotos(JSON.stringify({ pending: [{ ...byKey, incidentKey: 'nope' }] })).pending,
+    ).toEqual([]);
+  });
+
+  it('names the incident by the key of its report while it has no id', () => {
+    const byKey = photo('incident', { incidentId: null, incidentKey: KEY, lat: null, lng: null });
+    const path = photoStoragePath(byKey);
+    expect(evidenceRpcArgs(byKey, path)).toEqual({
+      p_trip_id: TRIP,
+      p_stage: 'incident',
+      p_storage_path: path,
+      p_sha256: byKey.sha256,
+      p_captured_at: byKey.capturedAt,
+      p_incident_client_event_id: KEY,
+    });
+    // With its id (taken after the report loaded), the id goes, as before.
+    const byId = photo('incident', { incidentKey: null });
+    expect(evidenceRpcArgs(byId, photoStoragePath(byId))).toMatchObject({
+      p_incident_id: INCIDENT,
+      p_latitude: 25.6866,
+      p_longitude: -100.3161,
+    });
+    expect(evidenceRpcArgs(byId, photoStoragePath(byId))).not.toHaveProperty(
+      'p_incident_client_event_id',
+    );
+    // Pickup and delivery photos name no incident.
+    const pickup = photo('pickup');
+    const args = evidenceRpcArgs(pickup, photoStoragePath(pickup));
+    expect(args).not.toHaveProperty('p_incident_id');
+    expect(args).not.toHaveProperty('p_incident_client_event_id');
+  });
+
+  it('counts the photos of an incident taken by its id or by the key of its report', () => {
+    const uploaded = photo('incident');
+    const takenOffline = photo('incident', { incidentId: null, incidentKey: KEY });
+    const otherIncident = photo('incident', {
+      incidentId: null,
+      incidentKey: '3d4e5f6a-7b8c-4d9e-8f0a-1b2c3d4e5f6a',
+    });
+    const server = [
+      {
+        stage: 'incident' as const,
+        storage_path: photoStoragePath(uploaded),
+        incident_id: INCIDENT,
+      },
+      { stage: 'incident' as const, storage_path: `${TRIP}/incident/z.jpg`, incident_id: INCIDENT },
+    ];
+    const stored = { pending: [takenOffline, otherIncident], sent: [uploaded] };
+    // The report is still on the phone: only the photos taken with its key.
+    expect(incidentPhotoCount(server, stored, { incidentId: null, incidentKey: KEY })).toBe(1);
+    // Loaded with its id: the server's, plus the ones taken before (by its key), once each.
+    expect(incidentPhotoCount(server, stored, { incidentId: INCIDENT, incidentKey: KEY })).toBe(3);
+    expect(incidentPhotoCount(server, stored, { incidentId: INCIDENT, incidentKey: null })).toBe(2);
   });
 });

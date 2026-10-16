@@ -2,7 +2,6 @@ import {
   evidenceMinimumsFrom,
   pickOperatorTrip,
   type EvidenceMinimums,
-  type IncidentFormValues,
   type Tables,
   type TripStatus,
 } from '@transport/shared';
@@ -52,7 +51,10 @@ export type TripEventRow = Pick<
   | 'notes'
   | 'client_event_id'
   | 'received_by_name'
->;
+> & {
+  /** The incident of an `incident_reported` event (F7). Absent in copies saved before it. */
+  incident_id?: string | null;
+};
 
 export type EvidenceRow = Pick<
   Tables<'trip_evidence'>,
@@ -123,7 +125,7 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
     client
       .from('trip_events')
       .select(
-        'id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id, received_by_name',
+        'id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id, received_by_name, incident_id',
       )
       .eq('trip_id', trip.id)
       .order('occurred_at')
@@ -160,74 +162,46 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
 
 /** Sends one queued action to its RPC. Throws the PostgREST error as is. */
 export async function sendQueuedAction(client: Supabase, action: QueuedAction): Promise<void> {
-  const { error } =
-    action.kind === 'status'
-      ? await client.rpc('record_trip_event', {
-          p_trip_id: action.tripId,
-          p_event_type: action.event,
-          p_occurred_at: action.occurredAt,
-          p_latitude: action.lat,
-          p_longitude: action.lng,
-          ...(action.accuracyM === null ? {} : { p_accuracy_m: action.accuracyM }),
-          ...(action.estimatedUnloadEndAt === null
-            ? {}
-            : { p_estimated_unload_end_at: action.estimatedUnloadEndAt }),
-          p_client_event_id: action.id,
-          ...(action.receivedBy ? { p_received_by_name: action.receivedBy } : {}),
-        })
-      : await client.rpc('set_estimated_unload_end', {
-          p_trip_id: action.tripId,
-          p_estimated_unload_end_at: action.estimatedUnloadEndAt,
-          p_occurred_at: action.occurredAt,
-          p_client_event_id: action.id,
-        });
+  const { error } = await rpcFor(client, action);
   if (error) throw error;
 }
 
-/** One incident report being sent, with the idempotency key of its attempts. */
-export interface IncidentAttempt {
-  tripId: string;
-  values: IncidentFormValues;
-  key: string;
-}
-
-/**
- * The attempt to send `values` for `tripId`: the previous one when it is the
- * same report (a retry keeps its key, so a lost response never duplicates
- * it), or a new report with a new key when anything changed.
- */
-export function incidentAttempt(
-  previous: IncidentAttempt | null,
-  tripId: string,
-  values: IncidentFormValues,
-  newKey: () => string,
-): IncidentAttempt {
-  const same =
-    previous !== null &&
-    previous.tripId === tripId &&
-    previous.values.kind === values.kind &&
-    previous.values.description === values.description;
-  return same ? previous : { tripId, values, key: newKey() };
-}
-
-/**
- * Reports an incident. `clientEventId` is the idempotency key of the report:
- * the caller keeps it for every retry of the same report, so a retry after a
- * lost response returns the incident already recorded instead of a new one.
- */
-export async function reportIncident(
-  client: Supabase,
-  tripId: string,
-  values: IncidentFormValues,
-  position: { lat: number; lng: number } | null,
-  clientEventId: string,
-): Promise<void> {
-  const { error } = await client.rpc('report_incident', {
-    p_trip_id: tripId,
-    p_kind: values.kind,
-    p_description: values.description,
-    ...(position ? { p_latitude: position.lat, p_longitude: position.lng } : {}),
-    p_client_event_id: clientEventId,
-  });
-  if (error) throw error;
+function rpcFor(client: Supabase, action: QueuedAction) {
+  switch (action.kind) {
+    case 'status':
+      return client.rpc('record_trip_event', {
+        p_trip_id: action.tripId,
+        p_event_type: action.event,
+        p_occurred_at: action.occurredAt,
+        p_latitude: action.lat,
+        p_longitude: action.lng,
+        ...(action.accuracyM === null ? {} : { p_accuracy_m: action.accuracyM }),
+        ...(action.estimatedUnloadEndAt === null
+          ? {}
+          : { p_estimated_unload_end_at: action.estimatedUnloadEndAt }),
+        p_client_event_id: action.id,
+        ...(action.receivedBy ? { p_received_by_name: action.receivedBy } : {}),
+      });
+    case 'estimate':
+      return client.rpc('set_estimated_unload_end', {
+        p_trip_id: action.tripId,
+        p_estimated_unload_end_at: action.estimatedUnloadEndAt,
+        p_occurred_at: action.occurredAt,
+        p_client_event_id: action.id,
+      });
+    case 'incident':
+      // The key makes a retry after a lost response return the incident
+      // already recorded instead of a second one (F2), and lets its photos
+      // name it before the phone knows its id (F7).
+      return client.rpc('report_incident', {
+        p_trip_id: action.tripId,
+        p_kind: action.incidentKind,
+        p_description: action.description,
+        p_occurred_at: action.occurredAt,
+        ...(action.lat === null || action.lng === null
+          ? {}
+          : { p_latitude: action.lat, p_longitude: action.lng }),
+        p_client_event_id: action.id,
+      });
+  }
 }

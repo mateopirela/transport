@@ -10,6 +10,7 @@ import {
   operatorTripCopy as copy,
   specialRequirementLabels,
   tripEventTypeLabels,
+  type IncidentKind,
   type TripEventType,
   type TripStatus,
 } from '@transport/shared';
@@ -143,24 +144,71 @@ export function TimelineSection({ entries }: { entries: readonly TimelineEntry[]
   );
 }
 
+/** An incident reported on the phone that the loaded trip does not show yet (F7). */
+export interface QueuedIncident {
+  /** The key of its report (client_event_id). */
+  key: string;
+  kind: IncidentKind;
+  description: string;
+  occurredAt: string;
+  /** Still on the phone (true) or sent but not loaded yet (false). */
+  pending: boolean;
+}
+
+/** Which incident a photo goes to: by id, or by the key of its report while it has none. */
+export type IncidentPhotoTarget =
+  { incidentId: string; incidentKey: null } | { incidentId: null; incidentKey: string };
+
 /**
- * Incidents of the trip. With `onAddPhoto`, open incidents take photos from
- * the camera (B23); `photoCount` says how many each one has.
+ * Incidents of the trip, the ones still on the phone first. With
+ * `onAddPhoto`, open incidents take photos from the camera (B23), also before
+ * their report is sent (F7); `photoCount` says how many each one has.
  */
 export function IncidentList({
   incidents,
+  queued = [],
   photoCount,
   onAddPhoto,
   busy = false,
 }: {
   incidents: readonly IncidentRow[];
-  photoCount?: (incidentId: string) => number;
-  onAddPhoto?: (incidentId: string) => void;
+  queued?: readonly QueuedIncident[];
+  photoCount?: (target: IncidentPhotoTarget) => number;
+  onAddPhoto?: (target: IncidentPhotoTarget) => void;
   busy?: boolean;
 }) {
-  if (incidents.length === 0) return <Body>{copy.noIncidents}</Body>;
+  if (incidents.length === 0 && queued.length === 0) return <Body>{copy.noIncidents}</Body>;
+  const photoActions = (target: IncidentPhotoTarget) => (
+    <>
+      {photoCount ? (
+        <Text style={styles.meta}>{operatorEvidenceCopy.incidentPhotos(photoCount(target))}</Text>
+      ) : null}
+      {onAddPhoto ? (
+        <Button
+          label={operatorEvidenceCopy.takeIncident}
+          variant="secondary"
+          disabled={busy}
+          onPress={() => onAddPhoto(target)}
+        />
+      ) : null}
+    </>
+  );
   return (
     <>
+      {queued.map((incident) => (
+        <Card
+          key={incident.key}
+          title={incidentKindLabels[incident.kind]}
+          subtitle={formatDateTime(incident.occurredAt)}
+        >
+          <Text style={styles.meta}>{incident.description}</Text>
+          <Badge
+            label={incident.pending ? copy.incidentPendingTag : incidentStatusLabels.open}
+            tone="warning"
+          />
+          {photoActions({ incidentId: null, incidentKey: incident.key })}
+        </Card>
+      ))}
       {incidents.map((incident) => (
         <Card
           key={incident.id}
@@ -174,7 +222,9 @@ export function IncidentList({
           />
           {photoCount ? (
             <Text style={styles.meta}>
-              {operatorEvidenceCopy.incidentPhotos(photoCount(incident.id))}
+              {operatorEvidenceCopy.incidentPhotos(
+                photoCount({ incidentId: incident.id, incidentKey: null }),
+              )}
             </Text>
           ) : null}
           {onAddPhoto && incident.status === 'open' ? (
@@ -182,7 +232,7 @@ export function IncidentList({
               label={operatorEvidenceCopy.takeIncident}
               variant="secondary"
               disabled={busy}
-              onPress={() => onAddPhoto(incident.id)}
+              onPress={() => onAddPhoto({ incidentId: incident.id, incidentKey: null })}
             />
           ) : null}
         </Card>

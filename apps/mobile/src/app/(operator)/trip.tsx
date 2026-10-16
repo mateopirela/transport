@@ -2,7 +2,6 @@ import {
   captureStageForStatus,
   evidenceStageForEvent,
   missingPhotos,
-  mobileErrorCopy,
   operatorEvidenceCopy as evidenceCopy,
   mobileNavCopy,
   nextOperatorEvent,
@@ -21,7 +20,7 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import {
@@ -34,6 +33,7 @@ import { IncidentForm, UnloadEstimateForm } from '../../components/trip-forms';
 import {
   IncidentList,
   InstructionsSection,
+  type IncidentPhotoTarget,
   ProgressSection,
   RouteSection,
   TimelineSection,
@@ -41,9 +41,13 @@ import {
 } from '../../components/trip-sections';
 import { TrackingBanner } from '../../components/tracking-banner';
 import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
-import { toErrorKey } from '../../lib/errors';
 import { capturePhoto, photoUri } from '../../lib/evidence-api';
-import { photoCounts, photoStoragePath, type StoredPhotos } from '../../lib/evidence-queue';
+import {
+  incidentPhotoCount,
+  photoCounts,
+  photoStoragePath,
+  type StoredPhotos,
+} from '../../lib/evidence-queue';
 import {
   dismissRejectedPhotos,
   enqueuePhoto,
@@ -52,18 +56,14 @@ import {
 } from '../../lib/evidence-sync';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
+import { loadOperatorTrip, type OperatorTrip } from '../../lib/trip-api';
 import {
-  incidentAttempt,
-  loadOperatorTrip,
-  reportIncident,
-  type IncidentAttempt,
-  type OperatorTrip,
-} from '../../lib/trip-api';
-import {
+  actionEventType,
   effectiveStatus,
   effectiveUnloadEstimate,
   isRetryableError,
   nextOccurredAt,
+  queuedIncidents,
   unconfirmedActions,
   type QueuedAction,
   type StoredQueue,
@@ -155,12 +155,7 @@ export default function AssignedTripTab() {
       <Notice tone="danger" title={copy.rejectedTitle}>
         <Body>
           {copy.rejectedBody(
-            queue.rejected
-              .map(
-                (a) =>
-                  tripEventTypeLabels[a.kind === 'status' ? a.event : 'unload_estimate_updated'],
-              )
-              .join(', '),
+            queue.rejected.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
           )}
         </Body>
         <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
@@ -208,7 +203,6 @@ export default function AssignedTripTab() {
       photos={photos}
       notice={notices}
       tracking={tracking}
-      onReload={reload}
     />
   );
 }
@@ -219,21 +213,16 @@ function TripView({
   photos,
   notice,
   tracking,
-  onReload,
 }: {
   trip: OperatorTrip;
   stored: StoredQueue;
   photos: StoredPhotos;
   notice: ReactNode;
   tracking: TripTracking;
-  onReload: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
-  // The incident report not confirmed yet: retrying it unchanged keeps its
-  // idempotency key; an edited report gets a new one (see incidentAttempt).
-  const lastIncident = useRef<IncidentAttempt | null>(null);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -278,7 +267,7 @@ function TripView({
       .filter((a) => a.tripId === trip.id)
       .map((a) => ({
         key: a.id,
-        type: a.kind === 'status' ? a.event : ('unload_estimate_updated' as const),
+        type: actionEventType(a),
         occurredAt: a.occurredAt,
         pending: pendingIds.has(a.id),
       })),
@@ -312,22 +301,45 @@ function TripView({
     ];
   }
 
-  function incidentPhotoCount(incidentId: string): number {
-    const local = [...photos.sent, ...photos.pending].filter((p) => p.incidentId === incidentId);
-    const paths = new Set([
-      ...trip.evidence.filter((e) => e.incident_id === incidentId).map((e) => e.storage_path),
-      ...local.map(photoStoragePath),
-    ]);
-    return paths.size;
+  // Incidents reported on the phone and not shown by this copy yet (F7).
+  const incidentsOnPhone = queuedIncidents(queue, trip.id).map((a) => ({
+    key: a.id,
+    kind: a.incidentKind,
+    description: a.description,
+    occurredAt: a.occurredAt,
+    pending: pendingIds.has(a.id),
+  }));
+  // Key of the report of each incident, for its photos taken before it was sent.
+  const keyByIncident = new Map(
+    trip.events.flatMap((e) =>
+      e.event_type === 'incident_reported' && e.incident_id && e.client_event_id
+        ? [[e.incident_id, e.client_event_id] as const]
+        : [],
+    ),
+  );
+
+  function photosOfIncident(target: IncidentPhotoTarget): number {
+    return incidentPhotoCount(trip.evidence, photos, {
+      incidentId: target.incidentId,
+      incidentKey:
+        target.incidentId === null
+          ? target.incidentKey
+          : (keyByIncident.get(target.incidentId) ?? null),
+    });
   }
 
   /** Camera only; the photo is queued on the phone and uploaded when possible. */
-  async function takePhoto(stage: EvidenceStage, incidentId: string | null) {
-    const show = incidentId ? setIncidentMessage : setMessage;
+  async function takePhoto(stage: EvidenceStage, incident: IncidentPhotoTarget | null) {
+    const show = incident ? setIncidentMessage : setMessage;
     setBusy('photo');
     show(null);
     try {
-      const outcome = await capturePhoto({ tripId: trip.id, stage, incidentId });
+      const outcome = await capturePhoto({
+        tripId: trip.id,
+        stage,
+        incidentId: incident?.incidentId ?? null,
+        incidentKey: incident?.incidentKey ?? null,
+      });
       if (outcome.status === 'cancelled') return;
       if (outcome.status === 'denied') {
         show({ tone: 'danger', text: evidenceCopy.cameraDenied, settings: true });
@@ -423,33 +435,35 @@ function TripView({
     }
   }
 
+  /**
+   * Saves the report on the phone and tries to send it right away (F7): it
+   * goes through the trip queue, so it survives no connection and app
+   * restarts, and a retry never duplicates it (its id is the RPC's key).
+   */
   async function submitIncident(values: IncidentFormValues): Promise<boolean> {
-    if (!supabase) return false;
     setBusy('incident');
     setIncidentMessage(null);
     try {
       // Optional: never prompts for permission just for an incident.
       const located = await currentPosition({ ask: false });
-      const attempt = incidentAttempt(lastIncident.current, trip.id, values, randomUUID);
-      lastIncident.current = attempt;
-      await reportIncident(
-        supabase,
-        trip.id,
-        values,
-        located.ok ? located.position : null,
-        attempt.key,
-      );
-      lastIncident.current = null;
-      setIncidentMessage({ tone: 'info', text: copy.incidentSent });
-      await onReload();
-      return true;
-    } catch (error) {
-      const key = toErrorKey(error);
-      setIncidentMessage({
-        tone: 'danger',
-        text: key === 'network' ? mobileErrorCopy.network : copy.incidentFailed,
+      const saved = await enqueueTripAction({
+        kind: 'incident',
+        id: randomUUID(),
+        tripId: trip.id,
+        occurredAt: new Date().toISOString(),
+        incidentKind: values.kind,
+        description: values.description,
+        lat: located.ok ? located.position.lat : null,
+        lng: located.ok ? located.position.lng : null,
       });
-      return false;
+      setIncidentMessage(
+        saved
+          ? { tone: 'info', text: copy.incidentQueued }
+          : { tone: 'warning', text: copy.saveFailed },
+      );
+      if (supabase) void flushTripQueue(supabase);
+      // Queued either way: it is sent while the app is open.
+      return true;
     } finally {
       setBusy(null);
     }
@@ -576,8 +590,9 @@ function TripView({
         <SectionTitle>{copy.incidents}</SectionTitle>
         <IncidentList
           incidents={trip.incidents}
-          photoCount={incidentPhotoCount}
-          onAddPhoto={(incidentId) => void takePhoto('incident', incidentId)}
+          queued={incidentsOnPhone}
+          photoCount={photosOfIncident}
+          onAddPhoto={(target) => void takePhoto('incident', target)}
           busy={busy !== null}
         />
         {incidentMessage ? (

@@ -84,8 +84,10 @@ export const operatorTripCopy = {
   incidentKind: 'Tipo de incidencia',
   incidentDescription: 'Qué pasó',
   incidentSubmit: 'Enviar incidencia',
-  incidentSent: 'Incidencia enviada. Tu transportista y el equipo de soporte ya la ven.',
-  incidentFailed: 'No pudimos enviar la incidencia. Revisa tu conexión e inténtalo de nuevo.',
+  // Incidents go through the offline queue (F7): saved first, sent when possible.
+  incidentQueued:
+    'Incidencia guardada en el teléfono. Se envía en cuanto haya conexión; mientras tanto ya puedes agregarle fotos.',
+  incidentPendingTag: 'Pendiente de enviar',
   noIncidents: 'Sin incidencias.',
 } as const;
 

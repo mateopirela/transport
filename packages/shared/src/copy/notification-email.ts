@@ -19,15 +19,24 @@ export const notificationEmailCopy = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
-/** Web page a notification links to, for the roles that use the web. */
+function uuid(data: unknown, key: string): string | null {
+  const value =
+    typeof data === 'object' && data !== null ? (data as Record<string, unknown>)[key] : null;
+  return typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * Web page a notification links to, for the roles that use the web: the trip
+ * (B15) or else the load of a shipper's notification (same routes as
+ * apps/web/src/lib/routing.ts).
+ */
 export function notificationWebPath(role: UserRole | null, data: unknown): string | null {
   if (role === 'admin') return '/admin';
   if (role !== 'shipper') return null;
-  const loadId =
-    typeof data === 'object' && data !== null ? (data as Record<string, unknown>).loadId : null;
-  return typeof loadId === 'string' && UUID.test(loadId)
-    ? `/cliente/cargas/${loadId.toLowerCase()}`
-    : '/cliente/notificaciones';
+  const tripId = uuid(data, 'tripId');
+  if (tripId) return `/cliente/viajes/${tripId}`;
+  const loadId = uuid(data, 'loadId');
+  return loadId ? `/cliente/cargas/${loadId}` : '/cliente/notificaciones';
 }
 
 /** Absolute link, only for an http(s) site URL without credentials. */

@@ -23,6 +23,12 @@ describe('notification email', () => {
     expect(notificationWebPath('shipper', { loadId: LOAD.toUpperCase() })).toBe(
       `/cliente/cargas/${LOAD}`,
     );
+    expect(notificationWebPath('shipper', { loadId: LOAD, tripId: LOAD })).toBe(
+      `/cliente/viajes/${LOAD}`,
+    );
+    expect(notificationWebPath('shipper', { loadId: LOAD, tripId: 'x' })).toBe(
+      `/cliente/cargas/${LOAD}`,
+    );
     expect(notificationWebPath('shipper', { loadId: '../admin' })).toBe('/cliente/notificaciones');
     expect(notificationWebPath('shipper', null)).toBe('/cliente/notificaciones');
     expect(notificationWebPath('admin', { loadId: LOAD })).toBe('/admin');

@@ -86,13 +86,25 @@ begin
     raise exception 'lease must be between 10 and 3600 seconds' using errcode = '22023';
   end if;
 
+  -- Close every stale row first, so they never take the place of fresh ones
+  -- in the batch (the dispatcher stops at a short batch).
+  update public.notifications n
+  set dispatched_at = now(), dispatch_retry_at = null, dispatch_error = 'stale'
+  where n.id in (
+    select s.id from public.notifications s
+    where s.dispatched_at is null and s.created_at < now() - interval '1 day'
+      and (s.dispatch_retry_at is null or s.dispatch_retry_at <= now())
+    for update skip locked
+  );
+
   return query
   with due as (
-    select n.id, n.created_at < now() - interval '1 day' as stale,
+    select n.id,
            n.push_state is null as push_pending,
            n.email_state is null or n.email_state = 'in_flight' as email_pending
     from public.notifications n
     where n.dispatched_at is null
+      and n.created_at >= now() - interval '1 day'
       and (n.dispatch_retry_at is null or n.dispatch_retry_at <= now())
     order by n.created_at, n.id
     limit p_limit
@@ -100,20 +112,17 @@ begin
   ),
   claimed as (
     update public.notifications n
-    set dispatch_attempts = case when d.stale then n.dispatch_attempts else n.dispatch_attempts + 1 end,
-        dispatch_retry_at = case when d.stale then null else now() + make_interval(secs => p_lease_seconds) end,
-        dispatched_at = case when d.stale then now() end,
-        dispatch_error = case when d.stale then 'stale' else n.dispatch_error end,
+    set dispatch_attempts = n.dispatch_attempts + 1,
+        dispatch_retry_at = now() + make_interval(secs => p_lease_seconds),
         push_state = case
-          when d.stale then n.push_state
           when n.push_state is null then 'in_flight'
           when n.push_state = 'in_flight' then 'unknown'
           else n.push_state
         end,
-        email_state = case when not d.stale and d.email_pending then 'in_flight' else n.email_state end
+        email_state = case when d.email_pending then 'in_flight' else n.email_state end
     from due d
     where n.id = d.id
-    returning n.*, d.stale, d.push_pending, d.email_pending
+    returning n.*, d.push_pending, d.email_pending
   )
   select c.id, c.user_id, c.type, c.data, c.created_at, c.dispatch_attempts::integer,
          c.push_pending, c.email_pending,
@@ -125,7 +134,6 @@ begin
   from claimed c
   join auth.users u on u.id = c.user_id
   left join public.profiles p on p.id = c.user_id
-  where not c.stale
   order by c.created_at, c.id;
 end;
 $$;

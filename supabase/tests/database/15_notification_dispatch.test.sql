@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(59);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -177,14 +177,18 @@ insert into public.notifications (id, user_id, type, data, created_at) values
   ('f9000000-0000-4000-8000-000000000001', 'a9000000-0000-4000-8000-000000000001', 'offer_received', '{}', now() - interval '2 minutes'),
   ('f9000000-0000-4000-8000-000000000002', 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}', now() - interval '1 minute'),
   ('f9000000-0000-4000-8000-000000000003', 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}', now() - interval '2 days');
+-- A backlog of old notifications, more than a batch.
+insert into public.notifications (user_id, type, data, created_at)
+select 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}', now() - interval '3 days' - make_interval(mins => i)
+from generate_series(1, 20) i;
 
 set local role service_role;
 select results_eq(
   $$ select id, attempt, push_pending, email_pending, email, role::text, cardinality(push_tokens)
-     from public.claim_notifications(10, 60) $$,
+     from public.claim_notifications(2, 60) $$,
   $$ values ('f9000000-0000-4000-8000-000000000001'::uuid, 1, true, true, 'sara@s.test'::text, 'shipper'::text, 0),
             ('f9000000-0000-4000-8000-000000000002'::uuid, 1, true, true, 'ana@a.test'::text, 'carrier'::text, 2) $$,
-  'claim returns the due notifications, oldest first, with the email, role and devices of the user'
+  'claim returns the due notifications, oldest first, with the email, role and devices of the user; old ones do not take their place in the batch'
 );
 select is_empty(
   $$ select * from public.claim_notifications(10, 60) $$,
@@ -196,6 +200,10 @@ select results_eq(
      where id = 'f9000000-0000-4000-8000-000000000003' $$,
   $$ values (true, 'stale'::text, 0) $$,
   'a notification older than a day is closed as stale instead of pushed'
+);
+select is(
+  (select count(*)::int from public.notifications where dispatch_error = 'stale' and dispatched_at is not null),
+  21, 'one claim closes the whole backlog of old notifications'
 );
 select throws_ok(
   $$ select * from public.claim_notifications(0, 60) $$, '22023', null, 'claim validates the limit'

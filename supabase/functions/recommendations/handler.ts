@@ -11,6 +11,9 @@
 //    Routes for the misses of the top N only. Without GOOGLE_ROUTES_API_KEY
 //    (or the service role, i.e. no cache) Routes is never called and every
 //    distance is haversine × ROAD_DISTANCE_FACTOR.
+// 4. Rate limit (B24): 30 calls a minute per user (consume_rate_limit, keyed
+//    by the caller's JWT), so one account cannot burn the Routes budget. A
+//    refused call answers 429; the app then scores the candidates itself.
 import { matchExplanation } from '../../../packages/shared/src/copy/matching.ts';
 import { roadDistanceFactor } from '../../../packages/shared/src/geo.ts';
 import {
@@ -51,11 +54,53 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 /** Candidates scored with estimates; only the top N get road distances. */
 const MAX_CANDIDATES = 200;
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...CORS_HEADERS, ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+/** One hit of the caller's `recommendations` limit; a Response when refused. */
+async function consumeRateLimit(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string,
+  fetch: FetchLike,
+  log: Logger,
+): Promise<Response | null> {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_rate_limit`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_bucket: 'recommendations' }),
+    });
+    if (!response.ok) {
+      const error = (await response.json().catch(() => ({}))) as { code?: string };
+      // anon cannot execute it and a user without uid is refused with 42501.
+      if (response.status === 401 || error.code === '42501') {
+        return json({ error: 'unauthorized' }, 401);
+      }
+      log.error('consume_rate_limit failed', { status: response.status, code: error.code });
+      return json({ error: 'upstream_error' }, 502);
+    }
+    const retryAfter: unknown = await response.json();
+    if (typeof retryAfter !== 'number' || !Number.isInteger(retryAfter) || retryAfter < 0) {
+      throw new Error('malformed answer');
+    }
+    if (retryAfter > 0) {
+      return json({ error: 'rate_limited' }, 429, { 'Retry-After': String(retryAfter) });
+    }
+    return null;
+  } catch (error) {
+    // Fail closed: without the counter there is no Routes spending.
+    log.error('consume_rate_limit failed', { error });
+    return json({ error: 'upstream_error' }, 502);
+  }
 }
 
 interface Input {
@@ -165,6 +210,9 @@ export async function handleRecommendations(
     // Invalid JSON: same answer as an invalid body.
   }
   if (!input) return json({ error: 'invalid_request' }, 400);
+
+  const refusal = await consumeRateLimit(supabaseUrl, anonKey, authorization, deps.fetch, log);
+  if (refusal) return refusal;
 
   let candidates: MatchCandidate[];
   try {

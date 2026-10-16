@@ -47,6 +47,8 @@ function setup(options: {
   env?: Record<string, string>;
   rpc?: () => Response | Promise<Response>;
   cacheRows?: unknown[];
+  /** Answer of consume_rate_limit (seconds to wait; 0 = allowed). */
+  rateLimit?: () => Response | Promise<Response>;
 }) {
   const calls: Call[] = [];
   const env: Record<string, string> = {
@@ -59,6 +61,8 @@ function setup(options: {
     now: () => NOW,
     fetch: (url, init) => {
       calls.push({ url, init });
+      if (url.endsWith('/rpc/consume_rate_limit'))
+        return Promise.resolve(options.rateLimit?.() ?? Response.json(0));
       if (url.endsWith('/rpc/match_candidates')) {
         return Promise.resolve(
           options.rpc?.() ?? Response.json([row('far', { origin_lat: 20.9 }), row('near')]),
@@ -183,7 +187,7 @@ Deno.test('ranks with estimates and never calls Google without a key', async () 
     /en vacío · \$\d+\/km · .* · coincide con tu ruta GDL–MTY/u,
   );
 
-  const rpc = calls[0]!;
+  const rpc = calls.find((c) => c.url.endsWith('/rpc/match_candidates'))!;
   assert.equal((rpc.init.headers as Record<string, string>).Authorization, 'Bearer user-jwt');
   assert.deepEqual(JSON.parse(String(rpc.init.body)), {
     p_vehicle_id: VEHICLE,
@@ -252,4 +256,49 @@ Deno.test('new secret keys go only in the apikey header', async () => {
     .headers as Record<string, string>;
   assert.equal(headers.apikey, 'sb_secret_x');
   assert.equal(headers.Authorization, undefined);
+});
+
+Deno.test('each user is rate limited before any candidate or distance is computed', async () => {
+  const allowed = setup({});
+  assert.equal(
+    (await handleRecommendations(post({ vehicleId: VEHICLE }), allowed.deps)).status,
+    200,
+  );
+  const limit = allowed.calls[0]!;
+  assert.ok(limit.url.endsWith('/rpc/consume_rate_limit'), 'the limit is checked first');
+  assert.equal((limit.init.headers as Record<string, string>).Authorization, 'Bearer user-jwt');
+  assert.deepEqual(JSON.parse(String(limit.init.body)), { p_bucket: 'recommendations' });
+
+  const limited = setup({ rateLimit: () => Response.json(17) });
+  const response = await handleRecommendations(post({ vehicleId: VEHICLE }), limited.deps);
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '17');
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
+  assert.deepEqual(await response.json(), { error: 'rate_limited' });
+  assert.equal(limited.calls.length, 1, 'no match_candidates, cache or Routes call');
+});
+
+Deno.test('rate limit errors: unauthorized callers get 401, the rest fail closed', async () => {
+  const cases: [() => Response | Promise<Response>, number][] = [
+    [() => Response.json({ code: '42501' }, { status: 401 }), 401],
+    [() => Response.json({ code: '42501' }, { status: 403 }), 401],
+    [() => new Response('boom', { status: 500 }), 502],
+    [() => Response.json('later'), 502],
+    [() => Response.json(-1), 502],
+    [() => Promise.reject(new TypeError('connection refused')), 502],
+  ];
+  const errors = console.error;
+  console.error = () => {};
+  try {
+    for (const [rateLimit, status] of cases) {
+      const { deps, calls } = setup({ rateLimit });
+      assert.equal(
+        (await handleRecommendations(post({ vehicleId: VEHICLE }), deps)).status,
+        status,
+      );
+      assert.equal(calls.length, 1);
+    }
+  } finally {
+    console.error = errors;
+  }
 });

@@ -34,6 +34,8 @@ Arturo Cantú y Daniel Ortiz son operadores **sin cuenta** (para probar la invit
 
 La caja seca `CS53-01` de Transportes Regios está descargando en Guadalajara. Su disponibilidad se toma del fin estimado de descarga (`estimated_unload_end_at`) y queda en Guadalajara. La carga compatible más cercana es **GDL → MTY** de Alimentos de Occidente: con este seed, debe ser su primera recomendación.
 
+Para probarlo: `supabase functions serve` y, con la sesión de `jorge.villarreal@demo.test`, `POST /functions/v1/recommendations` con `{"vehicleId": "5eed0004-0000-4000-8000-000000000002"}`. Sin `GOOGLE_ROUTES_API_KEY` (en `supabase/functions/.env`) las distancias son estimadas (haversine × `ROAD_DISTANCE_FACTOR`); con clave, solo el top N consulta Routes y el resultado queda en `route_distance_cache`.
+
 ## Limitaciones
 
 - **Archivos:** los documentos y la evidencia no tienen archivo en Storage (solo metadatos). El visor de documentos del admin no puede abrirlos.

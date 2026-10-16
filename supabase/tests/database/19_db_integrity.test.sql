@@ -265,10 +265,11 @@ select results_eq(
   'matching starts the booked unit from the trip it is booked for'
 );
 -- Trip A runs late (ends at +5 days, after trip B's window): V still starts
--- from trip B, but not before trip A ends.
+-- from trip B, once it has done trip B after trip A (F5: B starts 4 days
+-- late, so it ends at +6 days 6 hours).
 set local role authenticated;
 select tests.login('af200000-0000-4000-8000-000000000001');
-insert into tests.vals select 'load_d', public.create_load(tests.payload(false, 6));
+insert into tests.vals select 'load_d', public.create_load(tests.payload(false, 7));
 select public.publish_load(tests.val('load_d'));
 reset role;
 update public.trips set estimated_unload_end_at = now() + interval '5 days' where id = tests.val('trip_a');
@@ -279,8 +280,8 @@ select is_empty(
 select results_eq(
   $$ select start_city, available_from, is_return_trip
      from public.match_pairs('ef200000-0000-4000-8000-000000000001', tests.val('load_d'), 1000) $$,
-  $$ values ('Monterrey', now() + interval '5 days', true) $$,
-  'when the current trip runs late, the unit starts from the booked trip once the late one ends'
+  $$ values ('Monterrey', now() + interval '6 days 6 hours', true) $$,
+  'when the current trip runs late, the unit starts from the booked trip once it has done both'
 );
 update public.trips set estimated_unload_end_at = now() + interval '2 hours' where id = tests.val('trip_a');
 
@@ -307,9 +308,11 @@ select is_empty(
   'the end of trip A does not make V available again: it is committed to trip B'
 );
 select is(
-  (select count(*) from public.vehicle_availability where vehicle_id = 'ef200000-0000-4000-8000-000000000001'),
-  1::bigint,
-  'no new availability row was written for V'
+  (select count(*) from public.vehicle_availability
+   where vehicle_id = 'ef200000-0000-4000-8000-000000000001'
+     and (archived_at is null or ended_by_trip_id is distinct from tests.val('trip_b'))),
+  0::bigint,
+  'every row of V is archived, ended by trip B: the rows it missed are kept as history (F5)'
 );
 
 -- A unit assigned to a trip loses the estimate of its previous trip too.

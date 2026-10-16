@@ -1752,6 +1752,7 @@ export interface Database {
           company_id: string;
           created_at: string;
           created_by: string | null;
+          ended_by_trip_id: string | null;
           id: string;
           location: unknown;
           source: Database['public']['Enums']['availability_source'];
@@ -1766,6 +1767,7 @@ export interface Database {
           company_id: string;
           created_at?: string;
           created_by?: string | null;
+          ended_by_trip_id?: string | null;
           id?: string;
           location: unknown;
           source?: Database['public']['Enums']['availability_source'];
@@ -1779,6 +1781,7 @@ export interface Database {
           company_id?: string;
           created_at?: string;
           created_by?: string | null;
+          ended_by_trip_id?: string | null;
           id?: string;
           location?: unknown;
           source?: Database['public']['Enums']['availability_source'];
@@ -2483,6 +2486,7 @@ export interface Database {
         Args: { p_incident_id: string; p_resolution: string };
         Returns: undefined;
       };
+      restore_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
       review_company: {
         Args: { p_company_id: string; p_decision: string; p_notes?: string };
         Returns: Database['public']['Enums']['verification_status'];
@@ -2605,6 +2609,10 @@ export interface Database {
         Args: { p_trip_id: string; p_vehicle_id: string };
         Returns: boolean;
       };
+      vehicle_committing_trip: {
+        Args: { p_trip_id: string; p_vehicle_id: string };
+        Returns: string;
+      };
       vehicle_expired_requirements: {
         Args: { p_vehicle_id: string };
         Returns: {
@@ -2652,6 +2660,13 @@ export interface Database {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      vehicle_trip_chain_end: {
+        Args: { p_vehicle_id: string };
+        Returns: {
+          available_from: string;
+          load_id: string;
+        }[];
       };
       withdraw_offer: { Args: { p_offer_id: string }; Returns: undefined };
     };

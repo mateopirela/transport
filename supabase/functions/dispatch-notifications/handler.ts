@@ -4,7 +4,9 @@
 // packages/shared.
 //
 //   POST (no body), header `x-dispatch-secret: $NOTIFICATIONS_DISPATCH_SECRET`.
-//   pg_cron calls it every minute (invoke_notification_dispatcher).
+//   pg_cron calls it every minute (invoke_notification_dispatcher). At most
+//   10 runs a minute go through (B24 rate limit, consume_service_rate_limit):
+//   a leaked secret cannot hammer Expo and the email provider.
 //
 // Delivery guarantees:
 //   * claim_notifications leases each row (skip locked), so two runs never
@@ -84,10 +86,10 @@ const EMAIL_CONCURRENCY = 5;
 /** Expo errors that a retry cannot fix. */
 const FINAL_PUSH_ERRORS = new Set(['DeviceNotRegistered', 'MessageTooBig']);
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
@@ -392,6 +394,23 @@ export async function handleDispatch(request: Request, deps: Dependencies): Prom
     }
     return response.json() as Promise<unknown>;
   };
+
+  try {
+    const retryAfter = await rpc('consume_service_rate_limit', {
+      p_bucket: 'dispatch-notifications',
+      p_subject: 'global',
+    });
+    if (!Number.isInteger(retryAfter) || (retryAfter as number) < 0) {
+      throw new Error('consume_service_rate_limit returned a malformed answer');
+    }
+    if ((retryAfter as number) > 0) {
+      return json({ error: 'rate_limited' }, 429, { 'Retry-After': String(retryAfter) });
+    }
+  } catch (error) {
+    // Fail closed: without the counter nothing is sent.
+    console.error('rate limit failed', error instanceof Error ? error.message : errorName(error));
+    return json({ error: 'upstream_error' }, 502);
+  }
 
   const now = deps.now ?? Date.now;
   const started = now();

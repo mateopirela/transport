@@ -45,6 +45,8 @@ function setup(options: {
   expo?: (messages: { to: string }[]) => Response;
   resend?: () => Response;
   claimFails?: boolean;
+  /** Answer of consume_service_rate_limit (seconds to wait; 0 = allowed). */
+  rateLimit?: () => Response;
 }) {
   const calls: Call[] = [];
   const batches = [...options.batches];
@@ -62,6 +64,8 @@ function setup(options: {
     fetch: (url, init) => {
       const body = init.body ? JSON.parse(String(init.body)) : null;
       calls.push({ url, body, headers: init.headers as Record<string, string> });
+      if (url.endsWith('/rpc/consume_service_rate_limit'))
+        return Promise.resolve(options.rateLimit?.() ?? Response.json(0));
       if (url.endsWith('/rpc/claim_notifications')) {
         if (options.claimFails) return Promise.resolve(new Response('{}', { status: 500 }));
         return Promise.resolve(Response.json(batches.shift() ?? []));
@@ -327,6 +331,35 @@ Deno.test('a failing claim answers 502 and records nothing', async () => {
   const response = await handleDispatch(post(), deps);
   assert.equal(response.status, 502);
   assert.equal(of('/rpc/record_notification_dispatch').length, 0);
+});
+
+Deno.test('runs are rate limited: one global counter, fail closed', async () => {
+  const allowed = setup({ batches: [] });
+  assert.equal((await handleDispatch(post(), allowed.deps)).status, 200);
+  const [limit] = allowed.of('/rpc/consume_service_rate_limit');
+  assert.deepEqual(limit!.body, { p_bucket: 'dispatch-notifications', p_subject: 'global' });
+  assert.equal(limit!.headers.Authorization, 'Bearer service-key');
+
+  const limited = setup({ batches: [[row('n1')]], rateLimit: () => Response.json(42) });
+  const response = await handleDispatch(post(), limited.deps);
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '42');
+  assert.equal(limited.of('/rpc/claim_notifications').length, 0, 'nothing is claimed');
+
+  const errors = console.error;
+  console.error = () => {};
+  try {
+    for (const rateLimit of [
+      () => new Response('{}', { status: 500 }),
+      () => Response.json('soon'),
+    ]) {
+      const failing = setup({ batches: [[row('n1')]], rateLimit });
+      assert.equal((await handleDispatch(post(), failing.deps)).status, 502);
+      assert.equal(failing.of('/rpc/claim_notifications').length, 0);
+    }
+  } finally {
+    console.error = errors;
+  }
 });
 
 Deno.test('push data carries ids only, never free text', () => {

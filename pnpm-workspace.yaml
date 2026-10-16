@@ -32,3 +32,14 @@ minimumReleaseAgeExclude:
 # its postinstall download is not needed.
 allowBuilds:
   '@sentry/cli': false
+
+# B24: advisories reviewed in docs/seguridad.md ("Dependencias"). Both are in
+# development tooling, never in what the apps ship, and have no patched
+# release yet. CI (`pnpm audit --audit-level high`) fails on any other high or
+# critical advisory. Review this list when a fix is published.
+auditConfig:
+  ignoreGhsas:
+    # node-forge, through @expo/code-signing-certificates (Expo CLI).
+    - GHSA-86w9-cpqp-85rv
+    # braces, through @next/eslint-plugin-next (lint only).
+    - GHSA-vfj7-8cjw-p6xm

@@ -1249,6 +1249,28 @@ export interface Database {
         };
         Relationships: [];
       };
+      rate_limit_counters: {
+        Row: {
+          bucket: string;
+          hits: number;
+          subject: string;
+          window_start: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          bucket: string;
+          hits: number;
+          subject: string;
+          window_start: string;
+        };
+        Update: {
+          bucket?: string;
+          hits?: number;
+          subject?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       route_distance_cache: {
         Row: {
           destination_lat: number;
@@ -2203,6 +2225,11 @@ export interface Database {
         };
       };
       confirm_delivery: { Args: { p_notes?: string; p_trip_id: string }; Returns: undefined };
+      consume_rate_limit: { Args: { p_bucket: string }; Returns: number };
+      consume_service_rate_limit: {
+        Args: { p_bucket: string; p_subject: string };
+        Returns: number;
+      };
       counter_offer: {
         Args: {
           p_amount_cents: number;
@@ -2398,6 +2425,11 @@ export interface Database {
       };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
+      rate_limit_hit: {
+        Args: { p_bucket: string; p_max_hits: number; p_subject: string; p_window_seconds: number };
+        Returns: number;
+      };
+      rate_limit_policy: { Args: { p_bucket: string }; Returns: Record<string, unknown> };
       record_location_consent: {
         Args: { p_platform: string; p_policy_version: string };
         Returns: string;

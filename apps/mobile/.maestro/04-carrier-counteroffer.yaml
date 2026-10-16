@@ -1,0 +1,46 @@
+# Carrier (B19): answers the shipper's counteroffer by accepting it, which
+# contracts the load and creates the trip.
+# Seed: carmen.navarro@demo.test (Fletes Tapatíos), load 07 Zapopan -> MTY of
+# supabase/seed.sql, whose shipper countered her offer.
+appId: ${APP_ID}
+name: Transportista · responder una contraoferta
+tags: [carrier]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: carmen.navarro@demo.test
+# Tab buttons read "<label>, tab, n of 5".
+- extendedWaitUntil:
+    visible: 'Cargas, tab.*'
+    timeout: 30000
+- tapOn: 'Cargas, tab.*'
+- scrollUntilVisible:
+    element: 'Mis negociaciones'
+    centerElement: true
+- scrollUntilVisible:
+    element: 'Zapopan → Monterrey.*'
+    centerElement: true
+- takeScreenshot: 04-1-carrier-negotiations
+- tapOn: 'Zapopan → Monterrey.*'
+- extendedWaitUntil:
+    visible: 'Detalle de la carga'
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'El cliente te hizo una contraoferta.'
+    centerElement: true
+- takeScreenshot: 04-2-carrier-counteroffer
+- scrollUntilVisible:
+    element: 'Aceptar'
+    centerElement: true
+- tapOn: 'Aceptar'
+# Native confirmation dialog.
+- tapOn: 'Confirmar'
+- extendedWaitUntil:
+    visible: 'Contrataste la carga. El viaje quedó creado.'
+    timeout: 15000
+- scrollUntilVisible:
+    element: '¡Ganaste esta carga!.*'
+    direction: UP
+    centerElement: true
+- takeScreenshot: 04-3-carrier-counteroffer-accepted

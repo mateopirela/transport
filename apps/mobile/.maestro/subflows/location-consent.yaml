@@ -1,0 +1,37 @@
+# Operator: the first time, the trip asks for consent before tracking (B22),
+# then for the system's "Always" location permission. Needs SHOT: name of the
+# screenshot of the consent text ('' for none).
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      visible: 'Revisar y aceptar'
+    commands:
+      - tapOn: 'Revisar y aceptar'
+      - scrollUntilVisible:
+          element: 'Acepto compartir mi ubicación'
+          centerElement: true
+      - runFlow:
+          when:
+            true: ${SHOT !== ''}
+          commands:
+            - takeScreenshot: ${SHOT}
+      - tapOn: 'Acepto compartir mi ubicación'
+      - extendedWaitUntil:
+          visible: 'Dar permiso'
+          timeout: 15000
+      - tapOn: 'Dar permiso'
+      # launchApp already granted "Always"; if the system still asks, allow it.
+      - runFlow:
+          when:
+            visible: 'Allow While Using App'
+          commands:
+            - tapOn: 'Allow While Using App'
+      - runFlow:
+          when:
+            visible: 'Change to Always Allow'
+          commands:
+            - tapOn: 'Change to Always Allow'
+      - extendedWaitUntil:
+          visible: 'Avance del viaje'
+          timeout: 15000

@@ -86,3 +86,4 @@ El script solo imprime `export` de variables: `SUPABASE_*_PORT` (que Supabase CL
 
 - `supabase test db supabase/seed-tests` verifica el seed (corre justo después de `supabase db reset`).
 - La suite pgTAP (`supabase test db`) crea sus propios datos y acota sus comprobaciones a ellos: pasa tanto sobre la base con seed como sobre una vacía (`supabase db reset --no-seed`). CI corre las tres cosas.
+- App móvil de punta a punta: `pnpm e2e:mobile` recorre en el simulador, sobre esta seed, al transportista (Jorge: viaje de regreso y oferta; Carmen: contraoferta) y a los operadores (Miguel: recolección, incidencia con foto sin conexión y entrega; Pedro: fin estimado y fin de descarga). Requisitos y cómo correrlo: [apps/mobile/.maestro/README.md](../apps/mobile/.maestro/README.md). No corre en CI.

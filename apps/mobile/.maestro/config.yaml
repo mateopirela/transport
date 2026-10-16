@@ -1,9 +1,16 @@
-# Maestro workspace of the mobile app (B26). See apps/mobile/.maestro/README.md.
+# Maestro workspace of the mobile app (B26, F14). See apps/mobile/.maestro/README.md.
+# Run them with `pnpm e2e:mobile` (scripts/e2e-mobile.mjs): between some flows
+# it does what the app cannot (the shipper accepts on the web; the API goes
+# down and up again around the offline flow).
 flows:
   - '*.yaml'
 executionOrder:
   continueOnFailure: false
   flowsOrder:
     - 01-carrier-offer
-    - 02-carrier-assign
-    - 03-operator-trip
+    - 02-operator-unloading
+    - 03-carrier-assign
+    - 04-carrier-counteroffer
+    - 05-operator-pickup
+    - 06-operator-incident-offline
+    - 07-operator-delivery

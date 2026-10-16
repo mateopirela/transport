@@ -2,10 +2,10 @@
 
 Dos suites, contra Supabase local con los datos demo ([docs/demo-local.md](../docs/demo-local.md)):
 
-| Suite                             | Qué prueba                                                                                                                       | Dónde corre                                                                 |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Playwright (`e2e/`)               | Web: registro → verificación → publicar → negociar → aceptar → seguir el viaje, y el **escenario estrella** del viaje de regreso | CI (job `e2e`) y local                                                      |
-| Maestro (`apps/mobile/.maestro/`) | Móvil: transportista (login → ofertar → asignar) y operador (estados → evidencia)                                                | Local, con simulador/emulador ([README](../apps/mobile/.maestro/README.md)) |
+| Suite                             | Qué prueba                                                                                                                                                                                                  | Dónde corre                                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Playwright (`e2e/`)               | Web: registro → verificación → publicar → negociar → aceptar → seguir el viaje, y el **escenario estrella** del viaje de regreso                                                                            | CI (job `e2e`) y local                                                                         |
+| Maestro (`apps/mobile/.maestro/`) | Móvil: transportista (login → viaje de regreso → ofertar → asignar; responder una contraoferta) y operador (consentimiento → estados → fotos → incidencia sin conexión → entrega; fin estimado de descarga) | Local, con simulador/emulador: `pnpm e2e:mobile` ([README](../apps/mobile/.maestro/README.md)) |
 
 ## Escenarios (Playwright)
 

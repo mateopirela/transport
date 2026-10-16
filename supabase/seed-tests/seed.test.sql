@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(35);
+select plan(36);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -111,6 +111,19 @@ select is(
      order by e.occurred_at desc limit 1
    )),
   0, 'the last event of every trip leads to its status'
+);
+-- record_trip_event copies the device time of these events into the trip.
+select is(
+  (select count(*)::int from public.trips t
+   where t.started_at is distinct from (
+           select e.occurred_at from public.trip_events e where e.trip_id = t.id and e.event_type = 'departed')
+      or t.delivered_at is distinct from (
+           select e.occurred_at from public.trip_events e where e.trip_id = t.id and e.event_type = 'unloading_finished')
+      or t.estimated_unload_end_at is distinct from (
+           select e.estimated_unload_end_at from public.trip_events e
+           where e.trip_id = t.id and e.estimated_unload_end_at is not null
+           order by e.occurred_at desc limit 1)),
+  0, 'the start, delivery and unloading estimate of every trip match its timeline'
 );
 select is(
   (select count(*)::int from public.loads l

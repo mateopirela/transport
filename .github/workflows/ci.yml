@@ -100,6 +100,12 @@ jobs:
           deno check --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/index.ts
           deno test --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/
 
+      # B25: request ids, structured logs and error reporting of every function.
+      - name: Type-check and test the shared observability helpers
+        run: |
+          deno check --config supabase/functions/_shared/deno.json supabase/functions/_shared/
+          deno test --config supabase/functions/_shared/deno.json supabase/functions/_shared/
+
   # Database: applies every migration and the demo seed to a fresh local
   # Postgres, checks the seed, runs the pgTAP suite on an empty database and
   # checks that the generated types (pnpm db:types) are up to date.

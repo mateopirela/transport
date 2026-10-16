@@ -11,6 +11,20 @@ import { permissionCopy } from '../../packages/shared/src/copy/permissions.ts';
 const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || undefined;
 const bundleId = process.env.APP_BUNDLE_ID || 'mx.transport.app';
 
+// Sentry (B25): the SDK reports only with EXPO_PUBLIC_SENTRY_DSN (src/lib/sentry.ts).
+// Its config plugin uploads source maps and debug symbols in native builds, so
+// it is added only when the build has the credentials for it (EAS, B27);
+// otherwise the build would fail trying to upload.
+const sentryUpload =
+  process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+    ? [
+        [
+          '@sentry/react-native/expo',
+          { organization: process.env.SENTRY_ORG, project: process.env.SENTRY_PROJECT },
+        ] as [string, Record<string, string>],
+      ]
+    : [];
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Transport',
@@ -71,6 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-splash-screen',
       { backgroundColor: '#0B1F3A', image: './assets/splash-icon.png', imageWidth: 96 },
     ],
+    ...sentryUpload,
   ],
   extra: easProjectId ? { eas: { projectId: easProjectId } } : {},
 });

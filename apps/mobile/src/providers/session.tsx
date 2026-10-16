@@ -17,6 +17,7 @@ import { registerPushToken } from '../lib/push';
 import { createPushTokenSession } from '../lib/push-session';
 import { resolveArea, type Area, type SessionSnapshot } from '../lib/routing';
 import { pendingInvitation } from '../lib/secure-store';
+import { setSentryUser } from '../lib/sentry';
 import type { Supabase } from '../lib/supabase';
 
 interface SessionContextValue {
@@ -122,6 +123,12 @@ export function SessionProvider({
         ? { status: 'signed_out' }
         : { status: 'signed_in', profile, profileError: current?.error ?? false };
   const area = resolveArea(snapshot);
+
+  // Errors are tagged with the user id and role only (B25).
+  const role = profile?.role ?? null;
+  useEffect(() => {
+    setSentryUser(userId && role ? { id: userId, role } : null);
+  }, [userId, role]);
 
   // Push token once per signed-in user, after they reach their area. It is
   // saved in `push_tokens` (register_push_token, B07) so the dispatcher (B09)

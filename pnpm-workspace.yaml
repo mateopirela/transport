@@ -25,3 +25,9 @@ minimumReleaseAgeExclude:
   - next@16.4.1
   - react-dom@19.3.1
   - react@19.3.1
+
+# Install scripts are denied unless listed. @sentry/cli (B25, via
+# @sentry/react-native) gets its binary from a platform optional dependency;
+# its postinstall download is not needed.
+allowBuilds:
+  '@sentry/cli': false

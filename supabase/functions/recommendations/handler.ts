@@ -26,6 +26,7 @@ import {
   type MatchCandidate,
   type MatchCandidateRow,
 } from '../../../packages/shared/src/matching/index.ts';
+import { createLogger, type Logger } from '../../../packages/shared/src/observability/logger.ts';
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -33,9 +34,11 @@ export interface Dependencies {
   env: (name: string) => string | undefined;
   fetch: FetchLike;
   now?: () => Date;
+  /** Structured logger of the request (B25); a plain one when not given. */
+  log?: Logger;
 }
 
-const CORS_HEADERS = {
+export const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -141,6 +144,7 @@ export async function handleRecommendations(
   request: Request,
   deps: Dependencies,
 ): Promise<Response> {
+  const log = deps.log ?? createLogger({ service: 'recommendations' });
   if (request.method === 'OPTIONS')
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
@@ -181,13 +185,13 @@ export async function handleRecommendations(
       if (rpc.status === 401) return json({ error: 'unauthorized' }, 401);
       if (error.code === '42501') return json({ error: 'forbidden' }, 403);
       if (error.code === '22023') return json({ error: 'invalid_request' }, 400);
-      console.error('match_candidates failed', rpc.status, error.code);
+      log.error('match_candidates failed', { status: rpc.status, code: error.code });
       return json({ error: 'upstream_error' }, 502);
     }
     candidates = ((await rpc.json()) as MatchCandidateRow[]).map(candidateFromRow);
   } catch (error) {
     // Connection failure or a malformed answer: same JSON error, with CORS.
-    console.error('match_candidates failed', error instanceof Error ? error.name : error);
+    log.error('match_candidates failed', { error });
     return json({ error: 'upstream_error' }, 502);
   }
 
@@ -210,6 +214,12 @@ export async function handleRecommendations(
     resolveDistances,
   });
 
+  log.info('recommendations served', {
+    candidates: candidates.length,
+    recommendations: matches.length,
+    returnTrips: matches.filter((m) => m.breakdown.isReturnTrip).length,
+    roadDistances: Boolean(resolveDistances),
+  });
   return json({
     candidates: candidates.length,
     recommendations: matches.map(({ candidate, score, breakdown }) => ({

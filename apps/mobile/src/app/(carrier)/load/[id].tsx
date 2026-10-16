@@ -113,6 +113,7 @@ export default function LoadDetail() {
                 data={negotiation}
                 units={units}
                 defaultVehicleId={best?.vehicleId}
+                offerSource={vehicleId ? 'recommendation' : 'search'}
                 onChanged={reload}
               />
 

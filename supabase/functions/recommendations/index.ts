@@ -1,10 +1,17 @@
 // Edge Function `recommendations` (B08). The logic lives in handler.ts
-// (tested with `deno test`); this file only wires the Deno runtime.
-import { handleRecommendations } from './handler.ts';
+// (tested with `deno test`); this file only wires the Deno runtime, the
+// structured logs and Sentry (B25, optional: SENTRY_DSN).
+import { observe } from '../_shared/observability.ts';
+import { sentryReporter } from '../_shared/sentry.ts';
+import { CORS_HEADERS, handleRecommendations } from './handler.ts';
 
-Deno.serve((request) =>
-  handleRecommendations(request, {
-    env: (name) => Deno.env.get(name),
-    fetch: (input, init) => fetch(input, init),
-  }),
+const env = (name: string) => Deno.env.get(name);
+
+Deno.serve(
+  observe(
+    'recommendations',
+    (request, log) =>
+      handleRecommendations(request, { env, fetch: (input, init) => fetch(input, init), log }),
+    { env, reporter: await sentryReporter(env), errorHeaders: CORS_HEADERS },
+  ),
 );

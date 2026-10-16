@@ -1105,6 +1105,76 @@ export interface Database {
           },
         ];
       };
+      product_events: {
+        Row: {
+          company_id: string | null;
+          id: string;
+          load_id: string | null;
+          name: Database['public']['Enums']['product_event_name'];
+          occurred_at: string;
+          properties: NonNullable<Json>;
+          user_id: string | null;
+          user_role: Database['public']['Enums']['user_role'] | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          company_id?: string | null;
+          id?: string;
+          load_id?: string | null;
+          name: Database['public']['Enums']['product_event_name'];
+          occurred_at?: string;
+          properties?: NonNullable<Json>;
+          user_id?: string | null;
+          user_role?: Database['public']['Enums']['user_role'] | null;
+        };
+        Update: {
+          company_id?: string | null;
+          id?: string;
+          load_id?: string | null;
+          name?: Database['public']['Enums']['product_event_name'];
+          occurred_at?: string;
+          properties?: NonNullable<Json>;
+          user_id?: string | null;
+          user_role?: Database['public']['Enums']['user_role'] | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'product_events_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'product_events_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'product_events_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
+            foreignKeyName: 'product_events_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'product_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       profiles: {
         Row: {
           company_id: string | null;
@@ -2451,6 +2521,14 @@ export interface Database {
         Args: { p_rfc: string };
         Returns: Database['public']['Enums']['taxpayer_type'];
       };
+      track_product_event: {
+        Args: {
+          p_load_id?: string;
+          p_name: Database['public']['Enums']['product_event_name'];
+          p_properties?: Json;
+        };
+        Returns: undefined;
+      };
       trip_event_transition: {
         Args: { p_event: Database['public']['Enums']['trip_event_type'] };
         Returns: Record<string, unknown>;
@@ -2580,6 +2658,7 @@ export interface Database {
         | 'trip_location_stale';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
+      product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
       push_platform: 'ios' | 'android';
       special_requirement:
         | 'temperature_control'
@@ -2828,6 +2907,7 @@ export const Constants = {
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
+      product_event_name: ['recommendations_viewed', 'recommendation_opened', 'offer_submitted'],
       push_platform: ['ios', 'android'],
       special_requirement: [
         'temperature_control',

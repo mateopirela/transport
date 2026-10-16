@@ -27,6 +27,7 @@ import {
 } from '../../../packages/shared/src/copy/notifications.ts';
 import { notificationEmail } from '../../../packages/shared/src/copy/notification-email.ts';
 import type { NotificationType, UserRole } from '../../../packages/shared/src/enums.ts';
+import { createLogger, type Logger } from '../../../packages/shared/src/observability/logger.ts';
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -34,6 +35,8 @@ export interface Dependencies {
   env: (name: string) => string | undefined;
   fetch: FetchLike;
   now?: () => number;
+  /** Structured logger of the request (B25); a plain one when not given. */
+  log?: Logger;
 }
 
 /** A row of claim_notifications. */
@@ -65,6 +68,9 @@ export interface DispatchResult {
   email: ChannelOutcome;
   error?: string;
 }
+
+const defaultLog = createLogger({ service: 'dispatch-notifications' });
+const logOf = (deps: Dependencies) => deps.log ?? defaultLog;
 
 export const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 export const RESEND_URL = 'https://api.resend.com/emails';
@@ -160,10 +166,10 @@ async function sendExpo(messages: ExpoMessage[], deps: Dependencies): Promise<Ex
         }
       } else {
         await response.body?.cancel();
-        console.error('expo push failed', response.status);
+        logOf(deps).error('expo push failed', { status: response.status });
       }
     } catch (error) {
-      console.error('expo push failed', errorName(error));
+      logOf(deps).error('expo push failed', { error });
     }
     tickets.push(
       ...(chunkTickets ??
@@ -261,7 +267,7 @@ async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<
   const apiKey = deps.env('EMAIL_PROVIDER_API_KEY');
   const from = deps.env('EMAIL_FROM');
   if (!apiKey || !from) {
-    console.log('email simulated', row.id, row.type);
+    logOf(deps).info('email simulated', { notificationId: row.id, type: row.type });
     return { outcome: 'skipped', simulated: true };
   }
   try {
@@ -360,6 +366,7 @@ export async function dispatchBatch(
 // ---------------------------------------------------------------------------
 
 export async function handleDispatch(request: Request, deps: Dependencies): Promise<Response> {
+  const log = logOf(deps);
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const secret = deps.env('NOTIFICATIONS_DISPATCH_SECRET');
@@ -410,7 +417,7 @@ export async function handleDispatch(request: Request, deps: Dependencies): Prom
           await rpc('delete_push_tokens', { p_tokens: [...new Set(invalidTokens)] });
         } catch (error) {
           // Not fatal: the next push to them fails the same way.
-          console.error('delete_push_tokens failed', errorName(error));
+          log.error('delete_push_tokens failed', { error });
         }
       }
       await rpc('record_notification_dispatch', { p_results: results });
@@ -419,9 +426,9 @@ export async function handleDispatch(request: Request, deps: Dependencies): Prom
     }
   } catch (error) {
     // The claimed rows are retried once their lease ends.
-    console.error('dispatch failed', error instanceof Error ? error.message : errorName(error));
+    log.error('dispatch failed', { error, ...total });
     return json({ error: 'upstream_error', ...total }, 502);
   }
-  console.log('dispatch finished', JSON.stringify(total));
+  log.info('dispatch finished', { ...total });
   return json(total);
 }

@@ -24,6 +24,7 @@ import {
 import { offerErrorMessage } from '../lib/offer-errors';
 import { centsToPesosInput, parseOfferDraft, type OfferDraft } from '../lib/offer-form';
 import type { Supabase } from '../lib/supabase';
+import { track } from '../lib/track';
 import { colors, spacing } from '../theme';
 import { Badge, Card, ChoiceChips, SectionTitle } from './fleet-ui';
 import { Body, Button, Field, Notice } from './ui';
@@ -51,12 +52,15 @@ export function NegotiationPanel({
   data,
   units,
   defaultVehicleId,
+  offerSource,
   onChanged,
 }: {
   client: Supabase;
   data: LoadNegotiation;
   units: readonly CarrierUnit[];
   defaultVehicleId: string | undefined;
+  /** How the carrier reached the load: from a recommendation or the search (B25). */
+  offerSource: 'recommendation' | 'search';
   onChanged: () => Promise<void>;
 }) {
   const { load } = data;
@@ -88,6 +92,17 @@ export function NegotiationPanel({
 
   const proposed = formatMxn(load.proposed_price_cents);
 
+  /** Sends an offer (or a counteroffer) and records where it came from. */
+  async function sendOffer(input: OfferInput, counterTo?: string) {
+    if (counterTo) await counterOffer(client, counterTo, input);
+    else await makeOffer(client, load.id, input);
+    track({
+      name: 'offer_submitted',
+      loadId: load.id,
+      properties: { source: offerSource, counter: counterTo !== undefined },
+    });
+  }
+
   async function acceptProposed() {
     if (!(await confirm(copy.actions.acceptProposed, copy.actions.acceptProposedHelp(proposed))))
       return;
@@ -95,7 +110,7 @@ export function NegotiationPanel({
       amountCents: load.proposed_price_cents,
       vehicleId: defaultVehicleId,
     };
-    await run(() => makeOffer(client, load.id, input), copy.actions.sent);
+    await run(() => sendOffer(input), copy.actions.sent);
   }
 
   async function accept(offer: NegotiationOffer) {
@@ -124,10 +139,7 @@ export function NegotiationPanel({
     if (!parsed.ok) return;
     const input: OfferInput = parsed.data;
     void run(
-      () =>
-        state === 'respond' && latest
-          ? counterOffer(client, latest.id, input)
-          : makeOffer(client, load.id, input),
+      () => sendOffer(input, state === 'respond' && latest ? latest.id : undefined),
       copy.actions.sent,
     );
   }

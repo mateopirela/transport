@@ -6,6 +6,7 @@ export * from './carrier-loads';
 export * from './carrier-trips';
 export * from './catalogs';
 export * from './client-trips';
+export * from './errors';
 export * from './fleet';
 export * from './loads';
 export * from './matching';

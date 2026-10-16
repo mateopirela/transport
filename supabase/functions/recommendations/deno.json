@@ -7,6 +7,9 @@
     "../../../packages/shared/src/money": "../../../packages/shared/src/money.ts",
     "../../../packages/shared/src/matching/distance": "../../../packages/shared/src/matching/distance.ts",
     "../../../packages/shared/src/matching/recommend": "../../../packages/shared/src/matching/recommend.ts",
-    "../../../packages/shared/src/matching/scoring": "../../../packages/shared/src/matching/scoring.ts"
+    "../../../packages/shared/src/matching/scoring": "../../../packages/shared/src/matching/scoring.ts",
+    "../../../packages/shared/src/observability/logger": "../../../packages/shared/src/observability/logger.ts",
+    "../../../packages/shared/src/observability/redact": "../../../packages/shared/src/observability/redact.ts",
+    "../../../packages/shared/src/observability/sentry": "../../../packages/shared/src/observability/sentry.ts"
   }
 }

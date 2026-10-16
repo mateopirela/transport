@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { CarrierLoad } from '../lib/loads-api';
+import { track } from '../lib/track';
 import { colors, spacing } from '../theme';
 import { Badge, Card } from './fleet-ui';
 
@@ -29,17 +30,33 @@ function useOpenLoad() {
 /** A recommended load with the explainable breakdown of its score (B08). */
 export function RecommendationCard({
   recommendation: r,
+  rank,
   unitLabel,
 }: {
   recommendation: Recommendation;
+  /** Position in its list, from 1 (product events, B25). */
+  rank: number;
   unitLabel?: string | undefined;
 }) {
   const open = useOpenLoad();
+  function onPress() {
+    track({
+      name: 'recommendation_opened',
+      loadId: r.loadId,
+      properties: {
+        vehicle_id: r.vehicleId,
+        rank,
+        score: r.score,
+        return_trip: r.breakdown.isReturnTrip,
+      },
+    });
+    open(r.loadId, r.vehicleId);
+  }
   return (
     <Card
       title={copy.route(r.origin.city, r.destination.city)}
       subtitle={copy.pickup(formatDateTime(r.pickupWindowStart))}
-      onPress={() => open(r.loadId, r.vehicleId)}
+      onPress={onPress}
     >
       <View style={styles.badges}>
         {r.breakdown.isReturnTrip ? <Badge label={matchingCopy.returnTrip} tone="success" /> : null}

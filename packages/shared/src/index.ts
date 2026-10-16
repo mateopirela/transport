@@ -14,6 +14,7 @@ export * from './invitation-code';
 export * from './kpis';
 export * from './matching';
 export * from './money';
+export * from './observability';
 export * from './rfc';
 export * from './schemas';
 export * from './state-machines';

@@ -7,6 +7,9 @@
     "../../../packages/shared/src/money": "../../../packages/shared/src/money.ts",
     "../../../packages/shared/src/copy/auth": "../../../packages/shared/src/copy/auth.ts",
     "../../../packages/shared/src/copy/catalogs": "../../../packages/shared/src/copy/catalogs.ts",
-    "../../../packages/shared/src/copy/notifications": "../../../packages/shared/src/copy/notifications.ts"
+    "../../../packages/shared/src/copy/notifications": "../../../packages/shared/src/copy/notifications.ts",
+    "../../../packages/shared/src/observability/logger": "../../../packages/shared/src/observability/logger.ts",
+    "../../../packages/shared/src/observability/redact": "../../../packages/shared/src/observability/redact.ts",
+    "../../../packages/shared/src/observability/sentry": "../../../packages/shared/src/observability/sentry.ts"
   }
 }

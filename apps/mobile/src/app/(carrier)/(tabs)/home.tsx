@@ -24,6 +24,7 @@ import {
   unitLabel,
   unitRecommendations,
 } from '../../../lib/loads-api';
+import { track } from '../../../lib/track';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useSession } from '../../../providers/session';
 
@@ -56,9 +57,19 @@ async function loadFeed({ client, companyId }: CarrierContext) {
     returnTripCities(client),
   ]);
   const perUnit = await Promise.all(units.map((u) => unitRecommendations(client, u.id)));
+  const feed = buildCarrierFeed(perUnit, cities);
+  const returnTrips = feed.returnTrips.reduce((n, g) => n + g.recommendations.length, 0);
+  track({
+    name: 'recommendations_viewed',
+    properties: {
+      recommendations: returnTrips + feed.recommended.length,
+      return_trips: returnTrips,
+      units: units.length,
+    },
+  });
   return {
     units: new Map(units.map((u) => [u.id, unitLabel(u)])),
-    feed: buildCarrierFeed(perUnit, cities),
+    feed,
     hasUnits: units.length > 0,
   };
 }
@@ -118,8 +129,8 @@ function Feed() {
                   key={group.vehicleId}
                   title={feedCopy.returnTripFor(units.get(group.vehicleId) ?? '', group.startCity)}
                 >
-                  {group.recommendations.map((r) => (
-                    <RecommendationCard key={r.loadId} recommendation={r} />
+                  {group.recommendations.map((r, i) => (
+                    <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
                   ))}
                 </Card>
               ))}
@@ -130,10 +141,11 @@ function Feed() {
           {feed.recommended.length === 0 ? (
             <Body>{hasUnits ? feedCopy.empty : feedCopy.noUnits}</Body>
           ) : (
-            feed.recommended.map((r) => (
+            feed.recommended.map((r, i) => (
               <RecommendationCard
                 key={r.loadId}
                 recommendation={r}
+                rank={i + 1}
                 unitLabel={units.get(r.vehicleId)}
               />
             ))

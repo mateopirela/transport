@@ -4,6 +4,7 @@ export * from './auth';
 export * from './catalogs';
 export * from './fleet';
 export * from './loads';
+export * from './matching';
 export * from './mobile';
 export * from './negotiation';
 export * from './notifications';

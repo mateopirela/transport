@@ -9,6 +9,7 @@ export * from './fleet';
 export * from './formatters';
 export * from './geo';
 export * from './invitation-code';
+export * from './matching';
 export * from './money';
 export * from './rfc';
 export * from './schemas';

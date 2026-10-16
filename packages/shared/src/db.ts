@@ -1016,6 +1016,37 @@ export interface Database {
         };
         Relationships: [];
       };
+      route_distance_cache: {
+        Row: {
+          destination_lat: number;
+          destination_lng: number;
+          distance_km: number;
+          duration_minutes: number;
+          fetched_at: string;
+          origin_lat: number;
+          origin_lng: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          destination_lat: number;
+          destination_lng: number;
+          distance_km: number;
+          duration_minutes: number;
+          fetched_at?: string;
+          origin_lat: number;
+          origin_lng: number;
+        };
+        Update: {
+          destination_lat?: number;
+          destination_lng?: number;
+          distance_km?: number;
+          duration_minutes?: number;
+          fetched_at?: string;
+          origin_lat?: number;
+          origin_lng?: number;
+        };
+        Relationships: [];
+      };
       trip_events: {
         Row: {
           accuracy_m: number | null;
@@ -1662,6 +1693,17 @@ export interface Database {
         };
         Returns: string;
       };
+      get_route_distances: {
+        Args: { p_legs: Json };
+        Returns: {
+          destination_lat: number;
+          destination_lng: number;
+          distance_km: number;
+          duration_minutes: number;
+          origin_lat: number;
+          origin_lng: number;
+        }[];
+      };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -1761,6 +1803,36 @@ export interface Database {
         Returns: undefined;
       };
       mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number };
+      match_candidates: {
+        Args: {
+          p_availability_id?: string;
+          p_limit?: number;
+          p_max_empty_km?: number;
+          p_vehicle_id?: string;
+        };
+        Returns: Database['public']['CompositeTypes']['match_candidate'][];
+        SetofOptions: {
+          from: '*';
+          to: 'match_candidate';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      match_pairs: {
+        Args: {
+          p_availability_id?: string;
+          p_load_id: string;
+          p_max_empty_km: number;
+          p_vehicle_id: string;
+        };
+        Returns: Database['public']['CompositeTypes']['match_candidate'][];
+        SetofOptions: {
+          from: '*';
+          to: 'match_candidate';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       notify_company: {
         Args: {
           p_company_id: string;
@@ -1771,6 +1843,7 @@ export interface Database {
         Returns: undefined;
       };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
+      put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       record_location_consent: {
         Args: { p_platform: string; p_policy_version: string };
         Returns: string;
@@ -2069,7 +2142,37 @@ export interface Database {
       vehicle_kind: 'tractor' | 'rigid' | 'trailer';
       verification_status: 'pending_review' | 'approved' | 'rejected' | 'expired' | 'suspended';
     };
-    CompositeTypes: Record<never, never>;
+    CompositeTypes: {
+      match_candidate: {
+        load_id: string | null;
+        company_id: string | null;
+        vehicle_id: string | null;
+        availability_id: string | null;
+        start_city: string | null;
+        start_state: string | null;
+        start_lat: number | null;
+        start_lng: number | null;
+        available_from: string | null;
+        is_return_trip: boolean | null;
+        origin_city: string | null;
+        origin_state: string | null;
+        origin_lat: number | null;
+        origin_lng: number | null;
+        destination_city: string | null;
+        destination_state: string | null;
+        destination_lat: number | null;
+        destination_lng: number | null;
+        pickup_window_start: string | null;
+        pickup_window_end: string | null;
+        unit_type: Database['public']['Enums']['unit_type'] | null;
+        weight_kg: number | null;
+        proposed_price_cents: number | null;
+        empty_km: number | null;
+        home_distance_km: number | null;
+        route_origin_city: string | null;
+        route_destination_city: string | null;
+      };
+    };
   };
 }
 

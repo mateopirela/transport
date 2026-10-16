@@ -147,10 +147,12 @@ insert into tests.ownership values
   ('public.operator_invitations', 't.company_id = $1'),
   ('public.carrier_routes', 't.company_id = $1'),
   ('public.vehicle_availability', 't.company_id = $1'),
-  -- Marketplace: open loads are visible to approved carriers.
+  -- Marketplace: open loads are visible to approved carriers. A carrier that
+  -- negotiated keeps seeing the load unless another carrier won it.
   ('public.loads', $$
      $1 in (t.shipper_company_id, t.carrier_company_id)
-     or exists (select 1 from public.negotiations n where n.load_id = t.id and n.carrier_company_id = $1)
+     or ((t.carrier_company_id is null or t.carrier_company_id = $1)
+         and exists (select 1 from public.negotiations n where n.load_id = t.id and n.carrier_company_id = $1))
      or (t.status in ('published', 'negotiating') and t.archived_at is null
          and exists (select 1 from public.companies c
                      where c.id = $1 and c.type = 'carrier' and c.status = 'approved' and c.archived_at is null))

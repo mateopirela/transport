@@ -66,7 +66,7 @@ Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit
 | GHSA-vcc3-ghjq-m6fr (moderado) | `decode-uri-component` 0.2.2 | `query-string` de `expo-router` | Seguimiento: la corrección (0.5.0) solo existe como ESM y rompería `query-string` 7. Hay que esperar a que `expo-router` la adopte |
 | GHSA-w5hq-g745-h8pq (moderado) | `uuid` 7 | `xcode` (config plugins de Expo, en build) | Aceptado: solo en build, y la app no usa la API afectada (`buf`) |
 
-Las Edge Functions solo importan código del repo (sin dependencias remotas) y las acciones de CI están fijadas por SHA.
+`pnpm audit` no cubre las Edge Functions (Deno). Su código importa el del repo y una sola dependencia remota: `npm:@sentry/deno@11.7.0` (B25). Se carga solo si hay `SENTRY_DSN`, con la versión exacta fijada y su árbol bloqueado con integridad en `supabase/functions/*/deno.lock`. Para actualizarla hay que revisar sus avisos (`npm audit` de `@sentry/deno` en esa versión, o GitHub Advisories) y regenerar los `deno.lock` en el mismo PR. Las acciones de CI están fijadas por SHA.
 
 ## Hallazgos
 

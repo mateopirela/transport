@@ -23,7 +23,7 @@ import {
 import { hoursFromNow, testMoralRfc, toDateInput, toDateTimeLocal } from '../support/data';
 import { carrierName, ids, places } from '../support/demo';
 import { waitForConfirmationPath } from '../support/mailpit';
-import { SAMPLE_PDF, signInOnWeb } from '../support/web';
+import { acceptPendingOffer, SAMPLE_PDF, signInOnWeb } from '../support/web';
 
 // Web journey of a new shipper (B26): sign-up → verification → publish →
 // negotiate → accept → follow the trip. The carrier and its operator answer
@@ -62,7 +62,8 @@ async function uploadMissingDocuments(page: Page) {
 /** Admin: approves every pending document of the company, then the company. */
 async function approveCompany(page: Page, legalName: string) {
   await page.goto('/admin/verificacion');
-  await page.getByRole('link', { name: legalName }).first().click();
+  // The company row of the queue (its documents are listed below it).
+  await page.getByRole('row').filter({ hasText: legalName }).first().getByRole('link').click();
   const approve = page.getByRole('button', { name: adminCopy.document.approve, exact: true });
   await expect(approve.first()).toBeVisible();
   for (let left = await approve.count(); left > 0; left -= 1) {
@@ -150,16 +151,15 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await page.getByText(actions.counter, { exact: true }).click();
     await page.getByLabel(actions.counterAmount).fill('37000');
     await page.getByRole('button', { name: actions.counterSubmit }).click();
-    await expect(page.getByText(offersCopy.board.awaitingCarrier).first()).toBeVisible();
+    // With its counteroffer pending, the shipper has nothing to answer.
+    await expect(page.getByText(actions.counter, { exact: true })).toHaveCount(0);
 
     await counterOffer(jorge, await pendingShipperOffer(jorge, loadId), 3_850_000);
   });
 
   await test.step('accept the carrier counteroffer', async () => {
     await page.reload();
-    await page.getByText(actions.accept, { exact: true }).click();
-    await page.getByRole('button', { name: actions.acceptConfirm }).click();
-    await expect(page.getByText(actions.accepted)).toBeVisible();
+    await acceptPendingOffer(page);
   });
 
   await test.step('the carrier assigns the trip and the operator departs', async () => {

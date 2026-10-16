@@ -12,14 +12,12 @@ import {
   signInAs,
 } from '../support/actors';
 import { ids, places } from '../support/demo';
-import { signInOnWeb } from '../support/web';
+import { acceptPendingOffer, signInOnWeb } from '../support/web';
 
 // Star scenario of the pilot (B26): the unit of a MTY → GDL trip that is still
 // unloading in Guadalajara gets the GDL → MTY load as its first
 // recommendation, and that return trip is contracted before the unloading
 // ends. Demo data: supabase/seed.sql (docs/demo-local.md).
-
-const actions = offersCopy.actions;
 
 test('the GDL → MTY return trip is contracted before the unloading in Guadalajara ends', async ({
   page,
@@ -52,9 +50,7 @@ test('the GDL → MTY return trip is contracted before the unloading in Guadalaj
     await signInOnWeb(page, 'luis');
     await page.goto(`/cliente/cargas/${ids.returnLoad}`);
     await page.getByRole('link', { name: offersCopy.board.open }).click();
-    await page.getByText(actions.accept, { exact: true }).click();
-    await page.getByRole('button', { name: actions.acceptConfirm }).click();
-    await expect(page.getByText(actions.accepted)).toBeVisible();
+    await acceptPendingOffer(page);
   });
 
   await test.step('the return trip exists while the first trip is still unloading', async () => {

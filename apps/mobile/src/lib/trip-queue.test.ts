@@ -8,6 +8,7 @@ import {
   nextOccurredAt,
   parseStoredQueue,
   pendingEvents,
+  photoMustWait,
   pruneSent,
   unconfirmedActions,
   type QueuedAction,
@@ -188,5 +189,51 @@ describe('flushQueue', () => {
         : Promise.resolve(),
     );
     expect(result).toEqual({ sent: [other.id], rejected: [departed, arrived], stopped: false });
+  });
+});
+
+describe('receiver at delivery (B23)', () => {
+  it('keeps the receiver of the end of unloading and still reads older queues without it', () => {
+    const finished = {
+      ...step('unloading_finished', '2026-10-15T12:00:00-06:00'),
+      receivedBy: 'Rosa',
+    };
+    const older = step('arrived_at_delivery', '2026-10-15T11:00:00-06:00');
+    expect(parseStoredQueue(JSON.stringify({ pending: [older, finished], sent: [] }))).toEqual({
+      pending: [older, finished],
+      sent: [],
+    });
+    expect(
+      parseStoredQueue(JSON.stringify({ pending: [{ ...finished, receivedBy: '   ' }] })).pending,
+    ).toEqual([]);
+  });
+});
+
+describe('photoMustWait (B23)', () => {
+  const at = '2026-10-15T10:00:00-06:00';
+
+  it('lets photos go when nothing of their trip is queued', () => {
+    expect(photoMustWait([], TRIP, 'pickup')).toBe(false);
+    expect(photoMustWait([step('departed', at, OTHER)], TRIP, 'pickup')).toBe(false);
+  });
+
+  it('holds photos behind the steps queued before the step that needs them', () => {
+    const queue = [
+      step('departed', at),
+      step('arrived_at_pickup', at),
+      step('loading_started', at),
+      step('loading_finished', at),
+    ];
+    expect(photoMustWait(queue, TRIP, 'pickup')).toBe(true);
+    // Once those are sent, the step left waits for the photos, not the reverse.
+    expect(photoMustWait(queue.slice(3), TRIP, 'pickup')).toBe(false);
+    expect(photoMustWait([step('unloading_finished', at)], TRIP, 'delivery')).toBe(false);
+  });
+
+  it('holds delivery and incident photos while any earlier step of the trip is queued', () => {
+    const queue = [step('arrived_at_delivery', at), estimate(at, '2026-10-15T12:00:00-06:00')];
+    expect(photoMustWait(queue, TRIP, 'delivery')).toBe(true);
+    expect(photoMustWait(queue.slice(1), TRIP, 'incident')).toBe(true);
+    expect(photoMustWait([step('loading_finished', at)], TRIP, 'delivery')).toBe(true);
   });
 });

@@ -1,5 +1,7 @@
 // Spanish copy of the operator's trip screen (B21): assigned trip, status
-// controls, estimated end of unloading, incidents and the offline queue.
+// controls, estimated end of unloading, incidents and the offline queue; and
+// its photo evidence (B23).
+import type { GatedEvidenceStage } from '../evidence';
 import type { OperatorTripEvent } from '../trips';
 
 /** Button of each status step, in the operator's words. */
@@ -85,4 +87,49 @@ export const operatorTripCopy = {
   incidentSent: 'Incidencia enviada. Tu transportista y el equipo de soporte ya la ven.',
   incidentFailed: 'No pudimos enviar la incidencia. Revisa tu conexión e inténtalo de nuevo.',
   noIncidents: 'Sin incidencias.',
+} as const;
+
+const photos = (count: number) => (count === 1 ? '1 foto' : `${count} fotos`);
+
+/** Photo evidence of the operator's trip (B23). */
+export const operatorEvidenceCopy = {
+  title: {
+    pickup: 'Fotos de recolección',
+    delivery: 'Fotos de entrega',
+  } satisfies Record<GatedEvidenceStage, string>,
+  help: {
+    pickup: 'Fotografía la carga ya acomodada en la unidad, con los sellos o etiquetas a la vista.',
+    delivery:
+      'Fotografía la carga entregada en destino y, si hay, el documento firmado de recibido.',
+  } satisfies Record<GatedEvidenceStage, string>,
+  progress: (taken: number, minimum: number) =>
+    minimum > 0 ? `${taken} de ${minimum} fotos mínimas` : `${photos(taken)} (sin mínimo)`,
+  missing: (stage: GatedEvidenceStage, count: number) =>
+    stage === 'pickup'
+      ? `Toma ${count === 1 ? '1 foto más' : `${count} fotos más`} de la recolección para poder salir con la carga.`
+      : `Toma ${count === 1 ? '1 foto más' : `${count} fotos más`} de la entrega para poder terminar la descarga.`,
+  take: 'Tomar foto',
+  takeIncident: 'Agregar foto',
+  cameraOnly: 'Solo se aceptan fotos tomadas en este momento con la cámara.',
+  cameraDenied:
+    'No tenemos permiso para usar la cámara. Actívalo en la configuración del teléfono para tomar la evidencia.',
+  captureFailed: 'No pudimos guardar la foto en el teléfono. Inténtalo de nuevo.',
+  saved: 'Foto guardada. Se subirá en cuanto haya conexión.',
+  pendingTag: 'Por subir',
+  uploadedTag: 'Subida',
+  takenAt: (at: string) => `Tomada: ${at}`,
+  pendingUploads: (count: number) =>
+    count === 1
+      ? '1 foto espera para subirse. Se reintenta automáticamente.'
+      : `${count} fotos esperan para subirse. Se reintenta automáticamente.`,
+  uploadNow: 'Subir ahora',
+  rejectedTitle: 'Fotos no aceptadas',
+  rejectedBody: (count: number) =>
+    `El servidor no aceptó ${photos(count)}: el viaje pudo cambiar o reasignarse. Si aún hace falta, toma la foto de nuevo.`,
+  incidentPhotos: (count: number) => (count === 0 ? 'Sin fotos' : photos(count)),
+  // Receiver at delivery.
+  receiverTitle: 'Quién recibe',
+  receiverHelp: 'Escribe el nombre completo de la persona que recibe la carga en destino.',
+  receiverName: 'Nombre de quien recibe',
+  receivedBy: (name: string) => `Recibió: ${name}`,
 } as const;

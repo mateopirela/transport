@@ -3,11 +3,13 @@
 
 /** Native permission prompts of the mobile app (expo-image-picker, B18). */
 export const permissionCopy = {
-  camera: 'Usamos la cámara para fotografiar tus documentos y los de tu flota.',
+  /** Documents (B18) and trip evidence (B23): pickup, delivery and incident photos. */
+  camera:
+    'Usamos la cámara para fotografiar tus documentos, los de tu flota y la evidencia de recolección, entrega e incidencias de tus viajes.',
   photos: 'Usamos tus fotos para subir documentos de tu empresa y tu flota.',
   /** Foreground only (B21): each status change of a trip keeps where it happened (D11). */
   locationWhenInUse:
-    'Usamos tu ubicación al registrar cada cambio de estado de tu viaje (salida, llegadas, carga y descarga).',
+    'Usamos tu ubicación al registrar cada cambio de estado de tu viaje (salida, llegadas, carga y descarga) y en cada foto de evidencia.',
   /**
    * "Always" (B22, iOS NSLocationAlwaysAndWhenInUseUsageDescription): the
    * App Store asks that it says what is tracked, when and who sees it.

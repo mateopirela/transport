@@ -1032,6 +1032,7 @@ export interface Database {
           longitude: number | null;
           notes: string | null;
           occurred_at: string;
+          received_by_name: string | null;
           recorded_at: string;
           to_status: Database['public']['Enums']['trip_status'] | null;
           trip_id: string;
@@ -1052,6 +1053,7 @@ export interface Database {
           longitude?: number | null;
           notes?: string | null;
           occurred_at: string;
+          received_by_name?: string | null;
           recorded_at?: string;
           to_status?: Database['public']['Enums']['trip_status'] | null;
           trip_id: string;
@@ -1071,6 +1073,7 @@ export interface Database {
           longitude?: number | null;
           notes?: string | null;
           occurred_at?: string;
+          received_by_name?: string | null;
           recorded_at?: string;
           to_status?: Database['public']['Enums']['trip_status'] | null;
           trip_id?: string;
@@ -1158,6 +1161,28 @@ export interface Database {
             referencedColumns: ['id'];
           },
         ];
+      };
+      trip_evidence_requirements: {
+        Row: {
+          id: string;
+          min_photos: number;
+          stage: Database['public']['Enums']['evidence_stage'];
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          id?: string;
+          min_photos: number;
+          stage: Database['public']['Enums']['evidence_stage'];
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          min_photos?: number;
+          stage?: Database['public']['Enums']['evidence_stage'];
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       trip_locations: {
         Row: {
@@ -1760,6 +1785,7 @@ export interface Database {
           p_longitude?: number;
           p_notes?: string;
           p_occurred_at: string;
+          p_received_by_name?: string;
           p_trip_id: string;
         };
         Returns: string;
@@ -1862,6 +1888,10 @@ export interface Database {
       trip_event_transition: {
         Args: { p_event: Database['public']['Enums']['trip_event_type'] };
         Returns: Record<string, unknown>;
+      };
+      trip_evidence_missing: {
+        Args: { p_stage: Database['public']['Enums']['evidence_stage']; p_trip_id: string };
+        Returns: number;
       };
       trip_in_operator_hands: {
         Args: { p_status: Database['public']['Enums']['trip_status'] };

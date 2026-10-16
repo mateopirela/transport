@@ -125,6 +125,10 @@ insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg
   ('e6000000-0000-4000-8000-000000000003', 'c6000000-0000-4000-8000-000000000003', 'rigid', 'AAA1111', 'dry_van', 30000),
   ('e6000000-0000-4000-8000-000000000004', 'c6000000-0000-4000-8000-000000000004', 'rigid', 'BBB1111', 'dry_van', 30000);
 
+-- The photo minimums of B23 are covered by 13_trip_evidence_capture; here the
+-- trip moves through its statuses without them.
+update public.trip_evidence_requirements set min_photos = 0;
+
 -- ---------------------------------------------------------------------------
 -- accept_offer creates the trip. Trip 1: S x A. Trip 2: T x B.
 -- ---------------------------------------------------------------------------
@@ -654,7 +658,7 @@ set local role authenticated;
 select tests.login('a6000000-0000-4000-8000-000000000005');
 select lives_ok(
   $$ select public.record_trip_event(tests.val('trip1'), 'unloading_finished', now() + interval '1 minute',
-                                     20.6597, -103.3496) $$,
+                                     20.6597, -103.3496, p_received_by_name => 'Rosa Almacén') $$,
   'the operator finishes unloading'
 );
 select results_eq(

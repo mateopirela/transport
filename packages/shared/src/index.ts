@@ -4,6 +4,7 @@ export * from './chat';
 export * from './constants';
 export * from './copy';
 export * from './enums';
+export * from './evidence';
 export * from './fleet';
 export * from './formatters';
 export * from './geo';

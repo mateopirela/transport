@@ -72,6 +72,10 @@ export const incidentFormSchema = z.object(
 );
 export type IncidentFormValues = z.output<typeof incidentFormSchema>;
 
+/** Who received the cargo, asked when the operator finishes unloading (B23). */
+export const receiverFormSchema = z.object({ receivedBy: requiredText(200) }, formError);
+export type ReceiverFormValues = z.output<typeof receiverFormSchema>;
+
 /** Admin resolution of an incident, or cancellation of a trip: a reason is required. */
 export const incidentResolutionSchema = z.object({ resolution: requiredText(2000) }, formError);
 export const cancelTripSchema = z.object({ reason: requiredText(1000) }, formError);

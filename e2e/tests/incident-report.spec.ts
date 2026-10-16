@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { clientTripsCopy } from '@transport/shared';
 
 import { ids } from '../support/demo';
@@ -11,31 +11,31 @@ import { signInOnWeb } from '../support/web';
 
 const c = clientTripsCopy;
 const marker = `(e2e ${Date.now()})`;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
 /**
- * Records, in the page, the clientEventId of every request whose FormData
- * carries one (the report's server action; React prefixes the field name with
- * the argument index). Read in the browser, before the request leaves.
+ * Counts the form posts of a page: server actions whose body is the form's
+ * FormData (multipart). Other actions of the trip page, such as marking the
+ * chat as read, send a plain-text body.
  */
-async function recordReportKeys(page: Page): Promise<() => Promise<string[]>> {
-  await page.addInitScript(() => {
-    const keys: string[] = [];
-    Object.assign(window, { __reportKeys: keys });
-    const fetch = window.fetch.bind(window);
-    window.fetch = (input, init) => {
-      if (init?.body instanceof FormData) {
-        for (const [name, value] of init.body.entries()) {
-          if (/^(?:\d+_)?clientEventId$/u.test(name)) keys.push(String(value));
-        }
-      }
-      return fetch(input, init);
-    };
+function countFormPosts(page: Page, pathname: string): () => number {
+  let count = 0;
+  page.on('request', (request) => {
+    const headers = request.headers();
+    if (
+      request.method() === 'POST' &&
+      new URL(request.url()).pathname === pathname &&
+      headers['next-action'] &&
+      headers['content-type']?.startsWith('multipart/form-data')
+    ) {
+      count += 1;
+    }
   });
-  return () => page.evaluate(() => (window as unknown as { __reportKeys: string[] }).__reportKeys);
+  return () => count;
 }
 
 /** Opens the report form (a <details>) and fills it. */
-async function fillReport(page: Page, description: string) {
+async function fillReport(page: Page, description: string): Promise<Locator> {
   const details = page.locator('details').filter({ hasText: c.incidents.report });
   if (!(await details.evaluate((element: HTMLDetailsElement) => element.open))) {
     await details.getByText(c.incidents.report).click();
@@ -45,10 +45,14 @@ async function fillReport(page: Page, description: string) {
   return details.locator('form');
 }
 
+/** The idempotency key the form sends (its hidden clientEventId field). */
+const keyOf = (form: Locator) => form.locator('input[name="clientEventId"]').inputValue();
+
 test('a double submit reports the incident once and the next report is another one', async ({
   page,
 }) => {
-  const reportKeys = await recordReportKeys(page);
+  const tripPath = `/cliente/viajes/${ids.unloadingTrip}`;
+  const formPosts = countFormPosts(page, tripPath);
   await signInOnWeb(page, 'ana');
   const timeline = page
     .locator('section')
@@ -57,20 +61,21 @@ test('a double submit reports the incident once and the next report is another o
     timeline.getByRole('listitem').filter({ hasText: description });
   const first = `Retraso en la caseta ${marker}`;
   const second = `Llanta ponchada ${marker}`;
+  let firstKey = '';
 
   await test.step('submit the same report twice before the form re-renders', async () => {
-    await page.goto(`/cliente/viajes/${ids.unloadingTrip}`);
+    await page.goto(tripPath);
     const form = await fillReport(page, first);
+    firstKey = await keyOf(form);
+    expect(firstKey).toMatch(UUID);
     // Both submits leave before React disables the button, as a fast double
-    // click or a double tap would.
+    // click or a double tap would, so both carry the same key.
     await form.evaluate((element: HTMLFormElement) => {
       element.requestSubmit();
       element.requestSubmit();
     });
-    await expect.poll(async () => (await reportKeys()).length).toBe(2);
-    const [a, b] = await reportKeys();
-    expect(a).toMatch(/^[0-9a-f-]{36}$/u);
-    expect(b).toBe(a);
+    // Both reached the server; the second one returned the same incident.
+    await expect.poll(formPosts).toBe(2);
     await expect(page.getByText(c.incidents.sent)).toBeVisible();
     await expect(entries(first)).toHaveCount(1);
   });
@@ -78,11 +83,11 @@ test('a double submit reports the incident once and the next report is another o
   await test.step('a new report after the success is another incident', async () => {
     // Same page, no reload: the success itself starts the next attempt.
     const form = await fillReport(page, second);
-    await form.getByRole('button', { name: c.incidents.submit }).click();
-    await expect.poll(async () => (await reportKeys()).length).toBe(3);
-    const [firstKey, , nextKey] = await reportKeys();
-    expect(nextKey).toMatch(/^[0-9a-f-]{36}$/u);
+    const nextKey = await keyOf(form);
+    expect(nextKey).toMatch(UUID);
     expect(nextKey).not.toBe(firstKey);
+    await form.getByRole('button', { name: c.incidents.submit }).click();
+    await expect.poll(formPosts).toBe(3);
     await expect(entries(second)).toHaveCount(1);
 
     // What the database kept, not just what the page showed.

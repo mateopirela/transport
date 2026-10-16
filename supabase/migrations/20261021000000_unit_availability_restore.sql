@@ -15,8 +15,13 @@
 -- ---------------------------------------------------------------------------
 -- 1. Commitments end the availability and remember it
 -- ---------------------------------------------------------------------------
-alter table public.vehicle_availability
-  add column ended_by_trip_id uuid references public.trips (id) on delete set null;
+-- Bookkeeping only, so no foreign key on purpose: its check would share-lock
+-- the trip on every write of a held-back row, while that row is written under
+-- the unit lock. The trip RPCs lock the trip first and then the unit, so that
+-- lock would close a cycle (an estimate holding the unit and waiting for the
+-- trip, while the trip's departure, cancellation or assignment holds it and
+-- waits for the unit). A dangling id only means the commitment is gone.
+alter table public.vehicle_availability add column ended_by_trip_id uuid;
 
 comment on column public.vehicle_availability.ended_by_trip_id is
   'The trip whose commitment of the unit ended (or, archived from the start, held back) this availability. '

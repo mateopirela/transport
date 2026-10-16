@@ -11,6 +11,8 @@
 --      units (locked in one order) instead of deadlocking.
 --   5. F5: an estimate written while the unit sets off on its next trip:
 --      the departure waits for the unit and then forgets that estimate.
+--   6. F5: the same, with the estimate held back by the departing trip,
+--      which the departure locks first: no deadlock.
 --
 -- The sessions need committed fixtures, so this file creates them through its
 -- own connection and deletes them at the end (same approach as
@@ -19,7 +21,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(17);
+select plan(21);
 
 create schema tests;
 
@@ -405,6 +407,55 @@ select is(
   $sql$),
   '0',
   'nothing held back for V is left to restore'
+);
+
+-- ---------------------------------------------------------------------------
+-- 6. F5: O sets off on the trip holding V back, which locks that trip first
+--    (s2), while trip 1 writes V's estimate held back by it (s1): writing
+--    the estimate never waits for the trip, so the departure only waits for
+--    V and both go through (no deadlock).
+-- ---------------------------------------------------------------------------
+create table tests.holding as
+select tests.peek($sql$
+  select public.vehicle_committing_trip(
+    'e2f00000-0000-4000-8000-000000000001',
+    (select id from public.trips where offer_id = 'f2f20000-0000-4000-8000-000000000001'))::text
+$sql$)::uuid as id;
+select extensions.dblink_exec('s2', 'begin');
+select extensions.dblink_exec('s2', 'set local lock_timeout = ''15s''');
+select * from extensions.dblink('s2', format(
+  'select id::text from public.trips where id = %L for update', (select id from tests.holding)
+)) as t(r text);
+select extensions.dblink_exec('s2', 'set local role authenticated');
+select extensions.dblink_exec('s2', format(
+  'set local request.jwt.claims = %L',
+  jsonb_build_object('sub', 'a2f00000-0000-4000-8000-000000000003', 'role', 'authenticated')::text
+));
+select extensions.dblink_exec('s1', 'begin');
+select extensions.dblink_exec('s1', 'set local lock_timeout = ''15s''');
+select lives_ok(
+  $$ select extensions.dblink_exec('s1', tests.write_estimate_sql()) $$,
+  'the estimate held back by a locked trip is written without waiting for it'
+);
+select extensions.dblink_send_query('s2', format(
+  'select public.record_trip_event(%L, %L, now(), 25.6866, -100.3161)::text',
+  (select id from tests.holding), 'departed'
+));
+select ok(tests.wait_until_blocked('s2'), 'the departure waits for the unit');
+select extensions.dblink_exec('s1', 'commit');
+select lives_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  'then O sets off'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+select is(
+  tests.peek($sql$
+    select count(*)::text from public.vehicle_availability
+    where vehicle_id = 'e2f00000-0000-4000-8000-000000000001' and ended_by_trip_id is not null
+  $sql$),
+  '0',
+  'and nothing held back for V is left to restore'
 );
 
 select tests.cleanup();

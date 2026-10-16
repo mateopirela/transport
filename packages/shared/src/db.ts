@@ -1804,27 +1804,6 @@ export interface Database {
             referencedColumns: ['company_id'];
           },
           {
-            foreignKeyName: 'vehicle_availability_ended_by_trip_id_fkey';
-            columns: ['ended_by_trip_id'];
-            isOneToOne: false;
-            referencedRelation: 'kpi_trip_metrics';
-            referencedColumns: ['previous_trip_id'];
-          },
-          {
-            foreignKeyName: 'vehicle_availability_ended_by_trip_id_fkey';
-            columns: ['ended_by_trip_id'];
-            isOneToOne: false;
-            referencedRelation: 'kpi_trip_metrics';
-            referencedColumns: ['trip_id'];
-          },
-          {
-            foreignKeyName: 'vehicle_availability_ended_by_trip_id_fkey';
-            columns: ['ended_by_trip_id'];
-            isOneToOne: false;
-            referencedRelation: 'trips';
-            referencedColumns: ['id'];
-          },
-          {
             foreignKeyName: 'vehicle_availability_vehicle_fkey';
             columns: ['company_id', 'vehicle_id'];
             isOneToOne: false;

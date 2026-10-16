@@ -75,6 +75,15 @@ En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_
 4. Google Play Console: crear la app, subir **a mano** el primer AAB (Google lo exige) y una cuenta de servicio con acceso a la API; cargar su JSON con `npx eas-cli credentials`. El envío usa la pista `internal` con estado `draft`; cuando la app ya tenga una versión publicada en esa pista, cambiar `releaseStatus` a `completed` en `apps/mobile/eas.json`.
 5. Fichas y justificación de ubicación: [tiendas.md](tiendas.md).
 
+### 3.5 iOS 27: ciclo de vida con escenas (F11)
+
+Con Xcode 27 / el SDK de iOS 27, UIKit cierra al abrir cualquier app que no adopte el ciclo de vida con escenas (`UIScene life cycle is required for apps built with this SDK`). El `AppDelegate.swift` que genera el prebuild de Expo 57 todavía crea la ventana con `UIScreen` y el `Info.plist` no declara escenas, así que `apps/mobile/ios` (que no se versiona) se corrige en cada prebuild con el config plugin local [`apps/mobile/plugins/with-ios-scene-lifecycle.ts`](../apps/mobile/plugins/with-ios-scene-lifecycle.ts), que envuelve la configuración en `app.config.ts`:
+
+- `AppDelegate` pasa a ser `ExpoAppDelegate, ExpoReactNativeFactoryProvider` y ya no crea la ventana ni llama `startReactNative`: lo hace `ExpoAppSceneDelegate` de Expo, que también reenvía al `AppDelegate` los deep links (`transport://auth/callback`), los universal links y los eventos de ciclo de vida. La fábrica de React Native se sigue creando en `didFinishLaunching`, así que `expo-dev-client` funciona igual.
+- `Info.plist` declara `UIApplicationSceneManifest` con una sola escena (`UIApplicationSupportsMultipleScenes = false`) cuyo delegado es `EXExpoAppSceneDelegate`.
+
+El plugin es idempotente y **falla con un error claro** si el `AppDelegate` generado deja de tener la forma esperada o si el `Info.plist` ya trae otro manifiesto de escenas. Eso indica que Expo cambió su plantilla (por ejemplo, porque ya adopta escenas de fábrica): revisar la plantilla nueva y quitar o ajustar el plugin; sus pruebas están en `with-ios-scene-lifecycle.test.ts`. Comprobación manual: `npx expo prebuild --clean -p ios`, `npx expo run:ios` en un simulador con iOS 27 y verificar que la app llega a la pantalla de inicio de sesión.
+
 ## 4. Liberar una versión
 
 1. Merge a `main` → **Deploy staging** corre solo. Revisar el resumen del job (pendientes de migración, URL de la web).

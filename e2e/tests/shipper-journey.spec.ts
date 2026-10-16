@@ -146,8 +146,9 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     });
     await page.reload();
     await page.getByRole('link', { name: offersCopy.board.open }).click();
+    // The page heading (the same text can also appear in notifications).
     await expect(
-      page.getByText(offersCopy.negotiation.title(carrierName), { exact: false }),
+      page.getByRole('heading', { name: offersCopy.negotiation.title(carrierName) }),
     ).toBeVisible();
 
     await page.getByText(actions.counter, { exact: true }).click();
@@ -182,6 +183,8 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await expect(page).toHaveURL(/\/cliente\/viajes\/[0-9a-f-]{36}$/u);
     await expect(page.getByRole('heading', { name: 'Monterrey → Guadalajara' })).toBeVisible();
     await expect(page.getByText(tripStatusLabels.en_route_to_pickup).first()).toBeVisible();
-    await expect(page.getByText(tripEventTypeLabels.departed, { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(tripEventTypeLabels.departed, { exact: true }).first(),
+    ).toBeVisible();
   });
 });

@@ -24,3 +24,23 @@ export function pushSkipReason({
 export function isExpoPushToken(token: string): boolean {
   return /^Expo(nent)?PushToken\[[A-Za-z0-9_-]{8,}\]$/u.test(token);
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/** Screen a tapped push opens. */
+export type PushTarget = { pathname: '/trip' } | { pathname: '/trip/[id]'; params: { id: string } };
+
+/**
+ * Where a tapped notification leads (notify_trip_event puts the `tripId` in
+ * the push data): the operator's assigned trip, or the carrier's trip detail.
+ * Anything else stays where it is. The data comes from the push payload, so
+ * only a well-formed id is used; RLS decides what the screen can show.
+ */
+export function pushTarget(data: unknown, area: string): PushTarget | null {
+  const tripId =
+    typeof data === 'object' && data !== null ? (data as { tripId?: unknown }).tripId : undefined;
+  if (typeof tripId !== 'string' || !UUID.test(tripId)) return null;
+  if (area === 'operator') return { pathname: '/trip' };
+  if (area === 'carrier') return { pathname: '/trip/[id]', params: { id: tripId } };
+  return null;
+}

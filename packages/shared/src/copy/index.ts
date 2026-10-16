@@ -2,6 +2,7 @@
 // per domain or screen family (e.g. catalogs, validation, later loads, trips).
 export * from './auth';
 export * from './carrier-loads';
+export * from './carrier-trips';
 export * from './catalogs';
 export * from './client-trips';
 export * from './fleet';

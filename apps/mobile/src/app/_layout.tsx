@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { OfflineBanner } from '../components/offline-banner';
 import { Body, Centered, Loading, Notice } from '../components/ui';
+import { usePushNavigation } from '../lib/push';
 import { redirectFor } from '../lib/routing';
 import { envResult, supabase } from '../lib/supabase';
 import { SessionProvider, useSession } from '../providers/session';
@@ -40,6 +41,8 @@ function GuardedStack() {
   const segments = useSegments();
   const router = useRouter();
   const target = redirectFor(area, segments);
+  // A tapped push opens its trip once the user is inside their area.
+  usePushNavigation(target === null ? area : 'loading');
 
   useEffect(() => {
     if (target) router.replace(target);

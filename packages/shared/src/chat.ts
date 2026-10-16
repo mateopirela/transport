@@ -127,13 +127,22 @@ function compareTimestamps(a: string, b: string): number {
   return isMessageReadBy(b, a) ? 0 : -1;
 }
 
-/** Adds messages (initial page, Realtime, own sends) without duplicates, oldest first. */
+/**
+ * Adds messages (initial page, Realtime INSERT and UPDATE, catch-up, own
+ * sends) without duplicates, oldest first. A message seen again replaces the
+ * known copy, except that an anonymized one (D18) stays anonymized: messages
+ * are immutable but for that erasure (F6), so a copy with a sender read
+ * before it, arriving late, is the older one.
+ */
 export function mergeMessages(
   current: readonly ChatMessage[],
   incoming: readonly ChatMessage[],
 ): ChatMessage[] {
   const byId = new Map(current.map((m) => [m.id, m]));
-  for (const message of incoming) byId.set(message.id, message);
+  for (const message of incoming) {
+    const known = byId.get(message.id);
+    byId.set(message.id, known?.sender_id === null && message.sender_id !== null ? known : message);
+  }
   // send_message makes the timestamps of a conversation strictly increasing.
   return [...byId.values()].sort(
     (a, b) => compareTimestamps(a.created_at, b.created_at) || a.id.localeCompare(b.id),

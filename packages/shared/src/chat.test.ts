@@ -7,6 +7,8 @@ import {
   isAttachmentOfConversation,
   isChatAttachmentType,
   isMessageReadBy,
+  mergeMessages,
+  type ChatMessage,
 } from './chat';
 
 const CONVERSATION = '0c7f1c2e-1a2b-4c3d-8e9f-0a1b2c3d4e5f';
@@ -93,5 +95,40 @@ describe('chatSenderLabel', () => {
     expect(chatSenderLabel({ sender_id: null, sender_role: 'shipper' }, undefined)).toBe(
       'Cuenta eliminada',
     );
+  });
+});
+
+describe('mergeMessages', () => {
+  const SENDER = 'a7000000-0000-4000-8000-000000000002';
+  const message = (id: string, at: string, sender: string | null = SENDER): ChatMessage => ({
+    id,
+    sender_id: sender,
+    sender_role: 'carrier',
+    body: `Mensaje ${id}`,
+    attachments: [],
+    created_at: at,
+  });
+  const a = message('a', '2026-11-02T10:00:00.000001Z');
+  const b = message('b', '2026-11-02T10:00:00.000002Z');
+
+  it('adds messages once, oldest first', () => {
+    expect(mergeMessages([b], [a, b]).map((m) => m.id)).toEqual(['a', 'b']);
+  });
+
+  it('replaces a message with its anonymized version (Realtime UPDATE)', () => {
+    const merged = mergeMessages([a, b], [{ ...a, sender_id: null }]);
+    expect(merged.map((m) => [m.id, m.sender_id])).toEqual([
+      ['a', null],
+      ['b', SENDER],
+    ]);
+    expect(merged.map((m) => chatSenderLabel(m, SENDER))).toEqual(['Cuenta eliminada', 'Tú']);
+  });
+
+  it('never gives an anonymized message its sender back from an older copy', () => {
+    const anonymized = { ...a, sender_id: null };
+    // A catch-up query or a send read before the erasure arrives after it.
+    expect(mergeMessages([anonymized], [a])[0]?.sender_id).toBeNull();
+    // The web merges the server page with what arrived live, live last.
+    expect(mergeMessages([anonymized, b], [a, b])[0]?.sender_id).toBeNull();
   });
 });

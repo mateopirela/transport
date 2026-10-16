@@ -16,14 +16,14 @@ Dos suites pgTAP, ambas en el job `db` de CI:
 
 | Suite | Qué prueba |
 | --- | --- |
-| `supabase/tests/database/17_security_audit.test.sql` | Invariantes del catálogo, que también cubren lo que agreguen bloques futuros: anon sin privilegios en `public`; `authenticated` sin `DELETE`, `TRUNCATE` ni escrituras sobre la tabla completa; lista cerrada de tablas con escritura directa, cada una con su política; ninguna política para `anon`/`PUBLIC` ni con `true` a secas; tablas inmutables solo de lectura; vistas con `security_invoker`; Realtime solo en tablas con RLS; buckets privados con límite de tamaño y tipo; inventario cerrado de funciones `security definer`. |
+| `supabase/tests/database/17_security_audit.test.sql` | Invariantes del catálogo, que también cubren lo que agreguen bloques futuros: anon sin privilegios en `public`; `authenticated` sin `DELETE`, `TRUNCATE` ni escrituras sobre la tabla completa; lista cerrada de tablas con escritura directa, cada una con su política; ninguna política para `anon`/`PUBLIC` ni con `true` a secas; tablas inmutables solo de lectura; vistas con `security_invoker`; Realtime solo en tablas con RLS; buckets privados con límite de tamaño y tipo; inventario cerrado de funciones `security definer`, con una sola firma por nombre (una sobrecarga no se cuela en la lista revisada). |
 | `supabase/seed-tests/security_matrix.test.sql` | La matriz **rol × tabla × operación × otra empresa** sobre los datos demo (más una fila de prueba en cada tabla que la seed deja vacía). |
 
 La matriz:
 
 - **Lectura:** cada usuario de la seed (Cliente, Transportista y Operador de cada empresa), un usuario "ajeno" de cada rol (empresas aprobadas sin relación con la seed) y anon leen todas las tablas y los objetos de Storage. Cada fila visible debe pertenecer a su empresa según las reglas de propiedad de la prueba (`tests.ownership`). Esas reglas incluyen las excepciones de producto: las cargas abiertas son visibles para transportistas aprobados y el Cliente ve el GPS solo mientras el viaje está activo.
 - **Actualización:** lo mismo con las filas que cada uno logra actualizar en las tablas con escritura directa. Borrar no está permitido para nadie (lo prueba la suite 17).
-- **RPC:** los usuarios ajenos llaman cada RPC de cliente sobre filas de la seed. Cada llamada debe fallar, o no cambiar nada y no devolver nada. Hoy todas fallan con `42501`. Un caso de control confirma que el Operador del viaje sí puede hacer la misma llamada.
+- **RPC:** los usuarios ajenos llaman cada RPC de cliente sobre filas de la seed. Cada llamada debe fallar con `42501`, o no cambiar nada y no devolver nada. Cualquier otro error (una función que no existe, un argumento o una fila de prueba rota) hace fallar la matriz, porque significa que la llamada no llegó a su validación. Hoy todas fallan con `42501`. Un caso de control confirma que el Operador del viaje sí puede hacer la misma llamada.
 
 La matriz crece con el esquema: falla si una tabla nueva no tiene regla de propiedad o no tiene filas, y también si una RPC de cliente nueva no está en la matriz ni en la lista revisada de RPC que solo actúan sobre el propio usuario.
 
@@ -51,7 +51,7 @@ Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita 
 | `recommendations` | 30 llamadas por minuto | Usuario (`auth.uid()` del JWT) | `429` con `Retry-After`. La app ordena los candidatos con distancias estimadas, sin gastar Routes |
 | `dispatch-notifications` | 10 ejecuciones por minuto | Global | `429`. pg_cron vuelve a intentar al minuto siguiente |
 
-Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acceso directo de clientes) mediante `consume_rate_limit` (con el JWT del usuario) y `consume_service_rate_limit` (solo service role). Los límites viven en `rate_limit_policy`, así que el cliente no puede elegirlos. Si el contador no responde, las funciones fallan cerradas (`502`).
+Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acceso directo de clientes) mediante `consume_rate_limit` (con el JWT del usuario) y `consume_service_rate_limit` (solo service role). Los límites viven en `rate_limit_policy`, así que el cliente no puede elegirlos. Si el contador no responde, las funciones fallan cerradas (`502`). La ventana vigente se decide con la fila bloqueada y nunca retrocede: una llamada atrasada del minuto anterior cuenta en la ventana nueva en lugar de reiniciarla.
 
 Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit]` en `supabase/config.toml`).
 

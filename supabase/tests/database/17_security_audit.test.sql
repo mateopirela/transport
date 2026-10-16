@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(36);
 
 -- ---------------------------------------------------------------------------
 -- Table privileges
@@ -166,6 +166,18 @@ select is_empty(
   'security definer functions are owned by postgres'
 );
 
+-- The reviewed lists below compare names, so an overload under an already
+-- reviewed name would slip through them: there must be none. A new signature
+-- needs its own name (or to replace the old one) and its own review.
+select is_empty(
+  $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prosecdef
+       and (has_function_privilege('authenticated', p.oid, 'execute')
+            or has_function_privilege('service_role', p.oid, 'execute'))
+     group by p.proname having count(*) > 1 $$,
+  'security definer RPCs have one signature per name, so the name lists cover every signature'
+);
+
 -- Every RPC that runs with elevated rights and that clients can call was
 -- reviewed in B24 (docs/seguridad.md). A new one fails here until it is
 -- reviewed and added: its explicit caller checks and its pgTAP matrix.
@@ -226,7 +238,7 @@ select ok(
 select ok(
   not has_function_privilege('anon', 'public.consume_rate_limit(text)', 'execute')
   and not has_function_privilege('authenticated', 'public.consume_service_rate_limit(text, text)', 'execute')
-  and not has_function_privilege('authenticated', 'public.rate_limit_hit(text, text, integer, integer)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.rate_limit_hit(text, text, integer, integer, timestamptz)', 'execute'),
   'users consume only their own limits; service limits are for the service role'
 );
 
@@ -235,6 +247,47 @@ values ('a2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated'
         '{"role": "carrier"}', now(), now()),
        ('a2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'beto@b.test', now(),
         '{"role": "carrier"}', now(), now());
+
+-- The window logic, with a controlled clock (as the owner).
+select is(
+  array[
+    public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:00:10+00'),
+    public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:00:20+00'),
+    public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:00:30+00')
+  ],
+  array[0, 0, 30],
+  'a window allows max_hits and then answers the seconds until it resets'
+);
+select is(
+  public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:01:05+00'),
+  0,
+  'a new window starts a new count'
+);
+-- A late call computed in the previous minute counts in the stored (newer)
+-- window instead of resetting it.
+select is(
+  array[
+    public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:00:59+00'),
+    public.rate_limit_hit('b24-test', 's', 2, 60, '2026-01-01 00:01:06+00')
+  ],
+  array[0, 54],
+  'an older window never resets a newer one'
+);
+select is(
+  (select window_start from public.rate_limit_counters where bucket = 'b24-test' and subject = 's'),
+  '2026-01-01 00:01:00+00'::timestamptz,
+  'the stored window never moves backward'
+);
+
+-- The RPCs below use the real clock: start their checks far from a minute
+-- boundary so every call lands in the same window.
+do $$
+begin
+  if extract(second from clock_timestamp()) >= 45 then
+    perform pg_sleep(61 - extract(second from clock_timestamp())::float8);
+  end if;
+end;
+$$;
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "a2400000-0000-4000-8000-000000000001", "role": "authenticated"}', true);

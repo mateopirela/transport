@@ -18,7 +18,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(25);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -93,7 +93,9 @@ insert into public.message_reads (conversation_id, user_id, last_read_at)
 values (tests.val('trip_conversation'), '5eed0001-0000-4000-8000-000000000002', now());
 insert into public.operator_invitations (id, company_id, operator_id, email, code_hash, expires_at)
 values ('f2400000-0000-4000-8000-000000000001', tests.val('carrier_company'), tests.val('operator_without_account'),
-        'zoe@fuera.test', sha256(convert_to('B24-INVITE-CODE', 'UTF8')), now() + interval '1 day');
+        -- Hash of the normalized code (accept_operator_invitation drops
+        -- spaces and dashes and upper-cases it).
+        'zoe@fuera.test', sha256(convert_to('B24INVITECODE', 'UTF8')), now() + interval '1 day');
 insert into tests.vals values ('invitation', 'f2400000-0000-4000-8000-000000000001');
 insert into public.push_tokens (user_id, token, platform)
 values ('5eed0001-0000-4000-8000-000000000008', 'ExponentPushToken[b24SeedDeviceToken]', 'android');
@@ -401,7 +403,17 @@ insert into tests.rpc_calls values
   ('mark_conversation_read', $$ public.mark_conversation_read(tests.val('trip_conversation'), null) $$),
   ('is_conversation_participant', $$ public.is_conversation_participant(tests.val('trip_conversation')) $$),
   ('unregister_push_token', $$ public.unregister_push_token('ExponentPushToken[b24SeedDeviceToken]') $$),
-  ('mark_notifications_read', $$ public.mark_notifications_read(array(select id from public.notifications)) $$);
+  ('mark_notifications_read', $$ public.mark_notifications_read(array(select id from tests.foreign_notifications)) $$);
+
+-- The seed's notifications, captured as the owner: the outsider cannot read
+-- them (notifications_select_own), so the call must get their ids from here.
+create table tests.foreign_notifications as
+  select id from public.notifications where user_id::text not like 'b2400000-%';
+grant select on tests.foreign_notifications to authenticated;
+select ok(
+  exists (select 1 from tests.foreign_notifications where id is not null),
+  'the RPC matrix has notifications of other users to mark'
+);
 
 -- RPCs without a foreign target: they act on the caller's own rows only
 -- (reviewed in docs/seguridad.md). register_push_token reassigns a token to
@@ -464,10 +476,17 @@ begin
         v_breach := r.fn || ' returned ' || left(v_result, 80);
       end if;
       raise exception 'b24_rollback';
-    exception when others then
-      if sqlerrm <> 'b24_rollback' then
+    exception
+      -- The expected refusal.
+      when insufficient_privilege then
         v_breach := null;
-      end if;
+      when others then
+        -- Any other error (a missing function, a wrong argument, a broken
+        -- fixture) means the call never reached its access check: report it
+        -- instead of counting it as a refusal.
+        if sqlerrm <> 'b24_rollback' then
+          v_breach := r.fn || ' failed with ' || sqlstate || ' instead of 42501: ' || left(sqlerrm, 80);
+        end if;
     end;
     reset role;
     if v_breach is not null then

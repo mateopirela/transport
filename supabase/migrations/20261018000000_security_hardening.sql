@@ -70,15 +70,25 @@ revoke all on table public.rate_limit_counters from public, anon, authenticated,
 
 -- Counts one hit and returns 0 when it is allowed, or the seconds until the
 -- window resets when the limit is exceeded. The upsert locks the row, so
--- concurrent hits of the same subject are counted one after another.
-create function public.rate_limit_hit(p_bucket text, p_subject text, p_max_hits integer, p_window_seconds integer)
+-- concurrent hits of the same subject are counted one after another. The
+-- effective window is decided under that lock and never moves backward: a
+-- call that computed its window just before the minute changed, and reaches
+-- the row after a newer window was stored, is counted in the newer window
+-- instead of resetting it. p_now exists only so tests control the clock.
+create function public.rate_limit_hit(
+  p_bucket text,
+  p_subject text,
+  p_max_hits integer,
+  p_window_seconds integer,
+  p_now timestamptz default null
+)
 returns integer
 language plpgsql
 volatile
 set search_path = ''
 as $$
 declare
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz := coalesce(p_now, clock_timestamp());
   v_window timestamptz := to_timestamp(
     floor(extract(epoch from v_now) / p_window_seconds) * p_window_seconds
   );
@@ -88,11 +98,11 @@ begin
   values (p_bucket, p_subject, v_window, 1)
   on conflict (bucket, subject) do update
   set hits = case
-               when c.window_start = excluded.window_start then least(c.hits, p_max_hits) + 1
-               else 1
+               when excluded.window_start > c.window_start then 1
+               else least(c.hits, p_max_hits) + 1
              end,
-      window_start = excluded.window_start
-  returning c.hits into v_hits;
+      window_start = greatest(c.window_start, excluded.window_start)
+  returning c.hits, c.window_start into v_hits, v_window;
 
   if v_hits <= p_max_hits then
     return 0;
@@ -101,7 +111,7 @@ begin
 end;
 $$;
 
-revoke all on function public.rate_limit_hit(text, text, integer, integer)
+revoke all on function public.rate_limit_hit(text, text, integer, integer, timestamptz)
   from public, anon, authenticated, service_role;
 
 -- RPC for the Edge Functions that run with the caller's JWT.

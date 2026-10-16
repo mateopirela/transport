@@ -2426,7 +2426,13 @@ export interface Database {
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       rate_limit_hit: {
-        Args: { p_bucket: string; p_max_hits: number; p_subject: string; p_window_seconds: number };
+        Args: {
+          p_bucket: string;
+          p_max_hits: number;
+          p_now?: string;
+          p_subject: string;
+          p_window_seconds: number;
+        };
         Returns: number;
       };
       rate_limit_policy: { Args: { p_bucket: string }; Returns: Record<string, unknown> };

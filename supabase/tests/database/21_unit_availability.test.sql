@@ -6,11 +6,12 @@
 --     gives the unit back the availability it would have had without it;
 --   * clearing the availability, or setting off on a trip after it was
 --     written, means it is not restored;
+--   * a restored row records the row it copies and the trip that let go (F13);
 --   * matching carries the delay of a late trip through every booked trip.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(32);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -287,6 +288,27 @@ select results_eq(
   $$ values ('manual', 'Monterrey', now() + interval '1 day') $$,
   'cancelling the booking gives W its manual availability back'
 );
+-- F13: the restored row says what it copies and which trip let go of W; who
+-- set the availability (created_by) is still the carrier.
+reset role;
+select results_eq(
+  $$ select r.created_by, r.restored_from_id, r.restored_by_trip_id, o.source::text, o.archived_at is not null
+     from public.vehicle_availability r
+     join public.vehicle_availability o on o.id = r.restored_from_id
+     where r.vehicle_id = 'ef500000-0000-4000-8000-000000000002' and r.archived_at is null $$,
+  $$ select 'af500000-0000-4000-8000-000000000002'::uuid, o.id, tests.val('trip_d'), 'manual', true
+     from public.vehicle_availability o
+     where o.vehicle_id = 'ef500000-0000-4000-8000-000000000002' and o.ended_by_trip_id = tests.val('trip_d') $$,
+  'the restored availability records the row it copies and the cancelled trip, and keeps its creator'
+);
+select is(
+  (select count(*) from public.vehicle_availability
+   where vehicle_id = 'ef500000-0000-4000-8000-000000000002'
+     and restored_from_id is null and restored_by_trip_id is not null),
+  0::bigint,
+  'only restored rows carry the trip that restored them'
+);
+set local role authenticated;
 
 -- The carrier sets a new availability while W is booked: it is theirs to keep.
 select tests.contract('trip_e', false, 2, 'ef500000-0000-4000-8000-000000000002');

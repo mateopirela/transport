@@ -2,7 +2,7 @@
 // JSON written by the B07 triggers, so every id is validated before use.
 import { uuidField, type NotificationType } from '@transport/shared';
 
-import { loadPath, negotiationPath } from '../routing';
+import { loadPath, negotiationPath, tripPath } from '../routing';
 
 function id(data: unknown, key: string): string | null {
   if (typeof data !== 'object' || data === null) return null;
@@ -21,10 +21,13 @@ export function notificationHref(type: NotificationType, data: unknown): string 
       if (loadId && negotiationId) return negotiationPath(loadId, negotiationId);
       return loadId && loadPath(loadId);
     }
-    // Until trip tracking (B15), trips lead to their load.
+    // Trip tracking (B15); older notifications without a trip id, to the load.
     case 'trip_assigned':
-    case 'trip_status_changed':
+    case 'trip_status_changed': {
+      const tripId = id(data, 'tripId');
+      if (tripId) return tripPath(tripId);
       return loadId && loadPath(loadId);
+    }
     // Carrier-only (matching) or company documents, which have no screen for
     // an approved shipper.
     case 'load_match':

@@ -113,13 +113,20 @@ export function RouteMap({
   );
 }
 
-/** Map placeholder: both points placed by their coordinates, joined by a dashed line. */
-function RouteDiagram({
+/**
+ * Map placeholder: both points placed by their coordinates, joined by a
+ * dashed line, plus the unit's trail and last point when given (B15).
+ */
+export function RouteDiagram({
   origin,
   destination,
+  trail = [],
+  caption = c.unavailable,
 }: {
   origin: RoutePoint | null;
   destination: RoutePoint | null;
+  trail?: readonly LatLng[];
+  caption?: string;
 }) {
   if (!origin || !destination) {
     return (
@@ -128,23 +135,27 @@ function RouteDiagram({
       </p>
     );
   }
-  // Project into a 100×60 box with a margin, keeping north up and the aspect.
-  const span = Math.max(
-    Math.abs(origin.lng - destination.lng),
-    Math.abs(origin.lat - destination.lat),
-    0.01,
-  );
-  const midLng = (origin.lng + destination.lng) / 2;
-  const midLat = (origin.lat + destination.lat) / 2;
+  // Project every point (route and trail) into a 100×60 box with a margin,
+  // keeping north up and the aspect.
+  const points = [origin, destination, ...trail];
+  const lngs = points.map((p) => p.lng);
+  const lats = points.map((p) => p.lat);
+  const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)];
+  const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
+  const span = Math.max(maxLng - minLng, maxLat - minLat, 0.01);
+  const midLng = (minLng + maxLng) / 2;
+  const midLat = (minLat + maxLat) / 2;
   const project = (p: LatLng) => ({
     x: 50 + ((p.lng - midLng) / span) * 70,
     y: 30 - ((p.lat - midLat) / span) * 42,
   });
   const a = project(origin);
   const b = project(destination);
+  const path = trail.map(project);
+  const last = path.at(-1);
   return (
     <figure className="flex h-full flex-col">
-      <svg viewBox="0 0 100 60" className="flex-1" role="img" aria-label={c.unavailable}>
+      <svg viewBox="0 0 100 60" className="flex-1" role="img" aria-label={caption}>
         <line
           x1={a.x}
           y1={a.y}
@@ -154,6 +165,14 @@ function RouteDiagram({
           strokeWidth="0.8"
           strokeDasharray="2 1.5"
         />
+        {path.length > 1 && (
+          <polyline
+            points={path.map((p) => `${p.x},${p.y}`).join(' ')}
+            fill="none"
+            className="stroke-navy"
+            strokeWidth="0.9"
+          />
+        )}
         {[
           { point: a, label: origin.label },
           { point: b, label: destination.label },
@@ -171,10 +190,9 @@ function RouteDiagram({
             </text>
           </g>
         ))}
+        {last && <circle cx={last.x} cy={last.y} r="2" className="fill-accent" />}
       </svg>
-      <figcaption className="pb-2 text-center text-xs text-muted-foreground">
-        {c.unavailable}
-      </figcaption>
+      <figcaption className="pb-2 text-center text-xs text-muted-foreground">{caption}</figcaption>
     </figure>
   );
 }

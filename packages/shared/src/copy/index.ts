@@ -3,6 +3,7 @@
 export * from './auth';
 export * from './carrier-loads';
 export * from './catalogs';
+export * from './client-trips';
 export * from './fleet';
 export * from './loads';
 export * from './matching';

@@ -17,6 +17,7 @@ export const paths = {
   shipperLoads: '/cliente/cargas',
   newLoad: '/cliente/cargas/nueva',
   shipperNotifications: '/cliente/notificaciones',
+  shipperTrips: '/cliente/viajes',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -31,6 +32,13 @@ export const editLoadPath = (loadId: string) => `/cliente/cargas/${loadId}/edita
 /** Shipper negotiation (offer history and chat) of a load (B14). */
 export const negotiationPath = (loadId: string, negotiationId: string) =>
   `/cliente/cargas/${loadId}/negociaciones/${negotiationId}`;
+
+/** Shipper trip tracking (B15). */
+export const tripPath = (tripId: string) => `/cliente/viajes/${tripId}`;
+
+/** Redirect to a short-lived signed URL of a trip's evidence photo or document. */
+export const tripFileHref = (kind: 'evidencia' | 'documentos', path: string) =>
+  `/cliente/viajes/archivo?tipo=${kind}&ruta=${encodeURIComponent(path)}`;
 
 /** Redirect to a short-lived signed URL of a chat attachment (`{conversation}/{file}`). */
 export const chatAttachmentHref = (path: string) =>

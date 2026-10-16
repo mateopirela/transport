@@ -474,7 +474,8 @@ execute function public.trips_end_vehicle_estimate();
 -- Matching (B08) starts a booked unit from the trip it is booked for, also
 -- while that trip waits for its assignment; otherwise it would still offer
 -- the unit from the end of its current trip. Same function as B08 except the
--- `trips` branch of the starting points.
+-- `trips` branch of the starting points and their priority (the next trip of
+-- the unit first, then the one in progress, then its availability).
 create or replace function public.match_pairs(
   p_vehicle_id uuid,
   p_load_id uuid,
@@ -502,7 +503,11 @@ as $$
     cross join lateral (
       select x.*
       from (
-        select 1 as priority, null::uuid as availability_id, l.destination_location as location,
+        -- F2: the next trip of the unit (booked or assigned, not started
+        -- yet) comes before the one in progress, whatever their estimates:
+        -- the unit is free only once it has done both.
+        select case when t.status in ('pending_assignment', 'assigned') then 1 else 2 end as priority,
+               null::uuid as availability_id, l.destination_location as location,
                l.destination_city as city, l.destination_state as state,
                coalesce(t.estimated_unload_end_at, l.delivery_window_end) as available_from,
                true as is_return_trip, l.origin_location as home_location
@@ -516,7 +521,7 @@ as $$
            -- its assignment is committed to it: it starts from that trip.
            or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = u.id)
         union all
-        select 2, a.id, a.location, a.city, a.state, a.available_from, a.source = 'trip_estimate',
+        select 3, a.id, a.location, a.city, a.state, a.available_from, a.source = 'trip_estimate',
                case when a.source = 'trip_estimate' then (
                  select l.origin_location
                  from public.trips t

@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(39);
+select plan(40);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -264,6 +264,14 @@ select results_eq(
   $$ values ('Monterrey', true) $$,
   'matching starts the booked unit from the trip it is booked for'
 );
+update public.trips set estimated_unload_end_at = now() + interval '5 days' where id = tests.val('trip_a');
+select results_eq(
+  $$ select start_city, is_return_trip from public.match_pairs('ef200000-0000-4000-8000-000000000001',
+                                                               tests.val('load_c'), 1000) $$,
+  $$ values ('Monterrey', true) $$,
+  'even when the current trip runs late, the booked trip decides where the unit starts'
+);
+update public.trips set estimated_unload_end_at = now() + interval '2 hours' where id = tests.val('trip_a');
 
 set local role authenticated;
 select tests.login('af200000-0000-4000-8000-000000000003');

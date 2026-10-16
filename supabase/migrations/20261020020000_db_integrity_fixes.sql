@@ -8,8 +8,9 @@
 --   3. report_incident takes an idempotency key (p_client_event_id), like the
 --      other trip event RPCs, so a retry never duplicates an incident.
 --   4. Reassigning a trip also tells the operator who was taken off it.
---   5. A unit committed to another trip (the return trip of D-B08) keeps no
---      `trip_estimate` availability, so matching stops offering it.
+--   5. A unit committed to its next trip (a return trip, B08) keeps no
+--      `trip_estimate` availability, and matching starts it from that trip
+--      even before it is assigned.
 
 -- ---------------------------------------------------------------------------
 -- 1. Immutable rows that reference auth.users with `on delete set null`
@@ -446,6 +447,11 @@ begin
   if v_vehicle_id is null or new.status in ('delivered', 'closed', 'cancelled') then
     return null;
   end if;
+  -- Same unit lock as set_trip_vehicle_availability (which takes it for
+  -- update): if the previous trip is writing its estimate right now, wait for
+  -- it, so the update below (a new statement) sees that row and archives it.
+  -- assign_trip already holds it for share; taking it again is no upgrade.
+  perform 1 from public.vehicles v where v.id = v_vehicle_id for share;
   update public.vehicle_availability
   set archived_at = now()
   where vehicle_id = v_vehicle_id and archived_at is null and source = 'trip_estimate';
@@ -464,3 +470,128 @@ after update of vehicle_id on public.trips
 for each row
 when (new.vehicle_id is not null and new.vehicle_id is distinct from old.vehicle_id)
 execute function public.trips_end_vehicle_estimate();
+
+-- Matching (B08) starts a booked unit from the trip it is booked for, also
+-- while that trip waits for its assignment; otherwise it would still offer
+-- the unit from the end of its current trip. Same function as B08 except the
+-- `trips` branch of the starting points.
+create or replace function public.match_pairs(
+  p_vehicle_id uuid,
+  p_load_id uuid,
+  p_max_empty_km numeric,
+  p_availability_id uuid default null
+)
+returns setof public.match_candidate
+language sql
+stable
+set search_path = ''
+as $$
+  with units as (
+    select v.id, v.company_id, v.unit_type, v.capacity_kg, v.capacity_m3, v.features
+    from public.vehicles v
+    join public.companies c on c.id = v.company_id and c.type = 'carrier' and c.status = 'approved'
+      and c.archived_at is null
+    where v.archived_at is null
+      and v.unit_type is not null
+      and (p_vehicle_id is null or v.id = p_vehicle_id)
+      and not exists (select 1 from public.vehicle_missing_requirements(v.id))
+  ),
+  starts as (
+    select u.*, s.availability_id, s.location, s.city, s.state, s.available_from, s.is_return_trip, s.home_location
+    from units u
+    cross join lateral (
+      select x.*
+      from (
+        select 1 as priority, null::uuid as availability_id, l.destination_location as location,
+               l.destination_city as city, l.destination_state as state,
+               coalesce(t.estimated_unload_end_at, l.delivery_window_end) as available_from,
+               true as is_return_trip, l.origin_location as home_location
+        from public.trips t
+        join public.loads l on l.id = t.load_id
+        left join public.offers o on o.id = t.offer_id
+        where (t.vehicle_id = u.id
+               and t.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
+                                'at_delivery', 'unloading'))
+           -- F2: a unit booked in the accepted offer of a trip that waits for
+           -- its assignment is committed to it: it starts from that trip.
+           or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = u.id)
+        union all
+        select 2, a.id, a.location, a.city, a.state, a.available_from, a.source = 'trip_estimate',
+               case when a.source = 'trip_estimate' then (
+                 select l.origin_location
+                 from public.trips t
+                 join public.loads l on l.id = t.load_id
+                 where t.vehicle_id = u.id and t.status <> 'cancelled'
+                 order by t.created_at desc
+                 limit 1
+               ) end
+        from public.vehicle_availability a
+        where a.vehicle_id = u.id
+          and a.archived_at is null
+          and (p_availability_id is null or a.id = p_availability_id)
+      ) x
+      order by x.priority, x.available_from desc
+      limit 1
+    ) s
+  )
+  select
+    l.id, s.company_id, s.id, s.availability_id,
+    s.city, s.state,
+    extensions.st_y(s.location::extensions.geometry), extensions.st_x(s.location::extensions.geometry),
+    s.available_from, s.is_return_trip,
+    l.origin_city, l.origin_state, l.origin_lat, l.origin_lng,
+    l.destination_city, l.destination_state, l.destination_lat, l.destination_lng,
+    l.pickup_window_start, l.pickup_window_end, l.unit_type, l.weight_kg, l.proposed_price_cents,
+    extensions.st_distance(s.location, l.origin_location) / 1000,
+    extensions.st_distance(s.home_location, l.destination_location) / 1000,
+    r.origin_city, r.destination_city
+  from starts s
+  join public.loads l
+    on l.status in ('published', 'negotiating')
+   and l.archived_at is null
+   and (p_load_id is null or l.id = p_load_id)
+   and l.unit_type = s.unit_type
+   and l.weight_kg <= s.capacity_kg
+   and (l.volume_m3 is null or s.capacity_m3 is null or l.volume_m3 <= s.capacity_m3)
+   and l.special_requirements <@ s.features
+   and l.pickup_window_end > greatest(s.available_from, now())
+   and extensions.st_dwithin(s.location, l.origin_location, p_max_empty_km * 1000)
+  left join lateral (
+    select cr.origin_city, cr.destination_city
+    from public.carrier_routes cr
+    where cr.company_id = s.company_id
+      and cr.archived_at is null
+      and (cardinality(cr.unit_types) = 0 or s.unit_type = any (cr.unit_types))
+      and case when cr.origin_location is not null
+            then extensions.st_dwithin(cr.origin_location, l.origin_location, 50000)
+            else lower(cr.origin_city) = lower(l.origin_city) and lower(cr.origin_state) = lower(l.origin_state) end
+      and case when cr.destination_location is not null
+            then extensions.st_dwithin(cr.destination_location, l.destination_location, 50000)
+            else lower(cr.destination_city) = lower(l.destination_city)
+                 and lower(cr.destination_state) = lower(l.destination_state) end
+    order by cr.created_at, cr.id
+    limit 1
+  ) r on true
+  where not exists (
+    select 1 from public.negotiations n where n.load_id = l.id and n.carrier_company_id = s.company_id
+  );
+$$;
+
+revoke all on function public.match_pairs(uuid, uuid, numeric, uuid) from public, anon, authenticated;
+
+-- One-time cleanup: estimates left by trips whose unit was already committed
+-- to its next trip before this migration (a trip that has not started
+-- unloading yet, or the accepted offer of a trip waiting for its assignment,
+-- names the unit). Manual availability is left alone.
+update public.vehicle_availability a
+set archived_at = now()
+where a.archived_at is null
+  and a.source = 'trip_estimate'
+  and exists (
+    select 1
+    from public.trips t
+    left join public.offers o on o.id = t.offer_id
+    where (t.vehicle_id = a.vehicle_id
+           and t.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit', 'at_delivery'))
+       or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = a.vehicle_id)
+  );

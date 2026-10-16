@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(38);
+select plan(39);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -31,7 +31,7 @@ as $$
   select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
 $$;
 
-create function tests.payload(p_reverse boolean)
+create function tests.payload(p_reverse boolean, p_days integer default 1)
 returns jsonb
 language sql
 stable
@@ -45,8 +45,10 @@ as $$
   select jsonb_build_object(
     'origin', case when p_reverse then gdl else mty end,
     'destination', case when p_reverse then mty else gdl end,
-    'pickupWindow', jsonb_build_object('start', now() + interval '1 day', 'end', now() + interval '1 day 4 hours'),
-    'deliveryWindow', jsonb_build_object('start', now() + interval '2 days', 'end', now() + interval '2 days 6 hours'),
+    'pickupWindow', jsonb_build_object('start', now() + make_interval(days => p_days),
+                                       'end', now() + make_interval(days => p_days, hours => 4)),
+    'deliveryWindow', jsonb_build_object('start', now() + make_interval(days => p_days + 1),
+                                         'end', now() + make_interval(days => p_days + 1, hours => 6)),
     'cargoType', 'palletized',
     'description', 'Tarimas',
     'weightKg', 18000,
@@ -118,6 +120,14 @@ insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg
 
 -- Photos are not what these tests are about (B23 covers the gate).
 update public.trip_evidence_requirements set min_photos = 0;
+-- Every required document of V approved, so matching considers it (B08).
+insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+select v.company_id, r.id, 'vehicle', v.id, v.company_id || '/vehicle/' || v.id || '/' || gen_random_uuid() || '.pdf',
+       'approved', case when r.requires_expiry then now() + interval '1 year' end
+from public.vehicles v
+cross join public.document_requirements r
+where v.id = 'ef200000-0000-4000-8000-000000000001'
+  and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
 
 -- ---------------------------------------------------------------------------
 -- Trip A (MTY -> GDL) on unit V with operator O, up to unloading
@@ -238,6 +248,21 @@ reset role;
 select is_empty(
   $$ select * from tests.active_availability('ef200000-0000-4000-8000-000000000001') $$,
   'contracting the return trip with V ends the estimate of trip A'
+);
+
+-- A later load C (MTY -> GDL): matching starts V from the end of trip B
+-- (Monterrey), not from the end of trip A (Guadalajara), although B is not
+-- assigned yet.
+set local role authenticated;
+select tests.login('af200000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load_c', public.create_load(tests.payload(false, 3));
+select public.publish_load(tests.val('load_c'));
+reset role;
+select results_eq(
+  $$ select start_city, is_return_trip from public.match_pairs('ef200000-0000-4000-8000-000000000001',
+                                                         tests.val('load_c'), 1000) $$,
+  $$ values ('Monterrey', true) $$,
+  'matching starts the booked unit from the trip it is booked for'
 );
 
 set local role authenticated;

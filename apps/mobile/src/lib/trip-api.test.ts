@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Supabase } from './supabase';
-import { reportIncident } from './trip-api';
+import { incidentAttempt, reportIncident } from './trip-api';
 
 const TRIP = '00000000-0000-4000-8000-000000000001';
 const KEY = '00000000-0000-4000-8000-0000000000aa';
@@ -54,5 +54,27 @@ describe('reportIncident', () => {
     expect(retry.calls[0]?.args).toEqual(failing.calls[0]?.args);
     expect(retry.calls[0]?.args).not.toHaveProperty('p_latitude');
     expect(retry.calls[0]?.args).toHaveProperty('p_client_event_id', KEY);
+  });
+});
+
+describe('incidentAttempt', () => {
+  const values = { kind: 'delay', description: 'Tráfico' } as const;
+  let n = 0;
+  const newKey = () => `key-${++n}`;
+
+  it('keeps the key when the same report is retried', () => {
+    const first = incidentAttempt(null, TRIP, values, newKey);
+    expect(incidentAttempt(first, TRIP, { ...values }, newKey)).toBe(first);
+  });
+
+  it('gives an edited report, or one of another trip, a new key', () => {
+    const first = incidentAttempt(null, TRIP, values, newKey);
+    const edited = incidentAttempt(first, TRIP, { ...values, description: 'Choque' }, newKey);
+    expect(edited.key).not.toBe(first.key);
+    expect(edited.values.description).toBe('Choque');
+    expect(incidentAttempt(first, TRIP, { ...values, kind: 'other' }, newKey).key).not.toBe(
+      first.key,
+    );
+    expect(incidentAttempt(first, KEY, values, newKey).key).not.toBe(first.key);
   });
 });

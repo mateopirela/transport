@@ -52,7 +52,13 @@ import {
 } from '../../lib/evidence-sync';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
-import { loadOperatorTrip, reportIncident, type OperatorTrip } from '../../lib/trip-api';
+import {
+  incidentAttempt,
+  loadOperatorTrip,
+  reportIncident,
+  type IncidentAttempt,
+  type OperatorTrip,
+} from '../../lib/trip-api';
 import {
   effectiveStatus,
   effectiveUnloadEstimate,
@@ -225,10 +231,9 @@ function TripView({
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
-  // Idempotency key of the incident being reported: kept across retries of
-  // the same report (a lost response must not duplicate it), new after one
-  // is recorded.
-  const incidentKey = useRef<string | null>(null);
+  // The incident report not confirmed yet: retrying it unchanged keeps its
+  // idempotency key; an edited report gets a new one (see incidentAttempt).
+  const lastIncident = useRef<IncidentAttempt | null>(null);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -425,15 +430,16 @@ function TripView({
     try {
       // Optional: never prompts for permission just for an incident.
       const located = await currentPosition({ ask: false });
-      incidentKey.current ??= randomUUID();
+      const attempt = incidentAttempt(lastIncident.current, trip.id, values, randomUUID);
+      lastIncident.current = attempt;
       await reportIncident(
         supabase,
         trip.id,
         values,
         located.ok ? located.position : null,
-        incidentKey.current,
+        attempt.key,
       );
-      incidentKey.current = null;
+      lastIncident.current = null;
       setIncidentMessage({ tone: 'info', text: copy.incidentSent });
       await onReload();
       return true;

@@ -30,6 +30,8 @@ Base de datos (Supabase local, requiere Docker):
 | `pnpm db:types`                        | Regenera `packages/shared/src/db.ts` (CI falla si quedó desactualizado)                      |
 | `supabase migration new x`             | Crea una migración nueva; cada tabla nueva lleva RLS y pgTAP en el mismo PR                  |
 
+Pruebas de punta a punta (Playwright, requiere el stack local con la seed): `pnpm --filter @transport/e2e e2e`. Ver [e2e/README.md](e2e/README.md).
+
 Turborepo cachea las tareas; para filtrar por paquete: `pnpm turbo run test --filter=@transport/shared`.
 
 ## Estructura
@@ -39,6 +41,7 @@ apps/web        Next.js (Cliente y Admin)            ← B11
 apps/mobile     Expo (Transportista y Operador)      ← B17
 packages/shared Tipos, enums, zod, máquinas de estado, copy
 supabase/       Migraciones, Edge Functions, pgTAP   ← B01
+e2e/            Playwright (web) contra Supabase local; Maestro en apps/mobile/.maestro ← B26
 ```
 
 ## Convenciones (§0.4 del plan)

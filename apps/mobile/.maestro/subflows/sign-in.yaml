@@ -1,0 +1,18 @@
+# Signs in with the demo password (docs/demo-local.md). Needs EMAIL.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: allow
+      camera: allow
+      notifications: deny
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 30000
+- tapOn: 'Correo electrónico'
+- inputText: ${EMAIL}
+- tapOn: 'Contraseña'
+- inputText: 'Demo1234'
+- hideKeyboard
+- tapOn: 'Entrar'

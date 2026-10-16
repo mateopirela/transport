@@ -1,0 +1,33 @@
+# Carrier (B20): assigns unit and operator to the trip it won.
+# Precondition: the shipper (luis.ramirez@demo.test) accepted the offer of
+# 01-carrier-offer.yaml on the web, at /cliente/cargas/5eed0005-0000-4000-8000-000000000002
+# (or run the Playwright suite, which leaves the GDL -> MTY trip contracted).
+appId: ${APP_ID}
+name: Transportista · asignar unidad y operador
+tags: [carrier, star]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+- extendedWaitUntil:
+    visible: 'Viajes'
+    timeout: 30000
+- tapOn: 'Viajes'
+- tapOn: 'Guadalajara → Monterrey'
+- extendedWaitUntil:
+    visible: 'Asignación'
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'CS53-01.*'
+- tapOn: 'CS53-01.*'
+- scrollUntilVisible:
+    element: 'Pedro López.*'
+- tapOn: 'Pedro López.*'
+- scrollUntilVisible:
+    element: 'Asignar operador'
+- tapOn: 'Asignar operador'
+- tapOn: 'Sí, asignar'
+- extendedWaitUntil:
+    visible: 'Listo. Avisamos a .*'
+    timeout: 15000

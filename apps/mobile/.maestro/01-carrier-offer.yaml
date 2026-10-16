@@ -1,0 +1,28 @@
+# Carrier (B19): signs in, sees the GDL -> MTY return trip of CS53-01 (which is
+# unloading in Guadalajara) as a recommendation and offers the proposed price.
+# Seed: jorge.villarreal@demo.test, load 02 of supabase/seed.sql.
+appId: ${APP_ID}
+name: Transportista · ofertar en el viaje de regreso
+tags: [carrier, star]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+- extendedWaitUntil:
+    visible: 'Viajes de regreso'
+    timeout: 30000
+- assertVisible: 'Viaje de regreso'
+- tapOn: 'Guadalajara → Monterrey'
+- extendedWaitUntil:
+    visible: 'Detalle de la carga'
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'Aceptar el precio propuesto'
+- tapOn: 'Aceptar el precio propuesto'
+# Native confirmation dialog.
+- tapOn: 'Confirmar'
+- extendedWaitUntil:
+    visible: 'Oferta enviada.'
+    timeout: 15000
+- assertVisible: 'Tu oferta está esperando la respuesta del cliente.'

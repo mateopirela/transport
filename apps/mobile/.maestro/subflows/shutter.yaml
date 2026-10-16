@@ -1,0 +1,13 @@
+# Takes a picture in the system camera of the Android emulator and keeps it.
+# The ids are the ones of the emulator's camera app; another camera app may
+# need other selectors.
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: 'com.android.camera2:id/shutter_button'
+    timeout: 15000
+- tapOn:
+    id: 'com.android.camera2:id/shutter_button'
+- tapOn:
+    id: 'com.android.camera2:id/done_button'

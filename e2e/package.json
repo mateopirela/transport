@@ -1,0 +1,21 @@
+{
+  "name": "@transport/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint --max-warnings=0 .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@supabase/supabase-js": "2.117.3",
+    "@transport/shared": "workspace:*",
+    "@types/node": "24.19.2",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

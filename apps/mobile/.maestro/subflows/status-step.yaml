@@ -1,0 +1,10 @@
+# Taps one status button of the operator's trip and confirms it. Needs STEP.
+appId: ${APP_ID}
+---
+- scrollUntilVisible:
+    element: ${STEP}
+- tapOn: ${STEP}
+- tapOn: 'Sí, confirmar'
+- extendedWaitUntil:
+    notVisible: 'Sí, confirmar'
+    timeout: 15000

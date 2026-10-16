@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - e2e
 
 # Single source of truth for versions shared by several workspaces.
 catalog:

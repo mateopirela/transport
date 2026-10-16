@@ -1,0 +1,9 @@
+# Maestro workspace of the mobile app (B26). See apps/mobile/.maestro/README.md.
+flows:
+  - '*.yaml'
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - 01-carrier-offer
+    - 02-carrier-assign
+    - 03-operator-trip

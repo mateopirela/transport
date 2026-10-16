@@ -8,6 +8,11 @@ coverage/
 .turbo/
 *.tsbuildinfo
 
+# Playwright (e2e/) reports and traces
+playwright-report/
+test-results/
+blob-report/
+
 # Environment: never commit secrets; document variables in .env.example
 .env
 .env.*

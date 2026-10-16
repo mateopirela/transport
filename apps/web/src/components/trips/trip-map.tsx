@@ -66,6 +66,8 @@ export function TripMap({
           cleanup.push(() => (marker.map = null));
         }
         const bounds = new google.maps.LatLngBounds(origin).extend(destination);
+        // The whole recorded path is visible on the first fit.
+        for (const point of trail) bounds.extend(point);
         if (trail.length > 1) {
           const line = new google.maps.Polyline({
             map,
@@ -89,7 +91,6 @@ export function TripMap({
             content: pin.element,
           });
           cleanup.push(() => (marker.map = null));
-          bounds.extend(last);
         }
         if (!fitted.current) {
           map.fitBounds(bounds, 48);

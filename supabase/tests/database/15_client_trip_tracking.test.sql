@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(33);
+select plan(36);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -287,6 +287,32 @@ select throws_ok(
 select throws_ok(
   $$ delete from public.trip_documents where id = tests.val('doc1') $$,
   '42501', null, 'not even the owner deletes a trip document'
+);
+select throws_ok(
+  $$ update public.trip_documents set uploaded_by = null, file_name = 'x' where id = tests.val('doc1') $$,
+  '42501', null, 'clearing the uploader does not open the other columns'
+);
+
+-- Deleting the uploader's account only clears uploaded_by (on delete set null).
+select tests.new_user('a1500000-0000-4000-8000-000000000008', 'eva@a.test', 'carrier');
+update public.profiles set company_id = 'c1500000-0000-4000-8000-000000000003'
+where id = 'a1500000-0000-4000-8000-000000000008';
+set local role authenticated;
+select tests.login('a1500000-0000-4000-8000-000000000008');
+insert into storage.objects (bucket_id, name, owner_id)
+values ('trip-documents', tests.doc_path('trip1', 'b1500000-0000-4000-8000-000000000008.pdf'),
+        'a1500000-0000-4000-8000-000000000008');
+insert into tests.vals select 'doc8', public.add_trip_document(tests.val('trip1'), 'other',
+  tests.doc_path('trip1', 'b1500000-0000-4000-8000-000000000008.pdf'), 'factura.pdf');
+reset role;
+select lives_ok(
+  $$ delete from auth.users where id = 'a1500000-0000-4000-8000-000000000008' $$,
+  'the uploader''s account can be deleted'
+);
+select results_eq(
+  $$ select uploaded_by, file_name from public.trip_documents where id = tests.val('doc8') $$,
+  $$ values (null::uuid, 'factura.pdf') $$,
+  'the document stays, without its uploader'
 );
 set local role authenticated;
 

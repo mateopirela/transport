@@ -35,10 +35,30 @@ comment on table public.trip_documents is
 
 create index trip_documents_trip_idx on public.trip_documents (trip_id, created_at);
 
--- Stored documents are kept as uploaded (B06 reject_mutation): no role
--- updates, deletes or truncates them.
+-- Stored documents are kept as uploaded: no role updates, deletes or
+-- truncates them. The one exception is the `on delete set null` of
+-- uploaded_by when the uploader's account is deleted; every other column
+-- must stay as it was.
+create function public.trip_documents_guard()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_op = 'UPDATE'
+     and old.uploaded_by is not null
+     and new.uploaded_by is null
+     and (to_jsonb(new) - 'uploaded_by') = (to_jsonb(old) - 'uploaded_by') then
+    return new;
+  end if;
+  raise exception '% is immutable', tg_table_name using errcode = '42501';
+end;
+$$;
+
+revoke all on function public.trip_documents_guard() from public, anon, authenticated;
+
 create trigger trip_documents_immutable before update or delete on public.trip_documents
-for each row execute function public.reject_mutation();
+for each row execute function public.trip_documents_guard();
 create trigger trip_documents_no_truncate before truncate on public.trip_documents
 for each statement execute function public.reject_mutation();
 

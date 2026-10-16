@@ -33,6 +33,7 @@ as $$
   select extensions.dblink_exec(p_conn, 'begin');
   select extensions.dblink_exec(p_conn, 'set local lock_timeout = ''15s''');
   select extensions.dblink_exec(p_conn, 'set local role service_role');
+  select extensions.dblink_exec(p_conn, 'set local request.jwt.claims = ''{"role": "service_role"}''');
 $$;
 
 create table tests.pids (conn text primary key, pid integer not null);

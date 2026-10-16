@@ -183,6 +183,7 @@ select 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}', now() - inter
 from generate_series(1, 20) i;
 
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select results_eq(
   $$ select id, attempt, push_pending, email_pending, email, role::text, cardinality(push_tokens)
      from public.claim_notifications(2, 60) $$,
@@ -217,6 +218,7 @@ select results_eq(
 );
 
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is(
   public.record_notification_dispatch(
     '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "push": "skipped", "email": "sent"},
@@ -245,6 +247,7 @@ select throws_ok(
 
 -- A late result of an older claim is ignored (fencing by attempt).
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is(
   public.record_notification_dispatch(
     '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "push": "retry", "email": "retry"}]'
@@ -255,6 +258,7 @@ reset role;
 update public.notifications set dispatch_retry_at = now() - interval '1 second'
 where id = 'f9000000-0000-4000-8000-000000000002';
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select results_eq(
   $$ select id, attempt, push_pending, email_pending from public.claim_notifications(10, 60) $$,
   $$ values ('f9000000-0000-4000-8000-000000000002'::uuid, 2, false, true) $$,
@@ -284,6 +288,7 @@ select results_eq(
 update public.notifications set dispatch_attempts = 4, dispatch_retry_at = null
 where id = 'f9000000-0000-4000-8000-000000000002';
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is((select attempt from public.claim_notifications(10, 60)), 5, 'fifth attempt');
 select public.record_notification_dispatch(
   '[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 5, "push": "skipped", "email": "retry", "error": "email: TimeoutError"}]'
@@ -303,6 +308,7 @@ select throws_ok(
 insert into public.notifications (id, user_id, type, data) values
   ('f9000000-0000-4000-8000-000000000004', 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}');
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is(
   (select push_pending from public.claim_notifications(10, 60)), true, 'a new notification has its push pending'
 );
@@ -310,6 +316,7 @@ reset role;
 update public.notifications set dispatch_retry_at = now() - interval '1 second'
 where id = 'f9000000-0000-4000-8000-000000000004';
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select results_eq(
   $$ select push_pending, email_pending from public.claim_notifications(10, 60) $$,
   $$ values (false, true) $$,
@@ -324,6 +331,7 @@ update public.notifications set dispatched_at = now() where id = 'f9000000-0000-
 
 -- Invalid tokens.
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is(
   public.delete_push_tokens(array['ExponentPushToken[bbbbbbbbbbbb]', 'ExponentPushToken[zzzzzzzzzzzz]']),
   1, 'delete_push_tokens removes the tokens that exist'

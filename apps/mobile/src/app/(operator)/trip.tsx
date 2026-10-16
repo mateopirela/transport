@@ -21,7 +21,7 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import {
@@ -52,7 +52,13 @@ import {
 } from '../../lib/evidence-sync';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
-import { loadOperatorTrip, reportIncident, type OperatorTrip } from '../../lib/trip-api';
+import {
+  incidentAttempt,
+  loadOperatorTrip,
+  reportIncident,
+  type IncidentAttempt,
+  type OperatorTrip,
+} from '../../lib/trip-api';
 import {
   effectiveStatus,
   effectiveUnloadEstimate,
@@ -225,6 +231,9 @@ function TripView({
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
+  // The incident report not confirmed yet: retrying it unchanged keeps its
+  // idempotency key; an edited report gets a new one (see incidentAttempt).
+  const lastIncident = useRef<IncidentAttempt | null>(null);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -421,7 +430,16 @@ function TripView({
     try {
       // Optional: never prompts for permission just for an incident.
       const located = await currentPosition({ ask: false });
-      await reportIncident(supabase, trip.id, values, located.ok ? located.position : null);
+      const attempt = incidentAttempt(lastIncident.current, trip.id, values, randomUUID);
+      lastIncident.current = attempt;
+      await reportIncident(
+        supabase,
+        trip.id,
+        values,
+        located.ok ? located.position : null,
+        attempt.key,
+      );
+      lastIncident.current = null;
       setIncidentMessage({ tone: 'info', text: copy.incidentSent });
       await onReload();
       return true;

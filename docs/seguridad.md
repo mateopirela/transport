@@ -40,7 +40,7 @@ Los cuatro buckets son privados y limitan tamaño y tipo MIME. No hay políticas
 
 ## Funciones `security definer`
 
-Se revisaron las 54 que podían llamar los clientes (55 con `consume_rate_limit`, de este bloque; incluye `track_product_event` de B25, que solo registra eventos del propio usuario) y las 14 que solo usa la service role (triggers y RPC de Edge Functions). Las cron (`expire_stale_loads`, `process_document_expiry`, `remind_stale_trip_locations`, `invoke_notification_dispatcher`) no son ejecutables por ningún rol de la API.
+Se revisaron las 54 que podían llamar los clientes (55 con `consume_rate_limit`, de este bloque; incluye `track_product_event` de B25, que solo registra eventos del propio usuario) y las 14 que solo usa la service role (triggers y RPC de Edge Functions). Las cron (`expire_stale_loads`, `process_document_expiry`, `remind_stale_trip_locations`, `invoke_notification_dispatcher`) no son ejecutables por ningún rol de la API. Las RPC de Edge Functions (`claim_notifications`, `record_notification_dispatch`, `delete_push_tokens`, `consume_service_rate_limit`) no dependen solo del permiso de ejecución: además exigen el claim `role = service_role` del JWT (F2), así que un `grant` accidental a `authenticated` no las abre.
 
 Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita de rol y empresa antes de leer o escribir, error `42501` sin revelar si la fila existe, revocadas de `PUBLIC` y `anon`, y escritas en SQL o PL/pgSQL. Todas cumplen. La suite 18 guarda el inventario: una función nueva que los clientes puedan ejecutar hace fallar CI hasta que se revisa y se agrega a la lista (y a la matriz).
 

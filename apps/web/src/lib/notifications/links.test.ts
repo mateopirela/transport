@@ -32,6 +32,7 @@ describe('notificationHref', () => {
     ).toBeNull();
     expect(notificationHref('trip_assigned', null)).toBeNull();
     expect(notificationHref('document_rejected', { loadId: LOAD })).toBeNull();
+    expect(notificationHref('trip_unassigned', { loadId: LOAD })).toBeNull();
   });
 
   it('handles every notification type', () => {

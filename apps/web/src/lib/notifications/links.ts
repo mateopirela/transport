@@ -28,10 +28,12 @@ export function notificationHref(type: NotificationType, data: unknown): string 
       if (tripId) return tripPath(tripId);
       return loadId && loadPath(loadId);
     }
-    // Carrier-only (matching), operator-only (location reminder, B09) or
-    // company documents, which have no screen for an approved shipper.
+    // Carrier-only (matching), operator-only (location reminder, B09; taken
+    // off a trip, F2) or company documents, which have no screen for an
+    // approved shipper.
     case 'load_match':
     case 'trip_location_stale':
+    case 'trip_unassigned':
     case 'document_approved':
     case 'document_rejected':
     case 'document_expiring':

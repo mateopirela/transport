@@ -85,6 +85,11 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         title: 'Viaje asignado',
         body: `Se te asignó el viaje${route(data)}. Revisa los detalles antes de salir.`,
       };
+    case 'trip_unassigned':
+      return {
+        title: 'Viaje reasignado',
+        body: `El viaje${route(data)} se asignó a otro operador. Ya no lo tienes a tu cargo.`,
+      };
     case 'trip_status_changed': {
       const step = tripStep(data);
       return {

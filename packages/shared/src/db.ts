@@ -2465,6 +2465,7 @@ export interface Database {
       remind_stale_trip_locations: { Args: { p_stale_after?: string }; Returns: number };
       report_incident: {
         Args: {
+          p_client_event_id?: string;
           p_description: string;
           p_kind: Database['public']['Enums']['incident_kind'];
           p_latitude?: number;
@@ -2600,6 +2601,10 @@ export interface Database {
       };
       unregister_push_token: { Args: { p_token: string }; Returns: undefined };
       update_load: { Args: { p_load: Json; p_load_id: string }; Returns: undefined };
+      vehicle_committed_elsewhere: {
+        Args: { p_trip_id: string; p_vehicle_id: string };
+        Returns: boolean;
+      };
       vehicle_expired_requirements: {
         Args: { p_vehicle_id: string };
         Returns: {
@@ -2697,7 +2702,8 @@ export interface Database {
         | 'document_approved'
         | 'document_rejected'
         | 'document_expiring'
-        | 'trip_location_stale';
+        | 'trip_location_stale'
+        | 'trip_unassigned';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -2946,6 +2952,7 @@ export const Constants = {
         'document_rejected',
         'document_expiring',
         'trip_location_stale',
+        'trip_unassigned',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHAT_ATTACHMENT_PATH,
   chatAttachmentPath,
+  chatSenderLabel,
   isAttachmentOfConversation,
   isChatAttachmentType,
   isMessageReadBy,
@@ -69,5 +70,28 @@ describe('read receipts', () => {
   it('treats a participant without marker as unread', () => {
     expect(isMessageReadBy('2026-11-02T10:00:00Z', null)).toBe(false);
     expect(isMessageReadBy('2026-11-02T10:00:00Z', undefined)).toBe(false);
+  });
+});
+
+describe('chatSenderLabel', () => {
+  const ME = 'a7000000-0000-4000-8000-000000000001';
+  const OTHER = 'a7000000-0000-4000-8000-000000000002';
+
+  it('labels the viewer, the other roles and a deleted account', () => {
+    expect(chatSenderLabel({ sender_id: ME, sender_role: 'shipper' }, ME)).toBe('Tú');
+    expect(chatSenderLabel({ sender_id: OTHER, sender_role: 'carrier' }, ME)).toBe('Transportista');
+    expect(chatSenderLabel({ sender_id: OTHER, sender_role: 'operator' }, ME)).toBe('Operador');
+    expect(chatSenderLabel({ sender_id: null, sender_role: 'carrier' }, ME)).toBe(
+      'Cuenta eliminada',
+    );
+  });
+
+  it('never takes a message without a sender as the viewer’s', () => {
+    expect(chatSenderLabel({ sender_id: null, sender_role: 'shipper' }, null)).toBe(
+      'Cuenta eliminada',
+    );
+    expect(chatSenderLabel({ sender_id: null, sender_role: 'shipper' }, undefined)).toBe(
+      'Cuenta eliminada',
+    );
   });
 });

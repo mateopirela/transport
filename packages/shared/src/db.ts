@@ -751,7 +751,7 @@ export interface Database {
           conversation_id: string;
           created_at: string;
           id: string;
-          sender_id: string;
+          sender_id: string | null;
           sender_role: Database['public']['Enums']['user_role'];
         };
         ComputedFields: never;
@@ -762,7 +762,7 @@ export interface Database {
           conversation_id: string;
           created_at?: string;
           id?: string;
-          sender_id: string;
+          sender_id?: string | null;
           sender_role: Database['public']['Enums']['user_role'];
         };
         Update: {
@@ -772,7 +772,7 @@ export interface Database {
           conversation_id?: string;
           created_at?: string;
           id?: string;
-          sender_id?: string;
+          sender_id?: string | null;
           sender_role?: Database['public']['Enums']['user_role'];
         };
         Relationships: [

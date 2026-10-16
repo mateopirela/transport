@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '../providers/session';
 import { colors, spacing } from '../theme';
+import { LegalLinks } from './legal-links';
 import { Button, Screen, Title } from './ui';
 
 /** "Más" tab: who is signed in, and sign-out. `children` go above the account card. */
@@ -43,6 +44,7 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
         onPress={signOut}
         loading={signingOut}
       />
+      <LegalLinks />
     </Screen>
   );
 }

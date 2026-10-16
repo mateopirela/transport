@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
+import { LegalLinks } from '../../components/legal-links';
 import { Button, Field, Notice, Screen, Title } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
@@ -90,6 +91,7 @@ export default function SignUp() {
         textContentType="newPassword"
       />
       <Button label={copy.signUpAction} onPress={submit} loading={submitting} />
+      <LegalLinks consent />
       <Button label={copy.goToSignIn} variant="link" onPress={() => router.replace('/sign-in')} />
     </Screen>
   );

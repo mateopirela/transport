@@ -25,3 +25,6 @@ blob-report/
 
 # Local agent worktrees
 .claude/worktrees/
+
+# Vercel CLI (B27): `vercel pull` writes environment variables here
+.vercel/

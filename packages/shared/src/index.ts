@@ -12,6 +12,7 @@ export * from './formatters';
 export * from './geo';
 export * from './invitation-code';
 export * from './kpis';
+export * from './legal';
 export * from './matching';
 export * from './money';
 export * from './observability';

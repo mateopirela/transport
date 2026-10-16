@@ -505,11 +505,20 @@ as $$
       from (
         -- F2: the next trip of the unit (booked or assigned, not started
         -- yet) comes before the one in progress, whatever their estimates:
-        -- the unit is free only once it has done both.
+        -- the unit is free only once it has done both, so it starts where the
+        -- next trip ends, and not before any of its trips ends.
         select case when t.status in ('pending_assignment', 'assigned') then 1 else 2 end as priority,
                null::uuid as availability_id, l.destination_location as location,
                l.destination_city as city, l.destination_state as state,
-               coalesce(t.estimated_unload_end_at, l.delivery_window_end) as available_from,
+               greatest(
+                 coalesce(t.estimated_unload_end_at, l.delivery_window_end),
+                 (select max(coalesce(t2.estimated_unload_end_at, l2.delivery_window_end))
+                  from public.trips t2
+                  join public.loads l2 on l2.id = t2.load_id
+                  where t2.vehicle_id = u.id
+                    and t2.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
+                                      'at_delivery', 'unloading'))
+               ) as available_from,
                true as is_return_trip, l.origin_location as home_location
         from public.trips t
         join public.loads l on l.id = t.load_id

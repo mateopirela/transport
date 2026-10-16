@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(40);
+select plan(41);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -264,12 +264,23 @@ select results_eq(
   $$ values ('Monterrey', true) $$,
   'matching starts the booked unit from the trip it is booked for'
 );
+-- Trip A runs late (ends at +5 days, after trip B's window): V still starts
+-- from trip B, but not before trip A ends.
+set local role authenticated;
+select tests.login('af200000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load_d', public.create_load(tests.payload(false, 6));
+select public.publish_load(tests.val('load_d'));
+reset role;
 update public.trips set estimated_unload_end_at = now() + interval '5 days' where id = tests.val('trip_a');
+select is_empty(
+  $$ select 1 from public.match_pairs('ef200000-0000-4000-8000-000000000001', tests.val('load_c'), 1000) $$,
+  'a load whose pickup closes before the late trip ends is not offered'
+);
 select results_eq(
-  $$ select start_city, is_return_trip from public.match_pairs('ef200000-0000-4000-8000-000000000001',
-                                                               tests.val('load_c'), 1000) $$,
-  $$ values ('Monterrey', true) $$,
-  'even when the current trip runs late, the booked trip decides where the unit starts'
+  $$ select start_city, available_from, is_return_trip
+     from public.match_pairs('ef200000-0000-4000-8000-000000000001', tests.val('load_d'), 1000) $$,
+  $$ values ('Monterrey', now() + interval '5 days', true) $$,
+  'when the current trip runs late, the unit starts from the booked trip once the late one ends'
 );
 update public.trips set estimated_unload_end_at = now() + interval '2 hours' where id = tests.val('trip_a');
 

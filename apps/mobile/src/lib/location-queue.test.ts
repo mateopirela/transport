@@ -117,6 +117,28 @@ describe('flushPoints', () => {
     }
   });
 
+  it('keeps the points of a trip whose departure is still queued', async () => {
+    const { store, ids } = memoryStore([point(1), point(2), point(3, TRIP_B)]);
+    const result = await flushPoints(
+      store,
+      USER,
+      (tripId) => (tripId === TRIP_A ? Promise.reject({ code: '55000' }) : Promise.resolve()),
+      { ...options, hasUnsentTripActions: (tripId) => tripId === TRIP_A },
+    );
+    expect(result).toEqual({ sent: 0, dropped: 0, closedTrips: [], stopped: true });
+    expect(ids()).toEqual([1, 2, 3]);
+  });
+
+  it('still deletes a trip without consent or assignment despite queued steps', async () => {
+    const { store, ids } = memoryStore([point(1), point(2)]);
+    const result = await flushPoints(store, USER, () => Promise.reject({ code: '42501' }), {
+      ...options,
+      hasUnsentTripActions: () => true,
+    });
+    expect(result).toEqual({ sent: 0, dropped: 2, closedTrips: [TRIP_A], stopped: false });
+    expect(ids()).toEqual([]);
+  });
+
   it('drops only the refused batch for invalid points', async () => {
     const { store, ids } = memoryStore([point(1), point(2), point(3)]);
     let call = 0;

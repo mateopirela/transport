@@ -21,6 +21,7 @@ import {
   writeTrackingState,
 } from './location-store';
 import { supabase } from './supabase';
+import { hasUnsentTripActions, syncTripQueueFor } from './trip-sync';
 
 // Background GPS of the operator's trip (B22). The OS delivers fixes to a
 // task (also with the app closed); the task keeps the useful ones in SQLite
@@ -134,6 +135,9 @@ export function flushLocations(): Promise<void> {
     const { data } = await client.auth.getSession();
     const userId = data.session?.user.id;
     if (!userId) return;
+    // Status steps first: a departure recorded offline must reach the server
+    // before the points of that trip (it only takes points of active trips).
+    await syncTripQueueFor(client, userId).catch(() => undefined);
     const result = await flushPoints(
       pointStore,
       userId,
@@ -144,7 +148,11 @@ export function flushLocations(): Promise<void> {
         });
         if (error) throw error;
       },
-      { batchSize: trackingConfig.batchSize, maxBatches: MAX_BATCHES_PER_FLUSH },
+      {
+        batchSize: trackingConfig.batchSize,
+        maxBatches: MAX_BATCHES_PER_FLUSH,
+        hasUnsentTripActions: (tripId) => hasUnsentTripActions(userId, tripId),
+      },
     );
     const state = await readTrackingState();
     if (state && result.closedTrips.includes(state.tripId)) await stopTripTracking();
@@ -175,13 +183,21 @@ export async function requestTrackingPermission(): Promise<boolean> {
   return background.granted;
 }
 
-export type StartResult = 'started' | 'needs_permission' | 'unavailable';
+export type StartResult = 'started' | 'needs_permission' | 'unavailable' | 'superseded';
+
+// Grows on every stop. A start requested before a stop never runs after it:
+// starts and stops run in call order (serial), and a start still checks that
+// no stop was requested since it was called.
+let stopCount = 0;
 
 /** Starts (or keeps) tracking `tripId` for `userId`. Call it only after trackingDecision says so. */
-export async function startTripTracking(userId: string, tripId: string): Promise<StartResult> {
-  if (!(await TaskManager.isAvailableAsync())) return 'unavailable';
-  if (!(await hasTrackingPermission())) return 'needs_permission';
-  return serial(async () => {
+export function startTripTracking(userId: string, tripId: string): Promise<StartResult> {
+  const requestedAfter = stopCount;
+  return serial(async (): Promise<StartResult> => {
+    if (stopCount !== requestedAfter) return 'superseded';
+    if (!(await TaskManager.isAvailableAsync())) return 'unavailable';
+    if (!(await hasTrackingPermission())) return 'needs_permission';
+    if (stopCount !== requestedAfter) return 'superseded';
     const current = await readTrackingState();
     const same = current?.userId === userId && current.tripId === tripId;
     await writeTrackingState({ userId, tripId, last: same ? current.last : null });
@@ -202,6 +218,7 @@ export async function startTripTracking(userId: string, tripId: string): Promise
  * window) unless `purge` is set: sign-out and withdrawn consent delete them.
  */
 export async function stopTripTracking({ purge = false } = {}): Promise<void> {
+  stopCount += 1;
   await serial(async () => {
     await writeTrackingState(null);
     if (await isTaskRunning()) await Location.stopLocationUpdatesAsync(LOCATION_TASK);

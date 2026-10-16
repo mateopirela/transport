@@ -185,7 +185,12 @@ begin
   ) then
     raise exception 'trip not found' using errcode = '42501';
   end if;
-  -- B22: no point is stored without the operator's consent (privacy).
+  -- B22: no point is stored without the operator's consent (privacy). The
+  -- key-share lock on the profile conflicts with the FOR UPDATE lock taken by
+  -- revoke_location_consent and is held until commit: a withdrawal either
+  -- waits for this batch, or commits first and this check sees it. Batches do
+  -- not block each other, nor ordinary profile updates.
+  perform 1 from public.profiles where id = (select auth.uid()) for key share;
   if not public.has_location_consent() then
     raise exception 'location consent required' using errcode = '42501';
   end if;

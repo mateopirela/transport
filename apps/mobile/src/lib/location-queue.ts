@@ -41,13 +41,24 @@ interface ErrorFields {
  * - Trip not accepting points (55000 not active, 42501 not assigned or no
  *   consent): that trip's points are deleted from the phone. They would never
  *   be accepted, and keeping location data we cannot use is a privacy cost.
+ * - "Not active" (55000) while `hasUnsentTripActions(tripId)` says the
+ *   trip still has queued status steps (a departure recorded offline): stop
+ *   and keep everything; the points are accepted once the step is sent.
  * - Any other refusal (invalid points): that batch is dropped.
  */
 export async function flushPoints(
   store: PointStore,
   userId: string,
   send: (tripId: string, points: QueuedPoint[]) => Promise<void>,
-  { batchSize, maxBatches }: { batchSize: number; maxBatches: number },
+  {
+    batchSize,
+    maxBatches,
+    hasUnsentTripActions = () => false,
+  }: {
+    batchSize: number;
+    maxBatches: number;
+    hasUnsentTripActions?: (tripId: string) => boolean;
+  },
 ): Promise<PointFlushResult> {
   const result: PointFlushResult = { sent: 0, dropped: 0, closedTrips: [], stopped: false };
   for (let i = 0; i < maxBatches; i += 1) {
@@ -64,6 +75,10 @@ export async function flushPoints(
         return result;
       }
       const { code } = error as ErrorFields;
+      if (code === '55000' && hasUnsentTripActions(first.tripId)) {
+        result.stopped = true;
+        return result;
+      }
       if (code === '55000' || code === '42501') {
         await store.removeTrip(userId, first.tripId);
         result.closedTrips.push(first.tripId);

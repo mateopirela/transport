@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(36);
+select plan(37);
 
 -- ---------------------------------------------------------------------------
 -- Table privileges
@@ -314,6 +314,13 @@ select throws_ok(
 
 reset role;
 set local role service_role;
+-- The function also checks the JWT role claim, not only the grant: here the
+-- claims are still the user's.
+select throws_ok(
+  $$ select public.consume_service_rate_limit('dispatch-notifications', 'global') $$,
+  '42501', null, 'a service bucket requires the service role claim'
+);
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select results_eq(
   $$ select public.consume_service_rate_limit('dispatch-notifications', 'global') > 0
      from generate_series(1, 11) g order by g $$,

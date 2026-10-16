@@ -51,7 +51,7 @@ Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita 
 | `recommendations` | 30 llamadas por minuto | Usuario (`auth.uid()` del JWT) | `429` con `Retry-After`. La app ordena los candidatos con distancias estimadas, sin gastar Routes |
 | `dispatch-notifications` | 10 ejecuciones por minuto | Global | `429`. pg_cron vuelve a intentar al minuto siguiente |
 
-Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acceso directo de clientes) mediante `consume_rate_limit` (con el JWT del usuario) y `consume_service_rate_limit` (solo service role). Los límites viven en `rate_limit_policy`, así que el cliente no puede elegirlos. Si el contador no responde, las funciones fallan cerradas (`502`). La ventana vigente se decide con la fila bloqueada y nunca retrocede: una llamada atrasada del minuto anterior cuenta en la ventana nueva en lugar de reiniciarla.
+Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acceso directo de clientes) mediante `consume_rate_limit` (con el JWT del usuario) y `consume_service_rate_limit` (solo service role: el permiso de ejecución y, además, el claim `role` del JWT). Los límites viven en `rate_limit_policy`, así que el cliente no puede elegirlos. Si el contador no responde, las funciones fallan cerradas (`502`). La ventana vigente se decide con la fila bloqueada y nunca retrocede: una llamada atrasada del minuto anterior cuenta en la ventana nueva en lugar de reiniciarla.
 
 Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit]` en `supabase/config.toml`).
 

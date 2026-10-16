@@ -151,6 +151,11 @@ as $$
 declare
   v_policy record;
 begin
+  -- Explicit caller check on top of the grants: only the service role key
+  -- (its JWT role claim) may consume service buckets.
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service role required' using errcode = '42501';
+  end if;
   select * into v_policy from public.rate_limit_policy(p_bucket);
   if v_policy.scope is distinct from 'service' then
     raise exception 'unknown rate limit bucket' using errcode = '22023';

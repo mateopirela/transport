@@ -7,6 +7,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "android": { "buildType": "apk" }
     },
     "development-simulator": {
@@ -15,13 +16,20 @@
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
+      "env": { "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "staging" },
       "android": { "buildType": "apk" }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "environment": "production",
+      "env": { "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production" }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {},
+      "android": { "track": "internal", "releaseStatus": "draft" }
+    }
   }
 }

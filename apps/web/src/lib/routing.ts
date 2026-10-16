@@ -2,7 +2,7 @@
 // proxy (optimistic redirects) and the layouts (authoritative checks) share
 // one definition and it can be unit-tested. Data access itself is enforced
 // by RLS in Postgres; this only decides which screens a user may open.
-import type { UserRole, VerificationStatus } from '@transport/shared';
+import { LEGAL_PATHS, type UserRole, type VerificationStatus } from '@transport/shared';
 
 export const paths = {
   home: '/',
@@ -26,6 +26,8 @@ export const paths = {
   adminTrips: '/admin/viajes',
   adminIncidents: '/admin/incidencias',
   mobileOnly: '/solo-app',
+  privacy: LEGAL_PATHS.privacy,
+  terms: LEGAL_PATHS.terms,
 } as const;
 
 /** Shipper load detail and edit screens (B13). */
@@ -66,8 +68,11 @@ export type Viewer = {
 /** Screens for signed-out visitors; a signed-in user is sent to their home. */
 const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.checkEmail];
 
-/** Open to everyone: auth callbacks must work with or without a session. */
-const PUBLIC = ['/auth'];
+/**
+ * Open to everyone: auth callbacks must work with or without a session, and
+ * the legal pages (B27) are linked from the stores and the mobile app.
+ */
+const PUBLIC = ['/auth', paths.privacy, paths.terms];
 
 /** Areas that only one kind of user may open: their home. */
 const HOME_ONLY = [paths.shipper, paths.review, paths.completeCompany, paths.mobileOnly] as const;

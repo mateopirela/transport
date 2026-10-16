@@ -1,0 +1,41 @@
+name: Release production
+
+# B27: manual production release. Run it from main (after staging is checked)
+# or from a release tag `v*` (to re-deploy an older release; then turn off
+# `migrate`, migrations are forward-only). The `production` environment should
+# require a reviewer, so the run waits for approval before touching anything.
+# docs/release.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrate:
+        description: Apply pending migrations (turn off to re-deploy an older release)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: check the release ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Only main or a v* tag can be released
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/heads/main | refs/tags/v*) echo "Releasing $REF" ;;
+            *) echo "::error::Release from main or a v* tag, not $REF." && exit 1 ;;
+          esac
+
+  production:
+    needs: guard
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      migrate: ${{ inputs.migrate }}
+    secrets: inherit

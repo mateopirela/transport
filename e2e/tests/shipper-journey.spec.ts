@@ -50,12 +50,21 @@ async function uploadMissingDocuments(page: Page) {
     .filter({ has: page.getByRole('button', { name: onboardingCopy.documents.upload }) });
   await expect(forms.first()).toBeVisible();
   for (let left = await forms.count(); left > 0; left -= 1) {
-    const form = forms.first();
-    await form.getByLabel(onboardingCopy.documents.file).setInputFiles(SAMPLE_PDF);
-    const expiry = form.getByLabel(onboardingCopy.documents.expiresOn);
-    if ((await expiry.count()) > 0) await expiry.fill(toDateInput(hoursFromNow(24 * 365)));
-    await form.getByRole('button', { name: onboardingCopy.documents.upload }).click();
-    await expect(forms).toHaveCount(left - 1);
+    // The refresh that follows the previous upload can re-render the next
+    // form after its file was chosen, clearing the input. Retry the upload
+    // until that document leaves the list (skipping it if it already did).
+    await expect(async () => {
+      if ((await forms.count()) < left) return;
+      const form = forms.first();
+      const short = { timeout: 5_000 };
+      await form.getByLabel(onboardingCopy.documents.file).setInputFiles(SAMPLE_PDF, short);
+      const expiry = form.getByLabel(onboardingCopy.documents.expiresOn);
+      if ((await expiry.count()) > 0) {
+        await expiry.fill(toDateInput(hoursFromNow(24 * 365)), short);
+      }
+      await form.getByRole('button', { name: onboardingCopy.documents.upload }).click(short);
+      await expect(forms).toHaveCount(left - 1, { timeout: 10_000 });
+    }).toPass({ timeout: 60_000 });
   }
 }
 

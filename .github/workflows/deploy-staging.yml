@@ -1,0 +1,19 @@
+name: Deploy staging
+
+# B27: every merge to main goes to staging (migrations, Edge Functions and the
+# web app). Production is a manual release (release.yml). docs/release.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+    secrets: inherit

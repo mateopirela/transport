@@ -45,6 +45,14 @@ describe('resolveRoute', () => {
     }
   });
 
+  it('opens the legal pages to everyone, signed in or not (B27)', () => {
+    for (const viewer of [null, admin, approvedShipper, pendingShipper, carrier, operator]) {
+      expect(resolveRoute('/aviso-de-privacidad', viewer)).toBeNull();
+      expect(resolveRoute('/terminos', viewer)).toBeNull();
+    }
+    expect(resolveRoute('/terminos-falsos', null)).toBe('/login?next=%2Fterminos-falsos');
+  });
+
   it('sends signed-in users away from the guest screens', () => {
     expect(resolveRoute('/login', approvedShipper)).toBe(paths.shipper);
     expect(resolveRoute('/registro', admin)).toBe(paths.admin);

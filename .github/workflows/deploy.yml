@@ -1,0 +1,164 @@
+name: Deploy (reusable)
+
+# B27. One deployment of the platform to a cloud environment, in order:
+#   1. Supabase migrations (`supabase db push`, never the demo seed),
+#   2. Edge Functions,
+#   3. the web app on Vercel.
+# Called by deploy-staging.yml (every merge to main) and release.yml (manual,
+# production). Runbook: docs/release.md.
+#
+# Credentials are GitHub Environment secrets (environments `staging` and
+# `production`), so only jobs bound to that environment can read them and
+# production can require a reviewer. While a group of secrets is missing (the
+# cloud projects do not exist yet), its steps are skipped with a notice and
+# the run stays green; a partially configured group fails instead.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging or production
+        required: true
+        type: string
+      migrate:
+        description: Apply pending migrations (false when re-deploying an older release)
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  deploy:
+    name: deploy (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    # Never cancel a deployment halfway (e.g. between migrations and functions).
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: Check which credentials are configured
+        id: config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Prints only whether each group is complete, never the values.
+          check() {
+            local group=$1; shift
+            local set=0
+            for name in "$@"; do [ -n "${!name}" ] && set=$((set + 1)); done
+            if [ "$set" -eq "$#" ]; then
+              echo "$group=true" >> "$GITHUB_OUTPUT"
+            elif [ "$set" -eq 0 ]; then
+              echo "::notice::$group is not configured for this environment: skipping it (docs/release.md)."
+              echo "$group=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::$group is partially configured: set all of $* (docs/release.md)."
+              exit 1
+            fi
+          }
+          check supabase SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF SUPABASE_DB_PASSWORD
+          check vercel VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.config.outputs.supabase == 'true' || steps.config.outputs.vercel == 'true'
+        with:
+          persist-credentials: false
+
+      # --- Supabase: migrations, then Edge Functions ----------------------------
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        if: steps.config.outputs.supabase == 'true'
+        with:
+          version: 2.121.0
+
+      - name: Link the Supabase project
+        if: steps.config.outputs.supabase == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      # The list of pending migrations goes to the job log before anything runs.
+      # Migrations are forward-only: a bad one is fixed with a new migration
+      # (docs/release.md, "Rollback").
+      - name: List pending migrations (dry run)
+        if: steps.config.outputs.supabase == 'true' && inputs.migrate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --linked --dry-run
+
+      # No --include-seed: supabase/seed.sql is demo data and never reaches the cloud.
+      - name: Apply migrations
+        if: steps.config.outputs.supabase == 'true' && inputs.migrate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --linked --yes
+
+      # Function secrets (Routes, Resend, Sentry, dispatch secret) are set once in
+      # the Supabase dashboard, not here: CI never handles them.
+      - name: Deploy Edge Functions
+        if: steps.config.outputs.supabase == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      # --- Web: Vercel (prebuilt on the runner, deployed with the CLI) -----------
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: steps.config.outputs.vercel == 'true'
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.config.outputs.vercel == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.config.outputs.vercel == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # Staging uses Vercel's Preview environment variables (staging Supabase),
+      # production its Production ones. The variables live in Vercel, not here.
+      - name: Build and deploy the web app
+        if: steps.config.outputs.vercel == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TELEMETRY_DISABLED: 1
+          TARGET: ${{ inputs.environment }}
+          STAGING_ALIAS: ${{ vars.WEB_STAGING_ALIAS }}
+        run: |
+          vercel() { npx --yes vercel@63.1.2 "$@"; }
+          if [ "$TARGET" = production ]; then
+            vercel pull --yes --environment=production
+            vercel build --prod
+            url=$(vercel deploy --prebuilt --prod)
+          else
+            vercel pull --yes --environment=preview
+            vercel build
+            url=$(vercel deploy --prebuilt)
+            if [ -n "$STAGING_ALIAS" ]; then vercel alias set "$url" "$STAGING_ALIAS"; fi
+          fi
+          echo "Web ($TARGET): $url" >> "$GITHUB_STEP_SUMMARY"
+
+      # `vercel pull` writes the environment's variables to .vercel/: remove them
+      # even when the build fails.
+      - name: Remove pulled Vercel settings
+        if: always() && steps.config.outputs.vercel == 'true'
+        run: rm -rf .vercel apps/web/.vercel

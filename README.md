@@ -12,6 +12,8 @@ Plataforma inteligente de transporte de carga para México: conecta empresas que
 | [docs/plan-v1.md](docs/plan-v1.md)         | Plan de implementación por bloques (PRs), olas, arquitectura y modelo de datos |
 | [docs/decisiones.md](docs/decisiones.md)   | Registro de decisiones confirmadas y pendientes                                |
 | [docs/demo-local.md](docs/demo-local.md)   | Datos demo MTY ↔ GDL de la base local: usuarios, contraseña y escenarios       |
+| [docs/release.md](docs/release.md)         | Entornos, despliegue a staging y producción, y rollback (B27)                  |
+| [docs/tiendas.md](docs/tiendas.md)         | Fichas de App Store y Google Play, justificación de ubicación                  |
 | [docs/fuentes/](docs/fuentes/)             | Deck original, notas de la reunión inicial y análisis                          |
 
 ## Stack

@@ -8,6 +8,7 @@ export * from './catalogs';
 export * from './client-trips';
 export * from './errors';
 export * from './fleet';
+export * from './legal';
 export * from './loads';
 export * from './matching';
 export * from './mobile';

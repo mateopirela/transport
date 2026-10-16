@@ -12,10 +12,22 @@ import { confirmDelivery, reportIncident } from '@/lib/trips/actions';
 
 const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
-/** Confirms the delivery of a delivered trip, with optional notes. */
-export function ConfirmDeliveryForm({ tripId }: { tripId: string }) {
+/**
+ * Confirms the delivery of a delivered trip, with optional notes. Every submit
+ * of the same confirmation carries the same clientEventId, so a double submit
+ * or a retry after an error shows success instead of a status error.
+ */
+export function ConfirmDeliveryForm({
+  tripId,
+  clientEventId,
+}: {
+  tripId: string;
+  /** First attempt key (a fresh UUID from the server render). */
+  clientEventId: string;
+}) {
   const c = clientTripsCopy.delivery;
   const [state, action, pending] = useActionState(confirmDelivery, {});
+  const attemptKey = useAttemptKey(clientEventId, state);
   const notesError = state.fieldErrors?.notes;
   return (
     <form action={action} className="space-y-3 rounded-xl border bg-card p-4" noValidate>
@@ -24,6 +36,7 @@ export function ConfirmDeliveryForm({ tripId }: { tripId: string }) {
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <input type="hidden" name="tripId" value={tripId} />
+      <input type="hidden" name="clientEventId" value={attemptKey} />
       <div className="space-y-1.5">
         <Label htmlFor="delivery-notes">{c.notes}</Label>
         <textarea

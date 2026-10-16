@@ -43,7 +43,7 @@ export type TripLoad = Pick<
 
 export type TripEventRow = Pick<
   Tables<'trip_events'>,
-  'id' | 'event_type' | 'occurred_at' | 'estimated_unload_end_at' | 'notes'
+  'id' | 'event_type' | 'occurred_at' | 'estimated_unload_end_at' | 'notes' | 'client_event_id'
 >;
 
 export type IncidentRow = Pick<
@@ -106,7 +106,7 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
   const [events, incidents, vehicle] = await Promise.all([
     client
       .from('trip_events')
-      .select('id, event_type, occurred_at, estimated_unload_end_at, notes')
+      .select('id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id')
       .eq('trip_id', trip.id)
       .order('occurred_at')
       .order('recorded_at'),

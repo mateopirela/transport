@@ -7,22 +7,34 @@ import { isOffline } from './network';
 import { tripQueueStorage } from './secure-store';
 import type { Supabase } from './supabase';
 import { sendQueuedAction, type OperatorTrip } from './trip-api';
-import { flushQueue, parseQueue, type QueuedAction } from './trip-queue';
+import {
+  flushQueue,
+  parseStoredQueue,
+  pruneSent,
+  type QueuedAction,
+  type StoredQueue,
+} from './trip-queue';
 
 // Runtime of the operator's offline queue (B21): one queue per signed-in user,
 // persisted in encrypted storage, sent in order when there is connection.
 
-export interface TripQueueState {
+export interface TripQueueState extends StoredQueue {
   userId: string | null;
   ready: boolean;
-  queue: readonly QueuedAction[];
   /** Actions the server refused, until the operator dismisses the notice. */
   rejected: readonly QueuedAction[];
   /** Grows every time something reached the server (the screen reloads). */
   syncCount: number;
 }
 
-const EMPTY: TripQueueState = { userId: null, ready: false, queue: [], rejected: [], syncCount: 0 };
+const EMPTY: TripQueueState = {
+  userId: null,
+  ready: false,
+  pending: [],
+  sent: [],
+  rejected: [],
+  syncCount: 0,
+};
 
 let state: TripQueueState = EMPTY;
 const listeners = new Set<() => void>();
@@ -42,7 +54,8 @@ function persist(userId: string): Promise<void> {
   const run = writes.then(async () => {
     // Before the stored queue is read, writing would overwrite it.
     if (state.userId !== userId || !state.ready) return;
-    await storage.setItem(storageKey(userId), JSON.stringify(state.queue));
+    const stored: StoredQueue = { pending: state.pending, sent: state.sent };
+    await storage.setItem(storageKey(userId), JSON.stringify(stored));
   });
   writes = run.catch(() => undefined);
   return run;
@@ -53,8 +66,14 @@ async function loadQueue(userId: string): Promise<void> {
   setState({ ...EMPTY, userId });
   const raw = await storage.getItem(storageKey(userId)).catch(() => null);
   if (state.userId !== userId) return;
-  const queuedMeanwhile = state.queue;
-  setState({ ...state, ready: true, queue: [...parseQueue(raw), ...queuedMeanwhile] });
+  const stored = parseStoredQueue(raw);
+  const queuedMeanwhile = state.pending;
+  setState({
+    ...state,
+    ready: true,
+    pending: [...stored.pending, ...queuedMeanwhile],
+    sent: stored.sent,
+  });
   if (queuedMeanwhile.length > 0) await persist(userId).catch(() => undefined);
 }
 
@@ -65,7 +84,7 @@ async function loadQueue(userId: string): Promise<void> {
 export async function enqueueTripAction(action: QueuedAction): Promise<boolean> {
   const { userId } = state;
   if (!userId) throw new Error('no signed-in user for the trip queue');
-  setState({ ...state, queue: [...state.queue, action] });
+  setState({ ...state, pending: [...state.pending, action] });
   try {
     await persist(userId);
     return true;
@@ -74,39 +93,78 @@ export async function enqueueTripAction(action: QueuedAction): Promise<boolean> 
   }
 }
 
+/**
+ * After loading the trip from the server: forgets the sent actions that its
+ * timeline already shows (or that belong to another trip).
+ */
+export function confirmLoadedTrip(userId: string, trip: OperatorTrip | null): void {
+  if (state.userId !== userId || !state.ready) return;
+  const sent = pruneSent(
+    state.sent,
+    trip
+      ? {
+          id: trip.id,
+          recordedIds: new Set(trip.events.flatMap((e) => e.client_event_id ?? [])),
+        }
+      : null,
+  );
+  if (sent.length === state.sent.length) return;
+  setState({ ...state, sent });
+  void persist(userId).catch(() => undefined);
+}
+
 export function dismissRejected(): void {
   setState({ ...state, rejected: [] });
+}
+
+/** Thrown to stop sending when the session no longer belongs to the queue's user. */
+class QueueOwnerChangedError extends Error {}
+
+async function runFlush(client: Supabase): Promise<void> {
+  for (;;) {
+    const { userId, pending } = state;
+    if (!userId || !state.ready || pending.length === 0) return;
+    const result = await flushQueue(pending, async (action) => {
+      // Never send one user's actions with another session (or none): the
+      // server would refuse them and they would be dropped. The error has no
+      // code, so it counts as retryable and the rest waits for the next login.
+      const { data } = await client.auth.getSession();
+      if (state.userId !== userId || data.session?.user.id !== userId) {
+        throw new QueueOwnerChangedError('the session changed');
+      }
+      await sendQueuedAction(client, action);
+    });
+    // Signed out meanwhile: the stored queue keeps every unsent action, and the
+    // sent ones are idempotent on their id if they go again.
+    if (state.userId !== userId) return;
+    const sentIds = new Set(result.sent);
+    const done = new Set([...sentIds, ...result.rejected.map((a) => a.id)]);
+    setState({
+      ...state,
+      pending: state.pending.filter((a) => !done.has(a.id)),
+      // Kept until a loaded trip shows them (confirmLoadedTrip).
+      sent: [...state.sent, ...state.pending.filter((a) => sentIds.has(a.id))],
+      rejected: [...state.rejected, ...result.rejected],
+      syncCount: state.syncCount + (done.size > 0 ? 1 : 0),
+    });
+    // If this write fails, sent actions may be sent again: the RPCs are
+    // idempotent on the action id.
+    await persist(userId).catch(() => undefined);
+    // Stop on a retryable failure; otherwise send what was queued meanwhile.
+    if (result.stopped) return;
+  }
 }
 
 let flushing: Promise<void> | null = null;
 
 /** Sends the queue in order; concurrent calls share the same run. */
 export function flushTripQueue(client: Supabase): Promise<void> {
-  flushing ??= (async () => {
-    try {
-      for (;;) {
-        const { userId, queue } = state;
-        if (!userId || !state.ready || queue.length === 0) return;
-        const result = await flushQueue(queue, (action) => sendQueuedAction(client, action));
-        if (state.userId !== userId) return;
-        const done = new Set([...result.sent, ...result.rejected.map((a) => a.id)]);
-        setState({
-          ...state,
-          queue: state.queue.filter((a) => !done.has(a.id)),
-          rejected: [...state.rejected, ...result.rejected],
-          syncCount: state.syncCount + (done.size > 0 ? 1 : 0),
-        });
-        // If this write fails, sent actions may be sent again: the RPCs are
-        // idempotent on the action id.
-        await persist(userId).catch(() => undefined);
-        // Stop on a retryable failure; otherwise send what was queued meanwhile.
-        if (result.stopped) return;
-      }
-    } finally {
-      flushing = null;
-    }
-  })();
-  return flushing;
+  if (flushing) return flushing;
+  const run = runFlush(client).finally(() => {
+    if (flushing === run) flushing = null;
+  });
+  flushing = run;
+  return run;
 }
 
 // Last trip loaded from the server, so the operator can keep recording steps

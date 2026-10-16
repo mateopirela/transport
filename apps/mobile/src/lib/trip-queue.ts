@@ -40,22 +40,59 @@ export type QueuedEstimateAction = z.output<typeof estimateAction>;
 export type QueuedAction = z.output<typeof queuedAction>;
 
 /**
- * Reads a stored queue. Entries that do not parse are dropped (a corrupt
- * entry must not block the ones after it); returns [] for anything else.
+ * What the phone keeps: actions still to send, and actions the server already
+ * accepted but that the last loaded trip does not show yet (so a reload that
+ * fails right after sending never shows a step as undone).
  */
-export function parseQueue(raw: string | null): QueuedAction[] {
-  if (!raw) return [];
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return [];
-  }
+export interface StoredQueue {
+  pending: QueuedAction[];
+  sent: QueuedAction[];
+}
+
+export const EMPTY_STORED_QUEUE: StoredQueue = { pending: [], sent: [] };
+
+function parseActions(value: unknown): QueuedAction[] {
   if (!Array.isArray(value)) return [];
+  // A corrupt entry is dropped instead of blocking the ones after it.
   return value.flatMap((entry) => {
     const parsed = queuedAction.safeParse(entry);
     return parsed.success ? [parsed.data] : [];
   });
+}
+
+/** Reads a stored queue; anything unreadable counts as empty. */
+export function parseStoredQueue(raw: string | null): StoredQueue {
+  if (!raw) return EMPTY_STORED_QUEUE;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== 'object' || value === null) return EMPTY_STORED_QUEUE;
+    const { pending, sent } = value as Record<string, unknown>;
+    return { pending: parseActions(pending), sent: parseActions(sent) };
+  } catch {
+    return EMPTY_STORED_QUEUE;
+  }
+}
+
+/**
+ * Actions a loaded trip does not reflect yet, in order: the sent ones missing
+ * from its timeline (matched by client_event_id), then the pending ones.
+ */
+export function unconfirmedActions(
+  stored: StoredQueue,
+  recordedIds: ReadonlySet<string>,
+): QueuedAction[] {
+  return [...stored.sent.filter((a) => !recordedIds.has(a.id)), ...stored.pending];
+}
+
+/**
+ * Sent actions still worth keeping after loading `trip` from the server: only
+ * the ones of that trip that its timeline does not show yet.
+ */
+export function pruneSent(
+  sent: readonly QueuedAction[],
+  trip: { id: string; recordedIds: ReadonlySet<string> } | null,
+): QueuedAction[] {
+  return sent.filter((a) => trip !== null && a.tripId === trip.id && !trip.recordedIds.has(a.id));
 }
 
 const forTrip = (queue: readonly QueuedAction[], tripId: string) =>

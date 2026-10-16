@@ -15,7 +15,7 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { Badge, SectionTitle } from '../../components/fleet-ui';
@@ -38,9 +38,12 @@ import {
   effectiveUnloadEstimate,
   isRetryableError,
   nextOccurredAt,
+  unconfirmedActions,
   type QueuedAction,
+  type StoredQueue,
 } from '../../lib/trip-queue';
 import {
+  confirmLoadedTrip,
   dismissRejected,
   enqueueTripAction,
   flushTripQueue,
@@ -80,6 +83,7 @@ export default function AssignedTripTab() {
     if (!supabase || !userId) return new Promise<never>(() => undefined);
     try {
       const trip = await loadOperatorTrip(supabase);
+      confirmLoadedTrip(userId, trip);
       void saveTripSnapshot(userId, trip);
       return trip;
     } catch (error) {
@@ -96,10 +100,30 @@ export default function AssignedTripTab() {
   }, [queue.syncCount, reload]);
 
   if (state.status === 'loading' || !queue.ready) return <Loading label={copy.refresh} />;
+
+  // Refused actions of any trip: the trip itself may no longer be shown.
+  const rejectedNotice =
+    queue.rejected.length > 0 ? (
+      <Notice tone="danger" title={copy.rejectedTitle}>
+        <Body>
+          {copy.rejectedBody(
+            queue.rejected
+              .map(
+                (a) =>
+                  tripEventTypeLabels[a.kind === 'status' ? a.event : 'unload_estimate_updated'],
+              )
+              .join(', '),
+          )}
+        </Body>
+        <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
+      </Notice>
+    ) : null;
+
   if (state.status === 'error') {
     return (
       <Screen>
         <Title>{mobileNavCopy.assignedTrip}</Title>
+        {rejectedNotice}
         <Notice tone="danger">{copy.loadFailed}</Notice>
         <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
       </Screen>
@@ -110,37 +134,40 @@ export default function AssignedTripTab() {
     return (
       <Screen>
         <Title subtitle={copy.noTrip}>{mobileNavCopy.assignedTrip}</Title>
+        {rejectedNotice}
         <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
       </Screen>
     );
   }
   return (
-    <TripView
-      key={trip.id}
-      trip={trip}
-      queue={queue.queue}
-      rejected={queue.rejected}
-      onReload={reload}
-    />
+    <TripView key={trip.id} trip={trip} stored={queue} notice={rejectedNotice} onReload={reload} />
   );
 }
 
 function TripView({
   trip,
-  queue,
-  rejected,
+  stored,
+  notice,
   onReload,
 }: {
   trip: OperatorTrip;
-  queue: readonly QueuedAction[];
-  rejected: readonly QueuedAction[];
+  stored: StoredQueue;
+  notice: ReactNode;
   onReload: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
 
-  const pending = queue.filter((a) => a.tripId === trip.id);
+  // Actions this copy of the trip does not show yet: sent ones still missing
+  // from its timeline, then the ones waiting on the phone.
+  const recordedIds = useMemo(
+    () => new Set(trip.events.flatMap((e) => e.client_event_id ?? [])),
+    [trip.events],
+  );
+  const queue = unconfirmedActions(stored, recordedIds);
+  const pendingIds = new Set(stored.pending.map((a) => a.id));
+  const pendingCount = stored.pending.filter((a) => a.tripId === trip.id).length;
   const status = effectiveStatus(trip.status, queue, trip.id);
   const estimate = effectiveUnloadEstimate(trip.estimatedUnloadEndAt, queue, trip.id);
   const next = nextOperatorEvent(status);
@@ -161,18 +188,20 @@ function TripView({
       occurredAt: e.occurred_at,
       pending: false,
     })),
-    ...pending.map((a) => ({
-      key: a.id,
-      type: a.kind === 'status' ? a.event : ('unload_estimate_updated' as const),
-      occurredAt: a.occurredAt,
-      pending: true,
-    })),
+    ...queue
+      .filter((a) => a.tripId === trip.id)
+      .map((a) => ({
+        key: a.id,
+        type: a.kind === 'status' ? a.event : ('unload_estimate_updated' as const),
+        occurredAt: a.occurredAt,
+        pending: pendingIds.has(a.id),
+      })),
   ];
 
   /** Saves the action on the phone and tries to send it right away. */
   async function enqueue(action: QueuedAction) {
-    const stored = await enqueueTripAction(action);
-    if (!stored) setMessage({ tone: 'warning', text: copy.saveFailed });
+    const saved = await enqueueTripAction(action);
+    if (!saved) setMessage({ tone: 'warning', text: copy.saveFailed });
     if (supabase) void flushTripQueue(supabase);
   }
 
@@ -268,25 +297,16 @@ function TripView({
     }
   }
 
-  const rejectedLabels = rejected
-    .filter((a) => a.tripId === trip.id)
-    .map((a) => tripEventTypeLabels[a.kind === 'status' ? a.event : 'unload_estimate_updated']);
-
   return (
     <Screen>
       <Title>{mobileNavCopy.assignedTrip}</Title>
       <Badge label={tripStatusLabels[status]} tone={status === 'delivered' ? 'success' : 'info'} />
 
-      {rejectedLabels.length > 0 ? (
-        <Notice tone="danger" title={copy.rejectedTitle}>
-          <Body>{copy.rejectedBody(rejectedLabels.join(', '))}</Body>
-          <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
-        </Notice>
-      ) : null}
+      {notice}
 
-      {pending.length > 0 ? (
+      {pendingCount > 0 ? (
         <Notice tone="warning" title={copy.pendingTitle}>
-          <Body>{copy.pendingBody(pending.length)}</Body>
+          <Body>{copy.pendingBody(pendingCount)}</Body>
           <Button
             label={copy.syncNow}
             variant="secondary"

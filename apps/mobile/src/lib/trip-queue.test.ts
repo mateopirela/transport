@@ -6,8 +6,10 @@ import {
   flushQueue,
   isRetryableError,
   nextOccurredAt,
-  parseQueue,
+  parseStoredQueue,
   pendingEvents,
+  pruneSent,
+  unconfirmedActions,
   type QueuedAction,
 } from './trip-queue';
 
@@ -38,20 +40,45 @@ function estimate(occurredAt: string, at: string): QueuedAction {
   return { kind: 'estimate', id: uuid(), tripId: TRIP, occurredAt, estimatedUnloadEndAt: at };
 }
 
-describe('parseQueue', () => {
-  it('round-trips a stored queue and drops corrupt entries', () => {
-    const queue = [
+describe('stored queue', () => {
+  it('round-trips pending and sent actions and drops corrupt entries', () => {
+    const pending = [
       step('departed', '2026-10-15T10:00:00.000Z'),
       estimate('2026-10-15T11:00:00.000Z', '2026-10-16T10:00:00.000Z'),
     ];
-    expect(parseQueue(JSON.stringify(queue))).toEqual(queue);
-    expect(parseQueue(JSON.stringify([{ kind: 'status', id: 'x' }, queue[0]]))).toEqual([queue[0]]);
+    const sent = [step('departed', '2026-10-14T10:00:00.000Z', OTHER)];
+    expect(parseStoredQueue(JSON.stringify({ pending, sent }))).toEqual({ pending, sent });
+    expect(
+      parseStoredQueue(JSON.stringify({ pending: [{ kind: 'status', id: 'x' }, pending[0]] })),
+    ).toEqual({ pending: [pending[0]], sent: [] });
   });
 
-  it('returns an empty queue for missing or invalid data', () => {
-    expect(parseQueue(null)).toEqual([]);
-    expect(parseQueue('not json')).toEqual([]);
-    expect(parseQueue('{"a":1}')).toEqual([]);
+  it('is empty for missing or invalid data', () => {
+    const empty = { pending: [], sent: [] };
+    expect(parseStoredQueue(null)).toEqual(empty);
+    expect(parseStoredQueue('not json')).toEqual(empty);
+    expect(parseStoredQueue('[1, 2]')).toEqual(empty);
+    expect(parseStoredQueue('{"pending": 1}')).toEqual(empty);
+  });
+
+  it('keeps sent actions until a loaded trip shows them', () => {
+    const departed = step('departed', '2026-10-15T10:00:00.000Z');
+    const arrived = step('arrived_at_pickup', '2026-10-15T11:00:00.000Z');
+    const other = step('departed', '2026-10-15T09:00:00.000Z', OTHER);
+    const loading = step('loading_started', '2026-10-15T12:00:00.000Z');
+    const stored = { sent: [departed, arrived, other], pending: [loading] };
+
+    // The saved trip still lacks both sent steps: it shows them as done anyway.
+    const all = unconfirmedActions(stored, new Set());
+    expect(all).toEqual([departed, arrived, other, loading]);
+    expect(effectiveStatus('assigned', all, TRIP)).toBe('loading');
+    // A fresher trip already shows the departure.
+    expect(unconfirmedActions(stored, new Set([departed.id]))).toEqual([arrived, other, loading]);
+
+    expect(pruneSent(stored.sent, { id: TRIP, recordedIds: new Set([departed.id]) })).toEqual([
+      arrived,
+    ]);
+    expect(pruneSent(stored.sent, null)).toEqual([]);
   });
 });
 

@@ -51,6 +51,21 @@ describe('read receipts', () => {
     );
   });
 
+  it('compares to the microsecond, like Postgres', () => {
+    const marker = '2026-11-02T10:00:00.123456+00:00';
+    expect(isMessageReadBy('2026-11-02T10:00:00.1235+00:00', marker)).toBe(false);
+    expect(isMessageReadBy('2026-11-02T10:00:00.123456+00:00', marker)).toBe(true);
+    expect(isMessageReadBy('2026-11-02T04:00:00.123455-06:00', marker)).toBe(true);
+    expect(isMessageReadBy('2026-11-02T10:00:00+00', '2026-11-02T10:00:00.000001Z')).toBe(true);
+  });
+
+  it('rejects malformed timestamps', () => {
+    expect(() => isMessageReadBy('ayer', '2026-11-02T10:00:00Z')).toThrow(RangeError);
+    expect(() => isMessageReadBy('2026-13-45T10:00:00Z', '2026-11-02T10:00:00Z')).toThrow(
+      RangeError,
+    );
+  });
+
   it('treats a participant without marker as unread', () => {
     expect(isMessageReadBy('2026-11-02T10:00:00Z', null)).toBe(false);
     expect(isMessageReadBy('2026-11-02T10:00:00Z', undefined)).toBe(false);

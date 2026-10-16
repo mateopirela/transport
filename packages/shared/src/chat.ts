@@ -58,14 +58,32 @@ export function isAttachmentOfConversation(path: string, conversationId: string)
   return CHAT_ATTACHMENT_PATH.exec(path)?.[1] === conversationId.toLowerCase();
 }
 
+// ISO timestamp as Postgres/PostgREST returns it, with up to microseconds.
+const TIMESTAMP = /^(.+T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}(?::?\d{2})?)$/u;
+
+/** Microseconds since the epoch, keeping the precision of Postgres timestamps. */
+function epochMicros(value: string | Date): number {
+  if (value instanceof Date) return value.getTime() * 1000;
+  const match = TIMESTAMP.exec(value);
+  // Postgres may print the offset as +00 or +0000; Date.parse needs +00:00.
+  const offset = match?.[3]?.replace(/^([+-]\d{2}):?(\d{2})?$/u, (_, h: string, m?: string) => {
+    return `${h}:${m ?? '00'}`;
+  });
+  const seconds = match ? Date.parse(`${match[1]}${offset}`) : Number.NaN;
+  if (!match || Number.isNaN(seconds)) throw new RangeError(`Invalid timestamp: ${value}`);
+  const fraction = Number((match[2] ?? '').slice(0, 6).padEnd(6, '0'));
+  return seconds * 1000 + fraction;
+}
+
 /**
  * Whether a participant has read a message, from their `message_reads`
  * marker (read receipts): read when the message is not newer than it.
+ * Compares to the microsecond, like Postgres.
  */
 export function isMessageReadBy(
   messageCreatedAt: string | Date,
   lastReadAt: string | Date | null | undefined,
 ): boolean {
   if (lastReadAt === null || lastReadAt === undefined) return false;
-  return new Date(messageCreatedAt).getTime() <= new Date(lastReadAt).getTime();
+  return epochMicros(messageCreatedAt) <= epochMicros(lastReadAt);
 }

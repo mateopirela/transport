@@ -270,6 +270,8 @@ declare
   v_path text;
   v_name text;
   v_object storage.objects%rowtype;
+  v_last_at timestamptz;
+  v_at timestamptz;
   v_id uuid;
 begin
   -- Authorize before locking: other conversations are never locked.
@@ -277,8 +279,8 @@ begin
     raise exception 'conversation not found' using errcode = '42501';
   end if;
   -- Serializes the sends of a conversation: makes the idempotency check
-  -- race-free and keeps last_message_at monotonic.
-  perform 1 from public.conversations where id = p_conversation_id for update;
+  -- race-free and the message timestamps strictly increasing.
+  select c.last_message_at into v_last_at from public.conversations c where c.id = p_conversation_id for update;
 
   if p_client_message_id is not null then
     select m.id into v_id from public.messages m
@@ -328,11 +330,16 @@ begin
     raise exception 'a message needs text or an attachment' using errcode = '22023';
   end if;
 
-  insert into public.messages (conversation_id, sender_id, sender_role, body, attachments, client_message_id)
-  values (p_conversation_id, v_uid, public.auth_role(), v_body, v_attachments, p_client_message_id)
+  -- Taken under the lock, not now() (frozen when the transaction started): a
+  -- send that waited for the lock must be newer than the one it waited for,
+  -- or a reader that already marked that one as read would skip this message.
+  v_at := greatest(clock_timestamp(), v_last_at + interval '1 microsecond');
+
+  insert into public.messages (conversation_id, sender_id, sender_role, body, attachments, client_message_id, created_at)
+  values (p_conversation_id, v_uid, public.auth_role(), v_body, v_attachments, p_client_message_id, v_at)
   returning id into v_id;
 
-  update public.conversations set last_message_at = now() where id = p_conversation_id;
+  update public.conversations set last_message_at = v_at where id = p_conversation_id;
   return v_id;
 end;
 $$;
@@ -364,8 +371,8 @@ begin
       raise exception 'message not found' using errcode = '22023';
     end if;
   else
-    -- Latest committed message, not now(): a message committed later with an
-    -- earlier created_at must not count as read.
+    -- Latest committed message, not now(): send_message stamps messages under
+    -- the conversation lock, so one still in flight is newer than all of these.
     select max(m.created_at) into v_up_to from public.messages m where m.conversation_id = p_conversation_id;
     if v_up_to is null then
       return;
@@ -396,12 +403,15 @@ as $$
 declare
   v_uid uuid := (select auth.uid());
 begin
-  if v_uid is null or not exists (select 1 from public.profiles p where p.id = v_uid) then
-    raise exception 'not authenticated' using errcode = '42501';
-  end if;
   if p_platform is null or p_token is null or char_length(p_token) > 255
      or p_token !~ '^Expo(nent)?PushToken\[[A-Za-z0-9_-]{8,}\]$' then
     raise exception 'invalid push token' using errcode = '22023';
+  end if;
+  -- Serializes the registrations of a user, so the 10-device trim below sees
+  -- every token committed before it.
+  perform 1 from public.profiles p where p.id = v_uid for no key update;
+  if v_uid is null or not found then
+    raise exception 'not authenticated' using errcode = '42501';
   end if;
 
   insert into public.push_tokens (user_id, token, platform, last_seen_at)

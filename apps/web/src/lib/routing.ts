@@ -22,6 +22,9 @@ export const paths = {
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
   adminAudit: '/admin/auditoria',
+  adminLoads: '/admin/cargas',
+  adminTrips: '/admin/viajes',
+  adminIncidents: '/admin/incidencias',
   mobileOnly: '/solo-app',
 } as const;
 
@@ -46,6 +49,9 @@ export const chatAttachmentHref = (path: string) =>
 
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;
+
+/** Admin load supervision and manual contracting (B16). */
+export const adminLoadPath = (loadId: string) => `/admin/cargas/${loadId}`;
 
 /** Admin-only redirect to a short-lived signed URL of a document's file. */
 export const adminDocumentFilePath = (documentId: string) =>

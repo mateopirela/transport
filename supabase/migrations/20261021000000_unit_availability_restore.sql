@@ -7,8 +7,10 @@
 --   2. When the commitment goes away before the trip starts (the trip is
 --      cancelled, or assigned another unit), the unit gets back the latest of
 --      those rows: the availability it would have had without the commitment.
---   3. Matching frees a unit whose current trip runs late only once it has
---      also done the trip it is booked for.
+--      Clearing the availability, or the unit setting off on a trip since,
+--      means it is not restored.
+--   3. Matching carries the delay of a late trip through every trip the unit
+--      is booked for, and frees the unit at the end of the last one.
 
 -- ---------------------------------------------------------------------------
 -- 1. Commitments end the availability and remember it
@@ -121,8 +123,9 @@ $$;
 -- Gives the unit back the availability its commitments ended: the latest row
 -- of the unit, if a commitment that no longer holds ended it. Nothing if the
 -- unit is archived, already has an availability (the carrier set one), is
--- still committed to a trip that has not started, or its latest row was
--- ended otherwise (the carrier cleared it) or by the trip it is on now.
+-- still committed to a trip that has not started, its latest row was ended
+-- otherwise (the carrier cleared it, or the unit set off on a trip since:
+-- see trips_restore_vehicle_availability) or by the trip it is on now.
 -- Same unit lock as set_trip_vehicle_availability, so the two serialize and
 -- each one sees what the other wrote.
 create function public.restore_vehicle_availability(p_vehicle_id uuid)
@@ -170,9 +173,9 @@ $$;
 revoke all on function public.restore_vehicle_availability(uuid) from public, anon, authenticated;
 
 -- A trip that has not started lets go of its unit: it is cancelled, or
--- assigned another unit (also when its accepted offer named one). A trip
--- cancelled after it started restores nothing: the unit is no longer where
--- its previous availability says. Not security definer: trips are written
+-- assigned another unit (also when its accepted offer named one). When the
+-- trip sets off, what the unit's commitments held back is forgotten: the
+-- unit is no longer where those rows say. Not security definer: trips are written
 -- only by the RPCs (see notify_trip_unassigned, F2).
 create function public.trips_restore_vehicle_availability()
 returns trigger
@@ -196,6 +199,14 @@ begin
   if v_old is not null and v_old is distinct from v_new then
     perform public.restore_vehicle_availability(v_old);
   end if;
+  -- The unit sets off: nothing written before is where it will be, so what
+  -- its commitments held back is no longer restored (even if this trip is
+  -- cancelled later).
+  if new.status not in ('pending_assignment', 'assigned', 'cancelled') then
+    update public.vehicle_availability
+    set ended_by_trip_id = null
+    where vehicle_id = new.vehicle_id and archived_at is not null and ended_by_trip_id is not null;
+  end if;
   return null;
 end;
 $$;
@@ -207,6 +218,97 @@ after update of status, vehicle_id on public.trips
 for each row
 when (old.status in ('pending_assignment', 'assigned'))
 execute function public.trips_restore_vehicle_availability();
+
+-- Clearing the availability is the carrier's call: same as B04, and what the
+-- commitments of the unit held back is no longer restored either.
+create or replace function public.clear_vehicle_availability(p_vehicle_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_vehicle public.vehicles%rowtype;
+begin
+  select * into v_vehicle from public.vehicles where id = p_vehicle_id for update;
+  if not found or v_vehicle.company_id is distinct from public.auth_fleet_company_id() then
+    raise exception 'vehicle not found' using errcode = '42501';
+  end if;
+
+  update public.vehicle_availability
+  set archived_at = coalesce(archived_at, now()), ended_by_trip_id = null
+  where vehicle_id = v_vehicle.id and (archived_at is null or ended_by_trip_id is not null);
+end;
+$$;
+
+-- Same as B06, except that it locks the unit the trip lets go (the one
+-- assigned, or named in the accepted offer) and the new one together, in
+-- id order and for update, before the trip changes: the triggers above then
+-- take no lock of their own that could cross another assignment swapping
+-- the same two units.
+create or replace function public.assign_trip(p_trip_id uuid, p_vehicle_id uuid, p_operator_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_trip public.trips;
+  v_is_admin boolean := public.is_admin();
+  v_previous uuid;
+begin
+  if not v_is_admin and not exists (
+    select 1 from public.trips t where t.id = p_trip_id and t.carrier_company_id = public.auth_fleet_company_id()
+  ) then
+    raise exception 'trip not found' using errcode = '42501';
+  end if;
+  select * into v_trip from public.trips where id = p_trip_id for update;
+  if not found then
+    raise exception 'trip not found' using errcode = '42501';
+  end if;
+  if v_trip.status not in ('pending_assignment', 'assigned') then
+    raise exception 'cannot assign a trip in status %', v_trip.status using errcode = '55000';
+  end if;
+  if not v_is_admin and not public.lock_company_approved(v_trip.carrier_company_id) then
+    raise exception 'company is not approved' using errcode = '42501';
+  end if;
+
+  -- Operator first, then units: the same order as archiving an operator
+  -- (operators_release_vehicles), so the two never deadlock. Only operators
+  -- with an account can record the trip.
+  perform 1 from public.operators o
+  where o.id = p_operator_id and o.company_id = v_trip.carrier_company_id
+    and o.archived_at is null and o.profile_id is not null
+  for share;
+  if not found then
+    raise exception 'operator not found or without account' using errcode = '22023';
+  end if;
+  v_previous := v_trip.vehicle_id;
+  if v_previous is null then
+    select o.vehicle_id into v_previous from public.offers o where o.id = v_trip.offer_id;
+  end if;
+  perform 1 from public.vehicles v
+  where v.id in (p_vehicle_id, v_previous) and v.company_id = v_trip.carrier_company_id
+  order by v.id
+  for update;
+  if not exists (
+    select 1 from public.vehicles v
+    where v.id = p_vehicle_id and v.company_id = v_trip.carrier_company_id and v.archived_at is null
+  ) then
+    raise exception 'vehicle not found' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.vehicle_expired_requirements(p_vehicle_id)) then
+    raise exception 'vehicle has expired documents' using errcode = '55000';
+  end if;
+
+  update public.trips
+  set status = 'assigned', vehicle_id = p_vehicle_id, operator_id = p_operator_id, assigned_at = now()
+  where id = v_trip.id;
+
+  insert into public.trip_events (trip_id, event_type, from_status, to_status, occurred_at, actor_id, actor_role)
+  values (v_trip.id, 'assigned', v_trip.status, 'assigned', now(), (select auth.uid()), public.auth_role());
+end;
+$$;
 
 -- One-time cleanup: the manual availability of units already committed to a
 -- trip that has not started ends, marked with that trip (F2 archived their
@@ -221,10 +323,56 @@ where a.archived_at is null
   );
 
 -- ---------------------------------------------------------------------------
--- 3. Matching: a unit booked after a late trip is free once it has done both
+-- 3. Matching: delays carry through every trip the unit is committed to
 -- ---------------------------------------------------------------------------
--- Same function as F2 except the `available_from` of a trip that has not
--- started (see the F5 note below) and the lateral `p` it uses.
+-- The trips a unit is committed to, done one after the other: the one in
+-- progress first, then those not started by the opening of their pickup
+-- window. A trip ends at its estimated end of unloading (or the end of its
+-- delivery window); one that has not started cannot start before the
+-- previous one ends, so if that is after its pickup window opens, it ends
+-- that much later (it still takes as long as its windows allow). Returns
+-- the load of the last trip and when the unit is free after all of them.
+create function public.vehicle_trip_chain_end(p_vehicle_id uuid)
+returns table (load_id uuid, available_from timestamptz)
+language sql
+stable
+set search_path = ''
+as $$
+  with recursive committed as (
+    select l.id as load_id,
+           t.status not in ('pending_assignment', 'assigned') as started,
+           coalesce(t.estimated_unload_end_at, l.delivery_window_end) as ends_at,
+           l.pickup_window_start,
+           row_number() over (
+             order by t.status not in ('pending_assignment', 'assigned') desc,
+                      case when t.status in ('pending_assignment', 'assigned') then l.pickup_window_start
+                           else coalesce(t.estimated_unload_end_at, l.delivery_window_end) end,
+                      t.id
+           ) as n
+    from public.trips t
+    join public.loads l on l.id = t.load_id
+    left join public.offers o on o.id = t.offer_id
+    where (t.vehicle_id = p_vehicle_id
+           and t.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
+                            'at_delivery', 'unloading'))
+       or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = p_vehicle_id)
+  ),
+  chain as (
+    select c.n, c.load_id, c.ends_at as free_at from committed c where c.n = 1
+    union all
+    select c.n, c.load_id,
+           case when c.started then greatest(c.ends_at, p.free_at)
+                else c.ends_at + greatest(interval '0', p.free_at - c.pickup_window_start) end
+    from chain p
+    join committed c on c.n = p.n + 1
+  )
+  select ch.load_id, ch.free_at from chain ch order by ch.n desc limit 1;
+$$;
+
+revoke all on function public.vehicle_trip_chain_end(uuid) from public, anon, authenticated;
+
+-- Same function as F2 except the `trips` branch of the starting points: the
+-- end of the unit's chain of trips (vehicle_trip_chain_end).
 create or replace function public.match_pairs(
   p_vehicle_id uuid,
   p_load_id uuid,
@@ -252,48 +400,13 @@ as $$
     cross join lateral (
       select x.*
       from (
-        -- F2: the next trip of the unit (booked or assigned, not started
-        -- yet) comes before the one in progress, whatever their estimates:
-        -- the unit is free only once it has done both, so it starts where the
-        -- next trip ends, and not before any of its trips ends.
-        select case when t.status in ('pending_assignment', 'assigned') then 1 else 2 end as priority,
-               null::uuid as availability_id, l.destination_location as location,
-               l.destination_city as city, l.destination_state as state,
-               -- F5: a trip that has not started cannot start before the
-               -- other trips of the unit end. If they end after its pickup
-               -- window opens, it ends that much later too (it still takes
-               -- as long as its windows allow, pickup to delivery).
-               case when t.status in ('pending_assignment', 'assigned') then
-                 coalesce(t.estimated_unload_end_at, l.delivery_window_end)
-                   + greatest(interval '0', coalesce(p.ends_at - l.pickup_window_start, interval '0'))
-               else greatest(coalesce(t.estimated_unload_end_at, l.delivery_window_end), p.ends_at)
-               end as available_from,
-               -- Orders the unit's trips of one priority: the last to end is
-               -- where the unit will be.
-               coalesce(t.estimated_unload_end_at, l.delivery_window_end) as ends_at,
-               true as is_return_trip, l.origin_location as home_location
-        from public.trips t
-        join public.loads l on l.id = t.load_id
-        left join public.offers o on o.id = t.offer_id
-        -- When the other trips of the unit (assigned, in progress or booked
-        -- in their accepted offer) end, the last of them.
-        left join lateral (
-          select max(coalesce(t2.estimated_unload_end_at, l2.delivery_window_end)) as ends_at
-          from public.trips t2
-          join public.loads l2 on l2.id = t2.load_id
-          left join public.offers o2 on o2.id = t2.offer_id
-          where t2.id <> t.id
-            and ((t2.vehicle_id = u.id
-                  and t2.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
-                                    'at_delivery', 'unloading'))
-                 or (t2.status = 'pending_assignment' and t2.vehicle_id is null and o2.vehicle_id = u.id))
-        ) p on true
-        where (t.vehicle_id = u.id
-               and t.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit',
-                                'at_delivery', 'unloading'))
-           -- F2: a unit booked in the accepted offer of a trip that waits for
-           -- its assignment is committed to it: it starts from that trip.
-           or (t.status = 'pending_assignment' and t.vehicle_id is null and o.vehicle_id = u.id)
+        -- F5: the unit starts where the last of its trips ends, once its
+        -- delays have carried through all of them (vehicle_trip_chain_end).
+        select 1 as priority, null::uuid as availability_id, l.destination_location as location,
+               l.destination_city as city, l.destination_state as state, c.available_from,
+               null::timestamptz as ends_at, true as is_return_trip, l.origin_location as home_location
+        from public.vehicle_trip_chain_end(u.id) c
+        join public.loads l on l.id = c.load_id
         union all
         select 3, a.id, a.location, a.city, a.state, a.available_from, a.available_from, a.source = 'trip_estimate',
                case when a.source = 'trip_estimate' then (
@@ -309,7 +422,7 @@ as $$
           and a.archived_at is null
           and (p_availability_id is null or a.id = p_availability_id)
       ) x
-      order by x.priority, x.ends_at desc
+      order by x.priority
       limit 1
     ) s
   )

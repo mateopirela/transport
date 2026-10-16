@@ -7,6 +7,8 @@
 --      and then sees the unit booked, so it writes nothing (active).
 --   3. F5: the estimate is written while the return trip is cancelled: the
 --      cancellation waits for the unit and then restores that estimate.
+--   4. F5: two assignments swap the same two units: they serialize on the
+--      units (locked in one order) instead of deadlocking.
 --
 -- The sessions need committed fixtures, so this file creates them through its
 -- own connection and deletes them at the end (same approach as
@@ -15,7 +17,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(11);
+select plan(14);
 
 create schema tests;
 
@@ -171,7 +173,8 @@ select extensions.dblink_exec('setup', $sql$
   insert into public.operators (id, company_id, profile_id, full_name) values
     ('d2f00000-0000-4000-8000-000000000003', 'c2f00000-0000-4000-8000-000000000002', 'a2f00000-0000-4000-8000-000000000003', 'Óscar Operador');
   insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
-    ('e2f00000-0000-4000-8000-000000000001', 'c2f00000-0000-4000-8000-000000000002', 'rigid', 'RCA1111', 'dry_van', 30000);
+    ('e2f00000-0000-4000-8000-000000000001', 'c2f00000-0000-4000-8000-000000000002', 'rigid', 'RCA1111', 'dry_van', 30000),
+    ('e2f00000-0000-4000-8000-000000000002', 'c2f00000-0000-4000-8000-000000000002', 'rigid', 'RCA2222', 'dry_van', 30000);
 
   insert into public.loads (id, shipper_company_id, status,
     origin_address, origin_city, origin_state, origin_lat, origin_lng,
@@ -186,7 +189,9 @@ select extensions.dblink_exec('setup', $sql$
   from (values
     ('f2f00000-0000-4000-8000-000000000001'::uuid),
     ('f2f00000-0000-4000-8000-000000000002'::uuid),
-    ('f2f00000-0000-4000-8000-000000000003'::uuid)) as l(id);
+    ('f2f00000-0000-4000-8000-000000000003'::uuid),
+    ('f2f00000-0000-4000-8000-000000000004'::uuid),
+    ('f2f00000-0000-4000-8000-000000000005'::uuid)) as l(id);
   insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id)
   select ('f2f10000-0000-4000-8000-00000000000' || right(l.id::text, 1))::uuid, l.id, 'c2f00000-0000-4000-8000-000000000001', 'c2f00000-0000-4000-8000-000000000002'
   from public.loads l where l.shipper_company_id = 'c2f00000-0000-4000-8000-000000000001';
@@ -194,7 +199,7 @@ select extensions.dblink_exec('setup', $sql$
                              vehicle_id)
   select ('f2f20000-0000-4000-8000-00000000000' || right(n.load_id::text, 1))::uuid, n.id, n.load_id,
          n.shipper_company_id, n.carrier_company_id, 'carrier', 2900000,
-         case when right(n.load_id::text, 1) <> '1' then 'e2f00000-0000-4000-8000-000000000001'::uuid end
+         case when right(n.load_id::text, 1) in ('2', '3') then 'e2f00000-0000-4000-8000-000000000001'::uuid end
   from public.negotiations n where n.shipper_company_id = 'c2f00000-0000-4000-8000-000000000001';
 $sql$);
 
@@ -301,6 +306,56 @@ select is(
   $sql$),
   'trip_estimate true',
   'and V gets back the estimate written meanwhile, its only availability'
+);
+
+-- ---------------------------------------------------------------------------
+-- 4. F5: two assignments swap the same units (trip 4: V -> W, trip 5: W -> V).
+--    Each locks both units in the same order before the trip changes, so the
+--    second waits for the first and both go through (no deadlock).
+-- ---------------------------------------------------------------------------
+select tests.begin_as('s1', 'a2f00000-0000-4000-8000-000000000001');
+select * from extensions.dblink('s1', $sql$
+  select public.accept_offer('f2f20000-0000-4000-8000-000000000004')::text
+  union all select public.accept_offer('f2f20000-0000-4000-8000-000000000005')::text
+$sql$) as t(r text);
+select extensions.dblink_exec('s1', 'commit');
+select tests.begin_as('s1', 'a2f00000-0000-4000-8000-000000000002');
+select * from extensions.dblink('s1', $sql$
+  select public.assign_trip(t.id, case t.offer_id when 'f2f20000-0000-4000-8000-000000000004'
+                                    then 'e2f00000-0000-4000-8000-000000000001'::uuid
+                                    else 'e2f00000-0000-4000-8000-000000000002'::uuid end,
+                            'd2f00000-0000-4000-8000-000000000003')::text
+  from public.trips t
+  where t.offer_id in ('f2f20000-0000-4000-8000-000000000004', 'f2f20000-0000-4000-8000-000000000005')
+$sql$) as t(r text);
+select extensions.dblink_exec('s1', 'commit');
+
+select tests.begin_as('s1', 'a2f00000-0000-4000-8000-000000000002');
+select * from extensions.dblink('s1', $sql$
+  select public.assign_trip(t.id, 'e2f00000-0000-4000-8000-000000000002', 'd2f00000-0000-4000-8000-000000000003')::text
+  from public.trips t where t.offer_id = 'f2f20000-0000-4000-8000-000000000004'
+$sql$) as t(r text);
+select tests.begin_as('s2', 'a2f00000-0000-4000-8000-000000000002');
+select extensions.dblink_send_query('s2', $sql$
+  select public.assign_trip(t.id, 'e2f00000-0000-4000-8000-000000000001', 'd2f00000-0000-4000-8000-000000000003')::text
+  from public.trips t where t.offer_id = 'f2f20000-0000-4000-8000-000000000005'
+$sql$);
+select ok(tests.wait_until_blocked('s2'), 'the second swap waits for the units the first one holds');
+select extensions.dblink_exec('s1', 'commit');
+select lives_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  'then it goes through'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+select is(
+  tests.peek($sql$
+    select string_agg(right(o.id::text, 1) || ':' || right(t.vehicle_id::text, 1), ',' order by o.id)
+    from public.trips t join public.offers o on o.id = t.offer_id
+    where o.id in ('f2f20000-0000-4000-8000-000000000004', 'f2f20000-0000-4000-8000-000000000005')
+  $sql$),
+  '4:2,5:1',
+  'both trips end up with the swapped units'
 );
 
 select tests.cleanup();

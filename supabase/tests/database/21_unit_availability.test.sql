@@ -4,12 +4,13 @@
 --     kept as history;
 --   * cancelling that trip before it starts, or assigning it another unit,
 --     gives the unit back the availability it would have had without it;
---   * matching frees a unit whose current trip runs late only after it has
---     also done the trip it is booked for.
+--   * clearing the availability, or setting off on a trip after it was
+--     written, means it is not restored;
+--   * matching carries the delay of a late trip through every booked trip.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(30);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -189,26 +190,26 @@ select is_empty(
 );
 
 -- Matching: trip A runs late (ends at +5 days). V is free only once it has
--- also done its return trip, which then starts 4 days after its pickup
--- window opens and ends 4 days after its delivery window (+2d 6h).
+-- also done its return trips: B ends 4 days after its delivery window
+-- (+6d 6h), so B2 (same windows) ends 5 days 6 hours late (+7d 12h).
 reset role;
 update public.trips set estimated_unload_end_at = now() + interval '5 days' where id = tests.val('trip_a');
 set local role authenticated;
 select tests.login('af500000-0000-4000-8000-000000000001');
 insert into tests.vals select 'load_late', public.create_load(tests.payload(false, 5));
 select public.publish_load(tests.val('load_late'));
-insert into tests.vals select 'load_later', public.create_load(tests.payload(false, 7));
+insert into tests.vals select 'load_later', public.create_load(tests.payload(false, 9));
 select public.publish_load(tests.val('load_later'));
 reset role;
 select results_eq(
   $$ select start_city, available_from, is_return_trip
      from public.match_pairs('ef500000-0000-4000-8000-000000000001', tests.val('load_later'), 1000) $$,
-  $$ values ('Monterrey', now() + interval '6 days 6 hours', true) $$,
-  'a unit whose current trip runs late is free once it has also done the trip it is booked for'
+  $$ values ('Monterrey', now() + interval '7 days 12 hours', true) $$,
+  'a unit whose current trip runs late is free once it has also done the trips it is booked for'
 );
 select is_empty(
   $$ select 1 from public.match_pairs('ef500000-0000-4000-8000-000000000001', tests.val('load_late'), 1000) $$,
-  'a load whose pickup closes after the late trip but before the booked trip ends is not offered'
+  'a load whose pickup closes after the late trip but before the booked trips end is not offered'
 );
 update public.trips set estimated_unload_end_at = now() + interval '2 hours' where id = tests.val('trip_a');
 
@@ -367,6 +368,69 @@ select is_empty(
   $$ select * from tests.availability('ef500000-0000-4000-8000-000000000001') $$,
   'cancelling a trip on its way leaves V without availability'
 );
+
+-- ---------------------------------------------------------------------------
+-- Clearing while booked: nothing comes back
+-- ---------------------------------------------------------------------------
+-- W has its Saltillo availability; the booking ends it, then the carrier
+-- clears the unit (nothing active to clear) and the booking is cancelled.
+select tests.contract('trip_i', false, 2, 'ef500000-0000-4000-8000-000000000002');
+select tests.login('af500000-0000-4000-8000-000000000002');
+select public.clear_vehicle_availability('ef500000-0000-4000-8000-000000000002');
+select public.cancel_trip(tests.val('trip_i'), 'Cambio de planes');
+select is_empty(
+  $$ select * from tests.availability('ef500000-0000-4000-8000-000000000002') $$,
+  'clearing a booked unit means the cancellation restores nothing'
+);
+
+-- ---------------------------------------------------------------------------
+-- The unit set off after the row was written: nothing comes back
+-- ---------------------------------------------------------------------------
+-- W is assigned trip J (ending its Monterrey availability) and booked for
+-- trip K; it sets off on J, J is cancelled, then K is cancelled.
+select public.set_vehicle_availability('ef500000-0000-4000-8000-000000000002', now() + interval '1 day',
+                                       25.6866, -100.3161, 'Monterrey', 'Nuevo León');
+select tests.contract('trip_j', false, 2, 'ef500000-0000-4000-8000-000000000002');
+select tests.login('af500000-0000-4000-8000-000000000002');
+select public.assign_trip(tests.val('trip_j'), 'ef500000-0000-4000-8000-000000000002',
+                          'df500000-0000-4000-8000-000000000004');
+select tests.contract('trip_k', true, 4, 'ef500000-0000-4000-8000-000000000002');
+select tests.login('af500000-0000-4000-8000-000000000004');
+select public.record_trip_event(tests.val('trip_j'), 'departed', now() + interval '30 seconds', 25.6866, -100.3161);
+select tests.login('af500000-0000-4000-8000-000000000002');
+select public.cancel_trip(tests.val('trip_j'), 'Falla mecánica');
+select public.cancel_trip(tests.val('trip_k'), 'Sin unidad');
+select is_empty(
+  $$ select * from tests.availability('ef500000-0000-4000-8000-000000000002') $$,
+  'a unit that set off since its availability was held back does not get it back'
+);
+
+-- ---------------------------------------------------------------------------
+-- Matching: delays carry through every booked trip
+-- ---------------------------------------------------------------------------
+-- V sets off on trip P, which runs late (ends at +10 days); V is booked for
+-- Q (GDL -> MTY, pickup +1 day, delivery ends +2 days 6 h) and then R
+-- (MTY -> GDL, pickup +3 days, delivery ends +4 days 6 h). Q ends 9 days
+-- late (+11 days 6 h), so R starts 8 days 6 h late and ends at +12 days 12 h.
+select tests.contract('trip_p', false, 1, 'ef500000-0000-4000-8000-000000000001');
+select tests.login('af500000-0000-4000-8000-000000000002');
+select public.assign_trip(tests.val('trip_p'), 'ef500000-0000-4000-8000-000000000001',
+                          'df500000-0000-4000-8000-000000000003');
+select tests.login('af500000-0000-4000-8000-000000000003');
+select public.record_trip_event(tests.val('trip_p'), 'departed', now() + interval '40 seconds', 25.6866, -100.3161);
+select tests.contract('trip_q', true, 1, 'ef500000-0000-4000-8000-000000000001');
+select tests.contract('trip_r', false, 3, 'ef500000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load_far', public.create_load(tests.payload(true, 14));
+select public.publish_load(tests.val('load_far'));
+reset role;
+update public.trips set estimated_unload_end_at = now() + interval '10 days' where id = tests.val('trip_p');
+select results_eq(
+  $$ select start_city, available_from
+     from public.match_pairs('ef500000-0000-4000-8000-000000000001', tests.val('load_far'), 1000) $$,
+  $$ values ('Guadalajara', now() + interval '12 days 12 hours') $$,
+  'the delay of the late trip carries through both booked trips'
+);
+set local role authenticated;
 
 -- ---------------------------------------------------------------------------
 -- An archived unit gets nothing back

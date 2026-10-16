@@ -2682,6 +2682,13 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      vehicle_trip_chain_end: {
+        Args: { p_vehicle_id: string };
+        Returns: {
+          available_from: string;
+          load_id: string;
+        }[];
+      };
       withdraw_offer: { Args: { p_offer_id: string }; Returns: undefined };
     };
     Enums: {

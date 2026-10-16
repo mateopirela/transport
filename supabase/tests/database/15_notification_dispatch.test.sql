@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(54);
+select plan(59);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -201,34 +201,45 @@ select throws_ok(
   $$ select * from public.claim_notifications(0, 60) $$, '22023', null, 'claim validates the limit'
 );
 
+select results_eq(
+  $$ select push_state, email_state from public.notifications
+     where id in ('f9000000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000002') order by id $$,
+  $$ values ('in_flight'::text, 'in_flight'::text), ('in_flight', 'in_flight') $$,
+  'a claim marks both channels in flight'
+);
+
 set local role service_role;
 select is(
   public.record_notification_dispatch(
-    '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "pushSent": false, "emailSent": true, "done": true},
-      {"id": "f9000000-0000-4000-8000-000000000002", "attempt": 1, "pushSent": true, "emailSent": false, "done": false, "error": "email: HTTP 500"}]'
+    '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "push": "skipped", "email": "sent"},
+      {"id": "f9000000-0000-4000-8000-000000000002", "attempt": 1, "push": "sent", "email": "retry", "error": "email: HTTP 500"}]'
   ),
   2, 'record updates both claimed notifications'
 );
 reset role;
 select results_eq(
-  $$ select dispatched_at is not null, email_sent_at is not null, push_sent_at is not null, dispatch_retry_at is null
+  $$ select dispatched_at is not null, push_state, email_state, dispatch_retry_at is null
      from public.notifications where id = 'f9000000-0000-4000-8000-000000000001' $$,
-  $$ values (true, true, false, true) $$,
-  'a done notification is closed and keeps its email mark'
+  $$ values (true, 'skipped'::text, 'sent'::text, true) $$,
+  'once both channels are final the notification is closed'
 );
 select results_eq(
-  $$ select dispatched_at is null, push_sent_at is not null, dispatch_error,
+  $$ select dispatched_at is null, push_state, email_state, dispatch_error,
             dispatch_retry_at between now() + interval '59 seconds' and now() + interval '61 seconds'
      from public.notifications where id = 'f9000000-0000-4000-8000-000000000002' $$,
-  $$ values (true, true, 'email: HTTP 500'::text, true) $$,
-  'a failed notification keeps its push mark and is retried after 1 minute'
+  $$ values (true, 'sent'::text, null::text, 'email: HTTP 500'::text, true) $$,
+  'a temporary failure keeps the sent push, reopens the email and retries after 1 minute'
+);
+select throws_ok(
+  $$ select public.record_notification_dispatch('[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 1, "push": "done"}]') $$,
+  '22023', null, 'record validates the channel outcomes'
 );
 
 -- A late result of an older claim is ignored (fencing by attempt).
 set local role service_role;
 select is(
   public.record_notification_dispatch(
-    '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "done": false}]'
+    '[{"id": "f9000000-0000-4000-8000-000000000001", "attempt": 1, "push": "retry", "email": "retry"}]'
   ),
   0, 'a result for a closed notification changes nothing'
 );
@@ -242,18 +253,23 @@ select results_eq(
   'the retry is claimed again with only the email pending'
 );
 select is(
-  public.record_notification_dispatch('[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 1, "done": true}]'),
+  public.record_notification_dispatch(
+    '[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 1, "push": "skipped", "email": "sent"}]'
+  ),
   0, 'a result of a previous attempt is ignored'
 );
 select is(
-  public.record_notification_dispatch('[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 2, "done": false}]'),
+  public.record_notification_dispatch(
+    '[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 2, "push": "retry", "email": "retry"}]'
+  ),
   1, 'the result of the current attempt is recorded'
 );
 reset role;
-select ok(
-  (select dispatch_retry_at between now() + interval '239 seconds' and now() + interval '241 seconds'
-   from public.notifications where id = 'f9000000-0000-4000-8000-000000000002'),
-  'the second retry waits 4 minutes'
+select results_eq(
+  $$ select push_state, dispatch_retry_at between now() + interval '239 seconds' and now() + interval '241 seconds'
+     from public.notifications where id = 'f9000000-0000-4000-8000-000000000002' $$,
+  $$ values ('sent'::text, true) $$,
+  'a channel that was not in flight keeps its state, and the second retry waits 4 minutes'
 );
 
 -- After the fifth attempt the dispatcher gives up.
@@ -262,18 +278,41 @@ where id = 'f9000000-0000-4000-8000-000000000002';
 set local role service_role;
 select is((select attempt from public.claim_notifications(10, 60)), 5, 'fifth attempt');
 select public.record_notification_dispatch(
-  '[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 5, "done": false, "error": "push: RequestFailed"}]'
+  '[{"id": "f9000000-0000-4000-8000-000000000002", "attempt": 5, "push": "skipped", "email": "retry", "error": "email: TimeoutError"}]'
 );
 reset role;
 select results_eq(
-  $$ select dispatched_at is not null, dispatch_error, email_sent_at is null
+  $$ select dispatched_at is not null, dispatch_error, email_state
      from public.notifications where id = 'f9000000-0000-4000-8000-000000000002' $$,
-  $$ values (true, 'push: RequestFailed'::text, true) $$,
+  $$ values (true, 'email: TimeoutError'::text, null::text) $$,
   'after five failed attempts the notification is closed with its last error'
 );
 select throws_ok(
   $$ select public.record_notification_dispatch('{}') $$, '22023', null, 'record expects an array'
 );
+
+-- The worker died after claiming (no result): the push is never resent.
+insert into public.notifications (id, user_id, type, data) values
+  ('f9000000-0000-4000-8000-000000000004', 'a9000000-0000-4000-8000-000000000002', 'load_match', '{}');
+set local role service_role;
+select is(
+  (select push_pending from public.claim_notifications(10, 60)), true, 'a new notification has its push pending'
+);
+reset role;
+update public.notifications set dispatch_retry_at = now() - interval '1 second'
+where id = 'f9000000-0000-4000-8000-000000000004';
+set local role service_role;
+select results_eq(
+  $$ select push_pending, email_pending from public.claim_notifications(10, 60) $$,
+  $$ values (false, true) $$,
+  'after a lost result the push is not claimed again (the email is, with its idempotency key)'
+);
+reset role;
+select is(
+  (select push_state from public.notifications where id = 'f9000000-0000-4000-8000-000000000004'), 'unknown',
+  'the push of a lost result is marked unknown'
+);
+update public.notifications set dispatched_at = now() where id = 'f9000000-0000-4000-8000-000000000004';
 
 -- Invalid tokens.
 set local role service_role;

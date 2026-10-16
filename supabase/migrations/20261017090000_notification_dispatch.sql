@@ -3,9 +3,14 @@
 --   * The queue of the dispatcher is public.notifications (B07). The Edge
 --     Function `dispatch-notifications` claims pending rows with a lease
 --     (claim_notifications), sends Expo Push and email, and reports back
---     (record_notification_dispatch). Each channel keeps its own sent mark, so
---     a retry never sends a channel twice; a claim is fenced by its attempt
---     number, so a late worker cannot overwrite a newer claim.
+--     (record_notification_dispatch). A claim is fenced by its attempt number,
+--     so a late worker cannot overwrite a newer claim.
+--   * Each channel has its own state (push_state, email_state), so a retry
+--     only repeats the channel that failed temporarily. Push is at most once:
+--     a claim marks it `in_flight` before sending, and a push still in flight
+--     when its row is claimed again (the worker died before reporting) becomes
+--     `unknown` and is not resent. Email may be resent after such a crash
+--     because the provider deduplicates it by its idempotency key.
 --   * pg_cron jobs: expire loads whose pickup window closed, warn about
 --     documents that expire in 30 and 7 days and mark them `expired`, remind
 --     the operator of an active trip that stopped sending its location, and
@@ -30,9 +35,16 @@ alter type public.notification_type add value if not exists 'trip_location_stale
 -- ---------------------------------------------------------------------------
 -- Dispatch state of each notification
 -- ---------------------------------------------------------------------------
+-- Channel states: null = pending, in_flight = claimed and being sent, then
+-- sent | skipped (does not apply: no device, not a web user) | failed (a
+-- permanent error) | unknown (push only: the worker died while sending).
 alter table public.notifications
-  add column push_sent_at timestamptz,
-  add column email_sent_at timestamptz,
+  add column push_state text
+    constraint notifications_push_state_check
+    check (push_state in ('in_flight', 'sent', 'skipped', 'failed', 'unknown')),
+  add column email_state text
+    constraint notifications_email_state_check
+    check (email_state in ('in_flight', 'sent', 'skipped', 'failed')),
   add column dispatch_attempts smallint not null default 0
     constraint notifications_dispatch_attempts_range check (dispatch_attempts >= 0),
   -- Not before: the lease of the current claim, or the backoff of a retry.
@@ -41,7 +53,7 @@ alter table public.notifications
     constraint notifications_dispatch_error_length check (char_length(dispatch_error) <= 1000);
 
 comment on column public.notifications.dispatched_at is
-  'Set when the dispatcher (B09) finished with the notification: sent, not applicable, stale or given up.';
+  'Set when the dispatcher (B09) finished with the notification: every channel final, stale or given up.';
 
 -- ---------------------------------------------------------------------------
 -- RPC (service role): claim up to p_limit pending notifications for
@@ -76,7 +88,9 @@ begin
 
   return query
   with due as (
-    select n.id, n.created_at < now() - interval '1 day' as stale
+    select n.id, n.created_at < now() - interval '1 day' as stale,
+           n.push_state is null as push_pending,
+           n.email_state is null or n.email_state = 'in_flight' as email_pending
     from public.notifications n
     where n.dispatched_at is null
       and (n.dispatch_retry_at is null or n.dispatch_retry_at <= now())
@@ -89,13 +103,20 @@ begin
     set dispatch_attempts = case when d.stale then n.dispatch_attempts else n.dispatch_attempts + 1 end,
         dispatch_retry_at = case when d.stale then null else now() + make_interval(secs => p_lease_seconds) end,
         dispatched_at = case when d.stale then now() end,
-        dispatch_error = case when d.stale then 'stale' else n.dispatch_error end
+        dispatch_error = case when d.stale then 'stale' else n.dispatch_error end,
+        push_state = case
+          when d.stale then n.push_state
+          when n.push_state is null then 'in_flight'
+          when n.push_state = 'in_flight' then 'unknown'
+          else n.push_state
+        end,
+        email_state = case when not d.stale and d.email_pending then 'in_flight' else n.email_state end
     from due d
     where n.id = d.id
-    returning n.*, d.stale
+    returning n.*, d.stale, d.push_pending, d.email_pending
   )
   select c.id, c.user_id, c.type, c.data, c.created_at, c.dispatch_attempts::integer,
-         c.push_sent_at is null, c.email_sent_at is null,
+         c.push_pending, c.email_pending,
          u.email::text, p.role,
          coalesce(
            (select array_agg(t.token order by t.last_seen_at desc, t.id) from public.push_tokens t where t.user_id = c.user_id),
@@ -114,8 +135,11 @@ grant execute on function public.claim_notifications(integer, integer) to servic
 
 -- ---------------------------------------------------------------------------
 -- RPC (service role): results of a dispatch, as an array of
---   { id, attempt, pushSent, emailSent, done, error }
--- `done` closes the notification; otherwise it is retried with backoff
+--   { id, attempt, push, email, error }
+-- where push and email are the outcome of the channel in this attempt:
+-- sent | skipped | failed (final) or retry (temporary failure). A channel
+-- that was not in flight in this attempt keeps its state. Once both channels
+-- are final the notification is closed; otherwise it is retried with backoff
 -- (1, 4, 16, 64 minutes) and given up after 5 attempts. A result whose attempt
 -- is not the current claim is ignored. Returns the number of rows updated.
 -- ---------------------------------------------------------------------------
@@ -131,31 +155,49 @@ begin
   if jsonb_typeof(p_results) is distinct from 'array' or jsonb_array_length(p_results) > 500 then
     raise exception 'results must be an array of at most 500 items' using errcode = '22023';
   end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_results) x
+    where jsonb_typeof(x) is distinct from 'object'
+       or coalesce(x ->> 'push', '') not in ('sent', 'skipped', 'failed', 'retry')
+       or coalesce(x ->> 'email', '') not in ('sent', 'skipped', 'failed', 'retry')
+  ) then
+    raise exception 'each result needs push and email outcomes' using errcode = '22023';
+  end if;
 
   with r as (
     select distinct on ((x ->> 'id')::uuid)
            (x ->> 'id')::uuid as id,
            (x ->> 'attempt')::integer as attempt,
-           coalesce((x ->> 'pushSent')::boolean, false) as push_sent,
-           coalesce((x ->> 'emailSent')::boolean, false) as email_sent,
-           coalesce((x ->> 'done')::boolean, false) as done,
+           x ->> 'push' as push,
+           x ->> 'email' as email,
            left(nullif(btrim(x ->> 'error'), ''), 1000) as error
     from jsonb_array_elements(p_results) x
     order by (x ->> 'id')::uuid
+  ),
+  planned as (
+    select n.id, r.error, n.dispatch_attempts,
+           case when n.push_state = 'in_flight'
+                then nullif(r.push, 'retry') else n.push_state end as push_state,
+           case when n.email_state = 'in_flight'
+                then nullif(r.email, 'retry') else n.email_state end as email_state
+    from r
+    join public.notifications n on n.id = r.id
+    where n.dispatched_at is null
+      and n.dispatch_attempts = r.attempt
   )
   update public.notifications n
-  set push_sent_at = case when r.push_sent then coalesce(n.push_sent_at, now()) else n.push_sent_at end,
-      email_sent_at = case when r.email_sent then coalesce(n.email_sent_at, now()) else n.email_sent_at end,
-      dispatched_at = case when r.done or n.dispatch_attempts >= 5 then now() end,
-      dispatch_retry_at = case
-        when r.done or n.dispatch_attempts >= 5 then null
-        else now() + make_interval(mins => power(4, n.dispatch_attempts - 1)::integer)
+  set push_state = x.push_state,
+      email_state = x.email_state,
+      dispatched_at = case
+        when (x.push_state is not null and x.email_state is not null) or x.dispatch_attempts >= 5 then now()
       end,
-      dispatch_error = r.error
-  from r
-  where n.id = r.id
-    and n.dispatched_at is null
-    and n.dispatch_attempts = r.attempt;
+      dispatch_retry_at = case
+        when (x.push_state is not null and x.email_state is not null) or x.dispatch_attempts >= 5 then null
+        else now() + make_interval(mins => power(4, x.dispatch_attempts - 1)::integer)
+      end,
+      dispatch_error = x.error
+  from planned x
+  where n.id = x.id;
 
   get diagnostics v_count = row_count;
   return v_count;

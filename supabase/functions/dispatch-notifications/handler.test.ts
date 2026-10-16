@@ -179,23 +179,9 @@ Deno.test(
 
     assert.deepEqual(of('/rpc/delete_push_tokens')[0]!.body, { p_tokens: [TOKEN_B] });
     assert.deepEqual(recorded(), [
-      { id: 'n1', attempt: 1, pushSent: false, emailSent: true, done: true },
-      {
-        id: 'n2',
-        attempt: 1,
-        pushSent: true,
-        emailSent: false,
-        done: true,
-        error: 'push: DeviceNotRegistered',
-      },
-      {
-        id: 'n3',
-        attempt: 1,
-        pushSent: false,
-        emailSent: false,
-        done: false,
-        error: 'push: MessageRateExceeded',
-      },
+      { id: 'n1', attempt: 1, push: 'skipped', email: 'sent' },
+      { id: 'n2', attempt: 1, push: 'sent', email: 'skipped', error: 'push: DeviceNotRegistered' },
+      { id: 'n3', attempt: 1, push: 'retry', email: 'skipped', error: 'push: MessageRateExceeded' },
     ]);
     assert.equal(of('/rpc/claim_notifications').length, 1, 'a short batch ends the run');
     const claim = of('/rpc/claim_notifications')[0]!;
@@ -228,8 +214,8 @@ Deno.test('a retry only sends the channels that are still pending', async () => 
   assert.equal(of(RESEND_URL).length, 1);
   assert.equal(of(RESEND_URL)[0]!.headers['Idempotency-Key'], 'notification-n1');
   assert.deepEqual(recorded(), [
-    { id: 'n1', attempt: 2, pushSent: false, emailSent: true, done: true },
-    { id: 'n2', attempt: 3, pushSent: true, emailSent: false, done: true },
+    { id: 'n1', attempt: 2, push: 'skipped', email: 'sent' },
+    { id: 'n2', attempt: 3, push: 'sent', email: 'skipped' },
   ]);
 });
 
@@ -242,17 +228,15 @@ Deno.test('without an email provider the email is simulated, not sent', async ()
   assert.equal((await response.json()).simulatedEmails, 1);
   assert.equal(of(RESEND_URL).length, 0);
   assert.equal(of(EXPO_PUSH_URL).length, 0, 'no devices, no push request');
-  assert.deepEqual(recorded(), [
-    { id: 'n1', attempt: 1, pushSent: false, emailSent: false, done: true },
-  ]);
+  assert.deepEqual(recorded(), [{ id: 'n1', attempt: 1, push: 'skipped', email: 'skipped' }]);
 });
 
 Deno.test('email failures: temporary ones are retried, permanent ones are not', async () => {
-  for (const [status, done] of [
-    [429, false],
-    [500, false],
-    [409, false],
-    [422, true],
+  for (const [status, outcome] of [
+    [429, 'retry'],
+    [500, 'retry'],
+    [409, 'retry'],
+    [422, 'failed'],
   ] as const) {
     const { deps, recorded } = setup({
       batches: [[row('n1', { role: 'shipper', email: 'sara@s.test' })]],
@@ -263,9 +247,8 @@ Deno.test('email failures: temporary ones are retried, permanent ones are not', 
       {
         id: 'n1',
         attempt: 1,
-        pushSent: false,
-        emailSent: false,
-        done,
+        push: 'skipped',
+        email: outcome,
         error: `email: HTTP ${status}`,
       },
     ]);
@@ -279,12 +262,55 @@ Deno.test('a failed Expo request is retried for every notification in it', async
   });
   await handleDispatch(post(), deps);
   assert.deepEqual(
-    recorded().map((r) => [r.id, r.done, r.error]),
+    recorded().map((r) => [r.id, r.push, r.error]),
     [
-      ['n1', false, 'push: RequestFailed'],
-      ['n2', false, 'push: RequestFailed'],
+      ['n1', 'retry', 'push: RequestFailed'],
+      ['n2', 'retry', 'push: RequestFailed'],
     ],
   );
+});
+
+Deno.test('each channel reports its own outcome: a permanent and a temporary failure', async () => {
+  const { deps, recorded } = setup({
+    batches: [[row('n1', { role: 'shipper', email: 'sara@s.test', push_tokens: [TOKEN_A] })]],
+    expo: () => new Response('{}', { status: 503 }),
+    resend: () => new Response('{}', { status: 422 }),
+  });
+  await handleDispatch(post(), deps);
+  assert.deepEqual(recorded(), [
+    {
+      id: 'n1',
+      attempt: 1,
+      push: 'retry',
+      email: 'failed',
+      error: 'push: RequestFailed; email: HTTP 422',
+    },
+  ]);
+});
+
+Deno.test('a push whose result could not be recorded is not sent again', async () => {
+  // First run: Expo accepts the push, but recording the result fails.
+  const first = setup({ batches: [[row('n1', { push_tokens: [TOKEN_A] })]] });
+  const failingDeps: Dependencies = {
+    ...first.deps,
+    fetch: (url, init) =>
+      url.endsWith('/rpc/record_notification_dispatch')
+        ? Promise.resolve(new Response('{}', { status: 500 }))
+        : first.deps.fetch(url, init),
+  };
+  assert.equal((await handleDispatch(post(), failingDeps)).status, 502);
+  assert.equal(first.of(EXPO_PUSH_URL).length, 1);
+
+  // Next claim (after the lease): claim_notifications turned the in-flight
+  // push into `unknown`, so it comes back with push_pending = false.
+  const second = setup({
+    batches: [[row('n1', { push_tokens: [TOKEN_A], push_pending: false, attempt: 2 })]],
+  });
+  await handleDispatch(post(), second.deps);
+  assert.equal(second.of(EXPO_PUSH_URL).length, 0, 'the push is not resent');
+  assert.deepEqual(second.recorded(), [
+    { id: 'n1', attempt: 2, push: 'skipped', email: 'skipped' },
+  ]);
 });
 
 Deno.test('claims batches until the queue is empty', async () => {

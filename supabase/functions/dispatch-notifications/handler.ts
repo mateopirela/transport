@@ -9,10 +9,12 @@
 // Delivery guarantees:
 //   * claim_notifications leases each row (skip locked), so two runs never
 //     work on the same notification at the same time.
-//   * Each channel has its own sent mark (push_sent_at, email_sent_at): a retry
-//     only sends what is still missing. The email also carries an
-//     Idempotency-Key, so a crash between sending and recording does not send
-//     it twice either.
+//   * Each channel has its own state (push_state, email_state): a retry only
+//     repeats the channel that failed temporarily.
+//   * Push is at most once: the claim marks it in flight before it is sent, and
+//     if this run dies before recording the result, the next claim marks it
+//     `unknown` instead of sending it again. Email carries an Idempotency-Key,
+//     so after such a crash it is safely sent again.
 //   * Temporary failures are retried with backoff by
 //     record_notification_dispatch (5 attempts); tokens that Expo reports as
 //     DeviceNotRegistered are deleted.
@@ -49,13 +51,18 @@ export interface ClaimedNotification {
   push_tokens: string[];
 }
 
+/**
+ * Outcome of one channel in this attempt: final (sent, skipped because it
+ * does not apply, failed for good) or retry (a temporary failure).
+ */
+export type ChannelOutcome = 'sent' | 'skipped' | 'failed' | 'retry';
+
 /** An entry of record_notification_dispatch. */
 export interface DispatchResult {
   id: string;
   attempt: number;
-  pushSent: boolean;
-  emailSent: boolean;
-  done: boolean;
+  push: ChannelOutcome;
+  email: ChannelOutcome;
   error?: string;
 }
 
@@ -167,8 +174,7 @@ async function sendExpo(messages: ExpoMessage[], deps: Dependencies): Promise<Ex
 }
 
 interface PushOutcome {
-  sent: boolean;
-  done: boolean;
+  outcome: ChannelOutcome;
   error?: string;
 }
 
@@ -184,7 +190,7 @@ async function sendPushes(
   for (const row of rows) {
     const tokens = row.push_pending ? [...new Set(row.push_tokens ?? [])] : [];
     if (tokens.length === 0) {
-      outcomes.set(row.id, { sent: false, done: true });
+      outcomes.set(row.id, { outcome: 'skipped' });
       continue;
     }
     const { title, body } = contents.get(row.id)!;
@@ -219,10 +225,13 @@ async function sendPushes(
       .map((t) => t.details?.error ?? 'UnknownError');
     // Retry only when nothing arrived and some failure may be temporary: a
     // retry resends to every device of the user.
-    const done = sent || errors.every((e) => FINAL_PUSH_ERRORS.has(e));
+    const outcome: ChannelOutcome = sent
+      ? 'sent'
+      : errors.every((e) => FINAL_PUSH_ERRORS.has(e))
+        ? 'failed'
+        : 'retry';
     outcomes.set(id, {
-      sent,
-      done,
+      outcome,
       ...(errors.length > 0 ? { error: `push: ${[...new Set(errors)].join(', ')}` } : {}),
     });
   }
@@ -234,8 +243,7 @@ async function sendPushes(
 // ---------------------------------------------------------------------------
 
 interface EmailOutcome {
-  sent: boolean;
-  done: boolean;
+  outcome: ChannelOutcome;
   simulated?: boolean;
   error?: string;
 }
@@ -244,7 +252,7 @@ const EMAIL_ROLES: readonly (UserRole | null)[] = ['shipper', 'admin'];
 
 async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<EmailOutcome> {
   if (!row.email_pending || !row.email || !EMAIL_ROLES.includes(row.role)) {
-    return { sent: false, done: true };
+    return { outcome: 'skipped' };
   }
   const message = notificationEmail(row.type, row.data, {
     role: row.role,
@@ -254,7 +262,7 @@ async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<
   const from = deps.env('EMAIL_FROM');
   if (!apiKey || !from) {
     console.log('email simulated', row.id, row.type);
-    return { sent: false, done: true, simulated: true };
+    return { outcome: 'skipped', simulated: true };
   }
   try {
     const response = await deps.fetch(RESEND_URL, {
@@ -274,12 +282,12 @@ async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     await response.body?.cancel();
-    if (response.ok) return { sent: true, done: true };
+    if (response.ok) return { outcome: 'sent' };
     // 409: the same idempotency key is still in flight. 429 and 5xx: later.
     const temporary = response.status === 409 || response.status === 429 || response.status >= 500;
-    return { sent: false, done: !temporary, error: `email: HTTP ${response.status}` };
+    return { outcome: temporary ? 'retry' : 'failed', error: `email: HTTP ${response.status}` };
   } catch (error) {
-    return { sent: false, done: false, error: `email: ${errorName(error)}` };
+    return { outcome: 'retry', error: `email: ${errorName(error)}` };
   }
 }
 
@@ -327,9 +335,8 @@ export async function dispatchBatch(
     return {
       id: row.id,
       attempt: row.attempt,
-      pushSent: push.sent,
-      emailSent: email.sent,
-      done: push.done && email.done,
+      push: push.outcome,
+      email: email.outcome,
       ...(error ? { error } : {}),
     };
   });
@@ -339,10 +346,10 @@ export async function dispatchBatch(
     invalidTokens,
     summary: {
       claimed: rows.length,
-      pushed: results.filter((r) => r.pushSent).length,
-      emailed: results.filter((r) => r.emailSent).length,
+      pushed: results.filter((r) => r.push === 'sent').length,
+      emailed: results.filter((r) => r.email === 'sent').length,
       simulatedEmails: emails.filter((e) => e.simulated).length,
-      retried: results.filter((r) => !r.done).length,
+      retried: results.filter((r) => r.push === 'retry' || r.email === 'retry').length,
       invalidTokens: invalidTokens.length,
     },
   };

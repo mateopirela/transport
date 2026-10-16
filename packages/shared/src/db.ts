@@ -757,9 +757,9 @@ export interface Database {
           dispatch_error: string | null;
           dispatch_retry_at: string | null;
           dispatched_at: string | null;
-          email_sent_at: string | null;
+          email_state: string | null;
           id: string;
-          push_sent_at: string | null;
+          push_state: string | null;
           read_at: string | null;
           type: Database['public']['Enums']['notification_type'];
           user_id: string;
@@ -772,9 +772,9 @@ export interface Database {
           dispatch_error?: string | null;
           dispatch_retry_at?: string | null;
           dispatched_at?: string | null;
-          email_sent_at?: string | null;
+          email_state?: string | null;
           id?: string;
-          push_sent_at?: string | null;
+          push_state?: string | null;
           read_at?: string | null;
           type: Database['public']['Enums']['notification_type'];
           user_id: string;
@@ -786,9 +786,9 @@ export interface Database {
           dispatch_error?: string | null;
           dispatch_retry_at?: string | null;
           dispatched_at?: string | null;
-          email_sent_at?: string | null;
+          email_state?: string | null;
           id?: string;
-          push_sent_at?: string | null;
+          push_state?: string | null;
           read_at?: string | null;
           type?: Database['public']['Enums']['notification_type'];
           user_id?: string;

@@ -39,8 +39,8 @@ interface Draft {
 }
 
 /**
- * Real-time chat of a conversation (D01): messages and read markers arrive by
- * Realtime (RLS applies), files go straight to the private `chat` bucket and
+ * Real-time chat of a conversation (D01): messages, their anonymization (D18)
+ * and read markers arrive by Realtime (RLS applies), files go straight to the private `chat` bucket and
  * send_message checks them. Every time the channel (re)connects, the chat
  * fetches what it may have missed. Without Realtime, the sender still sees
  * their own messages and the page shows the rest on reload.
@@ -125,6 +125,13 @@ export function ChatPanel({
               void markConversationRead(conversationId, message.id);
             }
           },
+        )
+        // A message is only ever updated when its sender's account is deleted
+        // (D18): it stays, now as "Cuenta eliminada".
+        .on<Tables<'messages'>>(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'messages', filter },
+          ({ new: row }) => setLive((current) => mergeMessages(current, [toChatMessage(row)])),
         )
         .on<Tables<'message_reads'>>(
           'postgres_changes',

@@ -1755,6 +1755,8 @@ export interface Database {
           ended_by_trip_id: string | null;
           id: string;
           location: unknown;
+          restored_by_trip_id: string | null;
+          restored_from_id: string | null;
           source: Database['public']['Enums']['availability_source'];
           state: string;
           vehicle_id: string;
@@ -1770,6 +1772,8 @@ export interface Database {
           ended_by_trip_id?: string | null;
           id?: string;
           location: unknown;
+          restored_by_trip_id?: string | null;
+          restored_from_id?: string | null;
           source?: Database['public']['Enums']['availability_source'];
           state: string;
           vehicle_id: string;
@@ -1784,6 +1788,8 @@ export interface Database {
           ended_by_trip_id?: string | null;
           id?: string;
           location?: unknown;
+          restored_by_trip_id?: string | null;
+          restored_from_id?: string | null;
           source?: Database['public']['Enums']['availability_source'];
           state?: string;
           vehicle_id?: string;
@@ -2490,7 +2496,10 @@ export interface Database {
         Args: { p_incident_id: string; p_resolution: string };
         Returns: undefined;
       };
-      restore_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
+      restore_vehicle_availability: {
+        Args: { p_trip_id: string; p_vehicle_id: string };
+        Returns: undefined;
+      };
       review_company: {
         Args: { p_company_id: string; p_decision: string; p_notes?: string };
         Returns: Database['public']['Enums']['verification_status'];

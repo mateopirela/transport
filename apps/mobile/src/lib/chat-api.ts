@@ -6,7 +6,8 @@ import type { Supabase } from './supabase';
 // Chat of a negotiation in the app (B19), over the B07 schema: RLS limits the
 // messages to the conversation's participants, writes go through
 // send_message / mark_conversation_read, and Realtime delivers new messages
-// (it applies the messages select policy to every subscriber).
+// (it applies the messages select policy to every subscriber), and also
+// their anonymization when the sender's account is deleted (D18).
 
 /** Messages loaded when the chat opens (the most recent ones). */
 export const CHAT_PAGE_SIZE = 200;
@@ -53,7 +54,9 @@ export async function markRead(client: Supabase, conversationId: string): Promis
 }
 
 /**
- * Calls `onMessage` for each new message of the conversation, and `onJoin`
+ * Calls `onMessage` for each new message of the conversation, `onUpdate` for
+ * each message changed (only ever anonymized, when its sender's account is
+ * deleted: D18), and `onJoin`
  * each time the channel (re)joins: the caller loads the latest messages then,
  * so none sent before the subscription or while disconnected is missed.
  * Returns the unsubscribe function.
@@ -62,19 +65,22 @@ export function watchMessages(
   client: Supabase,
   conversationId: string,
   onMessage: (message: ChatMessage) => void,
+  onUpdate: (message: ChatMessage) => void,
   onJoin: () => void,
 ) {
+  const filter = `conversation_id=eq.${conversationId}`;
+  const toMessage = (row: unknown) => toChatMessage(row as Parameters<typeof toChatMessage>[0]);
   const channel = client
     .channel(`chat:${conversationId}`)
     .on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => onMessage(toChatMessage(payload.new as Parameters<typeof toChatMessage>[0])),
+      { event: 'INSERT', schema: 'public', table: 'messages', filter },
+      (payload) => onMessage(toMessage(payload.new)),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'messages', filter },
+      (payload) => onUpdate(toMessage(payload.new)),
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') onJoin();

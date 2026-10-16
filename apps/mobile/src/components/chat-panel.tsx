@@ -63,6 +63,8 @@ export function ChatPanel({
       client,
       conversationId,
       (m) => add([m]),
+      // Same message, now without sender: nothing new to mark read.
+      (m) => setMessages((current) => mergeMessages(current, [m])),
       () => void load(),
     );
     void load();

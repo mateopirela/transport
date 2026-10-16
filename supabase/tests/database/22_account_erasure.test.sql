@@ -4,13 +4,15 @@
 --   * messages stay immutable: only that erasure gets through the trigger;
 --   * participants keep seeing the anonymized messages, and they count as
 --     unread for the shipper (load_negotiation_carriers);
+--   * Realtime publishes the erasure (an UPDATE with every column), so open
+--     chats show it live (F13);
 --   * no foreign key blocks deleting an account: every one that reaches
 --     auth.users, directly or through a row deleted with it, is
 --     SET NULL or CASCADE.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(13);
+select plan(15);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -206,6 +208,22 @@ select is(
   'messages without a sender count as unread for the shipper'
 );
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- F13: open chats get the erasure live. Realtime sends what the publication
+-- publishes, filtered by messages_select (which does not look at sender_id).
+-- ---------------------------------------------------------------------------
+select ok(
+  (select pubupdate from pg_catalog.pg_publication where pubname = 'supabase_realtime'),
+  'the Realtime publication publishes updates (the erasure of a sender)'
+);
+select ok(
+  (select array['id', 'conversation_id', 'sender_id', 'sender_role', 'body', 'attachments', 'created_at']::name[]
+          <@ attnames
+   from pg_catalog.pg_publication_tables
+   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'),
+  'messages are published with every column the chats show and filter on'
+);
 
 -- ---------------------------------------------------------------------------
 -- Inventory: every foreign key that reaches auth.users, directly or through a

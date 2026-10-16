@@ -79,10 +79,15 @@ export function DocumentUpload({
       expiresOn: typeof expiresOn === 'string' && expiresOn ? expiresOn : undefined,
     });
     if (result.error) return setError(result.error);
-    form.reset();
     setDone(true);
     router.refresh();
   }
+
+  // Once registered, the requirement is pending review and the refresh drops
+  // this form. Until it lands, show only the confirmation: resetting the form
+  // to idle (empty input, "upload" button) would invite a second upload and
+  // could be mistaken for the next document's form.
+  if (done) return <Notice tone="success">{c.uploaded}</Notice>;
 
   return (
     <form
@@ -92,7 +97,6 @@ export function DocumentUpload({
         event.preventDefault();
         const form = event.currentTarget;
         setError(null);
-        setDone(false);
         setPending(true);
         upload(form)
           .catch(() => setError(onboardingCopy.errors.upload))
@@ -100,7 +104,6 @@ export function DocumentUpload({
       }}
     >
       {error && <Notice tone="error">{error}</Notice>}
-      {done && <Notice tone="success">{c.uploaded}</Notice>}
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-file`}>{c.file}</Label>

@@ -93,7 +93,9 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
 
     await page.goto(await waitForConfirmationPath(shipper.email));
     await expect(page).toHaveURL(/\/cuenta-en-revision/u);
-    await expect(page.getByText(shellCopy.review.pending_review.title)).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: shellCopy.review.pending_review.title }),
+    ).toBeVisible();
   });
 
   await test.step('upload the company documents', async () => {

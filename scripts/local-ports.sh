@@ -18,12 +18,12 @@ prefix="${1:-}"
 case "$prefix" in
   [1-6][0-9][0-9]) ;;
   *)
-    echo "usage: eval \"\$(sh scripts/local-ports.sh <prefix 100-655> [web port])\"" >&2
+    echo "usage: eval \"\$(sh scripts/local-ports.sh <prefix 100-654> [web port])\"" >&2
     exit 64
     ;;
 esac
-if [ "$prefix" -gt 655 ]; then
-  echo "prefix must be at most 655 (ports up to 65535)" >&2
+if [ "$prefix" -gt 654 ]; then
+  echo "prefix must be at most 654 (ports up to 65535)" >&2
   exit 64
 fi
 

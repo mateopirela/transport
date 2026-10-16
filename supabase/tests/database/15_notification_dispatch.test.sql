@@ -103,7 +103,7 @@ $$;
 -- seed's) do not change the result. It also checks that the count the cron
 -- returns matches every document it recorded a new notice for (fails the
 -- test otherwise).
-create table tests.notices_before (document_id uuid, threshold_days integer);
+create table tests.notices_before (document_id uuid, threshold_days integer, expires_at timestamptz);
 
 create function tests.expire_documents()
 returns integer
@@ -115,14 +115,15 @@ declare
   v_ours integer;
 begin
   delete from tests.notices_before;
-  insert into tests.notices_before select document_id, threshold_days from public.document_expiry_notices;
+  insert into tests.notices_before
+  select document_id, threshold_days, expires_at from public.document_expiry_notices;
 
   v_returned := public.process_document_expiry();
 
   with new_notices as (
-    select document_id, threshold_days from public.document_expiry_notices
+    select document_id, threshold_days, expires_at from public.document_expiry_notices
     except
-    select document_id, threshold_days from tests.notices_before
+    select document_id, threshold_days, expires_at from tests.notices_before
   )
   select count(distinct n.document_id),
          count(distinct n.document_id) filter (where d.company_id::text like 'c9000000-%')

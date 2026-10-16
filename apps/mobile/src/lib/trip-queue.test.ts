@@ -190,3 +190,20 @@ describe('flushQueue', () => {
     expect(result).toEqual({ sent: [other.id], rejected: [departed, arrived], stopped: false });
   });
 });
+
+describe('receiver at delivery (B23)', () => {
+  it('keeps the receiver of the end of unloading and still reads older queues without it', () => {
+    const finished = {
+      ...step('unloading_finished', '2026-10-15T12:00:00-06:00'),
+      receivedBy: 'Rosa',
+    };
+    const older = step('arrived_at_delivery', '2026-10-15T11:00:00-06:00');
+    expect(parseStoredQueue(JSON.stringify({ pending: [older, finished], sent: [] }))).toEqual({
+      pending: [older, finished],
+      sent: [],
+    });
+    expect(
+      parseStoredQueue(JSON.stringify({ pending: [{ ...finished, receivedBy: '   ' }] })).pending,
+    ).toEqual([]);
+  });
+});

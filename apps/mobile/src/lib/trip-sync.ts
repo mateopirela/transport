@@ -1,8 +1,15 @@
 import NetInfo from '@react-native-community/netinfo';
+import { DEFAULT_EVIDENCE_MINIMUMS, evidenceStageForEvent } from '@transport/shared';
 import { useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
 import type { AsyncStorageLike } from './chunked-storage';
+import {
+  confirmLoadedPhotos,
+  flushEvidenceQueue,
+  hasUnsentPhotos,
+  onPhotosUploaded,
+} from './evidence-sync';
 import { isOffline } from './network';
 import { tripQueueStorage } from './secure-store';
 import type { Supabase } from './supabase';
@@ -120,6 +127,9 @@ export function dismissRejected(): void {
 /** Thrown to stop sending when the session no longer belongs to the queue's user. */
 class QueueOwnerChangedError extends Error {}
 
+/** Thrown to wait while the photos a step needs are still on the phone (B23). */
+class EvidencePendingError extends Error {}
+
 async function runFlush(client: Supabase): Promise<void> {
   for (;;) {
     const { userId, pending } = state;
@@ -131,6 +141,16 @@ async function runFlush(client: Supabase): Promise<void> {
       const { data } = await client.auth.getSession();
       if (state.userId !== userId || data.session?.user.id !== userId) {
         throw new QueueOwnerChangedError('the session changed');
+      }
+      // Leaving the pickup and finishing the delivery need their photos on the
+      // server first (record_trip_event refuses them otherwise). Codeless, so
+      // it counts as retryable: the queue waits and resumes once they upload.
+      const stage = action.kind === 'status' ? evidenceStageForEvent(action.event) : null;
+      if (stage) {
+        await flushEvidenceQueue(client, { force: true });
+        if (hasUnsentPhotos(action.tripId, stage)) {
+          throw new EvidencePendingError('evidence photos are not uploaded yet');
+        }
       }
       await sendQueuedAction(client, action);
     });
@@ -226,7 +246,10 @@ export function keepLoadedTrip(
   const run = keeping.then(async () => {
     if (load < lastKept) return false;
     lastKept = load;
-    if (await saveTripSnapshot(userId, trip)) confirmLoadedTrip(userId, trip);
+    if (await saveTripSnapshot(userId, trip)) {
+      confirmLoadedTrip(userId, trip);
+      confirmLoadedPhotos(userId, trip);
+    }
     return true;
   });
   keeping = run;
@@ -238,7 +261,15 @@ export async function readTripSnapshot(userId: string): Promise<OperatorTrip | n
   const raw = await storage.getItem(snapshotKey(userId)).catch(() => null);
   if (raw === null) return undefined;
   try {
-    return JSON.parse(raw) as OperatorTrip | null;
+    const trip = JSON.parse(raw) as OperatorTrip | null;
+    // Copies saved before B23 have no evidence: the server checks it anyway.
+    return trip
+      ? {
+          ...trip,
+          evidence: trip.evidence ?? [],
+          evidenceMinimums: trip.evidenceMinimums ?? DEFAULT_EVIDENCE_MINIMUMS,
+        }
+      : null;
   } catch {
     return undefined;
   }
@@ -270,9 +301,12 @@ export function useTripQueue(client: Supabase | null, userId: string | null): Tr
     const app = AppState.addEventListener('change', (appState) => {
       if (appState === 'active') flush();
     });
+    // A step waiting on its photos goes as soon as they upload.
+    const photos = onPhotosUploaded(flush);
     return () => {
       net();
       app.remove();
+      photos();
     };
   }, [client, userId]);
 

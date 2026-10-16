@@ -1,5 +1,9 @@
 import {
+  captureStageForStatus,
+  evidenceStageForEvent,
+  missingPhotos,
   mobileErrorCopy,
+  operatorEvidenceCopy as evidenceCopy,
   mobileNavCopy,
   nextOperatorEvent,
   OPERATOR_TRIP_STEPS,
@@ -10,6 +14,8 @@ import {
   tripEventTypeLabels,
   tripStatusLabels,
   unloadEstimateProblem,
+  type EvidenceStage,
+  type GatedEvidenceStage,
   type IncidentFormValues,
   type OperatorTripEvent,
   type TripEventType,
@@ -18,6 +24,11 @@ import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
+import {
+  EvidenceSection,
+  ReceiverForm,
+  type EvidenceItem,
+} from '../../components/evidence-section';
 import { Badge, SectionTitle } from '../../components/fleet-ui';
 import { IncidentForm, UnloadEstimateForm } from '../../components/trip-forms';
 import {
@@ -31,6 +42,14 @@ import {
 import { TrackingBanner } from '../../components/tracking-banner';
 import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
 import { toErrorKey } from '../../lib/errors';
+import { capturePhoto, photoUri } from '../../lib/evidence-api';
+import { photoCounts, photoStoragePath, type StoredPhotos } from '../../lib/evidence-queue';
+import {
+  dismissRejectedPhotos,
+  enqueuePhoto,
+  flushEvidenceQueue,
+  useEvidenceQueue,
+} from '../../lib/evidence-sync';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
 import { loadOperatorTrip, reportIncident, type OperatorTrip } from '../../lib/trip-api';
@@ -79,6 +98,7 @@ export default function AssignedTripTab() {
   const { session } = useSession();
   const userId = session?.user.id ?? null;
   const queue = useTripQueue(supabase, userId);
+  const photos = useEvidenceQueue(supabase, userId);
 
   // Falls back to the last trip saved on the phone when there is no connection.
   const load = useCallback(async () => {
@@ -114,8 +134,14 @@ export default function AssignedTripTab() {
   useEffect(() => {
     if (queue.syncCount > 0) void reload();
   }, [queue.syncCount, reload]);
+  // And once photos reach the server (B23).
+  useEffect(() => {
+    if (photos.syncCount > 0) void reload();
+  }, [photos.syncCount, reload]);
 
-  if (state.status === 'loading' || !queue.ready) return <Loading label={copy.refresh} />;
+  if (state.status === 'loading' || !queue.ready || !photos.ready) {
+    return <Loading label={copy.refresh} />;
+  }
 
   // Refused actions of any trip: the trip itself may no longer be shown.
   const rejectedNotice =
@@ -134,12 +160,25 @@ export default function AssignedTripTab() {
         <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
       </Notice>
     ) : null;
+  const rejectedPhotosNotice =
+    photos.rejected.length > 0 ? (
+      <Notice tone="danger" title={evidenceCopy.rejectedTitle}>
+        <Body>{evidenceCopy.rejectedBody(photos.rejected.length)}</Body>
+        <Button label={copy.dismiss} variant="secondary" onPress={dismissRejectedPhotos} />
+      </Notice>
+    ) : null;
+  const notices = (
+    <>
+      {rejectedNotice}
+      {rejectedPhotosNotice}
+    </>
+  );
 
   if (state.status === 'error') {
     return (
       <Screen>
         <Title>{mobileNavCopy.assignedTrip}</Title>
-        {rejectedNotice}
+        {notices}
         <Notice tone="danger">{copy.loadFailed}</Notice>
         <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
       </Screen>
@@ -150,7 +189,7 @@ export default function AssignedTripTab() {
     return (
       <Screen>
         <Title subtitle={copy.noTrip}>{mobileNavCopy.assignedTrip}</Title>
-        {rejectedNotice}
+        {notices}
         <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
       </Screen>
     );
@@ -160,7 +199,8 @@ export default function AssignedTripTab() {
       key={trip.id}
       trip={trip}
       stored={queue}
-      notice={rejectedNotice}
+      photos={photos}
+      notice={notices}
       tracking={tracking}
       onReload={reload}
     />
@@ -170,17 +210,19 @@ export default function AssignedTripTab() {
 function TripView({
   trip,
   stored,
+  photos,
   notice,
   tracking,
   onReload,
 }: {
   trip: OperatorTrip;
   stored: StoredQueue;
+  photos: StoredPhotos;
   notice: ReactNode;
   tracking: TripTracking;
   onReload: () => Promise<void>;
 }) {
-  const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | null>(null);
+  const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
 
@@ -196,6 +238,16 @@ function TripView({
   const status = effectiveStatus(trip.status, queue, trip.id);
   const estimate = effectiveUnloadEstimate(trip.estimatedUnloadEndAt, queue, trip.id);
   const next = nextOperatorEvent(status);
+
+  // Photos (B23): the server's plus the ones still on the phone, per stage.
+  const counts = photoCounts(trip.evidence, photos, trip.id);
+  const gate = next ? evidenceStageForEvent(next) : null;
+  const missing = gate ? missingPhotos(trip.evidenceMinimums[gate], counts[gate]) : 0;
+  const captureStage = captureStageForStatus(status);
+  const pendingPhotoCount = photos.pending.filter((p) => p.tripId === trip.id).length;
+  const receivedBy = trip.events.find(
+    (e) => e.event_type === 'unloading_finished',
+  )?.received_by_name;
   const lastServerEventAt = useMemo(
     () =>
       trip.events.reduce<string | null>(
@@ -230,7 +282,69 @@ function TripView({
     if (supabase) void flushTripQueue(supabase);
   }
 
-  async function recordStep(event: OperatorTripEvent, estimatedUnloadEndAt: string | null) {
+  /** Photos of a stage: the server's first, then the ones not shown by it yet. */
+  function evidenceItems(stage: GatedEvidenceStage): EvidenceItem[] {
+    const serverPaths = new Set(trip.evidence.map((e) => e.storage_path));
+    const pendingIds = new Set(photos.pending.map((p) => p.id));
+    return [
+      ...trip.evidence
+        .filter((e) => e.stage === stage)
+        .map((e) => ({ key: e.id, capturedAt: e.captured_at, uri: null, pending: false })),
+      ...[...photos.sent, ...photos.pending]
+        .filter(
+          (p) => p.tripId === trip.id && p.stage === stage && !serverPaths.has(photoStoragePath(p)),
+        )
+        .map((p) => ({
+          key: p.id,
+          capturedAt: p.capturedAt,
+          uri: photoUri(p),
+          pending: pendingIds.has(p.id),
+        })),
+    ];
+  }
+
+  function incidentPhotoCount(incidentId: string): number {
+    const local = [...photos.sent, ...photos.pending].filter((p) => p.incidentId === incidentId);
+    const paths = new Set([
+      ...trip.evidence.filter((e) => e.incident_id === incidentId).map((e) => e.storage_path),
+      ...local.map(photoStoragePath),
+    ]);
+    return paths.size;
+  }
+
+  /** Camera only; the photo is queued on the phone and uploaded when possible. */
+  async function takePhoto(stage: EvidenceStage, incidentId: string | null) {
+    const show = incidentId ? setIncidentMessage : setMessage;
+    setBusy('photo');
+    show(null);
+    try {
+      const outcome = await capturePhoto({ tripId: trip.id, stage, incidentId });
+      if (outcome.status === 'cancelled') return;
+      if (outcome.status === 'denied') {
+        show({ tone: 'danger', text: evidenceCopy.cameraDenied, settings: true });
+        return;
+      }
+      if (outcome.status === 'failed') {
+        show({ tone: 'danger', text: evidenceCopy.captureFailed });
+        return;
+      }
+      const saved = await enqueuePhoto(outcome.photo);
+      show(
+        saved
+          ? { tone: 'info', text: evidenceCopy.saved }
+          : { tone: 'warning', text: copy.saveFailed },
+      );
+      if (supabase) void flushEvidenceQueue(supabase, { force: true });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function recordStep(
+    event: OperatorTripEvent,
+    estimatedUnloadEndAt: string | null,
+    receivedByName: string | null = null,
+  ) {
     if (!(await confirm(operatorStepConfirmLabels[event]))) return;
     // The moment of the confirmation, not of the GPS fix that follows.
     const confirmedAt = new Date();
@@ -268,6 +382,7 @@ function TripView({
         lng: located.position.lng,
         accuracyM: located.position.accuracyM,
         estimatedUnloadEndAt,
+        receivedBy: receivedByName,
       });
     } finally {
       setBusy(null);
@@ -344,6 +459,19 @@ function TripView({
         </Notice>
       ) : null}
 
+      {pendingPhotoCount > 0 ? (
+        <Notice tone="warning" title={copy.pendingTitle}>
+          <Body>{evidenceCopy.pendingUploads(pendingPhotoCount)}</Body>
+          <Button
+            label={evidenceCopy.uploadNow}
+            variant="secondary"
+            onPress={() => {
+              if (supabase) void flushEvidenceQueue(supabase, { force: true });
+            }}
+          />
+        </Notice>
+      ) : null}
+
       <RouteSection load={trip.load} status={status} />
 
       <ProgressSection status={status} />
@@ -361,7 +489,29 @@ function TripView({
         </Notice>
       ) : null}
 
-      {next === 'unloading_started' ? (
+      {captureStage ? (
+        <EvidenceSection
+          stage={captureStage}
+          minimum={trip.evidenceMinimums[captureStage]}
+          items={evidenceItems(captureStage)}
+          busy={busy === 'photo'}
+          disabled={busy !== null}
+          onCapture={() => void takePhoto(captureStage, null)}
+        />
+      ) : null}
+
+      {gate && missing > 0 ? (
+        <Notice tone="warning">{evidenceCopy.missing(gate, missing)}</Notice>
+      ) : null}
+
+      {next === 'unloading_finished' ? (
+        <ReceiverForm
+          submitLabel={operatorStepActionLabels.unloading_finished}
+          busy={busy === 'step'}
+          disabled={busy !== null || missing > 0}
+          onSubmit={(name) => void recordStep('unloading_finished', null, name)}
+        />
+      ) : next === 'unloading_started' ? (
         <View style={styles.section}>
           <SectionTitle>{copy.unloadEstimateTitle}</SectionTitle>
           <Body>{copy.unloadEstimateHelp}</Body>
@@ -377,7 +527,7 @@ function TripView({
           label={operatorStepActionLabels[next]}
           onPress={() => void recordStep(next, null)}
           loading={busy === 'step'}
-          disabled={busy !== null}
+          disabled={busy !== null || missing > 0}
         />
       ) : null}
 
@@ -395,13 +545,23 @@ function TripView({
         </View>
       ) : null}
 
-      {status === 'delivered' ? <Notice tone="info">{copy.delivered}</Notice> : null}
+      {status === 'delivered' ? (
+        <Notice tone="info">
+          <Body>{copy.delivered}</Body>
+          {receivedBy ? <Body>{evidenceCopy.receivedBy(receivedBy)}</Body> : null}
+        </Notice>
+      ) : null}
 
       <InstructionsSection trip={trip} />
 
       <View style={styles.section}>
         <SectionTitle>{copy.incidents}</SectionTitle>
-        <IncidentList incidents={trip.incidents} />
+        <IncidentList
+          incidents={trip.incidents}
+          photoCount={incidentPhotoCount}
+          onAddPhoto={(incidentId) => void takePhoto('incident', incidentId)}
+          busy={busy !== null}
+        />
         {incidentMessage ? (
           <Notice tone={incidentMessage.tone}>{incidentMessage.text}</Notice>
         ) : null}

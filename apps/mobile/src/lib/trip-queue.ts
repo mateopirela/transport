@@ -1,4 +1,5 @@
 import {
+  MAX_RECEIVER_NAME_LENGTH,
   OPERATOR_TRIP_STEPS,
   statusAfterEvents,
   type OperatorTripEvent,
@@ -23,6 +24,8 @@ const statusAction = z.object({
   lng: z.number().min(-180).max(180),
   accuracyM: z.number().min(0).max(100_000).nullable(),
   estimatedUnloadEndAt: z.iso.datetime({ offset: true }).nullable(),
+  /** Who received the cargo (unloading_finished only, B23). Absent in older queues. */
+  receivedBy: z.string().trim().min(1).max(MAX_RECEIVER_NAME_LENGTH).nullable().optional(),
 });
 
 const estimateAction = z.object({

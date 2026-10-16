@@ -36,7 +36,8 @@ export type PickOutcome =
 
 const PHOTO_QUALITY = 0.7;
 
-async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promise<PickedFile> {
+/** Resizes and re-encodes a photo as JPEG in the cache (also used for trip evidence, B23). */
+export async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promise<PickedFile> {
   const context = ImageManipulator.manipulate(asset.uri);
   const resize = photoResize(asset.width, asset.height);
   if (resize) context.resize(resize);

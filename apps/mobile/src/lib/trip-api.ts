@@ -1,5 +1,7 @@
 import {
+  evidenceMinimumsFrom,
   pickOperatorTrip,
+  type EvidenceMinimums,
   type IncidentFormValues,
   type Tables,
   type TripStatus,
@@ -43,7 +45,18 @@ export type TripLoad = Pick<
 
 export type TripEventRow = Pick<
   Tables<'trip_events'>,
-  'id' | 'event_type' | 'occurred_at' | 'estimated_unload_end_at' | 'notes' | 'client_event_id'
+  | 'id'
+  | 'event_type'
+  | 'occurred_at'
+  | 'estimated_unload_end_at'
+  | 'notes'
+  | 'client_event_id'
+  | 'received_by_name'
+>;
+
+export type EvidenceRow = Pick<
+  Tables<'trip_evidence'>,
+  'id' | 'stage' | 'incident_id' | 'storage_path' | 'captured_at'
 >;
 
 export type IncidentRow = Pick<
@@ -59,6 +72,9 @@ export interface OperatorTrip {
   vehiclePlate: string | null;
   events: TripEventRow[];
   incidents: IncidentRow[];
+  /** Photos the server has (B23); counted against `evidenceMinimums`. */
+  evidence: EvidenceRow[];
+  evidenceMinimums: EvidenceMinimums;
 }
 
 const LOAD_COLUMNS =
@@ -103,10 +119,12 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
   const trip = pickOperatorTrip(candidates);
   if (!trip) return null;
 
-  const [events, incidents, vehicle] = await Promise.all([
+  const [events, incidents, vehicle, evidence, minimums] = await Promise.all([
     client
       .from('trip_events')
-      .select('id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id')
+      .select(
+        'id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id, received_by_name',
+      )
       .eq('trip_id', trip.id)
       .order('occurred_at')
       .order('recorded_at'),
@@ -118,6 +136,12 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
     trip.vehicle_id
       ? client.from('vehicles').select('plate').eq('id', trip.vehicle_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    client
+      .from('trip_evidence')
+      .select('id, stage, incident_id, storage_path, captured_at')
+      .eq('trip_id', trip.id)
+      .order('captured_at'),
+    client.from('trip_evidence_requirements').select('stage, min_photos'),
   ]);
   if (vehicle.error) throw vehicle.error;
 
@@ -129,6 +153,8 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
     vehiclePlate: vehicle.data?.plate ?? null,
     events: check(events),
     incidents: check(incidents),
+    evidence: check(evidence),
+    evidenceMinimums: evidenceMinimumsFrom(check(minimums)),
   };
 }
 
@@ -147,6 +173,7 @@ export async function sendQueuedAction(client: Supabase, action: QueuedAction): 
             ? {}
             : { p_estimated_unload_end_at: action.estimatedUnloadEndAt }),
           p_client_event_id: action.id,
+          ...(action.receivedBy ? { p_received_by_name: action.receivedBy } : {}),
         })
       : await client.rpc('set_estimated_unload_end', {
           p_trip_id: action.tripId,

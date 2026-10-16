@@ -6,6 +6,7 @@ import {
   incidentStatusLabels,
   OPERATOR_TRIP_EVENTS,
   OPERATOR_TRIP_STEPS,
+  operatorEvidenceCopy,
   operatorTripCopy as copy,
   specialRequirementLabels,
   tripEventTypeLabels,
@@ -142,7 +143,21 @@ export function TimelineSection({ entries }: { entries: readonly TimelineEntry[]
   );
 }
 
-export function IncidentList({ incidents }: { incidents: readonly IncidentRow[] }) {
+/**
+ * Incidents of the trip. With `onAddPhoto`, open incidents take photos from
+ * the camera (B23); `photoCount` says how many each one has.
+ */
+export function IncidentList({
+  incidents,
+  photoCount,
+  onAddPhoto,
+  busy = false,
+}: {
+  incidents: readonly IncidentRow[];
+  photoCount?: (incidentId: string) => number;
+  onAddPhoto?: (incidentId: string) => void;
+  busy?: boolean;
+}) {
   if (incidents.length === 0) return <Body>{copy.noIncidents}</Body>;
   return (
     <>
@@ -157,6 +172,19 @@ export function IncidentList({ incidents }: { incidents: readonly IncidentRow[] 
             label={incidentStatusLabels[incident.status]}
             tone={incident.status === 'open' ? 'warning' : 'success'}
           />
+          {photoCount ? (
+            <Text style={styles.meta}>
+              {operatorEvidenceCopy.incidentPhotos(photoCount(incident.id))}
+            </Text>
+          ) : null}
+          {onAddPhoto && incident.status === 'open' ? (
+            <Button
+              label={operatorEvidenceCopy.takeIncident}
+              variant="secondary"
+              disabled={busy}
+              onPress={() => onAddPhoto(incident.id)}
+            />
+          ) : null}
         </Card>
       ))}
     </>

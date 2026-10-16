@@ -146,6 +146,79 @@ export interface Database {
         };
         Relationships: [];
       };
+      conversations: {
+        Row: {
+          carrier_company_id: string;
+          created_at: string;
+          id: string;
+          kind: Database['public']['Enums']['conversation_kind'];
+          last_message_at: string | null;
+          load_id: string;
+          negotiation_id: string | null;
+          shipper_company_id: string;
+          trip_id: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          carrier_company_id: string;
+          created_at?: string;
+          id?: string;
+          kind: Database['public']['Enums']['conversation_kind'];
+          last_message_at?: string | null;
+          load_id: string;
+          negotiation_id?: string | null;
+          shipper_company_id: string;
+          trip_id?: string | null;
+        };
+        Update: {
+          carrier_company_id?: string;
+          created_at?: string;
+          id?: string;
+          kind?: Database['public']['Enums']['conversation_kind'];
+          last_message_at?: string | null;
+          load_id?: string;
+          negotiation_id?: string | null;
+          shipper_company_id?: string;
+          trip_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversations_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_negotiation_fkey';
+            columns: ['negotiation_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'negotiations';
+            referencedColumns: ['id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+          },
+          {
+            foreignKeyName: 'conversations_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_trip_fkey';
+            columns: ['trip_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+          },
+        ];
+      };
       document_requirements: {
         Row: {
           archived_at: string | null;
@@ -492,6 +565,78 @@ export interface Database {
           },
         ];
       };
+      message_reads: {
+        Row: {
+          conversation_id: string;
+          last_read_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          conversation_id: string;
+          last_read_at: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string;
+          last_read_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'message_reads_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'conversations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      messages: {
+        Row: {
+          attachments: NonNullable<Json>;
+          body: string | null;
+          client_message_id: string | null;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          sender_id: string;
+          sender_role: Database['public']['Enums']['user_role'];
+        };
+        ComputedFields: never;
+        Insert: {
+          attachments?: NonNullable<Json>;
+          body?: string | null;
+          client_message_id?: string | null;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          sender_id: string;
+          sender_role: Database['public']['Enums']['user_role'];
+        };
+        Update: {
+          attachments?: NonNullable<Json>;
+          body?: string | null;
+          client_message_id?: string | null;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          sender_id?: string;
+          sender_role?: Database['public']['Enums']['user_role'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'conversations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       negotiations: {
         Row: {
           carrier_company_id: string;
@@ -537,6 +682,37 @@ export interface Database {
             referencedColumns: ['id', 'shipper_company_id'];
           },
         ];
+      };
+      notifications: {
+        Row: {
+          created_at: string;
+          data: NonNullable<Json>;
+          dispatched_at: string | null;
+          id: string;
+          read_at: string | null;
+          type: Database['public']['Enums']['notification_type'];
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          data?: NonNullable<Json>;
+          dispatched_at?: string | null;
+          id?: string;
+          read_at?: string | null;
+          type: Database['public']['Enums']['notification_type'];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          data?: NonNullable<Json>;
+          dispatched_at?: string | null;
+          id?: string;
+          read_at?: string | null;
+          type?: Database['public']['Enums']['notification_type'];
+          user_id?: string;
+        };
+        Relationships: [];
       };
       offers: {
         Row: {
@@ -775,6 +951,34 @@ export interface Database {
             referencedColumns: ['id'];
           },
         ];
+      };
+      push_tokens: {
+        Row: {
+          created_at: string;
+          id: string;
+          last_seen_at: string;
+          platform: Database['public']['Enums']['push_platform'];
+          token: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          last_seen_at?: string;
+          platform: Database['public']['Enums']['push_platform'];
+          token: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          last_seen_at?: string;
+          platform?: Database['public']['Enums']['push_platform'];
+          token?: string;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       trip_events: {
         Row: {
@@ -1399,6 +1603,8 @@ export interface Database {
       };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
+      is_conversation_participant: { Args: { p_conversation_id: string }; Returns: boolean };
+      load_route_data: { Args: { p_load_id: string }; Returns: Json };
       lock_company_approved: { Args: { p_company_id: string }; Returns: boolean };
       lock_offer_for_response: {
         Args: { p_by: string; p_offer_id: string };
@@ -1464,6 +1670,20 @@ export interface Database {
         };
         Returns: string;
       };
+      mark_conversation_read: {
+        Args: { p_conversation_id: string; p_message_id?: string };
+        Returns: undefined;
+      };
+      mark_notifications_read: { Args: { p_ids?: string[] }; Returns: number };
+      notify_company: {
+        Args: {
+          p_company_id: string;
+          p_data: Json;
+          p_role: Database['public']['Enums']['user_role'];
+          p_type: Database['public']['Enums']['notification_type'];
+        };
+        Returns: undefined;
+      };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       record_trip_event: {
         Args: {
@@ -1480,6 +1700,10 @@ export interface Database {
         Returns: string;
       };
       record_trip_locations: { Args: { p_points: Json; p_trip_id: string }; Returns: number };
+      register_push_token: {
+        Args: { p_platform: Database['public']['Enums']['push_platform']; p_token: string };
+        Returns: undefined;
+      };
       reject_offer: { Args: { p_offer_id: string; p_reason?: string }; Returns: undefined };
       report_incident: {
         Args: {
@@ -1514,6 +1738,15 @@ export interface Database {
         Returns: Database['public']['Enums']['verification_status'];
       };
       revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
+      send_message: {
+        Args: {
+          p_attachments?: Json;
+          p_body?: string;
+          p_client_message_id?: string;
+          p_conversation_id: string;
+        };
+        Returns: string;
+      };
       set_estimated_unload_end: {
         Args: {
           p_client_event_id?: string;
@@ -1583,6 +1816,7 @@ export interface Database {
           source: string;
         }[];
       };
+      unregister_push_token: { Args: { p_token: string }; Returns: undefined };
       update_load: { Args: { p_load: Json; p_load_id: string }; Returns: undefined };
       vehicle_expired_requirements: {
         Args: { p_vehicle_id: string };
@@ -1649,6 +1883,7 @@ export interface Database {
         | 'construction_materials'
         | 'livestock';
       company_type: 'shipper' | 'carrier';
+      conversation_kind: 'negotiation' | 'trip';
       document_owner_type: 'company' | 'vehicle' | 'operator';
       evidence_stage: 'pickup' | 'delivery' | 'incident';
       incident_kind:
@@ -1670,8 +1905,19 @@ export interface Database {
         | 'completed'
         | 'cancelled'
         | 'expired';
+      notification_type:
+        | 'load_match'
+        | 'offer_received'
+        | 'counter_offer_received'
+        | 'offer_accepted'
+        | 'trip_assigned'
+        | 'trip_status_changed'
+        | 'document_approved'
+        | 'document_rejected'
+        | 'document_expiring';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
+      push_platform: 'ios' | 'android';
       special_requirement:
         | 'temperature_control'
         | 'hazmat_permit'
@@ -1850,6 +2096,7 @@ export const Constants = {
         'livestock',
       ],
       company_type: ['shipper', 'carrier'],
+      conversation_kind: ['negotiation', 'trip'],
       document_owner_type: ['company', 'vehicle', 'operator'],
       evidence_stage: ['pickup', 'delivery', 'incident'],
       incident_kind: [
@@ -1873,8 +2120,20 @@ export const Constants = {
         'cancelled',
         'expired',
       ],
+      notification_type: [
+        'load_match',
+        'offer_received',
+        'counter_offer_received',
+        'offer_accepted',
+        'trip_assigned',
+        'trip_status_changed',
+        'document_approved',
+        'document_rejected',
+        'document_expiring',
+      ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
+      push_platform: ['ios', 'android'],
       special_requirement: [
         'temperature_control',
         'hazmat_permit',

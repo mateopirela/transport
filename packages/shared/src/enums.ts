@@ -58,6 +58,17 @@ export type IncidentKind = (typeof INCIDENT_KINDS)[number];
 export const INCIDENT_STATUSES = DB_ENUMS.incident_status;
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
+/** A conversation belongs to a negotiation or to a trip (conversations, B07). */
+export const CONVERSATION_KINDS = DB_ENUMS.conversation_kind;
+export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
+
+/** Key events that reach a user's inbox, push and email (notifications, B07). */
+export const NOTIFICATION_TYPES = DB_ENUMS.notification_type;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const PUSH_PLATFORMS = DB_ENUMS.push_platform;
+export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
+
 export const VEHICLE_KINDS = ['tractor', 'rigid', 'trailer'] as const;
 export type VehicleKind = (typeof VEHICLE_KINDS)[number];
 

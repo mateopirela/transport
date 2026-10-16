@@ -1,0 +1,115 @@
+// Spanish text of the notifications (B07). Postgres stores only the type and
+// the data of each notification; the in-app inbox (B14, B19) and the push and
+// email dispatcher (B09) render them here, so the text lives in one place.
+import type { NotificationType, TripEventType, TripStatus } from '../enums';
+import { formatMxn } from '../formatters';
+import { tripEventTypeLabels, tripStatusLabels } from './catalogs';
+
+export interface NotificationContent {
+  title: string;
+  body: string;
+}
+
+function text(data: unknown, key: string): string | undefined {
+  if (typeof data !== 'object' || data === null) return undefined;
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
+function count(data: unknown, key: string): number | undefined {
+  if (typeof data !== 'object' || data === null) return undefined;
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+/** " MTY → GDL" style suffix, or nothing when the route is unknown. */
+function route(data: unknown): string {
+  const origin = text(data, 'originCity');
+  const destination = text(data, 'destinationCity');
+  return origin && destination ? ` ${origin} → ${destination}` : '';
+}
+
+function amount(data: unknown): string {
+  const cents = count(data, 'amountCents');
+  return cents === undefined ? '' : ` de ${formatMxn(cents)}`;
+}
+
+function documentName(data: unknown): string {
+  return text(data, 'requirementName') ?? 'tu documento';
+}
+
+function tripStep(data: unknown): string | undefined {
+  const event = text(data, 'eventType');
+  if (event && Object.hasOwn(tripEventTypeLabels, event)) {
+    return tripEventTypeLabels[event as TripEventType];
+  }
+  const status = text(data, 'status');
+  if (status && Object.hasOwn(tripStatusLabels, status)) {
+    return tripStatusLabels[status as TripStatus];
+  }
+  return undefined;
+}
+
+function expiry(data: unknown): string {
+  const days = count(data, 'daysLeft');
+  if (days === undefined) return 'vence pronto';
+  if (days === 0) return 'vence hoy';
+  return days === 1 ? 'vence mañana' : `vence en ${days} días`;
+}
+
+/** Title and body of a notification, from its type and its `data`. */
+export function notificationContent(type: NotificationType, data: unknown): NotificationContent {
+  switch (type) {
+    case 'load_match':
+      return {
+        title: 'Carga compatible',
+        body: `Hay una carga nueva${route(data)} compatible con tu unidad.`,
+      };
+    case 'offer_received':
+      return {
+        title: 'Nueva oferta',
+        body: `Recibiste una oferta${amount(data)} por tu carga${route(data)}.`,
+      };
+    case 'counter_offer_received':
+      return {
+        title: 'Nueva contraoferta',
+        body: `Recibiste una contraoferta${amount(data)} por la carga${route(data)}.`,
+      };
+    case 'offer_accepted':
+      return {
+        title: 'Oferta aceptada',
+        body: `Aceptaron tu oferta${amount(data)} por la carga${route(data)}. El viaje ya está creado.`,
+      };
+    case 'trip_assigned':
+      return {
+        title: 'Viaje asignado',
+        body: `Se te asignó el viaje${route(data)}. Revisa los detalles antes de salir.`,
+      };
+    case 'trip_status_changed': {
+      const step = tripStep(data);
+      return {
+        title: `Viaje${route(data)}`,
+        body: step ? `${step}.` : 'El estado del viaje cambió.',
+      };
+    }
+    case 'document_approved':
+      return {
+        title: 'Documento aprobado',
+        body: `Aprobamos ${documentName(data)}.`,
+      };
+    case 'document_rejected': {
+      const notes = text(data, 'reviewNotes');
+      return {
+        title: 'Documento rechazado',
+        body: `Rechazamos ${documentName(data)}.${notes ? ` Motivo: ${notes}` : ''} Sube una nueva versión.`,
+      };
+    }
+    case 'document_expiring': {
+      const name = text(data, 'requirementName');
+      return {
+        title: 'Documento por vencer',
+        body: `${name ?? 'Uno de tus documentos'} ${expiry(data)}. Actualízalo para seguir operando.`,
+      };
+    }
+  }
+}

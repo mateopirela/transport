@@ -262,8 +262,14 @@ select is(
         'report_incident:20/60', 'send_message:60/60'],
   'the limits documented in docs/seguridad.md'
 );
--- Start the incident bucket from zero (the reports above counted).
+-- Start the buckets from zero (the writes above counted) in a window that
+-- the real clock cannot leave during the test: the window never moves
+-- backward, so every hit below counts in it, whenever the minute changes.
 delete from public.rate_limit_counters;
+insert into public.rate_limit_counters (bucket, subject, window_start, hits) values
+  ('report_incident', 'af120000-0000-4000-8000-000000000003', now() + interval '1 hour', 0),
+  ('send_message', 'af120000-0000-4000-8000-000000000001', now() + interval '1 hour', 0),
+  ('create_load', 'af120000-0000-4000-8000-000000000001', now() + interval '1 hour', 0);
 
 set local role authenticated;
 select tests.login('af120000-0000-4000-8000-000000000003');
@@ -297,7 +303,7 @@ select throws_ok(
 
 -- The window passes: the operator can report again.
 reset role;
-update public.rate_limit_counters set window_start = window_start - interval '1 minute'
+update public.rate_limit_counters set window_start = now() - interval '1 hour'
 where bucket = 'report_incident' and subject = 'af120000-0000-4000-8000-000000000003';
 set local role authenticated;
 select tests.login('af120000-0000-4000-8000-000000000003');

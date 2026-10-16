@@ -200,6 +200,11 @@ export const adminCopy = {
       companies: 'Empresa',
       documents: 'Documento',
       document_requirements: 'Requisito',
+      loads: 'Carga',
+      negotiations: 'Negociación',
+      offers: 'Oferta',
+      trips: 'Viaje',
+      incidents: 'Incidencia',
     } as Record<string, string>,
     /** Readable names of the audited columns; unknown ones show as stored. */
     fields: {

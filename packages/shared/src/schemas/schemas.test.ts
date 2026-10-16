@@ -5,7 +5,7 @@ import { validationMessages as m } from '../copy/validation';
 import { emailField, phoneField, placeSchema, timeWindowSchema } from './common';
 import { companyFormSchema, rfcField } from './company';
 import { loadFormSchema, type LoadFormInput } from './load';
-import { offerFormSchema } from './offer';
+import { adminContractSchema, offerFormSchema } from './offer';
 import { operatorFormSchema, todayInMexicoCity } from './operator';
 import { vehicleFormSchema, type VehicleFormInput } from './vehicle';
 
@@ -41,6 +41,7 @@ describe('Spanish messages (D02)', () => {
   it.each([
     ['load', loadFormSchema],
     ['offer', offerFormSchema],
+    ['admin contract', adminContractSchema],
     ['vehicle', vehicleFormSchema],
     ['company', companyFormSchema],
     ['operator', operatorFormSchema],
@@ -174,6 +175,23 @@ describe('offerFormSchema', () => {
     expect(issues(offerFormSchema, { amountCents: 10_000_000_001, vehicleId: 'x' })).toEqual({
       amountCents: m.amountTooHigh,
       vehicleId: m.uuid,
+    });
+  });
+});
+
+describe('adminContractSchema', () => {
+  const carrierCompanyId = '7f0d4a4e-3b8c-4f7a-9d55-2f1e7c1b9a10';
+
+  it('accepts a carrier, an amount and whether to contract at once', () => {
+    expect(
+      adminContractSchema.parse({ carrierCompanyId, amountCents: 3_200_000, accept: true }),
+    ).toEqual({ carrierCompanyId, amountCents: 3_200_000, accept: true });
+  });
+
+  it('requires the carrier and the amount', () => {
+    expect(issues(adminContractSchema, { carrierCompanyId: 'x', accept: false })).toEqual({
+      carrierCompanyId: m.uuid,
+      amountCents: m.amount,
     });
   });
 });

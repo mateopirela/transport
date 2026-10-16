@@ -95,6 +95,13 @@ export interface Database {
             referencedRelation: 'companies';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'carrier_routes_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
         ];
       };
       companies: {
@@ -190,6 +197,20 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'conversations_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'conversations_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
             foreignKeyName: 'conversations_load_id_fkey';
             columns: ['load_id'];
             isOneToOne: false;
@@ -209,6 +230,32 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'companies';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'conversations_trip_fkey';
+            columns: ['trip_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: [
+              'previous_trip_id',
+              'load_id',
+              'shipper_company_id',
+              'carrier_company_id',
+            ];
+          },
+          {
+            foreignKeyName: 'conversations_trip_fkey';
+            columns: ['trip_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id', 'load_id', 'shipper_company_id', 'carrier_company_id'];
           },
           {
             foreignKeyName: 'conversations_trip_fkey';
@@ -369,6 +416,13 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'documents_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
             foreignKeyName: 'documents_requirement_id_fkey';
             columns: ['requirement_id'];
             isOneToOne: false;
@@ -434,6 +488,20 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'incidents_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'incidents_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
           {
             foreignKeyName: 'incidents_trip_id_fkey';
             columns: ['trip_id'];
@@ -587,11 +655,25 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'loads_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
             foreignKeyName: 'loads_shipper_company_id_fkey';
             columns: ['shipper_company_id'];
             isOneToOne: false;
             referencedRelation: 'companies';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'loads_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
           },
         ];
       };
@@ -741,6 +823,20 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'negotiations_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'negotiations_load_fkey';
+            columns: ['load_id', 'shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id', 'shipper_company_id'];
+          },
+          {
             foreignKeyName: 'negotiations_load_fkey';
             columns: ['load_id', 'shipper_company_id'];
             isOneToOne: false;
@@ -813,8 +909,9 @@ export interface Database {
           status: Database['public']['Enums']['offer_status'];
           status_reason: string | null;
           vehicle_id: string | null;
+          apply_offer_acceptance: string | null;
         };
-        ComputedFields: never;
+        ComputedFields: 'apply_offer_acceptance';
         Insert: {
           amount_cents: number;
           carrier_company_id: string;
@@ -925,6 +1022,13 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'operator_invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
             foreignKeyName: 'operator_invitations_operator_fkey';
             columns: ['company_id', 'operator_id'];
             isOneToOne: false;
@@ -986,6 +1090,13 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'operators_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
             foreignKeyName: 'operators_profile_id_fkey';
             columns: ['profile_id'];
             isOneToOne: false;
@@ -1030,6 +1141,13 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'companies';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'profiles_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
           },
         ];
       };
@@ -1132,6 +1250,20 @@ export interface Database {
             foreignKeyName: 'trip_documents_trip_id_fkey';
             columns: ['trip_id'];
             isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_documents_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_documents_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
             referencedRelation: 'trips';
             referencedColumns: ['id'];
           },
@@ -1211,6 +1343,20 @@ export interface Database {
             foreignKeyName: 'trip_events_trip_id_fkey';
             columns: ['trip_id'];
             isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_events_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_events_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
             referencedRelation: 'trips';
             referencedColumns: ['id'];
           },
@@ -1273,6 +1419,20 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'incidents';
             referencedColumns: ['id', 'trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_evidence_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_evidence_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
           },
           {
             foreignKeyName: 'trip_evidence_trip_id_fkey';
@@ -1344,6 +1504,20 @@ export interface Database {
           trip_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'trip_locations_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_locations_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
           {
             foreignKeyName: 'trip_locations_trip_id_fkey';
             columns: ['trip_id'];
@@ -1421,6 +1595,20 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'trips_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'trips_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
             foreignKeyName: 'trips_load_id_fkey';
             columns: ['load_id'];
             isOneToOne: true;
@@ -1447,6 +1635,13 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'companies';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trips_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
           },
           {
             foreignKeyName: 'trips_vehicle_fkey';
@@ -1505,6 +1700,13 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'companies';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_availability_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
           },
           {
             foreignKeyName: 'vehicle_availability_vehicle_fkey';
@@ -1574,6 +1776,13 @@ export interface Database {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'vehicles_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
             foreignKeyName: 'vehicles_current_operator_fkey';
             columns: ['company_id', 'current_operator_id'];
             isOneToOne: false;
@@ -1583,7 +1792,138 @@ export interface Database {
         ];
       };
     };
-    Views: Record<never, never>;
+    Views: {
+      kpi_carrier_onboarding: {
+        Row: {
+          approved_at: string | null;
+          company_id: string | null;
+          legal_name: string | null;
+          minutes_to_approval: number | null;
+          registered_at: string | null;
+          status: Database['public']['Enums']['verification_status'] | null;
+        };
+        ComputedFields: never;
+        Relationships: [];
+      };
+      kpi_load_times: {
+        Row: {
+          contracted_at: string | null;
+          first_offer_at: string | null;
+          load_id: string | null;
+          minutes_to_contract: number | null;
+          minutes_to_first_offer: number | null;
+          published_at: string | null;
+          shipper_company_id: string | null;
+          status: Database['public']['Enums']['load_status'] | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: 'loads_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'loads_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+        ];
+      };
+      kpi_pilot_summary: {
+        Row: {
+          avg_abs_unload_error_minutes: number | null;
+          avg_avoided_empty_km: number | null;
+          avg_empty_km: number | null;
+          loads_published: number | null;
+          median_minutes_to_carrier_approval: number | null;
+          median_minutes_to_contract: number | null;
+          median_minutes_to_first_offer: number | null;
+          offers_total: number | null;
+          return_trips: number | null;
+          total_avoided_empty_km: number | null;
+          trips_closed: number | null;
+          trips_total: number | null;
+          unload_estimates_measured: number | null;
+        };
+        ComputedFields: never;
+        Relationships: [];
+      };
+      kpi_trip_metrics: {
+        Row: {
+          avoided_empty_km: number | null;
+          carrier_company_id: string | null;
+          created_at: string | null;
+          empty_km: number | null;
+          is_return_trip: boolean | null;
+          load_id: string | null;
+          previous_trip_id: string | null;
+          shipper_company_id: string | null;
+          status: Database['public']['Enums']['trip_status'] | null;
+          trip_id: string | null;
+          unload_estimate_error_minutes: number | null;
+          unload_estimated_end_at: string | null;
+          unload_finished_at: string | null;
+          vehicle_id: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: 'trips_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trips_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'trips_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
+            foreignKeyName: 'trips_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: true;
+            referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trips_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trips_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'trips_vehicle_fkey';
+            columns: ['carrier_company_id', 'vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
+    };
     Functions: {
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
@@ -1606,6 +1946,18 @@ export interface Database {
           p_stage: Database['public']['Enums']['evidence_stage'];
           p_storage_path: string;
           p_trip_id: string;
+        };
+        Returns: string;
+      };
+      admin_accept_offer: { Args: { p_offer_id: string }; Returns: string };
+      admin_create_offer: {
+        Args: {
+          p_accept?: boolean;
+          p_amount_cents: number;
+          p_carrier_company_id: string;
+          p_conditions?: string;
+          p_load_id: string;
+          p_vehicle_id?: string;
         };
         Returns: string;
       };
@@ -1682,6 +2034,15 @@ export interface Database {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      apply_offer_acceptance: {
+        Args: {
+          p_offer: Omit<
+            Database['public']['Tables']['offers']['Row'],
+            Database['public']['Tables']['offers']['ComputedFields']
+          >;
+        };
+        Returns: string;
       };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };

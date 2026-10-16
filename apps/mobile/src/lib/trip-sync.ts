@@ -97,7 +97,7 @@ export async function enqueueTripAction(action: QueuedAction): Promise<boolean> 
  * After loading the trip from the server: forgets the sent actions that its
  * timeline already shows (or that belong to another trip).
  */
-export function confirmLoadedTrip(userId: string, trip: OperatorTrip | null): void {
+function confirmLoadedTrip(userId: string, trip: OperatorTrip | null): void {
   if (state.userId !== userId || !state.ready) return;
   const sent = pruneSent(
     state.sent,
@@ -171,8 +171,46 @@ export function flushTripQueue(client: Supabase): Promise<void> {
 // after reopening the app without connection.
 const snapshotKey = (userId: string) => `transport.trip_snapshot.${userId}`;
 
-export async function saveTripSnapshot(userId: string, trip: OperatorTrip | null): Promise<void> {
-  await storage.setItem(snapshotKey(userId), JSON.stringify(trip)).catch(() => undefined);
+async function saveTripSnapshot(userId: string, trip: OperatorTrip | null): Promise<boolean> {
+  try {
+    await storage.setItem(snapshotKey(userId), JSON.stringify(trip));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Loads may overlap (focus and a finished sync): only the latest one started
+// is kept, so an older response never replaces a newer copy.
+let lastLoad = 0;
+let lastKept = 0;
+let keeping: Promise<unknown> = Promise.resolve();
+
+/** Number of a trip load about to start; pass it to keepLoadedTrip. */
+export function startTripLoad(): number {
+  lastLoad += 1;
+  return lastLoad;
+}
+
+/**
+ * Keeps a trip just loaded from the server: saves it as the offline copy and
+ * only then forgets the sent actions it already shows. If the copy cannot be
+ * saved, they stay, so an offline restart still shows those steps as done.
+ * Resolves to false when a newer load was already kept (discard this one).
+ */
+export function keepLoadedTrip(
+  userId: string,
+  trip: OperatorTrip | null,
+  load: number,
+): Promise<boolean> {
+  const run = keeping.then(async () => {
+    if (load < lastKept) return false;
+    lastKept = load;
+    if (await saveTripSnapshot(userId, trip)) confirmLoadedTrip(userId, trip);
+    return true;
+  });
+  keeping = run;
+  return run;
 }
 
 /** The saved trip (null: no trip), or undefined when nothing was saved. */

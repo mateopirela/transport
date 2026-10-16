@@ -43,12 +43,12 @@ import {
   type StoredQueue,
 } from '../../lib/trip-queue';
 import {
-  confirmLoadedTrip,
   dismissRejected,
   enqueueTripAction,
   flushTripQueue,
+  keepLoadedTrip,
   readTripSnapshot,
-  saveTripSnapshot,
+  startTripLoad,
   useTripQueue,
 } from '../../lib/trip-sync';
 import { useLoader } from '../../lib/use-loader';
@@ -81,16 +81,18 @@ export default function AssignedTripTab() {
   // Falls back to the last trip saved on the phone when there is no connection.
   const load = useCallback(async () => {
     if (!supabase || !userId) return new Promise<never>(() => undefined);
+    const loadNumber = startTripLoad();
+    let trip: OperatorTrip | null;
     try {
-      const trip = await loadOperatorTrip(supabase);
-      confirmLoadedTrip(userId, trip);
-      void saveTripSnapshot(userId, trip);
-      return trip;
+      trip = await loadOperatorTrip(supabase);
     } catch (error) {
       const saved = isRetryableError(error) ? await readTripSnapshot(userId) : undefined;
       if (saved === undefined) throw error;
       return saved;
     }
+    // A newer load already replaced this one: keep what is on screen.
+    if (!(await keepLoadedTrip(userId, trip, loadNumber))) throw new Error('superseded load');
+    return trip;
   }, [userId]);
   const { state, reload } = useLoader(load);
 

@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:types": "sh scripts/db-types.sh",
+    "e2e:mobile": "node scripts/e2e-mobile.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -1,0 +1,66 @@
+# Operator (B21-B23): opens the assigned trip, accepts sharing the location,
+# records the status steps of the pickup and takes the pickup photos before
+# leaving with the load.
+# Seed: miguel.hernandez@demo.test has the trip Apodaca -> GDL assigned
+# (load 09 of supabase/seed.sql). Continues in 06 and 07.
+appId: ${APP_ID}
+name: Operador · recolección
+tags: [operator]
+---
+# Pickup in Apodaca, N.L.: every status event keeps where it happened (D11).
+- setLocation:
+    latitude: 25.7700
+    longitude: -100.1700
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: miguel.hernandez@demo.test
+- extendedWaitUntil:
+    visible: 'Avance del viaje'
+    timeout: 30000
+- takeScreenshot: 05-1-operator-assigned-trip
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Salir a recolección'
+# Once the trip is active, tracking asks for the consent first (B22).
+- scrollUntilVisible:
+    element: 'Revisar y aceptar'
+    direction: UP
+    timeout: 15000
+- runFlow:
+    file: subflows/location-consent.yaml
+    env:
+      SHOT: 05-2-operator-location-consent
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Llegué a recolección'
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Iniciar carga'
+# Evidence (B23): the minimum pickup photos (2 by default), camera only.
+- repeat:
+    times: 2
+    commands:
+      - runFlow:
+          file: subflows/take-photo.yaml
+          env:
+            BUTTON: 'Tomar foto'
+            NOTICE: UP
+- scrollUntilVisible:
+    element: '2 de 2 fotos mínimas'
+    direction: DOWN
+    timeout: 30000
+- takeScreenshot: 05-3-operator-pickup-photos
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Terminar carga y salir'
+# The status badge is at the top of the screen.
+- scrollUntilVisible:
+    element: 'En tránsito'
+    direction: UP
+    timeout: 15000
+- takeScreenshot: 05-4-operator-in-transit

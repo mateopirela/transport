@@ -1,0 +1,47 @@
+# Operator (F7): reports an incident and takes its photo WITHOUT a connection
+# to the server; both stay on the phone, marked as pending.
+# Continues 05 with the app still open (no sign-in). Precondition: the API is
+# unreachable. `pnpm e2e:mobile` stops the local API gateway (the Kong
+# container of Supabase) before this flow and starts it again after it. The
+# iOS simulator shares the Mac's network and Maestro cannot turn it off there.
+appId: ${APP_ID}
+name: Operador · incidencia con foto sin conexión
+tags: [operator, offline]
+---
+- scrollUntilVisible:
+    element: 'Reportar incidencia'
+    centerElement: true
+- tapOn: 'Retraso'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Qué pasó'
+      TEXT: 'Tráfico detenido en la autopista por obras.'
+- tapOn: 'Reportar incidencia'
+- scrollUntilVisible:
+    element: 'Enviar incidencia'
+    centerElement: true
+- tapOn: 'Enviar incidencia'
+- scrollUntilVisible:
+    element: 'Incidencia guardada en el teléfono.*'
+    direction: UP
+    timeout: 15000
+# The incident is listed with its pending badge and already takes photos.
+- assertVisible: 'Tráfico detenido en la autopista por obras.'
+- runFlow:
+    file: subflows/take-photo.yaml
+    env:
+      BUTTON: 'Agregar foto'
+      NOTICE: DOWN
+- scrollUntilVisible:
+    element: '1 foto'
+    direction: UP
+    centerElement: true
+- takeScreenshot: 06-1-operator-incident-offline
+# Both wait on the phone: the report and its photo.
+- scrollUntilVisible:
+    element: 'Hay 1 registro guardado en el teléfono.*'
+    direction: UP
+    timeout: 30000
+- assertVisible: '1 foto espera para subirse.*'
+- takeScreenshot: 06-2-operator-pending-notices

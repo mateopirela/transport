@@ -12,13 +12,16 @@ tags: [carrier, star]
 - extendedWaitUntil:
     visible: 'Viajes de regreso'
     timeout: 30000
-- assertVisible: 'Viaje de regreso'
-- tapOn: 'Guadalajara → Monterrey'
+- assertVisible: 'CS53-01 · termina en Guadalajara'
+- takeScreenshot: 01-1-carrier-home-return-trip
+- tapOn: 'Guadalajara → Monterrey.*'
 - extendedWaitUntil:
     visible: 'Detalle de la carga'
     timeout: 15000
+- takeScreenshot: 01-2-carrier-load-detail
 - scrollUntilVisible:
     element: 'Aceptar el precio propuesto'
+    centerElement: true
 - tapOn: 'Aceptar el precio propuesto'
 # Native confirmation dialog.
 - tapOn: 'Confirmar'
@@ -26,3 +29,4 @@ tags: [carrier, star]
     visible: 'Oferta enviada.'
     timeout: 15000
 - assertVisible: 'Tu oferta está esperando la respuesta del cliente.'
+- takeScreenshot: 01-3-carrier-offer-sent

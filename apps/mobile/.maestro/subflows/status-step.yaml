@@ -1,8 +1,14 @@
 # Taps one status button of the operator's trip and confirms it. Needs STEP.
 appId: ${APP_ID}
 ---
+# The step buttons follow "Avance del viaje": start there, wherever the
+# screen was scrolled to.
+- scrollUntilVisible:
+    element: 'Avance del viaje'
+    direction: UP
 - scrollUntilVisible:
     element: ${STEP}
+    centerElement: true
 - tapOn: ${STEP}
 - tapOn: 'Sí, confirmar'
 - extendedWaitUntil:

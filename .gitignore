@@ -12,6 +12,8 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+# Maestro (pnpm e2e:mobile) logs and screenshots
+e2e/mobile-results/
 
 # Environment: never commit secrets; document variables in .env.example
 .env

@@ -1,0 +1,51 @@
+# Operator (F7, B21-B23): with the connection back, the queued incident and
+# its photo reach the server; then arrives, unloads and delivers.
+# Continues 06 with the app still open. Precondition: the API is reachable
+# again (`pnpm e2e:mobile` starts the gateway before this flow).
+appId: ${APP_ID}
+name: Operador · sincronizar y entregar
+tags: [operator, offline]
+---
+- scrollUntilVisible:
+    element: 'Enviar ahora'
+    direction: UP
+    centerElement: true
+- tapOn: 'Enviar ahora'
+- extendedWaitUntil:
+    notVisible: 'Hay 1 registro guardado en el teléfono.*'
+    timeout: 60000
+# The photo waits for its incident, then uploads (it retries on its own too).
+- runFlow:
+    when:
+      visible: 'Subir ahora'
+    commands:
+      - tapOn: 'Subir ahora'
+- extendedWaitUntil:
+    notVisible: '1 foto espera para subirse.*'
+    timeout: 60000
+# Sent: the incident is "Abierta" on the server, with its photo.
+- scrollUntilVisible:
+    element: 'Abierta'
+    centerElement: true
+- assertVisible: 'Tráfico detenido en la autopista por obras.'
+- assertVisible: '1 foto'
+- takeScreenshot: 07-1-operator-incident-synced
+# Delivery in Guadalajara.
+- setLocation:
+    latitude: 20.6380
+    longitude: -103.3640
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Llegué a destino'
+# Starts unloading with the default estimated end (in 4 hours).
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Iniciar descarga'
+- extendedWaitUntil:
+    visible: 'Descargando'
+    timeout: 15000
+- runFlow:
+    file: subflows/deliver.yaml
+- takeScreenshot: 07-2-operator-delivered

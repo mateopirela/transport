@@ -1,18 +1,68 @@
-# Signs in with the demo password (docs/demo-local.md). Needs EMAIL.
+# Signs in with the demo password (docs/demo-local.md). Needs EMAIL and
+# DEV_CLIENT_URL: the development build opens the bundle of that Metro
+# (exp+transport://expo-development-client/?url=<Metro URL, encoded>), so a
+# flow never picks up another Metro running on the same machine.
 appId: ${APP_ID}
 ---
-- launchApp:
-    clearState: true
-    permissions:
-      location: allow
-      camera: allow
-      notifications: deny
+# The session lives in the Keychain, which clearState keeps on iOS.
+- clearKeychain
+# iOS takes always/inuse/never for the location; Android, allow/deny.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            location: always
+            camera: allow
+            notifications: deny
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: true
+          permissions:
+            location: allow
+            camera: allow
+            notifications: deny
+- openLink: ${DEV_CLIENT_URL}
 - extendedWaitUntil:
     visible: 'Entrar'
-    timeout: 30000
-- tapOn: 'Correo electrónico'
-- inputText: ${EMAIL}
-- tapOn: 'Contraseña'
-- inputText: 'Demo1234'
-- hideKeyboard
+    timeout: 60000
+# First launch of a development build: the dev menu introduces itself.
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd
+# Right after launch the screen can still re-render and drop what was typed,
+# so the email is typed until it sticks.
+- retry:
+    maxRetries: 3
+    commands:
+      - runFlow:
+          file: fill-field.yaml
+          env:
+            LABEL: 'Correo electrónico'
+            TEXT: ${EMAIL}
+      - assertVisible: ${EMAIL}
+- runFlow:
+    file: fill-field.yaml
+    env:
+      LABEL: 'Contraseña'
+      TEXT: 'Demo1234'
+# hideKeyboard swipes on iOS and may hit a link: tap the subtitle instead.
+- tapOn: 'Tu siguiente viaje, antes de terminar el actual.'
 - tapOn: 'Entrar'
+# iOS offers to save the password: decline it.
+- extendedWaitUntil:
+    visible: 'Not Now'
+    timeout: 8000
+    optional: true
+# (it may already be gone: the tap is optional)
+- tapOn:
+    text: 'Not Now'
+    optional: true

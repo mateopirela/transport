@@ -1,0 +1,13 @@
+# Types TEXT in the form field labelled LABEL (components/ui.tsx `Field`).
+# The label text and the input (whose accessibility label is the same text)
+# both match LABEL, and tapping the label does not focus the input: tap the
+# element right below the label instead. LABEL is a regex: escape ( ) . etc.
+appId: ${APP_ID}
+---
+- scrollUntilVisible:
+    element: ${LABEL}
+    centerElement: true
+- tapOn:
+    below: ${LABEL}
+- eraseText: 60
+- inputText: ${TEXT}

@@ -1,0 +1,42 @@
+# Operator (D11, B21-B23): the trip is unloading; moves the estimated end of
+# unloading and then finishes the delivery.
+# Seed: pedro.lopez@demo.test drives CS53-01 on the MTY -> GDL trip that is
+# unloading in Guadalajara (the return-trip scenario of the seed).
+appId: ${APP_ID}
+name: Operador · fin estimado y terminar descarga
+tags: [operator, star]
+---
+- setLocation:
+    latitude: 20.6330
+    longitude: -103.3610
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: pedro.lopez@demo.test
+- extendedWaitUntil:
+    visible: 'Avance del viaje'
+    timeout: 30000
+- runFlow:
+    file: subflows/location-consent.yaml
+    env:
+      SHOT: ''
+- scrollUntilVisible:
+    element: 'Fin estimado: .*'
+    centerElement: true
+- takeScreenshot: 02-1-operator-unloading
+# New estimate: today in 3 hours (scripts/unload-estimate.js). Only the time
+# changes: its value is short, so tapping the input puts the cursor at its end
+# and eraseText clears it (the date fills its input: a tap lands mid-text).
+- runScript: scripts/unload-estimate.js
+- tapOn: '\d{2}:\d{2}'
+- eraseText: 10
+- inputText: ${output.estimate.input}
+- tapOn: 'Fin estimado de descarga'
+- tapOn: 'Guardar fin estimado'
+- extendedWaitUntil:
+    visible: 'Fin estimado: .*, ${output.estimate.shown}'
+    timeout: 30000
+- takeScreenshot: 02-2-operator-estimate-updated
+- runFlow:
+    file: subflows/deliver.yaml
+- takeScreenshot: 02-3-operator-delivered

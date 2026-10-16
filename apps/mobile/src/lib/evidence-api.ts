@@ -4,6 +4,7 @@ import { Directory, File as LocalFile, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
 import { compressPhoto } from './document-upload';
+import { FAKE_PHOTO_SIZE, fakePhotoBase64, isFakeCameraEnabled } from './e2e-camera';
 import {
   evidenceRpcArgs,
   isDuplicateUpload,
@@ -49,6 +50,33 @@ export function deletePhotoFile(item: Pick<QueuedPhoto, 'fileName'>): void {
   }
 }
 
+// Development builds only (F14): the iOS simulator has no camera.
+const fakeCamera = isFakeCameraEnabled(process.env.EXPO_PUBLIC_E2E_FAKE_CAMERA, __DEV__);
+
+/** The fixed photo of the stand-in camera, as the camera would return it. */
+function fakeCameraAsset(): ImagePicker.ImagePickerAsset {
+  const file = new LocalFile(Paths.cache, 'e2e-photo.jpg');
+  file.write(fakePhotoBase64(), { encoding: 'base64' });
+  return {
+    uri: file.uri,
+    width: FAKE_PHOTO_SIZE,
+    height: FAKE_PHOTO_SIZE,
+    type: 'image',
+    mimeType: 'image/jpeg',
+  };
+}
+
+/** The photo the operator took, or undefined when they cancelled. */
+async function takeCameraPhoto(): Promise<ImagePicker.ImagePickerAsset | undefined> {
+  if (fakeCamera) return fakeCameraAsset();
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    exif: false,
+  });
+  return result.canceled ? undefined : result.assets[0];
+}
+
 export type CaptureOutcome =
   | { status: 'captured'; photo: QueuedPhoto }
   | { status: 'cancelled' }
@@ -69,12 +97,13 @@ export async function capturePhoto(input: {
 }): Promise<CaptureOutcome> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) return { status: 'denied' };
-  const result = await ImagePicker.launchCameraAsync({
-    mediaTypes: ['images'],
-    quality: 1,
-    exif: false,
-  });
-  const asset = result.canceled ? undefined : result.assets[0];
+  let asset: ImagePicker.ImagePickerAsset | undefined;
+  try {
+    asset = await takeCameraPhoto();
+  } catch {
+    // No camera on the device (or it failed to open): say so, never hang.
+    return { status: 'failed' };
+  }
   if (!asset) return { status: 'cancelled' };
   const capturedAt = new Date().toISOString();
 

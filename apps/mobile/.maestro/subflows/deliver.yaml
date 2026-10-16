@@ -1,0 +1,36 @@
+# Operator, unloading: takes the minimum delivery photos (2 by default),
+# writes who receives and finishes the unloading (B23).
+appId: ${APP_ID}
+---
+# The photos come before the estimate and receiver forms.
+- scrollUntilVisible:
+    element: 'Fotos de entrega'
+    direction: UP
+    centerElement: true
+- repeat:
+    times: 2
+    commands:
+      - runFlow:
+          file: take-photo.yaml
+          env:
+            BUTTON: 'Tomar foto'
+            NOTICE: UP
+- scrollUntilVisible:
+    element: '2 de 2 fotos mínimas'
+    direction: DOWN
+    timeout: 30000
+- runFlow:
+    file: fill-field.yaml
+    env:
+      LABEL: 'Nombre de quien recibe'
+      TEXT: 'Laura Gómez Ruiz'
+- tapOn: 'Quién recibe'
+- runFlow:
+    file: status-step.yaml
+    env:
+      STEP: 'Terminar descarga'
+- scrollUntilVisible:
+    element: 'Entregaste esta carga.*'
+    direction: UP
+    timeout: 30000
+- assertVisible: 'Recibió: Laura Gómez Ruiz'

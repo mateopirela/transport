@@ -88,6 +88,8 @@ as $$
     delete from public.trip_events
     where trip_id in (select id from public.trips where shipper_company_id = 'c5100000-0000-4000-8000-000000000001');
     alter table public.trip_events enable trigger trip_events_immutable;
+    -- Conversations of the negotiations and trips (B07).
+    delete from public.conversations where shipper_company_id = 'c5100000-0000-4000-8000-000000000001';
     delete from public.trips where shipper_company_id = 'c5100000-0000-4000-8000-000000000001';
     update public.loads
     set status = 'draft', accepted_offer_id = null, carrier_company_id = null, agreed_price_cents = null,

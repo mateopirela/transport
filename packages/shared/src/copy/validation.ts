@@ -40,4 +40,6 @@ export const validationMessages = {
   coordinates: 'La ubicación no es válida.',
   fileHash: 'La huella del archivo no es válida.',
   tooManyItems: (max: number) => `Máximo ${max} elementos por envío.`,
+  messageEmpty: 'Escribe un mensaje o adjunta un archivo.',
+  attachment: 'El archivo adjunto no es válido.',
 } as const;

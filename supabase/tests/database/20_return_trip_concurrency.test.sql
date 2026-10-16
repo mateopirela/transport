@@ -9,6 +9,8 @@
 --      cancellation waits for the unit and then restores that estimate.
 --   4. F5: two assignments swap the same two units: they serialize on the
 --      units (locked in one order) instead of deadlocking.
+--   5. F5: an estimate written while the unit sets off on its next trip:
+--      the departure waits for the unit and then forgets that estimate.
 --
 -- The sessions need committed fixtures, so this file creates them through its
 -- own connection and deletes them at the end (same approach as
@@ -17,7 +19,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(14);
+select plan(17);
 
 create schema tests;
 
@@ -356,6 +358,53 @@ select is(
   $sql$),
   '4:2,5:1',
   'both trips end up with the swapped units'
+);
+
+-- ---------------------------------------------------------------------------
+-- 5. F5: V is assigned trips 4 and 5. Trip 1 writes V's estimate (s1; held
+--    back by one of them) while O sets off on the other (s2): the departure
+--    waits for V and then forgets that estimate too, so no cancellation can
+--    bring it back. (Held back by the departing trip itself, the departure
+--    would wait anyway: that row's foreign key share-locks the trip.)
+-- ---------------------------------------------------------------------------
+select tests.begin_as('s1', 'a2f00000-0000-4000-8000-000000000002');
+select * from extensions.dblink('s1', $sql$
+  select public.assign_trip(t.id, 'e2f00000-0000-4000-8000-000000000001', 'd2f00000-0000-4000-8000-000000000003')::text
+  from public.trips t where t.offer_id = 'f2f20000-0000-4000-8000-000000000004'
+$sql$) as t(r text);
+select extensions.dblink_exec('s1', 'commit');
+create table tests.departing as
+select tests.peek($sql$
+  select t.id::text from public.trips t
+  where t.offer_id in ('f2f20000-0000-4000-8000-000000000004', 'f2f20000-0000-4000-8000-000000000005')
+    and t.id <> public.vehicle_committing_trip(
+      'e2f00000-0000-4000-8000-000000000001',
+      (select id from public.trips where offer_id = 'f2f20000-0000-4000-8000-000000000001'))
+$sql$)::uuid as id;
+
+select extensions.dblink_exec('s1', 'begin');
+select extensions.dblink_exec('s1', 'set local lock_timeout = ''15s''');
+select extensions.dblink_exec('s1', tests.write_estimate_sql());
+select tests.begin_as('s2', 'a2f00000-0000-4000-8000-000000000003');
+select extensions.dblink_send_query('s2', format(
+  'select public.record_trip_event(%L, %L, now(), 25.6866, -100.3161)::text',
+  (select id from tests.departing), 'departed'
+));
+select ok(tests.wait_until_blocked('s2'), 'the departure waits for the unit while its estimate is written');
+select extensions.dblink_exec('s1', 'commit');
+select lives_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  'then O sets off'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+select is(
+  tests.peek($sql$
+    select count(*)::text from public.vehicle_availability
+    where vehicle_id = 'e2f00000-0000-4000-8000-000000000001' and ended_by_trip_id is not null
+  $sql$),
+  '0',
+  'nothing held back for V is left to restore'
 );
 
 select tests.cleanup();

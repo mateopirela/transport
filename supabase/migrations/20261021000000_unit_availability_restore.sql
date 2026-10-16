@@ -201,8 +201,11 @@ begin
   end if;
   -- The unit sets off: nothing written before is where it will be, so what
   -- its commitments held back is no longer restored (even if this trip is
-  -- cancelled later).
+  -- cancelled later). Same unit lock as set_trip_vehicle_availability: an
+  -- estimate written meanwhile is waited for and then seen (the update is a
+  -- later statement), or it waits and is written after the departure.
   if new.status not in ('pending_assignment', 'assigned', 'cancelled') then
+    perform 1 from public.vehicles v where v.id = new.vehicle_id for update;
     update public.vehicle_availability
     set ended_by_trip_id = null
     where vehicle_id = new.vehicle_id and archived_at is not null and ended_by_trip_id is not null;

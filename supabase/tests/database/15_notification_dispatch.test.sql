@@ -98,6 +98,46 @@ begin
 end;
 $$;
 
+-- Runs the document expiry cron and returns how many documents of this test's
+-- companies it warned, so documents already in the database (e.g. the demo
+-- seed's) do not change the result. It also checks that the count the cron
+-- returns matches every document it recorded a new notice for (fails the
+-- test otherwise).
+create table tests.notices_before (document_id uuid, threshold_days integer, expires_at timestamptz);
+
+create function tests.expire_documents()
+returns integer
+language plpgsql
+as $$
+declare
+  v_returned integer;
+  v_warned integer;
+  v_ours integer;
+begin
+  delete from tests.notices_before;
+  insert into tests.notices_before
+  select document_id, threshold_days, expires_at from public.document_expiry_notices;
+
+  v_returned := public.process_document_expiry();
+
+  with new_notices as (
+    select document_id, threshold_days, expires_at from public.document_expiry_notices
+    except
+    select document_id, threshold_days, expires_at from tests.notices_before
+  )
+  select count(distinct n.document_id),
+         count(distinct n.document_id) filter (where d.company_id::text like 'c9000000-%')
+  into v_warned, v_ours
+  from new_notices n
+  join public.documents d on d.id = n.document_id;
+  if v_returned is distinct from v_warned then
+    raise exception 'process_document_expiry returned % but recorded notices for % documents', v_returned, v_warned;
+  end if;
+
+  return v_ours;
+end;
+$$;
+
 grant execute on all functions in schema tests to authenticated, service_role;
 grant select, insert on tests.vals to authenticated, service_role;
 
@@ -435,7 +475,7 @@ from (values
 ) as x(id, code, owner_type, owner_id, expires_in)
 join public.document_requirements r on r.code = x.code;
 
-select is(public.process_document_expiry(), 2, 'two documents are warned');
+select is(tests.expire_documents(), 2, 'two documents are warned');
 select is(
   (select status::text from public.documents where id = 'b9000000-0000-4000-8000-000000000003'), 'expired',
   'an approved document past its expiry is marked expired'
@@ -445,7 +485,9 @@ select is(
   'a document that is only about to expire stays approved'
 );
 select results_eq(
-  $$ select document_id, threshold_days::int from public.document_expiry_notices order by document_id, threshold_days $$,
+  $$ select n.document_id, n.threshold_days::int from public.document_expiry_notices n
+     join public.documents d on d.id = n.document_id
+     where d.company_id::text like 'c9000000-%' order by n.document_id, n.threshold_days $$,
   $$ values ('b9000000-0000-4000-8000-000000000001'::uuid, 30),
             ('b9000000-0000-4000-8000-000000000002'::uuid, 7),
             ('b9000000-0000-4000-8000-000000000002'::uuid, 30) $$,
@@ -476,7 +518,7 @@ select is(
   tests.pending('a9000000-0000-4000-8000-000000000001', 'document_expiring'), 0,
   'other companies are not warned'
 );
-select is(public.process_document_expiry(), 0, 'running it again warns nobody');
+select is(tests.expire_documents(), 0, 'running it again warns nobody');
 
 -- Seven days later the policy reaches the second threshold.
 update public.documents set expires_at = now() + interval '6 days' where id = 'b9000000-0000-4000-8000-000000000001';
@@ -484,7 +526,7 @@ delete from public.document_expiry_notices
 where document_id = 'b9000000-0000-4000-8000-000000000001' and threshold_days = 30;
 insert into public.document_expiry_notices (document_id, threshold_days, expires_at)
 values ('b9000000-0000-4000-8000-000000000001', 30, now() + interval '6 days');
-select is(public.process_document_expiry(), 1, 'the 7-day warning comes after the 30-day one');
+select is(tests.expire_documents(), 1, 'the 7-day warning comes after the 30-day one');
 select is(
   tests.pending('a9000000-0000-4000-8000-000000000002', 'document_expiring'), 3,
   'the carrier got the second warning of the policy'

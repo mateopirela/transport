@@ -31,6 +31,8 @@ pnpm --filter @transport/e2e e2e:install   # una vez: Chromium de Playwright
 pnpm --filter @transport/e2e e2e           # levanta `next start` en 127.0.0.1:3000
 ```
 
+En puertos alternos (`eval "$(sh scripts/local-ports.sh 563)"`, ver [CONTRIBUTING.md](../CONTRIBUTING.md#puertos-alternos)), el script ya exporta `NEXT_PUBLIC_SUPABASE_URL`, `E2E_BASE_URL` y `E2E_MAILPIT_URL`: solo falta la anon key.
+
 Sin `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`: el formulario de cargas usa las ciudades predefinidas del corredor, que es lo que esperan las pruebas.
 
 Variables opcionales:

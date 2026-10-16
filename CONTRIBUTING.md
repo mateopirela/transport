@@ -32,6 +32,19 @@ Base de datos (Supabase local, requiere Docker):
 
 Pruebas de punta a punta (Playwright, requiere el stack local con la seed): `pnpm --filter @transport/e2e e2e`. Ver [e2e/README.md](e2e/README.md).
 
+### Puertos alternos
+
+Por defecto Supabase local usa los puertos 54320–54329 y la web el 3000. Si chocan con otro proyecto (o con otro agente en paralelo), no edites `supabase/config.toml`: en la misma terminal, exporta las variables que imprime `scripts/local-ports.sh` y corre los comandos de siempre.
+
+```sh
+eval "$(sh scripts/local-ports.sh 563)"   # Supabase en 563xx (API 56321, BD 56322, Mailpit 56324); web en 3020
+supabase start                            # también supabase status, db reset, test db, stop y pnpm db:types
+pnpm --filter @transport/web dev          # next dev escucha en $PORT y usa NEXT_PUBLIC_SUPABASE_URL
+pnpm --filter @transport/e2e e2e          # Playwright usa E2E_BASE_URL y E2E_MAILPIT_URL
+```
+
+El primer argumento reemplaza el `543` de los puertos por defecto; el segundo (opcional) fija el puerto de la web (por defecto `3000 + prefijo − 543`). Funciona porque Supabase CLI acepta variables `SUPABASE_<SECCIÓN>_<CLAVE>` (p. ej. `SUPABASE_API_PORT`, `SUPABASE_AUTH_SITE_URL`) que reemplazan los valores de `config.toml`. Sin esas variables todo usa los valores por defecto, como en CI. Las variables están descritas en [.env.example](.env.example) y el flujo de la demo en [docs/demo-local.md](docs/demo-local.md#puertos-alternos).
+
 Turborepo cachea las tareas; para filtrar por paquete: `pnpm turbo run test --filter=@transport/shared`.
 
 ## Estructura

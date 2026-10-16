@@ -64,6 +64,19 @@ select vault.create_secret('<el mismo secreto>', 'notifications_dispatch_secret'
 
 Sin esos dos secretos el trabajo `dispatch-notifications` no hace nada (las notificaciones siguen en la bandeja de la app).
 
+## Puertos alternos
+
+Los ejemplos de esta página usan los puertos por defecto (API en `54321`, web en `3000`). Si están ocupados, corre todo en otros puertos sin editar `supabase/config.toml`:
+
+```sh
+eval "$(sh scripts/local-ports.sh 563)"   # en cada terminal que uses
+supabase start                            # API en 56321, Studio en 56323, Mailpit en 56324
+supabase status -o env                    # anon key; las URL ya reflejan los puertos nuevos
+pnpm --filter @transport/web dev          # web en http://127.0.0.1:3020
+```
+
+El script solo imprime `export` de variables: `SUPABASE_*_PORT` (que Supabase CLI aplica sobre `config.toml`), la URL de Auth (`SUPABASE_AUTH_SITE_URL` y las redirecciones permitidas, para que los enlaces de los correos apunten a la web en su puerto), `PORT` y `NEXT_PUBLIC_*` para la web, y `E2E_BASE_URL` / `E2E_MAILPIT_URL` para Playwright. Corre `supabase stop` en una terminal con las mismas variables. En los comandos de arriba, cambia `54321` por el puerto de la API (p. ej. `56321`); la URL del despachador en Vault también (`http://host.docker.internal:56321/...`).
+
 ## Limitaciones
 
 - **Archivos:** los documentos y la evidencia no tienen archivo en Storage (solo metadatos). El visor de documentos del admin no puede abrirlos.

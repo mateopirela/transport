@@ -20,13 +20,15 @@ El trabajo se organiza en **bloques**: cada bloque de [docs/plan-v1.md](docs/pla
 
 Base de datos (Supabase local, requiere Docker):
 
-| Comando                    | Qué hace                                                                    |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `supabase start`           | Levanta Supabase local (o `supabase db start` para solo Postgres)           |
-| `supabase db reset`        | Recrea la BD aplicando todas las migraciones de `supabase/migrations/`      |
-| `supabase test db`         | Corre los tests pgTAP de `supabase/tests/`                                  |
-| `pnpm db:types`            | Regenera `packages/shared/src/db.ts` (CI falla si quedó desactualizado)     |
-| `supabase migration new x` | Crea una migración nueva; cada tabla nueva lleva RLS y pgTAP en el mismo PR |
+| Comando                                | Qué hace                                                                                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `supabase start`                       | Levanta Supabase local (o `supabase db start` para solo Postgres)                            |
+| `supabase db reset`                    | Recrea la BD con las migraciones y los datos demo ([docs/demo-local.md](docs/demo-local.md)) |
+| `supabase db reset --no-seed`          | Recrea la BD vacía (solo migraciones), como la espera la suite pgTAP                         |
+| `supabase test db`                     | Corre los tests pgTAP de `supabase/tests/` (sobre la BD vacía)                               |
+| `supabase test db supabase/seed-tests` | Verifica los datos demo (después de `supabase db reset`)                                     |
+| `pnpm db:types`                        | Regenera `packages/shared/src/db.ts` (CI falla si quedó desactualizado)                      |
+| `supabase migration new x`             | Crea una migración nueva; cada tabla nueva lleva RLS y pgTAP en el mismo PR                  |
 
 Turborepo cachea las tareas; para filtrar por paquete: `pnpm turbo run test --filter=@transport/shared`.
 

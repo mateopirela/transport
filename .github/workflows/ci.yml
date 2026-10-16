@@ -74,8 +74,9 @@ jobs:
           CI: 'true'
           EXPO_NO_TELEMETRY: '1'
 
-  # Database: applies every migration to a fresh local Postgres, runs the pgTAP
-  # suite and checks that the generated types (pnpm db:types) are up to date.
+  # Database: applies every migration and the demo seed to a fresh local
+  # Postgres, checks the seed, runs the pgTAP suite on an empty database and
+  # checks that the generated types (pnpm db:types) are up to date.
   # Mandatory since B01 added supabase/config.toml: there is no skip path.
   db:
     name: db (supabase test db)
@@ -90,8 +91,16 @@ jobs:
         with:
           version: 2.121.0
 
-      - name: Start local database (applies migrations from scratch)
+      - name: Start local database (applies migrations and the demo seed from scratch)
         run: supabase db start
+
+      # B10: the demo seed (supabase/seed.sql) must load and stay consistent.
+      - name: Check the demo seed
+        run: supabase test db supabase/seed-tests
+
+      # The pgTAP suite builds its own fixtures and expects an empty database.
+      - name: Reset to an empty database for the pgTAP suite
+        run: supabase db reset --no-seed
 
       - name: Run pgTAP tests
         run: supabase test db

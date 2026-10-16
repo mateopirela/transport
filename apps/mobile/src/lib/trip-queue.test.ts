@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  actionEventType,
   effectiveStatus,
   effectiveUnloadEstimate,
   flushQueue,
@@ -10,8 +11,10 @@ import {
   pendingEvents,
   photoMustWait,
   pruneSent,
+  queuedIncidents,
   unconfirmedActions,
   type QueuedAction,
+  type QueuedIncidentAction,
 } from './trip-queue';
 
 const TRIP = '7f1c2a8e-4b6d-4c3e-9a1f-2d5e6f708192';
@@ -39,6 +42,19 @@ function step(
 
 function estimate(occurredAt: string, at: string): QueuedAction {
   return { kind: 'estimate', id: uuid(), tripId: TRIP, occurredAt, estimatedUnloadEndAt: at };
+}
+
+function incident(occurredAt: string, tripId = TRIP): QueuedIncidentAction {
+  return {
+    kind: 'incident',
+    id: uuid(),
+    tripId,
+    occurredAt,
+    incidentKind: 'mechanical_failure',
+    description: 'Llanta ponchada',
+    lat: null,
+    lng: null,
+  };
 }
 
 describe('stored queue', () => {
@@ -235,5 +251,120 @@ describe('photoMustWait (B23)', () => {
     expect(photoMustWait(queue, TRIP, 'delivery')).toBe(true);
     expect(photoMustWait(queue.slice(1), TRIP, 'incident')).toBe(true);
     expect(photoMustWait([step('loading_finished', at)], TRIP, 'delivery')).toBe(true);
+  });
+});
+
+describe('offline incidents (F7)', () => {
+  const at = '2026-10-15T10:00:00-06:00';
+
+  it('stores incident reports and drops invalid ones', () => {
+    const report = incident(at);
+    const located = { ...incident(at), lat: 25.7, lng: -100.3 };
+    expect(parseStoredQueue(JSON.stringify({ pending: [report, located], sent: [] }))).toEqual({
+      pending: [report, located],
+      sent: [],
+    });
+    for (const bad of [
+      { ...report, description: '   ' },
+      { ...report, description: 'x'.repeat(2001) },
+      { ...report, incidentKind: 'alien_abduction' },
+      { ...report, lat: 120 },
+    ]) {
+      expect(parseStoredQueue(JSON.stringify({ pending: [bad] })).pending).toEqual([]);
+    }
+  });
+
+  it('does not change the status nor the unloading estimate of the trip', () => {
+    const queue = [step('departed', at), incident(at)];
+    expect(effectiveStatus('assigned', queue, TRIP)).toBe('en_route_to_pickup');
+    expect(pendingEvents(queue, TRIP)).toEqual(['departed']);
+    expect(effectiveUnloadEstimate('2026-10-15T20:00:00.000Z', [incident(at)], TRIP)).toBe(
+      '2026-10-15T20:00:00.000Z',
+    );
+  });
+
+  it('labels each action with the event it records', () => {
+    expect(actionEventType(step('departed', at))).toBe('departed');
+    expect(actionEventType(estimate(at, at))).toBe('unload_estimate_updated');
+    expect(actionEventType(incident(at))).toBe('incident_reported');
+  });
+
+  it('lists the incidents of a trip not shown by the loaded copy, newest first', () => {
+    const first = incident('2026-10-15T10:00:00.000Z');
+    const second = incident('2026-10-15T11:00:00.000Z');
+    const other = incident('2026-10-15T10:30:00.000Z', OTHER);
+    const stored = { sent: [first], pending: [step('departed', at), other, second] };
+    expect(queuedIncidents(unconfirmedActions(stored, new Set()), TRIP)).toEqual([second, first]);
+    // Once a loaded trip shows the first report (by its key), only the second remains.
+    expect(queuedIncidents(unconfirmedActions(stored, new Set([first.id])), TRIP)).toEqual([
+      second,
+    ]);
+  });
+
+  it('sends incidents in queue order with the steps', async () => {
+    const queue = [step('departed', at), incident(at), step('arrived_at_pickup', at)];
+    const sent: string[] = [];
+    const result = await flushQueue(queue, (action) => {
+      sent.push(action.id);
+      return Promise.resolve();
+    });
+    expect(sent).toEqual(queue.map((a) => a.id));
+    expect(result).toEqual({ sent, rejected: [], stopped: false });
+  });
+
+  it('keeps an incident that failed to send, and retries it with the same key', async () => {
+    const report = incident(at);
+    const later = step('departed', at);
+    const keys: string[] = [];
+    const offline = await flushQueue([report, later], (action) => {
+      keys.push(action.id);
+      return Promise.reject(new TypeError('Network request failed'));
+    });
+    // Nothing after it goes out of order, and nothing is dropped.
+    expect(offline).toEqual({ sent: [], rejected: [], stopped: true });
+
+    // The retry sends the very same action: report_incident is idempotent on its id.
+    const online = await flushQueue([report, later], (action) => {
+      keys.push(action.id);
+      return Promise.resolve();
+    });
+    expect(online).toEqual({ sent: [report.id, later.id], rejected: [], stopped: false });
+    expect(keys).toEqual([report.id, report.id, later.id]);
+  });
+
+  it('a refused incident drops nothing else, and a refused step drops no incident', async () => {
+    const refusedIncident = incident(at);
+    const departed = step('departed', at);
+    const arrived = step('arrived_at_pickup', at);
+    const afterRefusal = incident(at);
+    const refused = new Set([refusedIncident.id, departed.id]);
+    const result = await flushQueue([refusedIncident, departed, afterRefusal, arrived], (action) =>
+      refused.has(action.id)
+        ? Promise.reject({ code: '22023', message: 'occurred_at is out of range' })
+        : Promise.resolve(),
+    );
+    expect(result).toEqual({
+      sent: [afterRefusal.id],
+      // The step after the refused departure would be refused too; the incident is not.
+      rejected: [refusedIncident, departed, arrived],
+      stopped: false,
+    });
+  });
+
+  it('holds the photos of an incident until its report is sent', () => {
+    const report = incident(at);
+    expect(photoMustWait([report], TRIP, 'incident')).toBe(true);
+    expect(photoMustWait([step('departed', at), report], TRIP, 'incident')).toBe(true);
+    // Sent: the server can resolve the incident by the key of its report.
+    expect(photoMustWait([], TRIP, 'incident')).toBe(false);
+    expect(photoMustWait([incident(at, OTHER)], TRIP, 'incident')).toBe(false);
+  });
+
+  it('never holds pickup or delivery photos behind an incident', () => {
+    expect(photoMustWait([incident(at)], TRIP, 'pickup')).toBe(false);
+    expect(photoMustWait([incident(at), step('loading_finished', at)], TRIP, 'pickup')).toBe(false);
+    expect(photoMustWait([incident(at), step('arrived_at_delivery', at)], TRIP, 'delivery')).toBe(
+      true,
+    );
   });
 });

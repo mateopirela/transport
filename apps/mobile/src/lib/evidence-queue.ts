@@ -22,6 +22,12 @@ const photo = z.object({
   tripId: z.uuid(),
   stage: z.enum(EVIDENCE_STAGES),
   incidentId: z.uuid().nullable(),
+  /**
+   * Key of the report of the incident (its client_event_id) when the photo
+   * was taken before the report reached the server (F7): the server resolves
+   * the incident by it. Absent in queues saved before F7.
+   */
+  incidentKey: z.uuid().nullable().optional(),
   /** Name of the file in the app's evidence folder (the folder moves between app updates on iOS). */
   fileName: z.string().regex(/^[0-9a-f-]{36}\.jpg$/u),
   sha256: z.string().regex(/^[0-9a-f]{64}$/u),
@@ -73,6 +79,25 @@ export function photoStoragePath(item: Pick<QueuedPhoto, 'tripId' | 'stage' | 'i
   return evidenceStoragePath({ tripId: item.tripId, stage: item.stage, fileId: item.id });
 }
 
+/** Arguments of add_trip_evidence for a queued photo uploaded to `path`. */
+export function evidenceRpcArgs(item: QueuedPhoto, path: string) {
+  return {
+    p_trip_id: item.tripId,
+    p_stage: item.stage,
+    p_storage_path: path,
+    p_sha256: item.sha256,
+    p_captured_at: item.capturedAt,
+    ...(item.lat === null || item.lng === null
+      ? {}
+      : { p_latitude: item.lat, p_longitude: item.lng }),
+    ...(item.incidentId !== null
+      ? { p_incident_id: item.incidentId }
+      : item.incidentKey
+        ? { p_incident_client_event_id: item.incidentKey }
+        : {}),
+  };
+}
+
 /** A photo the server has, as the trip screen reads it from trip_evidence. */
 export interface ServerPhoto {
   stage: EvidenceStage;
@@ -95,6 +120,29 @@ export function photoCounts(
     if (p.tripId === tripId && p.stage !== 'incident') paths[p.stage].add(photoStoragePath(p));
   }
   return { pickup: paths.pickup.size, delivery: paths.delivery.size };
+}
+
+/**
+ * Photos of one incident: the server's (by its id) and the ones still on the
+ * phone, taken with its id or with the key of its report (F7). Each path
+ * counts once. `incidentId` is null while the report is still on the phone.
+ */
+export function incidentPhotoCount(
+  server: readonly ServerPhoto[],
+  stored: StoredPhotos,
+  incident: { incidentId: string | null; incidentKey: string | null },
+): number {
+  const { incidentId, incidentKey } = incident;
+  const paths = new Set<string>();
+  if (incidentId !== null) {
+    for (const p of server) if (p.incident_id === incidentId) paths.add(p.storage_path);
+  }
+  for (const p of [...stored.sent, ...stored.pending]) {
+    const byId = incidentId !== null && p.incidentId === incidentId;
+    const byKey = incidentKey !== null && p.incidentKey === incidentKey;
+    if (byId || byKey) paths.add(photoStoragePath(p));
+  }
+  return paths.size;
 }
 
 /** Whether photos of a stage of a trip are still waiting on the phone. */

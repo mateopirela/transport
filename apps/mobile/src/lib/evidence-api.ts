@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { compressPhoto } from './document-upload';
 import {
+  evidenceRpcArgs,
   isDuplicateUpload,
   MissingPhotoFileError,
   photoStoragePath,
@@ -63,6 +64,8 @@ export async function capturePhoto(input: {
   tripId: string;
   stage: EvidenceStage;
   incidentId: string | null;
+  /** Key of the report of an incident still on the phone (F7). */
+  incidentKey?: string | null;
 }): Promise<CaptureOutcome> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) return { status: 'denied' };
@@ -94,6 +97,7 @@ export async function capturePhoto(input: {
         tripId: input.tripId,
         stage: input.stage,
         incidentId: input.incidentId,
+        incidentKey: input.incidentKey ?? null,
         fileName,
         sha256,
         capturedAt,
@@ -123,16 +127,6 @@ export async function uploadPhoto(client: Supabase, item: QueuedPhoto): Promise<
     .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
   if (upload.error && !isDuplicateUpload(upload.error)) throw upload.error;
 
-  const { error } = await client.rpc('add_trip_evidence', {
-    p_trip_id: item.tripId,
-    p_stage: item.stage,
-    p_storage_path: path,
-    p_sha256: item.sha256,
-    p_captured_at: item.capturedAt,
-    ...(item.lat === null || item.lng === null
-      ? {}
-      : { p_latitude: item.lat, p_longitude: item.lng }),
-    ...(item.incidentId === null ? {} : { p_incident_id: item.incidentId }),
-  });
+  const { error } = await client.rpc('add_trip_evidence', evidenceRpcArgs(item, path));
   if (error) throw error;
 }

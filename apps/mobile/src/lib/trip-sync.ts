@@ -27,6 +27,7 @@ import {
 
 // Runtime of the operator's offline queue (B21): one queue per signed-in user,
 // persisted in encrypted storage, sent in order when there is connection.
+// It carries status steps, unloading estimates and incident reports (F7).
 
 export interface TripQueueState extends StoredQueue {
   userId: string | null;
@@ -248,7 +249,8 @@ export async function syncTripQueueFor(client: Supabase, userId: string): Promis
  */
 export function hasUnsentTripActions(userId: string, tripId: string): boolean {
   if (state.userId !== userId || !state.ready) return true;
-  return state.pending.some((action) => action.tripId === tripId);
+  // Incidents (F7) do not change the trip status.
+  return state.pending.some((action) => action.tripId === tripId && action.kind !== 'incident');
 }
 
 // Last trip loaded from the server, so the operator can keep recording steps

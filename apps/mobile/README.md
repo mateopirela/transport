@@ -49,6 +49,12 @@ Con EAS (cuando exista la cuenta): `eas build --profile development` (dispositiv
 - **Sin señal** (`src/lib/location-store.ts`, `location-queue.ts`): cola en SQLite; se envía en lotes de hasta 500 puntos a `record_trip_locations` cuando hay 30 puntos o el más viejo tiene 5 min, y al volver a la app.
 - Se prueba en un dispositivo real (no en Expo Go): ver la checklist del PR de B22.
 
+## Incidencias sin conexión (F7)
+
+- El reporte de incidencia del operador entra a la misma cola cifrada que los cambios de estado (`src/lib/trip-queue.ts`, `trip-sync.ts`): se guarda con su hora y se envía a `report_incident` en orden, con su id como llave idempotente (un reintento nunca la duplica). Hasta que el viaje cargado la muestra, aparece en la lista como "Pendiente de enviar".
+- Sus fotos se pueden tomar antes de que se envíe: la foto guarda la llave del reporte (`incidentKey`) y `add_trip_evidence` resuelve la incidencia con `p_incident_client_event_id`. La foto espera en su cola hasta que el reporte llegó (`photoMustWait`); si el servidor rechaza el reporte, también rechaza sus fotos.
+- Una incidencia no depende de los pasos del viaje: si el servidor rechaza un paso, las incidencias que siguen se envían igual, y una incidencia rechazada no descarta nada más.
+
 ## Cargas recomendadas y negociación (B19)
 
 - **Inicio** (empresa aprobada): primero **Viajes de regreso**, las mejores cargas para cada unidad con viaje en curso (salen cerca de su destino después del fin estimado de descarga), y después **Cargas recomendadas**, la mejor unidad para cada carga, con el desglose del score (`matchExplanation`). Lo arma `buildCarrierFeed` en `@transport/shared`.

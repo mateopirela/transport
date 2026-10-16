@@ -2034,6 +2034,7 @@ export interface Database {
       add_trip_evidence: {
         Args: {
           p_captured_at: string;
+          p_incident_client_event_id?: string;
           p_incident_id?: string;
           p_latitude?: number;
           p_longitude?: number;

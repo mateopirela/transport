@@ -1,10 +1,12 @@
 import {
   evidenceStageForEvent,
+  INCIDENT_KINDS,
   MAX_RECEIVER_NAME_LENGTH,
   OPERATOR_TRIP_STEPS,
   type EvidenceStage,
   statusAfterEvents,
   type OperatorTripEvent,
+  type TripEventType,
   type TripStatus,
 } from '@transport/shared';
 import { z } from 'zod';
@@ -15,6 +17,10 @@ import { z } from 'zod';
 // Every action keeps the moment it happened on the road (`occurredAt`) and a
 // client id that the RPCs use as idempotency key (trip_events.client_event_id),
 // so a retry after a lost response never records the event twice.
+//
+// Incidents (F7) go through the same queue: report_incident is idempotent on
+// the same key, and their photos name the incident by it (see
+// QueuedPhoto.incidentKey), so they can be taken before the report is sent.
 
 const statusAction = z.object({
   kind: z.literal('status'),
@@ -38,10 +44,27 @@ const estimateAction = z.object({
   estimatedUnloadEndAt: z.iso.datetime({ offset: true }),
 });
 
-const queuedAction = z.discriminatedUnion('kind', [statusAction, estimateAction]);
+/** Same limit as report_incident and incidentFormSchema. */
+const MAX_INCIDENT_DESCRIPTION_LENGTH = 2000;
+
+const incidentAction = z.object({
+  kind: z.literal('incident'),
+  /** Also the key its photos use to name it until it has an id. */
+  id: z.uuid(),
+  tripId: z.uuid(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  incidentKind: z.enum(INCIDENT_KINDS),
+  description: z.string().trim().min(1).max(MAX_INCIDENT_DESCRIPTION_LENGTH),
+  /** Optional for an incident: the report never waits for a GPS fix. */
+  lat: z.number().min(-90).max(90).nullable(),
+  lng: z.number().min(-180).max(180).nullable(),
+});
+
+const queuedAction = z.discriminatedUnion('kind', [statusAction, estimateAction, incidentAction]);
 
 export type QueuedStatusAction = z.output<typeof statusAction>;
 export type QueuedEstimateAction = z.output<typeof estimateAction>;
+export type QueuedIncidentAction = z.output<typeof incidentAction>;
 export type QueuedAction = z.output<typeof queuedAction>;
 
 /**
@@ -103,6 +126,28 @@ export function pruneSent(
 const forTrip = (queue: readonly QueuedAction[], tripId: string) =>
   queue.filter((action) => action.tripId === tripId);
 
+/** The trip event an action records (labels of the timeline and of refusals). */
+export function actionEventType(action: QueuedAction): TripEventType {
+  switch (action.kind) {
+    case 'status':
+      return action.event;
+    case 'estimate':
+      return 'unload_estimate_updated';
+    case 'incident':
+      return 'incident_reported';
+  }
+}
+
+/** Incidents of a trip the loaded trip does not show yet, newest first. */
+export function queuedIncidents(
+  queue: readonly QueuedAction[],
+  tripId: string,
+): QueuedIncidentAction[] {
+  return forTrip(queue, tripId)
+    .flatMap((a) => (a.kind === 'incident' ? [a] : []))
+    .reverse();
+}
+
 /** Status events of a trip still waiting in the queue, in order. */
 export function pendingEvents(queue: readonly QueuedAction[], tripId: string): OperatorTripEvent[] {
   return forTrip(queue, tripId).flatMap((a) => (a.kind === 'status' ? [a.event] : []));
@@ -129,7 +174,9 @@ export function effectiveUnloadEstimate(
 ): string | null {
   let estimate = serverEstimate;
   for (const action of forTrip(queue, tripId)) {
-    if (action.estimatedUnloadEndAt) estimate = action.estimatedUnloadEndAt;
+    if (action.kind !== 'incident' && action.estimatedUnloadEndAt) {
+      estimate = action.estimatedUnloadEndAt;
+    }
   }
   return estimate;
 }
@@ -157,13 +204,19 @@ export function nextOccurredAt(
  * the server only accepts photos once the trip is where the phone shows it,
  * so every action queued before the first step that needs these photos goes
  * first. That step itself waits for the photos, so it never blocks them.
+ *
+ * Incidents (F7) do not move the trip, so pickup and delivery photos never
+ * wait for them. Incident photos wait for every queued action of the trip,
+ * their own report included: the server resolves their incident by its key.
  */
 export function photoMustWait(
   queue: readonly QueuedAction[],
   tripId: string,
   stage: EvidenceStage,
 ): boolean {
-  const [first] = forTrip(queue, tripId);
+  const actions = forTrip(queue, tripId);
+  if (stage === 'incident') return actions.length > 0;
+  const [first] = actions.filter((a) => a.kind !== 'incident');
   if (!first) return false;
   return !(first.kind === 'status' && evidenceStageForEvent(first.event) === stage);
 }
@@ -194,7 +247,7 @@ export function isRetryableError(error: unknown): boolean {
 export interface FlushResult {
   /** Ids of the actions the server accepted (or had already recorded). */
   sent: string[];
-  /** Actions the server refused, and the later ones of the same trip. */
+  /** Actions the server refused, and the later steps of the same trip. */
   rejected: QueuedAction[];
   /** Whether it stopped early to retry later (no connection, etc.). */
   stopped: boolean;
@@ -203,8 +256,10 @@ export interface FlushResult {
 /**
  * Sends the queue in order, one action at a time. Stops at the first
  * retryable failure so nothing is sent out of order. When the server refuses
- * an action, the later actions of that trip are dropped with it: they depend
- * on it and would be refused too.
+ * a step, the later steps of that trip are dropped with it: they depend on it
+ * and would be refused too. Incidents depend on no step and no step on them
+ * (F7): a refused incident drops nothing else, and an incident after a
+ * refused step is still sent.
  */
 export async function flushQueue(
   queue: readonly QueuedAction[],
@@ -213,7 +268,8 @@ export async function flushQueue(
   const result: FlushResult = { sent: [], rejected: [], stopped: false };
   const refusedTrips = new Set<string>();
   for (const action of queue) {
-    if (refusedTrips.has(action.tripId)) {
+    const isIncident = action.kind === 'incident';
+    if (!isIncident && refusedTrips.has(action.tripId)) {
       result.rejected.push(action);
       continue;
     }
@@ -225,7 +281,7 @@ export async function flushQueue(
         result.stopped = true;
         return result;
       }
-      refusedTrips.add(action.tripId);
+      if (!isIncident) refusedTrips.add(action.tripId);
       result.rejected.push(action);
     }
   }

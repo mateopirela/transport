@@ -48,7 +48,20 @@ export async function confirmDelivery(_prev: FormState, formData: FormData): Pro
   return done(clientTripsCopy.delivery.confirmed);
 }
 
-/** Reports an incident on the trip (report_incident; it joins the timeline). */
+/**
+ * Idempotency key of the report attempt, from a hidden input. A missing or
+ * malformed key only loses the deduplication, so it is dropped, not refused.
+ */
+function clientEventIdOf(formData: FormData): string | undefined {
+  const parsed = uuidField.safeParse(formData.get('clientEventId'));
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * Reports an incident on the trip (report_incident; it joins the timeline).
+ * The attempt's key makes a double submit or a retry return the incident
+ * already reported instead of reporting it again.
+ */
 export async function reportIncident(_prev: FormState, formData: FormData): Promise<FormState> {
   const tripId = tripIdOf(formData);
   if (!tripId) return { error: clientTripsCopy.errors.notFound };
@@ -64,6 +77,7 @@ export async function reportIncident(_prev: FormState, formData: FormData): Prom
     p_trip_id: tripId,
     p_kind: parsed.data.kind,
     p_description: parsed.data.description,
+    p_client_event_id: clientEventIdOf(formData),
   });
   if (error) {
     return {

@@ -10,6 +10,7 @@ import {
   unitTypeLabels,
 } from '@transport/shared';
 import type { Metadata } from 'next';
+import { randomUUID } from 'node:crypto';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -292,7 +293,9 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
                 ))}
               </ul>
             )}
-            {trip.status !== 'cancelled' && <ReportIncidentForm tripId={trip.id} />}
+            {trip.status !== 'cancelled' && (
+              <ReportIncidentForm tripId={trip.id} clientEventId={randomUUID()} />
+            )}
           </section>
         </aside>
       </div>

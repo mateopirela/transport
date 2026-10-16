@@ -1,11 +1,13 @@
 'use client';
 
 import { clientTripsCopy, INCIDENT_KINDS, incidentKindLabels } from '@transport/shared';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { nextAttemptKey } from '@/lib/attempt-key';
+import type { FormState } from '@/lib/forms';
 import { confirmDelivery, reportIncident } from '@/lib/trips/actions';
 
 const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
@@ -41,10 +43,35 @@ export function ConfirmDeliveryForm({ tripId }: { tripId: string }) {
   );
 }
 
-/** Reports an incident on the trip: kind and description. */
-export function ReportIncidentForm({ tripId }: { tripId: string }) {
+/**
+ * Key of the current submission attempt (see nextAttemptKey). The first one
+ * comes from the server, so the hydrated form keeps the value it was rendered
+ * with; each success then starts a new attempt in the browser.
+ */
+function useAttemptKey(initialKey: string, state: FormState): string {
+  const [attempt, setAttempt] = useState({ key: initialKey, state });
+  if (attempt.state === state) return attempt.key;
+  const key = nextAttemptKey(attempt.key, state);
+  setAttempt({ key, state });
+  return key;
+}
+
+/**
+ * Reports an incident on the trip: kind and description. Every submit of the
+ * same report carries the same clientEventId, so a double submit or a retry
+ * after an error does not report it twice.
+ */
+export function ReportIncidentForm({
+  tripId,
+  clientEventId,
+}: {
+  tripId: string;
+  /** First attempt key (a fresh UUID from the server render). */
+  clientEventId: string;
+}) {
   const c = clientTripsCopy.incidents;
   const [state, action, pending] = useActionState(reportIncident, {});
+  const attemptKey = useAttemptKey(clientEventId, state);
   const kindError = state.fieldErrors?.kind;
   const descriptionError = state.fieldErrors?.description;
   return (
@@ -57,6 +84,7 @@ export function ReportIncidentForm({ tripId }: { tripId: string }) {
         <form action={action} className="mt-4 space-y-3" noValidate>
           {state.error && <Notice tone="error">{state.error}</Notice>}
           <input type="hidden" name="tripId" value={tripId} />
+          <input type="hidden" name="clientEventId" value={attemptKey} />
           <div className="space-y-1.5">
             <Label htmlFor="incident-kind">{c.kind}</Label>
             <select

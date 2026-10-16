@@ -42,9 +42,10 @@ describe('date and time in Mexico City', () => {
     expect(formatDate(Date.parse(instant))).toBe('14 oct 2026');
   });
 
-  it('formats 24-hour local time', () => {
+  it('formats 24-hour local time without a leading zero', () => {
     expect(formatTime(instant)).toBe('18:05');
-    expect(formatTime('2026-10-14T14:00:00Z')).toBe('08:00');
+    expect(formatTime('2026-10-14T14:00:00Z')).toBe('8:00');
+    expect(formatTime('2026-10-14T06:05:00Z')).toBe('0:05');
   });
 
   it('combines date and time', () => {

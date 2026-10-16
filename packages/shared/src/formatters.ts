@@ -19,7 +19,7 @@ const dateFormat = new Intl.DateTimeFormat(APP_LOCALE, {
 });
 const timeFormat = new Intl.DateTimeFormat(APP_LOCALE, {
   timeZone: APP_TIME_ZONE,
-  hour: '2-digit',
+  hour: 'numeric',
   minute: '2-digit',
   hourCycle: 'h23',
 });
@@ -62,9 +62,14 @@ export function formatCalendarDate(value: string): string {
   return calendarDateFormat.format(date).replaceAll('.', '');
 }
 
-/** 24-hour time in Mexico City, e.g. "18:05". */
+/** 24-hour time in Mexico City without a leading zero, e.g. "8:00" or "18:05". */
 export function formatTime(value: Date | string | number): string {
-  return timeFormat.format(toDate(value));
+  // Built from parts so Node (web) and Hermes (app) print the same thing: they
+  // disagree on padding the hour, so the hour is never padded and minutes always are.
+  const parts = timeFormat.formatToParts(toDate(value));
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '';
+  return `${hour}:${minute.padStart(2, '0')}`;
 }
 
 /** Date and time in Mexico City, e.g. "14 oct 2026, 18:05". */

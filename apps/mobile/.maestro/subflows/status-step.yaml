@@ -6,10 +6,21 @@ appId: ${APP_ID}
 - scrollUntilVisible:
     element: 'Avance del viaje'
     direction: UP
-- scrollUntilVisible:
-    element: ${STEP}
-    centerElement: true
-- tapOn: ${STEP}
+# Right after the previous step the screen can still re-render (the trip
+# reloads and sections such as the delivery photos appear above the button),
+# so a tap may land where the button was: tap again until the confirmation
+# shows up.
+- retry:
+    maxRetries: 2
+    commands:
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element: ${STEP}
+          centerElement: true
+      - tapOn: ${STEP}
+      - extendedWaitUntil:
+          visible: 'Sí, confirmar'
+          timeout: 8000
 - tapOn: 'Sí, confirmar'
 - extendedWaitUntil:
     notVisible: 'Sí, confirmar'

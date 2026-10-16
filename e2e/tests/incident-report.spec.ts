@@ -46,7 +46,8 @@ async function fillReport(page: Page, description: string): Promise<Locator> {
 }
 
 /** The idempotency key the form sends (its hidden clientEventId field). */
-const keyOf = (form: Locator) => form.locator('input[name="clientEventId"]').inputValue();
+const keyOf = (form: Locator) =>
+  form.locator('input[name="clientEventId"]').inputValue({ timeout: 5_000 });
 
 test('a double submit reports the incident once and the next report is another one', async ({
   page,

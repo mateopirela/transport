@@ -27,7 +27,7 @@ import { supabase } from './supabase';
 // and sends them in batches. The trip screen decides when tracking runs
 // (trackingDecision): only during an active trip, with the consent recorded.
 //
-// This module must be imported when the JS starts (app/_layout.tsx): the OS
+// This module must be imported when the JS starts (apps/mobile/index.ts): the OS
 // may launch the app in the background just to run the task.
 
 export const LOCATION_TASK = 'transport.trip-location';

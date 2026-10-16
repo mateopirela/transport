@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(24);
+select plan(31);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -110,6 +110,38 @@ select throws_ok(
 select throws_ok(
   $$ select public.track_product_event('recommendation_opened', null, '{"rank": 1, "units": 3}') $$,
   '22023', null, 'keys of another event are rejected'
+);
+select throws_ok(
+  $$ select public.track_product_event('offer_submitted', null, '{"source": "ana@fletes.mx", "counter": false}') $$,
+  '22023', null, 'free text is rejected: source must be recommendation or search'
+);
+select throws_ok(
+  $$ select public.track_product_event('offer_submitted', null, '{"source": "search"}') $$,
+  '22023', null, 'every property of the event is required'
+);
+select throws_ok(
+  $$ select public.track_product_event('recommendation_opened', null,
+       '{"vehicle_id": "ana@fletes.mx", "rank": 1, "score": 1, "return_trip": true}') $$,
+  '22023', null, 'vehicle_id must be a uuid'
+);
+select throws_ok(
+  $$ select public.track_product_event('recommendation_opened', null,
+       '{"vehicle_id": "e1700000-0000-4000-8000-000000000003", "rank": "1", "score": 1, "return_trip": true}') $$,
+  '22023', null, 'numbers sent as strings are rejected'
+);
+select throws_ok(
+  $$ select public.track_product_event('recommendation_opened', null,
+       '{"vehicle_id": "e1700000-0000-4000-8000-000000000003", "rank": 1, "score": 8112345678, "return_trip": true}') $$,
+  '22023', null, 'a score out of range (e.g. a phone number) is rejected'
+);
+select throws_ok(
+  $$ select public.track_product_event('recommendations_viewed', null,
+       '{"recommendations": 2.5, "return_trips": 0, "units": 1}') $$,
+  '22023', null, 'counts must be integers'
+);
+select ok(
+  not has_function_privilege('authenticated', 'public.product_event_properties_valid(public.product_event_name, jsonb)', 'execute'),
+  'the validator is internal to track_product_event'
 );
 
 -- ---------------------------------------------------------------------------

@@ -29,7 +29,7 @@ Los KPIs del piloto que el dominio ya registra (cargas, ofertas, contratación, 
 | `recommendation_opened`  | abre una carga recomendada              | `vehicle_id`, `rank`, `score`, `return_trip`     |
 | `offer_submitted`        | envía una oferta o contraoferta         | `source` (`recommendation`/`search`), `counter`  |
 
-- Solo se escriben con la RPC `track_product_event`: el usuario, su rol y su empresa salen del JWT; las propiedades son una lista blanca de valores simples (sin datos personales). Más de 60 eventos por usuario y minuto se descartan sin error.
+- Solo se escriben con la RPC `track_product_event`: el usuario, su rol y su empresa salen del JWT; cada evento exige exactamente sus propiedades, con tipo y valores o rango permitidos (`product_event_properties_valid`, igual que `productEventSchemas`), así que no se acepta texto libre ni datos personales. Más de 60 eventos por usuario y minuto se descartan sin error.
 - Son inmutables y solo los lee el Admin. Ejemplo: cargas contratadas por un transportista que antes abrió la recomendación.
 
 ```sql

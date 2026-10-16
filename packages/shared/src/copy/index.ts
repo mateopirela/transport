@@ -5,6 +5,7 @@ export * from './catalogs';
 export * from './fleet';
 export * from './loads';
 export * from './mobile';
+export * from './negotiation';
 export * from './notifications';
 export * from './permissions';
 export * from './trips';

@@ -13,8 +13,8 @@ export function AppShell({
   children,
 }: {
   area?: string;
-  /** Section links shown under the header (Admin). */
-  nav?: readonly { href: string; label: string }[];
+  /** Section links shown under the header, optionally with a badge. */
+  nav?: readonly { href: string; label: string; badge?: React.ReactNode }[];
   viewer: ViewerDetails;
   children: React.ReactNode;
 }) {
@@ -49,6 +49,7 @@ export function AppShell({
                   className="inline-block px-3 py-3 whitespace-nowrap text-muted-foreground hover:text-foreground"
                 >
                   {item.label}
+                  {item.badge}
                 </Link>
               </li>
             ))}

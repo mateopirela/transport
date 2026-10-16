@@ -1604,6 +1604,30 @@ export interface Database {
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { p_conversation_id: string }; Returns: boolean };
+      load_negotiation_carriers: {
+        Args: { p_load_id: string };
+        Returns: {
+          carrier_company_id: string;
+          carrier_legal_name: string;
+          carrier_status: Database['public']['Enums']['verification_status'];
+          conversation_id: string;
+          negotiation_id: string;
+          unread_messages: number;
+        }[];
+      };
+      load_offer_vehicles: {
+        Args: { p_load_id: string };
+        Returns: {
+          capacity_kg: number;
+          capacity_m3: number;
+          documents_complete: boolean;
+          features: Database['public']['Enums']['special_requirement'][];
+          kind: Database['public']['Enums']['vehicle_kind'];
+          model_year: number;
+          unit_type: Database['public']['Enums']['unit_type'];
+          vehicle_id: string;
+        }[];
+      };
       load_route_data: { Args: { p_load_id: string }; Returns: Json };
       lock_company_approved: { Args: { p_company_id: string }; Returns: boolean };
       lock_offer_for_response: {

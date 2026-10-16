@@ -3,6 +3,7 @@ import {
   formatDateTime,
   formatMxn,
   loadsCopy,
+  offersCopy,
   specialRequirementLabels,
   unitTypeLabels,
 } from '@transport/shared';
@@ -15,9 +16,12 @@ import { Notice } from '@/components/auth-forms';
 import { CancelLoadForm, PublishLoadButton } from '@/components/loads/load-actions';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
+import { OfferBoard } from '@/components/offers/offer-board';
+import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { buttonVariants } from '@/components/ui/button';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
 import { shipperLoadActions } from '@/lib/loads/status';
+import { getOfferBoard } from '@/lib/offers/queries';
 import { editLoadPath, loadPath, paths } from '@/lib/routing';
 
 const c = loadsCopy.detail;
@@ -34,6 +38,7 @@ export default async function LoadDetailPage({
   const load = await getCompanyLoad(supabase, companyId, id);
   if (!load) notFound();
   const { aviso } = await searchParams;
+  const offers = load.status === 'draft' ? [] : await getOfferBoard(supabase, load);
   const actions = shipperLoadActions(load.status);
   const range = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
@@ -65,8 +70,10 @@ export default async function LoadDetailPage({
   ];
   const details = rows.filter((row): row is [string, string] => row[1] !== null);
 
+  const o = offersCopy.board;
   return (
     <>
+      <RealtimeRefresh table="offers" column="load_id" value={load.id} />
       <Link href={paths.shipperLoads} className="text-sm text-accent hover:underline">
         {c.back}
       </Link>
@@ -107,6 +114,22 @@ export default async function LoadDetailPage({
             {actions.cancel && <CancelLoadForm loadId={load.id} />}
           </aside>
         </div>
+
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-2xl">{o.title}</h2>
+            <p className="text-sm text-muted-foreground">
+              {o.description} {o.live}
+            </p>
+          </div>
+          {offers.length > 0 ? (
+            <OfferBoard loadId={load.id} rows={offers} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {load.status === 'draft' ? o.emptyDraft : o.empty}
+            </p>
+          )}
+        </section>
 
         <dl className="grid gap-x-6 gap-y-4 rounded-xl border bg-card p-6 sm:grid-cols-2">
           {details.map(([label, value]) => (

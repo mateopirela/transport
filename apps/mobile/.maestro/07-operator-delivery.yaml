@@ -48,6 +48,11 @@ tags: [operator, offline]
     element: 'Descargando'
     direction: UP
     timeout: 15000
+# deliver.yaml looks for the photos upwards: start below the badge.
+- scrollUntilVisible:
+    element: 'Fotos de entrega'
+    direction: DOWN
+    centerElement: true
 - runFlow:
     file: subflows/deliver.yaml
 - takeScreenshot: 07-2-operator-delivered

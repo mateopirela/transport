@@ -10,6 +10,21 @@ appId: ${APP_ID}
     element: ${BUTTON}
     centerElement: true
 - tapOn: ${BUTTON}
+# launchApp grants the camera, but iOS sometimes still asks the first time
+# (the grant can race with clearState): allow it.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: 'Allow'
+          timeout: 2000
+          optional: true
+      - runFlow:
+          when:
+            visible: 'Allow'
+          commands:
+            - tapOn: 'Allow'
 - runFlow:
     when:
       platform: Android

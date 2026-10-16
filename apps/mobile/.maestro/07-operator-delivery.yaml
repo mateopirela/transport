@@ -43,8 +43,10 @@ tags: [operator, offline]
     file: subflows/status-step.yaml
     env:
       STEP: 'Iniciar descarga'
-- extendedWaitUntil:
-    visible: 'Descargando'
+# The status badge is at the top of the screen (the step buttons are below).
+- scrollUntilVisible:
+    element: 'Descargando'
+    direction: UP
     timeout: 15000
 - runFlow:
     file: subflows/deliver.yaml

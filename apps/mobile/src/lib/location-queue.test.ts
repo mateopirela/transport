@@ -103,6 +103,18 @@ describe('flushPoints', () => {
     expect(ids()).toEqual([3]);
   });
 
+  it('keeps the points over the rate limit of record_trip_locations (F12)', async () => {
+    const { store, ids } = memoryStore([point(1), point(2), point(3)]);
+    const result = await flushPoints(
+      store,
+      USER,
+      () => Promise.reject({ code: 'PT429', message: 'rate limit exceeded' }),
+      options,
+    );
+    expect(result).toMatchObject({ sent: 0, dropped: 0, stopped: true });
+    expect(ids()).toEqual([1, 2, 3]);
+  });
+
   it('deletes the points of a trip that no longer takes them', async () => {
     for (const code of ['55000', '42501']) {
       const { store, ids } = memoryStore([point(1), point(2), point(3), point(4, TRIP_B)]);

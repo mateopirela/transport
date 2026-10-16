@@ -51,6 +51,19 @@ Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita 
 | `recommendations` | 30 llamadas por minuto | Usuario (`auth.uid()` del JWT) | `429` con `Retry-After`. La app ordena los candidatos con distancias estimadas, sin gastar Routes |
 | `dispatch-notifications` | 10 ejecuciones por minuto | Global | `429`. pg_cron vuelve a intentar al minuto siguiente |
 
+Las RPC de cliente más costosas o abusables también tienen límite propio (F12), por usuario y por minuto:
+
+| RPC | Límite | Qué cuenta | Motivo del valor |
+| --- | --- | --- | --- |
+| `send_message` | 60 mensajes por minuto | Cada mensaje nuevo | Una persona escribe muy por debajo de esto; frena el spam y las notificaciones que genera cada mensaje |
+| `report_incident` | 20 incidencias por minuto | Cada incidencia nueva | Un viaje real tiene pocas; deja margen para que la cola del teléfono envíe de golpe las que guardó sin conexión |
+| `add_trip_evidence` | 120 fotos por minuto | Cada foto registrada | Cada foto se sube antes a Storage (segundos por foto), así que vaciar la cola offline queda muy por debajo |
+| `create_load` | 30 cargas por minuto | Cada borrador nuevo | Crear una carga lleva un formulario completo; 30 por minuto solo lo alcanza un script |
+| `make_offer`, `counter_offer` (y `admin_create_offer`) | 60 ofertas por minuto, en conjunto | Cada oferta o contraoferta nueva | Negociar es manual; frena las ofertas en masa y sus notificaciones |
+| `record_trip_locations` | 120 llamadas por minuto | Cada lote (hasta 500 puntos), no cada punto | La app manda un lote cada pocos minutos y, al recuperar señal, hasta 10 lotes por corrida: un atraso de horas se vacía sin chocar |
+
+Al excederlo, la RPC falla con SQLSTATE `PT429` (PostgREST responde HTTP `429`) y el mensaje `rate limit exceeded`; la pista dice en cuántos segundos se libera. Las colas del teléfono (pasos e incidencias, fotos y ubicaciones) lo tratan como reintentable: conservan lo pendiente y lo mandan en la siguiente corrida, sin perder ni reordenar nada. Se cuenta con un trigger sobre la tabla que escribe cada RPC (`enforce_rate_limit`), dentro de la misma transacción: una llamada rechazada (por el límite o por otra validación) no consume, y un reintento que la RPC contesta por su llave de idempotencia tampoco, porque no crea fila. Las escrituras sin usuario (service role, pg_cron, seed) no se limitan. Estos buckets (alcance `rpc`) no se pueden consumir con `consume_rate_limit`.
+
 Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acceso directo de clientes) mediante `consume_rate_limit` (con el JWT del usuario) y `consume_service_rate_limit` (solo service role: el permiso de ejecución y, además, el claim `role` del JWT). Los límites viven en `rate_limit_policy`, así que el cliente no puede elegirlos. Si el contador no responde, las funciones fallan cerradas (`502`). La ventana vigente se decide con la fila bloqueada y nunca retrocede: una llamada atrasada del minuto anterior cuenta en la ventana nueva en lugar de reiniciarla.
 
 Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit]` en `supabase/config.toml`).
@@ -77,7 +90,7 @@ Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit
 | 3 | Baja | `dispatch-notifications` no limitaba las ejecuciones: quien tuviera el secreto podía saturar Expo y el proveedor de email. | Corregido: 10 ejecuciones por minuto. |
 | 4 | Baja | `register_push_token` reasigna al usuario actual un token que ya era de otro (traspaso de dispositivo). Requiere conocer el token Expo del otro dispositivo, que nunca sale del teléfono ni del servidor. | Aceptado (comportamiento esperado al cambiar de cuenta en un teléfono). |
 | 5 | Baja | Avisos altos en dependencias de desarrollo sin corrección publicada. | Aceptado y vigilado por CI (ver [Dependencias](#dependencias)). |
-| 6 | Informativa | Las RPC de cliente (por ejemplo `send_message`) no tienen límite de frecuencia propio; PostgREST no lo trae. | Seguimiento: evaluar el límite de la plataforma o `consume_rate_limit` en las RPC más costosas antes de abrir el piloto a más empresas. |
+| 6 | Informativa | Las RPC de cliente (por ejemplo `send_message`) no tenían límite de frecuencia propio; PostgREST no lo trae. | Corregido (F12): límite por usuario en `send_message`, `report_incident`, `add_trip_evidence`, `create_load`, ofertas y contraofertas, y `record_trip_locations` (ver [Límites de frecuencia](#límites-de-frecuencia)); la suite 25 lo prueba. |
 | 7 | Informativa | `decode-uri-component` moderado en el runtime de `expo-router`. | Seguimiento (ver [Dependencias](#dependencias)). |
 
 ## Cómo correrla

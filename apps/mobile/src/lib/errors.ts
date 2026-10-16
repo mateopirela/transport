@@ -38,7 +38,8 @@ export function toErrorKey(error: unknown): MobileErrorKey {
   const text = message.toLowerCase();
 
   if (code && code in AUTH_CODES) return AUTH_CODES[code] ?? 'unknown';
-  if (status === 429) return 'rateLimited';
+  // HTTP 429, or the rate limit of our RPCs (SQLSTATE PT429, F12).
+  if (status === 429 || code === 'PT429') return 'rateLimited';
   if (
     name === 'AuthRetryableFetchError' ||
     text.includes('network request failed') ||

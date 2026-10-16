@@ -435,6 +435,7 @@ export interface Database {
         Row: {
           created_at: string;
           description: string;
+          device_occurred_at: string | null;
           id: string;
           kind: Database['public']['Enums']['incident_kind'];
           latitude: number | null;
@@ -454,6 +455,7 @@ export interface Database {
         Insert: {
           created_at?: string;
           description: string;
+          device_occurred_at?: string | null;
           id?: string;
           kind: Database['public']['Enums']['incident_kind'];
           latitude?: number | null;
@@ -472,6 +474,7 @@ export interface Database {
         Update: {
           created_at?: string;
           description?: string;
+          device_occurred_at?: string | null;
           id?: string;
           kind?: Database['public']['Enums']['incident_kind'];
           latitude?: number | null;
@@ -1458,6 +1461,7 @@ export interface Database {
         Row: {
           captured_at: string;
           created_at: string;
+          device_captured_at: string | null;
           id: string;
           incident_id: string | null;
           latitude: number | null;
@@ -1475,6 +1479,7 @@ export interface Database {
         Insert: {
           captured_at: string;
           created_at?: string;
+          device_captured_at?: string | null;
           id?: string;
           incident_id?: string | null;
           latitude?: number | null;
@@ -1491,6 +1496,7 @@ export interface Database {
         Update: {
           captured_at?: string;
           created_at?: string;
+          device_captured_at?: string | null;
           id?: string;
           incident_id?: string | null;
           latitude?: number | null;
@@ -2273,6 +2279,7 @@ export interface Database {
       };
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
+      device_time_ahead: { Args: { p_at: string }; Returns: boolean };
       document_owner_company_id: {
         Args: {
           p_owner_id: string;

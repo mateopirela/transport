@@ -140,6 +140,8 @@ describe('retries', () => {
     expect(isRetryableUploadError({ status: 429 })).toBe(true);
     expect(isRetryableUploadError({ statusCode: '503' })).toBe(true);
     expect(isRetryableUploadError({ code: '08006', message: 'connection failure' })).toBe(true);
+    // add_trip_evidence over its rate limit (F12).
+    expect(isRetryableUploadError({ code: 'PT429', message: 'rate limit exceeded' })).toBe(true);
     // Bucket policy (trip no longer the operator's), file too large, bad type.
     expect(isRetryableUploadError({ status: 403, statusCode: '403' })).toBe(false);
     expect(isRetryableUploadError({ statusCode: '413' })).toBe(false);

@@ -28,6 +28,7 @@ import {
   TimelineSection,
   type TimelineEntry,
 } from '../../components/trip-sections';
+import { TrackingBanner } from '../../components/tracking-banner';
 import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
 import { toErrorKey } from '../../lib/errors';
 import { currentPosition } from '../../lib/location';
@@ -52,6 +53,7 @@ import {
   useTripQueue,
 } from '../../lib/trip-sync';
 import { useLoader } from '../../lib/use-loader';
+import { useTripTracking, type TripTracking } from '../../lib/use-trip-tracking';
 import { useSession } from '../../providers/session';
 import { spacing } from '../../theme';
 
@@ -95,6 +97,18 @@ export default function AssignedTripTab() {
     return trip;
   }, [userId]);
   const { state, reload } = useLoader(load);
+
+  // Background GPS (B22) follows the status the operator sees, queued steps
+  // included: departing offline starts it, delivering stops it.
+  const loaded = state.status === 'ready' && queue.ready ? state.data : undefined;
+  const trackedTrip = useMemo(() => {
+    if (loaded === undefined) return undefined;
+    if (loaded === null) return null;
+    const recorded = new Set(loaded.events.flatMap((e) => e.client_event_id ?? []));
+    const actions = unconfirmedActions(queue, recorded);
+    return { id: loaded.id, status: effectiveStatus(loaded.status, actions, loaded.id) };
+  }, [loaded, queue]);
+  const tracking = useTripTracking(userId, trackedTrip);
 
   // Reload once queued actions reach the server.
   useEffect(() => {
@@ -142,7 +156,14 @@ export default function AssignedTripTab() {
     );
   }
   return (
-    <TripView key={trip.id} trip={trip} stored={queue} notice={rejectedNotice} onReload={reload} />
+    <TripView
+      key={trip.id}
+      trip={trip}
+      stored={queue}
+      notice={rejectedNotice}
+      tracking={tracking}
+      onReload={reload}
+    />
   );
 }
 
@@ -150,11 +171,13 @@ function TripView({
   trip,
   stored,
   notice,
+  tracking,
   onReload,
 }: {
   trip: OperatorTrip;
   stored: StoredQueue;
   notice: ReactNode;
+  tracking: TripTracking;
   onReload: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | null>(null);
@@ -305,6 +328,8 @@ function TripView({
       <Badge label={tripStatusLabels[status]} tone={status === 'delivered' ? 'success' : 'info'} />
 
       {notice}
+
+      <TrackingBanner tracking={tracking} />
 
       {pendingCount > 0 ? (
         <Notice tone="warning" title={copy.pendingTitle}>

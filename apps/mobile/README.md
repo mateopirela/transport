@@ -41,6 +41,14 @@ Con EAS (cuando exista la cuenta): `eas build --profile development` (dispositiv
 - **Operadores** (en "Más"): alta, edición, baja, documentos e invitación (`create_operator_invitation`): el código solo se muestra al generarlo y se comparte como enlace `transport://invite?code=…`.
 - **Rutas habituales** y la ciudad de disponibilidad se eligen de una lista de ciudades del corredor (`CITY_PRESETS` en `@transport/shared`) mientras no exista la clave de Google Places.
 
+## GPS en segundo plano del operador (B22)
+
+- **Consentimiento** (`app/(operator)/location-consent.tsx`): explica qué se comparte, cuándo y con quién, con el aviso de privacidad (LFPDPPP). Al aceptar se registra en `location_consents` (`record_location_consent`, con la versión del texto y la plataforma) y solo entonces se pide el permiso del sistema "Siempre". Se retira en "Más" (`revoke_location_consent`), lo que detiene el seguimiento y borra los puntos sin enviar. El servidor rechaza puntos sin consentimiento activo.
+- **Cuándo** (`trackingDecision` en `@transport/shared`): solo en estados de viaje activos (`en_route_to_pickup` … `unloading`), con consentimiento y permiso. Registrar la entrega lo detiene. Cerrar sesión lo detiene y borra la cola.
+- **Cómo** (`src/lib/background-location.ts`): `expo-location` + `expo-task-manager`, precisión `Balanced`, un punto cada ~60 s o ~500 m (`EXPO_PUBLIC_TRACKING_INTERVAL_S` / `EXPO_PUBLIC_TRACKING_DISTANCE_M`). Android: servicio en primer plano con notificación fija. iOS: `UIBackgroundModes: location`, indicador azul y texto de "Siempre" (`permissionCopy.locationAlways`).
+- **Sin señal** (`src/lib/location-store.ts`, `location-queue.ts`): cola en SQLite; se envía en lotes de hasta 500 puntos a `record_trip_locations` cuando hay 30 puntos o el más viejo tiene 5 min, y al volver a la app.
+- Se prueba en un dispositivo real (no en Expo Go): ver la checklist del PR de B22.
+
 ## Verificación
 
 ```sh

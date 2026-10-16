@@ -167,6 +167,26 @@ export function flushTripQueue(client: Supabase): Promise<void> {
   return run;
 }
 
+/**
+ * Loads the queue of `userId` from the device (if this JS context has not yet,
+ * e.g. the OS started the app in the background) and sends it. Used by the
+ * background GPS (B22) before sending locations, so a departure recorded
+ * offline reaches the server before the points of that trip.
+ */
+export async function syncTripQueueFor(client: Supabase, userId: string): Promise<void> {
+  await loadQueue(userId);
+  await flushTripQueue(client);
+}
+
+/**
+ * Whether `tripId` may still have status steps of `userId` that did not reach
+ * the server. Unknown (queue of another user or not read yet) counts as yes.
+ */
+export function hasUnsentTripActions(userId: string, tripId: string): boolean {
+  if (state.userId !== userId || !state.ready) return true;
+  return state.pending.some((action) => action.tripId === tripId);
+}
+
 // Last trip loaded from the server, so the operator can keep recording steps
 // after reopening the app without connection.
 const snapshotKey = (userId: string) => `transport.trip_snapshot.${userId}`;

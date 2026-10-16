@@ -565,6 +565,42 @@ export interface Database {
           },
         ];
       };
+      location_consents: {
+        Row: {
+          accepted_at: string;
+          id: string;
+          platform: string;
+          policy_version: string;
+          revoked_at: string | null;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_at?: string;
+          id?: string;
+          platform: string;
+          policy_version: string;
+          revoked_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          accepted_at?: string;
+          id?: string;
+          platform?: string;
+          policy_version?: string;
+          revoked_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'location_consents_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       message_reads: {
         Row: {
           conversation_id: string;
@@ -1601,6 +1637,7 @@ export interface Database {
         };
         Returns: string;
       };
+      has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { p_conversation_id: string }; Returns: boolean };
@@ -1685,6 +1722,10 @@ export interface Database {
         Returns: undefined;
       };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
+      record_location_consent: {
+        Args: { p_platform: string; p_policy_version: string };
+        Returns: string;
+      };
       record_trip_event: {
         Args: {
           p_accuracy_m?: number;
@@ -1737,6 +1778,7 @@ export interface Database {
         };
         Returns: Database['public']['Enums']['verification_status'];
       };
+      revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
       revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       send_message: {
         Args: {

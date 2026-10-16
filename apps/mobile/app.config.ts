@@ -50,17 +50,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermission: false,
       },
     ],
-    // Trip status events keep where they happened (B21). Foreground only:
-    // background tracking and its consent arrive in B22.
+    // Trip status events keep where they happened (B21), and during an active
+    // trip the location is shared in the background (B22, after the consent
+    // screen). iOS: adds `location` to UIBackgroundModes and the "Always"
+    // purpose string. Android: ACCESS_BACKGROUND_LOCATION and a location
+    // foreground service with its persistent notification.
     [
       'expo-location',
       {
         locationWhenInUsePermission: permissionCopy.locationWhenInUse,
-        isIosBackgroundLocationEnabled: false,
-        isAndroidBackgroundLocationEnabled: false,
-        isAndroidForegroundServiceEnabled: false,
+        locationAlwaysAndWhenInUsePermission: permissionCopy.locationAlways,
+        isIosBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: true,
+        isAndroidForegroundServiceEnabled: true,
       },
     ],
+    // Local queue of GPS points (B22).
+    'expo-sqlite',
     [
       'expo-splash-screen',
       { backgroundColor: '#0B1F3A', image: './assets/splash-icon.png', imageWidth: 96 },

@@ -44,6 +44,10 @@ describe('notification content', () => {
       'El estado del viaje cambió.',
     );
     expect(notificationContent('trip_assigned', ROUTE).body).toContain('Monterrey → Guadalajara');
+    expect(notificationContent('trip_unassigned', ROUTE)).toEqual({
+      title: 'Viaje reasignado',
+      body: 'El viaje Monterrey → Guadalajara se asignó a otro operador. Ya no lo tienes a tu cargo.',
+    });
     expect(notificationContent('load_match', ROUTE).body).toContain('Monterrey → Guadalajara');
   });
 

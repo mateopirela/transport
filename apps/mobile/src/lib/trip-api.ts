@@ -184,18 +184,24 @@ export async function sendQueuedAction(client: Supabase, action: QueuedAction): 
   if (error) throw error;
 }
 
-/** Reports an incident (online only: report_incident has no idempotency key). */
+/**
+ * Reports an incident. `clientEventId` is the idempotency key of the report:
+ * the caller keeps it for every retry of the same report, so a retry after a
+ * lost response returns the incident already recorded instead of a new one.
+ */
 export async function reportIncident(
   client: Supabase,
   tripId: string,
   values: IncidentFormValues,
   position: { lat: number; lng: number } | null,
+  clientEventId: string,
 ): Promise<void> {
   const { error } = await client.rpc('report_incident', {
     p_trip_id: tripId,
     p_kind: values.kind,
     p_description: values.description,
     ...(position ? { p_latitude: position.lat, p_longitude: position.lng } : {}),
+    p_client_event_id: clientEventId,
   });
   if (error) throw error;
 }

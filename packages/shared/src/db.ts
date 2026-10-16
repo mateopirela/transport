@@ -2227,7 +2227,10 @@ export interface Database {
           isSetofReturn: true;
         };
       };
-      confirm_delivery: { Args: { p_notes?: string; p_trip_id: string }; Returns: undefined };
+      confirm_delivery: {
+        Args: { p_client_event_id?: string; p_notes?: string; p_trip_id: string };
+        Returns: undefined;
+      };
       consume_rate_limit: { Args: { p_bucket: string }; Returns: number };
       consume_service_rate_limit: {
         Args: { p_bucket: string; p_subject: string };

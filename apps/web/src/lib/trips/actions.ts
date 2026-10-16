@@ -29,8 +29,19 @@ function done(message: string): FormState {
 }
 
 /**
+ * Idempotency key of the submission attempt, from a hidden input. A missing or
+ * malformed key only loses the deduplication, so it is dropped, not refused.
+ */
+function clientEventIdOf(formData: FormData): string | undefined {
+  const parsed = uuidField.safeParse(formData.get('clientEventId'));
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
  * Confirms the delivery of a delivered trip (confirm_delivery closes it and
- * completes the load). The RPC checks the company and the status again.
+ * completes the load). The RPC checks the company and the status again. The
+ * attempt's key makes a double submit or a retry succeed again instead of
+ * failing because the trip is already closed.
  */
 export async function confirmDelivery(_prev: FormState, formData: FormData): Promise<FormState> {
   const tripId = tripIdOf(formData);
@@ -43,18 +54,10 @@ export async function confirmDelivery(_prev: FormState, formData: FormData): Pro
   const { error } = await supabase.rpc('confirm_delivery', {
     p_trip_id: tripId,
     p_notes: text || undefined,
+    p_client_event_id: clientEventIdOf(formData),
   });
   if (error) return { error: tripErrorMessage(error) };
   return done(clientTripsCopy.delivery.confirmed);
-}
-
-/**
- * Idempotency key of the report attempt, from a hidden input. A missing or
- * malformed key only loses the deduplication, so it is dropped, not refused.
- */
-function clientEventIdOf(formData: FormData): string | undefined {
-  const parsed = uuidField.safeParse(formData.get('clientEventId'));
-  return parsed.success ? parsed.data : undefined;
 }
 
 /**

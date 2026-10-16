@@ -274,7 +274,9 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
             )}
           </dl>
 
-          {trip.status === 'delivered' && <ConfirmDeliveryForm tripId={trip.id} />}
+          {trip.status === 'delivered' && (
+            <ConfirmDeliveryForm tripId={trip.id} clientEventId={randomUUID()} />
+          )}
 
           <section className="space-y-3">
             <h2 className="text-xl">{c.incidents.title}</h2>

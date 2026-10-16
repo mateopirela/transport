@@ -14,6 +14,7 @@ import { createAuthActions, type AuthActions } from '../lib/auth';
 import { createSupabaseAuthBackend } from '../lib/auth-backend';
 import { PROFILE_SELECT, toProfileDetails, type ProfileDetails } from '../lib/profile';
 import { registerPushToken } from '../lib/push';
+import { createPushTokenSession } from '../lib/push-session';
 import { resolveArea, type Area, type SessionSnapshot } from '../lib/routing';
 import { pendingInvitation } from '../lib/secure-store';
 import type { Supabase } from '../lib/supabase';
@@ -66,6 +67,25 @@ export function SessionProvider({
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [pushUserId, setPushUserId] = useState<string | null>(null);
+  // This device's push token for the signed-in user (lib/push-session.ts).
+  const pushSession = useMemo(
+    () =>
+      createPushTokenSession({
+        async register(token, platform, signal) {
+          const { error } = await client
+            .rpc('register_push_token', { p_token: token, p_platform: platform })
+            .abortSignal(signal);
+          if (error) throw error;
+        },
+        async unregister(token, signal) {
+          const { error } = await client
+            .rpc('unregister_push_token', { p_token: token })
+            .abortSignal(signal);
+          if (error) throw error;
+        },
+      }),
+    [client],
+  );
 
   useEffect(() => {
     // Emits INITIAL_SESSION first, then every sign-in, refresh and sign-out.
@@ -103,27 +123,34 @@ export function SessionProvider({
         : { status: 'signed_in', profile, profileError: current?.error ?? false };
   const area = resolveArea(snapshot);
 
-  // Push token once per signed-in user, after they reach their area. Saving it
-  // to `push_tokens` arrives with that table (B07); until then it is obtained
-  // (permission, Expo token) but not persisted.
+  // Push token once per signed-in user, after they reach their area. It is
+  // saved in `push_tokens` (register_push_token, B07) so the dispatcher (B09)
+  // can send the trip assignment and other notices to this device.
   useEffect(() => {
     if (!userId || (area !== 'carrier' && area !== 'operator')) return;
     let cancelled = false;
-    void registerPushToken(easProjectId, async () => undefined).then((result) => {
+    void registerPushToken(easProjectId, pushSession.sink()).then((result) => {
       if (!cancelled && result.status === 'registered') setPushUserId(userId);
     });
     return () => {
       cancelled = true;
     };
-  }, [area, userId, easProjectId]);
+  }, [area, userId, easProjectId, pushSession]);
 
-  const actions = useMemo(
-    () =>
-      createAuthActions(createSupabaseAuthBackend(client), pendingInvitation, {
-        redirectTo: Linking.createURL('/auth/callback'),
-      }),
-    [client],
-  );
+  const actions = useMemo<AuthActions>(() => {
+    const auth = createAuthActions(createSupabaseAuthBackend(client), pendingInvitation, {
+      redirectTo: Linking.createURL('/auth/callback'),
+    });
+    return {
+      ...auth,
+      // This device stops receiving the user's notifications before the
+      // session ends (the RPC needs it). Bounded: requests abort after 5 s.
+      async signOut() {
+        await pushSession.end();
+        await auth.signOut();
+      },
+    };
+  }, [client, pushSession]);
 
   const value = useMemo<SessionContextValue>(
     () => ({

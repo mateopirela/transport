@@ -6,7 +6,26 @@ import { readMobileEnv } from './env';
 import { validateForm } from './forms';
 import { isOffline } from './network';
 import { toProfileDetails } from './profile';
-import { isExpoPushToken, pushSkipReason } from './push-policy';
+import { isExpoPushToken, pushSkipReason, pushTarget } from './push-policy';
+
+describe('pushTarget', () => {
+  const tripId = '5eed0008-0000-4000-8000-000000000001';
+
+  it('opens the trip of a tapped push in the area of the user', () => {
+    expect(pushTarget({ tripId }, 'operator')).toEqual({ pathname: '/trip' });
+    expect(pushTarget({ tripId }, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId },
+    });
+  });
+
+  it('ignores other areas, other payloads and malformed ids', () => {
+    expect(pushTarget({ tripId }, 'auth')).toBeNull();
+    expect(pushTarget({ tripId: '../x' }, 'carrier')).toBeNull();
+    expect(pushTarget({ loadId: tripId }, 'carrier')).toBeNull();
+    expect(pushTarget(null, 'carrier')).toBeNull();
+  });
+});
 
 describe('readMobileEnv', () => {
   const base = { EXPO_PUBLIC_SUPABASE_ANON_KEY: 'anon' };

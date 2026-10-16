@@ -51,7 +51,7 @@ export async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promis
   };
 }
 
-async function pickPhoto(source: 'camera' | 'library'): Promise<PickOutcome> {
+async function pickPhoto(source: 'camera' | 'library', check: FileCheck): Promise<PickOutcome> {
   if (source === 'camera') {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return { status: 'denied' };
@@ -63,31 +63,44 @@ async function pickPhoto(source: 'camera' | 'library'): Promise<PickOutcome> {
       : await ImagePicker.launchImageLibraryAsync(options);
   const asset = result.canceled ? undefined : result.assets[0];
   if (!asset) return { status: 'cancelled' };
-  return checked(await compressPhoto(asset));
+  return checked(await compressPhoto(asset), check);
 }
 
-async function pickPdf(): Promise<PickOutcome> {
+async function pickPdf(check: FileCheck): Promise<PickOutcome> {
   const result = await DocumentPicker.getDocumentAsync({
     type: 'application/pdf',
     copyToCacheDirectory: true,
   });
   const asset = result.canceled ? undefined : result.assets[0];
   if (!asset) return { status: 'cancelled' };
-  return checked({
-    uri: asset.uri,
-    mimeType: asset.mimeType ?? 'application/pdf',
-    name: asset.name,
-    size: asset.size ?? new LocalFile(asset.uri).size,
-  });
+  return checked(
+    {
+      uri: asset.uri,
+      mimeType: asset.mimeType ?? 'application/pdf',
+      name: asset.name,
+      size: asset.size ?? new LocalFile(asset.uri).size,
+    },
+    check,
+  );
 }
 
-function checked(file: PickedFile): PickOutcome {
-  const issue = documentFileIssue({ size: file.size, type: file.mimeType });
+/** Size and type rules of the bucket the file goes to (documentFileIssue by default). */
+export type FileCheck = (file: { size: number; type: string }) => DocumentFileIssue | null;
+
+function checked(file: PickedFile, check: FileCheck): PickOutcome {
+  const issue = check({ size: file.size, type: file.mimeType });
   return issue ? { status: 'invalid', issue } : { status: 'picked', file };
 }
 
-export function pickDocument(source: PickSource): Promise<PickOutcome> {
-  return source === 'pdf' ? pickPdf() : pickPhoto(source);
+/**
+ * Lets the user pick a photo or a PDF and checks it with `check` (the
+ * `documents` bucket rules unless another bucket's are given).
+ */
+export function pickDocument(
+  source: PickSource,
+  check: FileCheck = documentFileIssue,
+): Promise<PickOutcome> {
+  return source === 'pdf' ? pickPdf(check) : pickPhoto(source, check);
 }
 
 /**

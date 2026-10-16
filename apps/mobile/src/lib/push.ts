@@ -3,7 +3,41 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { isExpoPushToken, pushSkipReason, type PushSkipReason } from './push-policy';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
+
+import { isExpoPushToken, pushSkipReason, pushTarget, type PushSkipReason } from './push-policy';
+
+// A push that arrives while the app is open is shown as a banner too (e.g.
+// "Nuevo viaje asignado" while the operator looks at another screen).
+Notifications.setNotificationHandler({
+  handleNotification: () =>
+    Promise.resolve({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+});
+
+/**
+ * Opens the trip of a tapped notification (see pushTarget) once the user is
+ * in their area. Each response is handled once.
+ */
+export function usePushNavigation(area: string) {
+  const response = Notifications.useLastNotificationResponse();
+  const router = useRouter();
+  const handled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!response) return;
+    const id = response.notification.request.identifier;
+    if (handled.current === id) return;
+    const target = pushTarget(response.notification.request.content.data, area);
+    if (!target) return;
+    handled.current = id;
+    router.push(target);
+  }, [response, area, router]);
+}
 
 export type PushRegistration =
   | { status: 'registered'; token: string }

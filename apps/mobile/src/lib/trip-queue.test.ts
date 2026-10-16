@@ -156,6 +156,10 @@ describe('isRetryableError', () => {
     expect(isRetryableError({ code: 'XX000', status: 503 })).toBe(true);
   });
 
+  it('retries the rate limit of the RPCs (F12): the action goes in a later run', () => {
+    expect(isRetryableError({ code: 'PT429', message: 'rate limit exceeded' })).toBe(true);
+  });
+
   it('does not retry refusals of the RPCs', () => {
     expect(isRetryableError({ code: '55000', message: 'cannot record departed' })).toBe(false);
     expect(isRetryableError({ code: '22023', message: 'occurred_at is out of range' })).toBe(false);
@@ -192,6 +196,19 @@ describe('flushQueue', () => {
         : Promise.resolve();
     });
     expect(calls).toBe(2);
+    expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], stopped: true });
+  });
+
+  it('keeps a rate-limited action and the rest for a later run (F12)', async () => {
+    const queue = [
+      step('departed', '2026-10-15T10:00:00.000Z'),
+      step('arrived_at_pickup', '2026-10-15T11:00:00.000Z'),
+    ];
+    const result = await flushQueue(queue, (action) =>
+      action.id === queue[1]?.id
+        ? Promise.reject({ code: 'PT429', message: 'rate limit exceeded' })
+        : Promise.resolve(),
+    );
     expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], stopped: true });
   });
 

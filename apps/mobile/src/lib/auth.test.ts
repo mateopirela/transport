@@ -291,6 +291,7 @@ describe('toErrorKey', () => {
     expect(toErrorKey({ code: 'user_already_exists' })).toBe('userAlreadyExists');
     expect(toErrorKey({ code: 'over_email_send_rate_limit' })).toBe('rateLimited');
     expect(toErrorKey({ status: 429 })).toBe('rateLimited');
+    expect(toErrorKey({ code: 'PT429', message: 'rate limit exceeded' })).toBe('rateLimited');
     expect(toErrorKey({ name: 'AuthRetryableFetchError', status: 0 })).toBe('network');
     expect(toErrorKey({ message: 'TypeError: Failed to fetch' })).toBe('network');
   });

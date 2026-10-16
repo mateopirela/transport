@@ -221,6 +221,9 @@ export function photoMustWait(
   return !(first.kind === 'status' && evidenceStageForEvent(first.event) === stage);
 }
 
+/** SQLSTATE of the RPC rate limits (enforce_rate_limit, F12); HTTP 429. */
+export const RATE_LIMITED_CODE = 'PT429';
+
 /** The fields we read from PostgREST and fetch errors. */
 interface ErrorFields {
   code?: unknown;
@@ -240,6 +243,8 @@ export function isRetryableError(error: unknown): boolean {
   if (typeof code !== 'string' || code === '') return true;
   // PostgREST auth errors (expired JWT): the session refreshes and we retry.
   if (code.startsWith('PGRST3')) return true;
+  // Rate limit of the RPCs (F12): the action is fine, it goes in a later run.
+  if (code === RATE_LIMITED_CODE) return true;
   // SQLSTATE classes: connection, serialization/deadlock, resources, shutdown.
   return /^(08|40|53|57)/u.test(code);
 }

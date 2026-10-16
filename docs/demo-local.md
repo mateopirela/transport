@@ -36,6 +36,34 @@ La caja seca `CS53-01` de Transportes Regios está descargando en Guadalajara. S
 
 Para probarlo: `supabase functions serve` y, con la sesión de `jorge.villarreal@demo.test`, `POST /functions/v1/recommendations` con `{"vehicleId": "5eed0004-0000-4000-8000-000000000002"}`. Sin `GOOGLE_ROUTES_API_KEY` (en `supabase/functions/.env`) las distancias son estimadas (haversine × `ROAD_DISTANCE_FACTOR`); con clave, solo el top N consulta Routes y el resultado queda en `route_distance_cache`.
 
+### Notificaciones y crons (B09)
+
+`pg_cron` corre estos trabajos (horario UTC; Ciudad de México es UTC−6):
+
+| Trabajo                       | Cuándo           | Qué hace                                                                                   |
+| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `dispatch-notifications`      | cada minuto      | Llama a la Edge Function `dispatch-notifications` si hay notificaciones pendientes         |
+| `expire-stale-loads`          | cada 15 min      | Expira las cargas publicadas o en negociación cuya ventana de recolección ya pasó          |
+| `process-document-expiry`     | 07:00 (CDMX)     | Marca como `expired` los documentos vencidos y avisa de los que vencen en 30 y 7 días      |
+| `remind-stale-trip-locations` | cada 10 min      | Recuerda al operador de un viaje activo que lleva más de 3 horas sin enviar su ubicación   |
+
+La función envía push (Expo) a todos los dispositivos del usuario y correo a los usuarios web (Cliente y Admin). Sin `EMAIL_PROVIDER_API_KEY` o `EMAIL_FROM`, el correo se simula (queda en el log, no se envía). Para probarla en local:
+
+```sh
+# supabase/functions/.env: NOTIFICATIONS_DISPATCH_SECRET=<un secreto local> (y, si quieres, las claves de correo)
+supabase functions serve
+curl -X POST -H "x-dispatch-secret: <el mismo secreto>" http://127.0.0.1:54321/functions/v1/dispatch-notifications
+```
+
+Para que el cron la invoque, guarda la URL y el secreto en Vault (en staging/prod, con la URL del proyecto):
+
+```sql
+select vault.create_secret('http://host.docker.internal:54321/functions/v1/dispatch-notifications', 'notifications_dispatch_url');
+select vault.create_secret('<el mismo secreto>', 'notifications_dispatch_secret');
+```
+
+Sin esos dos secretos el trabajo `dispatch-notifications` no hace nada (las notificaciones siguen en la bandeja de la app).
+
 ## Limitaciones
 
 - **Archivos:** los documentos y la evidencia no tienen archivo en Storage (solo metadatos). El visor de documentos del admin no puede abrirlos.

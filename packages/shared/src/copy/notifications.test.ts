@@ -75,4 +75,28 @@ describe('notification content', () => {
       'Uno de tus documentos vence pronto. Actualízalo para seguir operando.',
     );
   });
+
+  it('names the unit or the operator of an expiring document', () => {
+    expect(
+      notificationContent('document_expiring', {
+        requirementName: 'Tarjeta de circulación',
+        ownerLabel: 'AB-123-CD',
+        daysLeft: 7,
+      }).body,
+    ).toBe('Tarjeta de circulación (AB-123-CD) vence en 7 días. Actualízalo para seguir operando.');
+  });
+
+  it('reminds the operator to resume tracking', () => {
+    const content = notificationContent('trip_location_stale', {
+      ...ROUTE,
+      hoursWithoutLocation: 4,
+    });
+    expect(content.title).toBe('No recibimos tu ubicación');
+    expect(content.body).toBe(
+      'No hemos recibido la ubicación del viaje Monterrey → Guadalajara en las últimas 4 horas. Abre la app para reanudar el seguimiento.',
+    );
+    expect(notificationContent('trip_location_stale', { hoursWithoutLocation: 1 }).body).toContain(
+      'del viaje en las últimas horas.',
+    );
+  });
 });

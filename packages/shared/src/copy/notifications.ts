@@ -105,10 +105,22 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
       };
     }
     case 'document_expiring': {
-      const name = text(data, 'requirementName');
+      const name = text(data, 'requirementName') ?? 'Uno de tus documentos';
+      const owner = text(data, 'ownerLabel');
       return {
         title: 'Documento por vencer',
-        body: `${name ?? 'Uno de tus documentos'} ${expiry(data)}. Actualízalo para seguir operando.`,
+        body: `${name}${owner ? ` (${owner})` : ''} ${expiry(data)}. Actualízalo para seguir operando.`,
+      };
+    }
+    case 'trip_location_stale': {
+      const hours = count(data, 'hoursWithoutLocation');
+      const since =
+        hours !== undefined && hours >= 2
+          ? `en las últimas ${hours} horas`
+          : 'en las últimas horas';
+      return {
+        title: 'No recibimos tu ubicación',
+        body: `No hemos recibido la ubicación del viaje${route(data)} ${since}. Abre la app para reanudar el seguimiento.`,
       };
     }
   }

@@ -4,7 +4,9 @@
 --      with that unit: the contract waits for the unit lock and then archives
 --      the new estimate.
 --   2. The other way round: the contract holds the unit, the estimate waits
---      and then sees the unit booked, so it writes nothing.
+--      and then sees the unit booked, so it writes nothing (active).
+--   3. F5: the estimate is written while the return trip is cancelled: the
+--      cancellation waits for the unit and then restores that estimate.
 --
 -- The sessions need committed fixtures, so this file creates them through its
 -- own connection and deletes them at the end (same approach as
@@ -13,7 +15,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(8);
+select plan(11);
 
 create schema tests;
 
@@ -246,7 +248,7 @@ $sql$);
 -- 2. The shipper contracts return trip 3 with V (s2) while trip 1 writes V's
 --    estimate (s1): the estimate waits, then sees V booked and writes nothing.
 -- ---------------------------------------------------------------------------
-select tests.seed_estimate();
+-- F5: the cancellation gives V back the estimate trip 2 ended.
 select is(tests.active_estimates(), 1, 'V has an estimate again');
 select tests.begin_as('s2', 'a2f00000-0000-4000-8000-000000000001');
 select ok(
@@ -267,6 +269,39 @@ select lives_ok(
 select * from extensions.dblink_get_result('s1', false) as t(r text);
 select extensions.dblink_exec('s1', 'commit');
 select is(tests.active_estimates(), 0, 'and writes no estimate: V is booked for trip 3');
+
+-- ---------------------------------------------------------------------------
+-- 3. F5: trip 1 writes V's estimate (s1, kept archived: V is booked) while
+--    the shipper cancels trip 3 (s2): the cancellation waits for V and then
+--    restores that estimate.
+-- ---------------------------------------------------------------------------
+select extensions.dblink_exec('s1', 'begin');
+select extensions.dblink_exec('s1', 'set local lock_timeout = ''15s''');
+select extensions.dblink_exec('s1', replace(tests.write_estimate_sql(), '1 hour', '3 hours'));
+
+select tests.begin_as('s2', 'a2f00000-0000-4000-8000-000000000001');
+select extensions.dblink_send_query('s2', $sql$
+  select public.cancel_trip(
+    (select id from public.trips where offer_id = 'f2f20000-0000-4000-8000-000000000003'), 'Cambio de planes'
+  )::text
+$sql$);
+select ok(tests.wait_until_blocked('s2'), 'the cancellation waits for the unit while its estimate is written');
+select extensions.dblink_exec('s1', 'commit');
+select lives_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  'then trip 3 is cancelled'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+select is(
+  tests.peek($sql$
+    select string_agg(source::text || ' ' || (available_from > now() + interval '2 hours')::text, ',')
+    from public.vehicle_availability
+    where vehicle_id = 'e2f00000-0000-4000-8000-000000000001' and archived_at is null
+  $sql$),
+  'trip_estimate true',
+  'and V gets back the estimate written meanwhile, its only availability'
+);
 
 select tests.cleanup();
 select extensions.dblink_disconnect('s1');

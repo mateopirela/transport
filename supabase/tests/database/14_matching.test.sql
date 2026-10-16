@@ -308,15 +308,12 @@ select is(
   tests.matches('e8000000-0000-4000-8000-0000000000a2'), '{}'::text[],
   'other units of the carrier keep their own availability'
 );
--- assign_trip leaves A1's manual availability (GDL) active: asking by that
--- availability must not recommend pickups from GDL.
-select results_eq(
-  $$ select array_agg(v.name order by v.name), bool_and(m.is_return_trip), bool_and(m.start_city = 'Monterrey'),
-            bool_and(m.availability_id is null)
-     from public.match_candidates(null, tests.val('availability_a1')) m
-     join tests.vals v on v.id = m.load_id $$,
-  $$ values (array['l9'], true, true, true) $$,
-  'by availability id, a unit with a trip in progress still starts at the trip destination'
+-- F5: assign_trip ends A1's manual availability (GDL), so it can no longer
+-- recommend pickups from GDL; asking by it fails like any ended availability.
+select throws_ok(
+  $$ select * from public.match_candidates(null, tests.val('availability_a1')) $$,
+  '42501', 'vehicle not found',
+  'the manual availability of a unit assigned to a trip is ended, so it no longer matches'
 );
 
 -- ---------------------------------------------------------------------------

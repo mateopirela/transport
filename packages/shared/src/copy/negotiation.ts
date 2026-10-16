@@ -91,6 +91,7 @@ export const chatCopy = {
   shipper: 'Cliente',
   operator: 'Operador',
   admin: 'Admin',
+  deletedAccount: 'Cuenta eliminada',
   read: 'Leído',
   sent: 'Enviado',
   attachment: 'Adjunto',

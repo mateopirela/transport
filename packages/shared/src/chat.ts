@@ -2,6 +2,7 @@
 // in the policies of the private `chat` bucket; this module lets the apps
 // validate before uploading and show read receipts. The message merging is
 // shared by the web (B14) and the app (B19).
+import { chatCopy } from './copy/negotiation';
 import type { UserRole } from './enums';
 
 /** Maximum characters of a message body. */
@@ -93,11 +94,31 @@ export function isMessageReadBy(
 /** A message as the chats of the web and the app show it. */
 export interface ChatMessage {
   id: string;
-  sender_id: string;
+  /** Null once the sender's account was deleted (D18): the message stays, anonymized. */
+  sender_id: string | null;
   sender_role: UserRole;
   body: string | null;
   attachments: MessageAttachment[];
   created_at: string;
+}
+
+/**
+ * Who wrote a message, as the chat labels it: "Tú" for the viewer, "Cuenta
+ * eliminada" when the sender's account was deleted (D18), or their role.
+ */
+export function chatSenderLabel(
+  message: Pick<ChatMessage, 'sender_id' | 'sender_role'>,
+  viewerId: string | null | undefined,
+): string {
+  if (message.sender_id === null) return chatCopy.deletedAccount;
+  if (message.sender_id === viewerId) return chatCopy.you;
+  const labels: Record<UserRole, string> = {
+    shipper: chatCopy.shipper,
+    carrier: chatCopy.carrier,
+    operator: chatCopy.operator,
+    admin: chatCopy.admin,
+  };
+  return labels[message.sender_role];
 }
 
 /** Orders two Postgres timestamps to the microsecond (isMessageReadBy is `<=`). */

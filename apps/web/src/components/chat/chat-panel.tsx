@@ -4,10 +4,10 @@ import {
   CHAT_ATTACHMENT_TYPES,
   chatAttachmentPath,
   chatCopy,
+  chatSenderLabel,
   formatDateTime,
   MAX_MESSAGE_LENGTH,
   type Tables,
-  type UserRole,
 } from '@transport/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -36,17 +36,6 @@ interface Draft {
   key: string;
   file: File;
   path?: string;
-}
-
-function senderLabel(message: ChatMessage, viewerId: string): string {
-  if (message.sender_id === viewerId) return chatCopy.you;
-  const labels: Record<UserRole, string> = {
-    shipper: chatCopy.shipper,
-    carrier: chatCopy.carrier,
-    operator: chatCopy.operator,
-    admin: chatCopy.admin,
-  };
-  return labels[message.sender_role];
 }
 
 /**
@@ -228,7 +217,10 @@ export function ChatPanel({
           <li className="text-sm text-muted-foreground">{chatCopy.empty}</li>
         )}
         {messages.map((message) => {
-          const mine = own.has(message.sender_id) || message.sender_id === viewerId;
+          // A message without a sender (deleted account, D18) is nobody's here.
+          const mine =
+            message.sender_id !== null &&
+            (own.has(message.sender_id) || message.sender_id === viewerId);
           return (
             <li key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
@@ -238,7 +230,7 @@ export function ChatPanel({
                 )}
               >
                 <p className="text-xs text-muted-foreground">
-                  {senderLabel(message, viewerId)} · {formatDateTime(message.created_at)}
+                  {chatSenderLabel(message, viewerId)} · {formatDateTime(message.created_at)}
                 </p>
                 {message.body && <p className="break-words whitespace-pre-wrap">{message.body}</p>}
                 {message.attachments.map((attachment) => (

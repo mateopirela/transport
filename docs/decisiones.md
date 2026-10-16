@@ -21,3 +21,4 @@ Cada decisión tiene fecha y estado. Si algo cambia, se agrega una entrada nueva
 | D15 | 2026-10-14 | Los operadores entran con **email y contraseña mediante invitación** de su transportista. No hay OTP por SMS | Confirmada |
 | D16 | — | Lista oficial de documentos legales por perfil (JP) | Pendiente |
 | D17 | — | ¿Integrar la API del GPS de la flota de JP? (V1 usa la ubicación del teléfono) | Pendiente |
+| D18 | 2026-10-16 | **Borrado de cuenta y chat:** al borrar una cuenta, sus mensajes se conservan para la contraparte y para disputas, pero se anonimizan: el remitente (`messages.sender_id`) pasa a nulo y el resto del mensaje (rol, texto, adjuntos, hora) no cambia. La web y la app lo muestran como "Cuenta eliminada". Ver el PR #36 (F6) | Propuesta, pendiente de confirmar por Mateo |

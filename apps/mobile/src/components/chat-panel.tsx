@@ -1,6 +1,7 @@
 import {
   carrierLoadsCopy,
   chatCopy,
+  chatSenderLabel,
   formatDateTime,
   MAX_MESSAGE_LENGTH,
   mergeMessages,
@@ -15,13 +16,6 @@ import type { Supabase } from '../lib/supabase';
 import { useSession } from '../providers/session';
 import { colors, spacing } from '../theme';
 import { Body, Button, Field, Notice } from './ui';
-
-const SENDER: Record<ChatMessage['sender_role'], string> = {
-  carrier: chatCopy.carrier,
-  shipper: chatCopy.shipper,
-  operator: chatCopy.operator,
-  admin: chatCopy.admin,
-};
 
 /**
  * Chat of a negotiation (B07 schema): the latest messages, new ones in real
@@ -102,11 +96,12 @@ export function ChatPanel({
       {loadFailed ? <Notice tone="danger">{carrierLoadsCopy.errors.generic}</Notice> : null}
       {messages.length === 0 && !loadFailed ? <Body>{chatCopy.empty}</Body> : null}
       {messages.map((m) => {
-        const own = m.sender_id === userId;
+        // A message without a sender (deleted account, D18) is never the viewer's.
+        const own = m.sender_id !== null && m.sender_id === userId;
         return (
           <View key={m.id} style={[styles.bubble, own ? styles.own : styles.theirs]}>
             <Text style={styles.meta}>
-              {`${own ? chatCopy.you : SENDER[m.sender_role]} · ${formatDateTime(m.created_at)}`}
+              {`${chatSenderLabel(m, userId)} · ${formatDateTime(m.created_at)}`}
             </Text>
             {m.body ? <Text style={styles.body}>{m.body}</Text> : null}
             {m.attachments.length > 0 ? (

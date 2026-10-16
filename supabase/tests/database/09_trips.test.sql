@@ -116,6 +116,11 @@ insert into public.operators (id, company_id, profile_id, full_name) values
    'a6000000-0000-4000-8000-000000000006', 'Pedro Operador'),
   ('d6000000-0000-4000-8000-000000000009', 'c6000000-0000-4000-8000-000000000003', null, 'Ulises Sin Cuenta'),
   ('d6000000-0000-4000-8000-000000000008', 'c6000000-0000-4000-8000-000000000004', null, 'Quique Operador');
+-- O and P consented to share their location (B22: record_trip_locations
+-- requires it; 13_location_consents covers the consent itself).
+insert into public.location_consents (user_id, policy_version, platform) values
+  ('a6000000-0000-4000-8000-000000000005', '2026-10-15', 'android'),
+  ('a6000000-0000-4000-8000-000000000006', '2026-10-15', 'ios');
 insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
   ('e6000000-0000-4000-8000-000000000003', 'c6000000-0000-4000-8000-000000000003', 'rigid', 'AAA1111', 'dry_van', 30000),
   ('e6000000-0000-4000-8000-000000000004', 'c6000000-0000-4000-8000-000000000004', 'rigid', 'BBB1111', 'dry_van', 30000);

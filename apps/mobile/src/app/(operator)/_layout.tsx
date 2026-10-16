@@ -32,6 +32,8 @@ export default function OperatorTabs() {
           ),
         }}
       />
+      {/* Opened from the trip and the account (B22); not a tab. */}
+      <Tabs.Screen name="location-consent" options={{ href: null }} />
     </Tabs>
   );
 }

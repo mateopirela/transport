@@ -156,6 +156,40 @@ const FINISHED_STATUSES: TripStatus[] = ['delivered', 'closed', 'cancelled'];
 /** Finished trips shown at first, and added by each "Ver más". */
 export const HISTORY_PAGE_SIZE = 20;
 
+/** Rows per request, below PostgREST's max_rows (1000): longer lists are paged. */
+const PAGE_SIZE = 500;
+
+/** Every unfinished trip of the company, however many: fetched page by page. */
+async function openTrips(client: Supabase, companyId: string): Promise<TripRow[]> {
+  const rows: TripRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const page = check(
+      await client
+        .from('trips')
+        .select(TRIP_COLUMNS)
+        .eq('carrier_company_id', companyId)
+        .not('status', 'in', `(${FINISHED_STATUSES.join(',')})`)
+        .order('created_at')
+        .order('id')
+        .range(from, from + PAGE_SIZE - 1),
+    );
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
+}
+
+/** Loads of the given ids, in chunks so neither the URL nor max_rows limits them. */
+async function loadsById(client: Supabase, ids: readonly string[]) {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+  const pages = await Promise.all(
+    chunks.map(async (chunk) =>
+      check(await client.from('loads').select(LOAD_COLUMNS).in('id', chunk)),
+    ),
+  );
+  return new Map(pages.flat().map((l) => [l.id, l]));
+}
+
 export interface CarrierTripList {
   trips: CarrierTripSummary[];
   /** There are finished trips beyond `historyLimit`. */
@@ -173,11 +207,7 @@ export async function listCarrierTrips(
   historyLimit: number = HISTORY_PAGE_SIZE,
 ): Promise<CarrierTripList> {
   const [open, finished] = await Promise.all([
-    client
-      .from('trips')
-      .select(TRIP_COLUMNS)
-      .eq('carrier_company_id', companyId)
-      .not('status', 'in', `(${FINISHED_STATUSES.join(',')})`),
+    openTrips(client, companyId),
     client
       .from('trips')
       .select(TRIP_COLUMNS)
@@ -188,17 +218,14 @@ export async function listCarrierTrips(
       .limit(historyLimit + 1),
   ]);
   const history = check(finished);
-  const trips = [...check(open), ...history.slice(0, historyLimit)];
+  const trips = [...open, ...history.slice(0, historyLimit)];
   const hasMoreHistory = history.length > historyLimit;
   if (trips.length === 0) return { trips: [], hasMoreHistory };
-  const [loads, names, positions] = await Promise.all([
-    client
-      .from('loads')
-      .select(LOAD_COLUMNS)
-      .in(
-        'id',
-        trips.map((t) => t.load_id),
-      ),
+  const [loadById, names, positions] = await Promise.all([
+    loadsById(
+      client,
+      trips.map((t) => t.load_id),
+    ),
     namesOf(client, companyId),
     Promise.all(
       trips.map(
@@ -207,7 +234,6 @@ export async function listCarrierTrips(
       ),
     ),
   ]);
-  const loadById = new Map(check(loads).map((l) => [l.id, l]));
   const positionByTrip = new Map(positions);
   return {
     trips: trips.flatMap((trip) => {

@@ -6,7 +6,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -15,6 +14,7 @@ import { createAuthActions, type AuthActions } from '../lib/auth';
 import { createSupabaseAuthBackend } from '../lib/auth-backend';
 import { PROFILE_SELECT, toProfileDetails, type ProfileDetails } from '../lib/profile';
 import { registerPushToken } from '../lib/push';
+import { createPushTokenSession } from '../lib/push-session';
 import { resolveArea, type Area, type SessionSnapshot } from '../lib/routing';
 import { pendingInvitation } from '../lib/secure-store';
 import type { Supabase } from '../lib/supabase';
@@ -26,16 +26,6 @@ interface SessionContextValue {
   actions: AuthActions;
   refreshProfile: () => Promise<void>;
   pushEnabled: boolean;
-}
-
-const UNREGISTER_TIMEOUT_MS = 3000;
-
-/** Waits for `promise` (ignoring its outcome) at most UNREGISTER_TIMEOUT_MS. */
-function withTimeout(promise: Promise<unknown>): Promise<unknown> {
-  return Promise.race([
-    promise.catch(() => undefined),
-    new Promise((resolve) => setTimeout(resolve, UNREGISTER_TIMEOUT_MS)),
-  ]);
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -77,12 +67,25 @@ export function SessionProvider({
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profileState, setProfileState] = useState<ProfileState | null>(null);
   const [pushUserId, setPushUserId] = useState<string | null>(null);
-  // The token this device registered for the signed-in user, removed on
-  // sign-out; the registration in flight, which sign-out waits for; and
-  // whether a sign-out is running (no new registration starts meanwhile).
-  const pushToken = useRef<string | null>(null);
-  const pushRegistration = useRef<Promise<unknown> | null>(null);
-  const signingOut = useRef(false);
+  // This device's push token for the signed-in user (lib/push-session.ts).
+  const pushSession = useMemo(
+    () =>
+      createPushTokenSession({
+        async register(token, platform, signal) {
+          const { error } = await client
+            .rpc('register_push_token', { p_token: token, p_platform: platform })
+            .abortSignal(signal);
+          if (error) throw error;
+        },
+        async unregister(token, signal) {
+          const { error } = await client
+            .rpc('unregister_push_token', { p_token: token })
+            .abortSignal(signal);
+          if (error) throw error;
+        },
+      }),
+    [client],
+  );
 
   useEffect(() => {
     // Emits INITIAL_SESSION first, then every sign-in, refresh and sign-out.
@@ -126,26 +129,13 @@ export function SessionProvider({
   useEffect(() => {
     if (!userId || (area !== 'carrier' && area !== 'operator')) return;
     let cancelled = false;
-    const registration = registerPushToken(easProjectId, async (token, platform) => {
-      if (signingOut.current) throw new Error('signing out');
-      const { error } = await client.rpc('register_push_token', {
-        p_token: token,
-        p_platform: platform,
-      });
-      if (error) throw error;
-      // Kept even if this effect was cleaned up meanwhile: sign-out removes it.
-      pushToken.current = token;
-    }).then((result) => {
+    void registerPushToken(easProjectId, pushSession.sink()).then((result) => {
       if (!cancelled && result.status === 'registered') setPushUserId(userId);
-    });
-    pushRegistration.current = registration;
-    void registration.finally(() => {
-      if (pushRegistration.current === registration) pushRegistration.current = null;
     });
     return () => {
       cancelled = true;
     };
-  }, [area, userId, easProjectId, client]);
+  }, [area, userId, easProjectId, pushSession]);
 
   const actions = useMemo<AuthActions>(() => {
     const auth = createAuthActions(createSupabaseAuthBackend(client), pendingInvitation, {
@@ -154,28 +144,13 @@ export function SessionProvider({
     return {
       ...auth,
       // This device stops receiving the user's notifications before the
-      // session ends (the RPC needs it). Best effort: sign-out never waits
-      // more than a few seconds for it.
+      // session ends (the RPC needs it). Bounded: requests abort after 5 s.
       async signOut() {
-        signingOut.current = true;
-        try {
-          // A registration still in flight may save the token on the server
-          // after this point: wait for it so that token is removed too.
-          if (pushRegistration.current) await withTimeout(pushRegistration.current);
-          const token = pushToken.current;
-          pushToken.current = null;
-          if (token) {
-            await withTimeout(
-              Promise.resolve(client.rpc('unregister_push_token', { p_token: token })),
-            );
-          }
-          await auth.signOut();
-        } finally {
-          signingOut.current = false;
-        }
+        await pushSession.end();
+        await auth.signOut();
       },
     };
-  }, [client]);
+  }, [client, pushSession]);
 
   const value = useMemo<SessionContextValue>(
     () => ({

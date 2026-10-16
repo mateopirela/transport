@@ -136,7 +136,10 @@ create type public.match_candidate as (
 --     carrier approved;
 --   * where and when it starts: the destination of its trip in progress at
 --     the estimated end of unloading (return-trip mode), otherwise its active
---     availability (or the one given);
+--     availability (or the one given). A trip in progress wins even when an
+--     availability is given: assign_trip leaves the previous manual
+--     availability active until unloading, and it no longer says where the
+--     unit will be;
 --   * the load: open, same unit type, fits weight and volume, its special
 --     requirements are a subset of the unit's features, the unit is free
 --     before the pickup window closes, and the pickup is within
@@ -177,8 +180,7 @@ as $$
                true as is_return_trip, l.origin_location as home_location
         from public.trips t
         join public.loads l on l.id = t.load_id
-        where p_availability_id is null
-          and t.vehicle_id = u.id
+        where t.vehicle_id = u.id
           and t.status in ('assigned', 'en_route_to_pickup', 'at_pickup', 'loading', 'in_transit', 'at_delivery',
                            'unloading')
         union all
@@ -246,9 +248,9 @@ $$;
 revoke all on function public.match_pairs(uuid, uuid, numeric, uuid) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- RPC: candidate loads for one unit of the caller, by vehicle (return-trip
--- mode when it has a trip in progress) or by one of its active
--- availabilities. Nearest pickups first; at most p_limit rows.
+-- RPC: candidate loads for one unit of the caller, by vehicle or by one of
+-- its active availabilities (either way, return-trip mode when the unit has
+-- a trip in progress). Nearest pickups first; at most p_limit rows.
 -- ---------------------------------------------------------------------------
 create function public.match_candidates(
   p_vehicle_id uuid default null,
@@ -310,6 +312,11 @@ grant execute on function public.match_candidates(uuid, uuid, integer, integer) 
 -- compatible unit (default radius, 150 km) get a `load_match` notification,
 -- one per company with its nearest unit. Capped at the 50 nearest companies.
 -- The dispatcher (B09) sends the push.
+-- Only units that can reach the pickup before its window closes count, with
+-- the same estimate the scoring uses without Google Routes
+-- (packages/shared/matching: haversine x DEFAULT_ROAD_DISTANCE_FACTOR 1.3 at
+-- ESTIMATED_TRUCK_SPEED_KMH 60), so carriers are not alerted of pickups that
+-- scoreCandidate would reject.
 -- ---------------------------------------------------------------------------
 create function public.notify_load_match()
 returns trigger
@@ -325,6 +332,8 @@ begin
     select * from (
       select distinct on (m.company_id) m.company_id, m.vehicle_id, m.empty_km
       from public.match_pairs(null, new.id, 150) m
+      where greatest(m.available_from, now()) + make_interval(secs => m.empty_km * 1.3 / 60 * 3600)
+            <= m.pickup_window_end
       order by m.company_id, m.empty_km
     ) best
     order by best.empty_km

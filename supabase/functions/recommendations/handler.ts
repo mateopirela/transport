@@ -23,6 +23,7 @@ import {
   type CachedDistance,
   type DistanceCache,
   type Leg,
+  type MatchCandidate,
   type MatchCandidateRow,
 } from '../../../packages/shared/src/matching/index.ts';
 
@@ -159,25 +160,36 @@ export async function handleRecommendations(
   }
   if (!input) return json({ error: 'invalid_request' }, 400);
 
-  const rpc = await deps.fetch(`${supabaseUrl}/rest/v1/rpc/match_candidates`, {
-    method: 'POST',
-    headers: { apikey: anonKey, Authorization: authorization, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      p_vehicle_id: input.vehicleId,
-      p_availability_id: input.availabilityId,
-      ...(input.maxEmptyKm === null ? {} : { p_max_empty_km: input.maxEmptyKm }),
-      p_limit: MAX_CANDIDATES,
-    }),
-  });
-  if (!rpc.ok) {
-    const error = (await rpc.json().catch(() => ({}))) as { code?: string };
-    if (rpc.status === 401) return json({ error: 'unauthorized' }, 401);
-    if (error.code === '42501') return json({ error: 'forbidden' }, 403);
-    if (error.code === '22023') return json({ error: 'invalid_request' }, 400);
-    console.error('match_candidates failed', rpc.status, error.code);
+  let candidates: MatchCandidate[];
+  try {
+    const rpc = await deps.fetch(`${supabaseUrl}/rest/v1/rpc/match_candidates`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        p_vehicle_id: input.vehicleId,
+        p_availability_id: input.availabilityId,
+        ...(input.maxEmptyKm === null ? {} : { p_max_empty_km: input.maxEmptyKm }),
+        p_limit: MAX_CANDIDATES,
+      }),
+    });
+    if (!rpc.ok) {
+      const error = (await rpc.json().catch(() => ({}))) as { code?: string };
+      if (rpc.status === 401) return json({ error: 'unauthorized' }, 401);
+      if (error.code === '42501') return json({ error: 'forbidden' }, 403);
+      if (error.code === '22023') return json({ error: 'invalid_request' }, 400);
+      console.error('match_candidates failed', rpc.status, error.code);
+      return json({ error: 'upstream_error' }, 502);
+    }
+    candidates = ((await rpc.json()) as MatchCandidateRow[]).map(candidateFromRow);
+  } catch (error) {
+    // Connection failure or a malformed answer: same JSON error, with CORS.
+    console.error('match_candidates failed', error instanceof Error ? error.name : error);
     return json({ error: 'upstream_error' }, 502);
   }
-  const candidates = ((await rpc.json()) as MatchCandidateRow[]).map(candidateFromRow);
 
   const serviceKey = deps.env('SUPABASE_SERVICE_ROLE_KEY');
   const resolveDistances = serviceKey

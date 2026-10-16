@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(45);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -36,6 +36,7 @@ as $$
     when 'GDL' then '{"address": "Av. Vallarta 1", "city": "Guadalajara", "state": "Jalisco", "lat": 20.656, "lng": -103.391}'
     when 'MTY' then '{"address": "Av. Constitución 1", "city": "Monterrey", "state": "Nuevo León", "lat": 25.724, "lng": -100.201}'
     when 'LEON' then '{"address": "Blvd. Aeropuerto 1", "city": "León", "state": "Guanajuato", "lat": 21.048, "lng": -101.57}'
+    when 'SLW' then '{"address": "Blvd. V. Carranza 1", "city": "Saltillo", "state": "Coahuila", "lat": 25.4232, "lng": -101.0053}'
   end::jsonb;
 $$;
 
@@ -43,7 +44,7 @@ $$;
 create function tests.publish(
   p_name text, p_origin text default 'GDL', p_destination text default 'MTY', p_unit text default 'dry_van',
   p_weight_kg numeric default 18000, p_volume_m3 numeric default 60, p_requirements jsonb default '[]',
-  p_pickup_from integer default 4, p_pickup_to integer default 30, p_publish boolean default true
+  p_pickup_from numeric default 4, p_pickup_to numeric default 30, p_publish boolean default true
 )
 returns uuid
 language plpgsql
@@ -53,10 +54,10 @@ declare
 begin
   v_id := public.create_load(jsonb_build_object(
     'origin', tests.place(p_origin), 'destination', tests.place(p_destination),
-    'pickupWindow', jsonb_build_object('start', now() + make_interval(hours => p_pickup_from),
-                                       'end', now() + make_interval(hours => p_pickup_to)),
-    'deliveryWindow', jsonb_build_object('start', now() + make_interval(hours => p_pickup_to),
-                                         'end', now() + make_interval(hours => p_pickup_to + 6)),
+    'pickupWindow', jsonb_build_object('start', now() + p_pickup_from * interval '1 hour',
+                                       'end', now() + p_pickup_to * interval '1 hour'),
+    'deliveryWindow', jsonb_build_object('start', now() + p_pickup_to * interval '1 hour',
+                                         'end', now() + (p_pickup_to + 6) * interval '1 hour'),
     'cargoType', 'palletized', 'description', 'Tarimas', 'weightKg', p_weight_kg, 'volumeM3', p_volume_m3,
     'unitType', p_unit, 'specialRequirements', p_requirements, 'proposedPriceCents', 3900000
   ));
@@ -307,6 +308,16 @@ select is(
   tests.matches('e8000000-0000-4000-8000-0000000000a2'), '{}'::text[],
   'other units of the carrier keep their own availability'
 );
+-- assign_trip leaves A1's manual availability (GDL) active: asking by that
+-- availability must not recommend pickups from GDL.
+select results_eq(
+  $$ select array_agg(v.name order by v.name), bool_and(m.is_return_trip), bool_and(m.start_city = 'Monterrey'),
+            bool_and(m.availability_id is null)
+     from public.match_candidates(null, tests.val('availability_a1')) m
+     join tests.vals v on v.id = m.load_id $$,
+  $$ values (array['l9'], true, true, true) $$,
+  'by availability id, a unit with a trip in progress still starts at the trip destination'
+);
 
 -- ---------------------------------------------------------------------------
 -- Reverse recommendations: load_match notifications on publish
@@ -347,6 +358,31 @@ select is(
    where type = 'load_match' and user_id = 'a8000000-0000-4000-8000-000000000001'),
   0, 'the shipper is never notified of its own loads'
 );
+
+-- Reachability: B1 is free now in Monterrey, ~75 km (straight line) from
+-- Saltillo, i.e. ~97 min estimated by road.
+set local role authenticated;
+select tests.login('a8000000-0000-4000-8000-000000000001');
+select tests.publish('l11', p_origin => 'SLW', p_destination => 'GDL', p_pickup_from => 0.1, p_pickup_to => 1);
+select tests.publish('l12', p_origin => 'SLW', p_destination => 'GDL', p_pickup_from => 0.1, p_pickup_to => 3);
+reset role;
+select is(
+  (select count(*)::int from public.notifications where type = 'load_match' and data ->> 'loadId' = tests.val('l11')::text),
+  0, 'a pickup that closes before any unit can get there notifies nobody'
+);
+select is(
+  (select array_agg(user_id::text) from public.notifications
+   where type = 'load_match' and data ->> 'loadId' = tests.val('l12')::text),
+  array['a8000000-0000-4000-8000-000000000003'],
+  'the same pickup with time to get there notifies B'
+);
+set local role authenticated;
+select tests.login('a8000000-0000-4000-8000-000000000003');
+select ok(
+  tests.val('l11') in (select load_id from public.match_candidates('e8000000-0000-4000-8000-0000000000b1')),
+  'match_candidates still lists it: the scoring decides reachability with road distances'
+);
+reset role;
 
 -- Publishing a draft later notifies too.
 set local role authenticated;

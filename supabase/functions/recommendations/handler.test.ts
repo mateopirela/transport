@@ -45,7 +45,7 @@ interface Call {
 
 function setup(options: {
   env?: Record<string, string>;
-  rpc?: () => Response;
+  rpc?: () => Response | Promise<Response>;
   cacheRows?: unknown[];
 }) {
   const calls: Call[] = [];
@@ -136,6 +136,27 @@ Deno.test('maps match_candidates errors', async () => {
         (await handleRecommendations(post({ vehicleId: VEHICLE }), deps)).status,
         status,
       );
+    }
+  } finally {
+    console.error = errors;
+  }
+});
+
+Deno.test('answers JSON with CORS when match_candidates is unreachable or malformed', async () => {
+  const failures: (() => Response | Promise<Response>)[] = [
+    () => Promise.reject(new TypeError('connection refused')),
+    () => new Response('not json', { status: 200 }),
+    () => Response.json([{ load_id: 'x' }]),
+  ];
+  const errors = console.error;
+  console.error = () => {};
+  try {
+    for (const rpc of failures) {
+      const { deps } = setup({ rpc });
+      const response = await handleRecommendations(post({ vehicleId: VEHICLE }), deps);
+      assert.equal(response.status, 502);
+      assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
+      assert.deepEqual(await response.json(), { error: 'upstream_error' });
     }
   } finally {
     console.error = errors;

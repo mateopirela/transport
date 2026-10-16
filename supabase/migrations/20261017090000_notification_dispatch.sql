@@ -174,6 +174,8 @@ begin
     from jsonb_array_elements(p_results) x
     order by (x ->> 'id')::uuid
   ),
+  -- Lock first: if a newer claim holds the row, this waits for it and then
+  -- re-reads the row, so an old attempt no longer matches and changes nothing.
   planned as (
     select n.id, r.error, n.dispatch_attempts,
            case when n.push_state = 'in_flight'
@@ -184,6 +186,8 @@ begin
     join public.notifications n on n.id = r.id
     where n.dispatched_at is null
       and n.dispatch_attempts = r.attempt
+    order by n.id
+    for update of n
   )
   update public.notifications n
   set push_state = x.push_state,
@@ -197,7 +201,9 @@ begin
       end,
       dispatch_error = x.error
   from planned x
-  where n.id = x.id;
+  where n.id = x.id
+    and n.dispatched_at is null
+    and n.dispatch_attempts = x.dispatch_attempts;
 
   get diagnostics v_count = row_count;
   return v_count;

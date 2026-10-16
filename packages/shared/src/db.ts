@@ -219,6 +219,36 @@ export interface Database {
           },
         ];
       };
+      document_expiry_notices: {
+        Row: {
+          document_id: string;
+          expires_at: string;
+          notified_at: string;
+          threshold_days: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          document_id: string;
+          expires_at: string;
+          notified_at?: string;
+          threshold_days: number;
+        };
+        Update: {
+          document_id?: string;
+          expires_at?: string;
+          notified_at?: string;
+          threshold_days?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'document_expiry_notices_document_id_fkey';
+            columns: ['document_id'];
+            isOneToOne: false;
+            referencedRelation: 'documents';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       document_requirements: {
         Row: {
           archived_at: string | null;
@@ -723,8 +753,13 @@ export interface Database {
         Row: {
           created_at: string;
           data: NonNullable<Json>;
+          dispatch_attempts: number;
+          dispatch_error: string | null;
+          dispatch_retry_at: string | null;
           dispatched_at: string | null;
+          email_state: string | null;
           id: string;
+          push_state: string | null;
           read_at: string | null;
           type: Database['public']['Enums']['notification_type'];
           user_id: string;
@@ -733,8 +768,13 @@ export interface Database {
         Insert: {
           created_at?: string;
           data?: NonNullable<Json>;
+          dispatch_attempts?: number;
+          dispatch_error?: string | null;
+          dispatch_retry_at?: string | null;
           dispatched_at?: string | null;
+          email_state?: string | null;
           id?: string;
+          push_state?: string | null;
           read_at?: string | null;
           type: Database['public']['Enums']['notification_type'];
           user_id: string;
@@ -742,8 +782,13 @@ export interface Database {
         Update: {
           created_at?: string;
           data?: NonNullable<Json>;
+          dispatch_attempts?: number;
+          dispatch_error?: string | null;
+          dispatch_retry_at?: string | null;
           dispatched_at?: string | null;
+          email_state?: string | null;
           id?: string;
+          push_state?: string | null;
           read_at?: string | null;
           type?: Database['public']['Enums']['notification_type'];
           user_id?: string;
@@ -1685,6 +1730,22 @@ export interface Database {
         };
         Returns: undefined;
       };
+      claim_notifications: {
+        Args: { p_lease_seconds?: number; p_limit?: number };
+        Returns: {
+          attempt: number;
+          created_at: string;
+          data: Json;
+          email: string;
+          email_pending: boolean;
+          id: string;
+          push_pending: boolean;
+          push_tokens: string[];
+          role: Database['public']['Enums']['user_role'];
+          type: Database['public']['Enums']['notification_type'];
+          user_id: string;
+        }[];
+      };
       clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
       company_missing_requirements: {
         Args: { p_company_id: string };
@@ -1740,6 +1801,7 @@ export interface Database {
         }[];
       };
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
+      delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       document_owner_company_id: {
         Args: {
           p_owner_id: string;
@@ -1747,6 +1809,7 @@ export interface Database {
         };
         Returns: string;
       };
+      expire_stale_loads: { Args: Record<PropertyKey, never>; Returns: number };
       get_route_distances: {
         Args: { p_legs: Json };
         Returns: {
@@ -1759,6 +1822,7 @@ export interface Database {
         }[];
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
+      invoke_notification_dispatcher: { Args: Record<PropertyKey, never>; Returns: number };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { p_conversation_id: string }; Returns: boolean };
@@ -1896,12 +1960,14 @@ export interface Database {
         };
         Returns: undefined;
       };
+      process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       record_location_consent: {
         Args: { p_platform: string; p_policy_version: string };
         Returns: string;
       };
+      record_notification_dispatch: { Args: { p_results: Json }; Returns: number };
       record_trip_event: {
         Args: {
           p_accuracy_m?: number;
@@ -1923,6 +1989,7 @@ export interface Database {
         Returns: undefined;
       };
       reject_offer: { Args: { p_offer_id: string; p_reason?: string }; Returns: undefined };
+      remind_stale_trip_locations: { Args: { p_stale_after?: string }; Returns: number };
       report_incident: {
         Args: {
           p_description: string;
@@ -2148,7 +2215,8 @@ export interface Database {
         | 'trip_status_changed'
         | 'document_approved'
         | 'document_rejected'
-        | 'document_expiring';
+        | 'document_expiring'
+        | 'trip_location_stale';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       push_platform: 'ios' | 'android';
@@ -2395,6 +2463,7 @@ export const Constants = {
         'document_approved',
         'document_rejected',
         'document_expiring',
+        'trip_location_stale',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

@@ -94,6 +94,12 @@ jobs:
           deno check --config supabase/functions/recommendations/deno.json supabase/functions/recommendations/index.ts
           deno test --config supabase/functions/recommendations/deno.json supabase/functions/recommendations/
 
+      # B09: simulated Supabase, Expo Push and Resend (no keys, no network).
+      - name: Type-check and test the dispatch-notifications function
+        run: |
+          deno check --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/index.ts
+          deno test --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/
+
   # Database: applies every migration and the demo seed to a fresh local
   # Postgres, checks the seed, runs the pgTAP suite on an empty database and
   # checks that the generated types (pnpm db:types) are up to date.

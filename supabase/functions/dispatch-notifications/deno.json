@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "../../../packages/shared/src/constants": "../../../packages/shared/src/constants.ts",
+    "../../../packages/shared/src/db": "../../../packages/shared/src/db.ts",
+    "../../../packages/shared/src/enums": "../../../packages/shared/src/enums.ts",
+    "../../../packages/shared/src/formatters": "../../../packages/shared/src/formatters.ts",
+    "../../../packages/shared/src/money": "../../../packages/shared/src/money.ts",
+    "../../../packages/shared/src/copy/auth": "../../../packages/shared/src/copy/auth.ts",
+    "../../../packages/shared/src/copy/catalogs": "../../../packages/shared/src/copy/catalogs.ts",
+    "../../../packages/shared/src/copy/notifications": "../../../packages/shared/src/copy/notifications.ts"
+  }
+}

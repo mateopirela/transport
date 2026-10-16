@@ -9,6 +9,7 @@ export * from './loads';
 export * from './matching';
 export * from './mobile';
 export * from './negotiation';
+export * from './notification-email';
 export * from './notifications';
 export * from './permissions';
 export * from './tracking';

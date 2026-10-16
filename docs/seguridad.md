@@ -83,7 +83,7 @@ Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit
 ## Cómo correrla
 
 ```sh
-supabase db reset --no-seed && supabase test db   # suite 00–18 (BD vacía)
 supabase db reset && supabase test db supabase/seed-tests   # seed + matriz
+supabase test db                                  # suite pgTAP (con o sin seed)
 pnpm audit --audit-level high
 ```

@@ -51,6 +51,12 @@ update public.profiles set company_id = 'c0000000-0000-4000-8000-00000000000b'
 where id in ('a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000003');
 update public.profiles set role = 'admin' where id = 'a0000000-0000-4000-8000-000000000005';
 
+-- Every user the directory can list, fixtures plus whatever the database
+-- already holds (e.g. the demo seed), so the counts below do not depend on it.
+create table tests.user_count as
+select count(*) as n from public.profiles p join auth.users u on u.id = p.id;
+grant select on tests.user_count to authenticated;
+
 -- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------
@@ -89,9 +95,12 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 select tests.login('a0000000-0000-4000-8000-000000000005');
 
-select is(
-  (select count(*) from public.admin_list_users()),
-  4::bigint,
+select results_eq(
+  $$ select max(total_count), count(*) filter (where id in (
+       'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
+       'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005'))
+     from public.admin_list_users(null, 100, 0) $$,
+  $$ select n, 4::bigint from tests.user_count $$,
   'the admin sees every user'
 );
 
@@ -116,7 +125,7 @@ select results_eq(
 
 select results_eq(
   $$ select count(*), max(total_count) from public.admin_list_users(null, 2, 0) $$,
-  $$ values (2::bigint, 4::bigint) $$,
+  $$ select 2::bigint, n from tests.user_count $$,
   'limit pages the result and total_count reports every match'
 );
 

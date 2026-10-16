@@ -326,23 +326,24 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 select tests.login('a0000000-0000-4000-8000-000000000005');
 
-select is((select count(*)::int from public.documents), 3, 'admin sees every document');
+select is((select count(*)::int from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a'), 3, 'admin sees every document');
 select is(
-  (select count(*)::int from storage.objects where bucket_id = 'documents'),
+  (select count(*)::int from storage.objects
+   where bucket_id = 'documents' and name like 'c0000000-0000-4000-8000-00000000000a/%'),
   3,
   'admin sees every file (signed URLs for the review viewer)'
 );
 
 select throws_ok(
   $$ select public.review_document(
-       (select id from public.documents where requirement_id = tests.requirement('tax_status_certificate')),
+       (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and requirement_id = tests.requirement('tax_status_certificate')),
        'reject', '  ') $$,
   '22023', 'a rejection needs a reason',
   'a rejection needs a reason'
 );
 select is(
   public.review_document(
-    (select id from public.documents where requirement_id = tests.requirement('tax_status_certificate')),
+    (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and requirement_id = tests.requirement('tax_status_certificate')),
     'reject', 'Documento ilegible'
   ),
   'rejected'::public.verification_status,
@@ -350,33 +351,33 @@ select is(
 );
 select results_eq(
   $$ select status::text, review_notes, reviewed_by from public.documents
-     where requirement_id = tests.requirement('tax_status_certificate') $$,
+     where company_id = 'c0000000-0000-4000-8000-00000000000a' and requirement_id = tests.requirement('tax_status_certificate') $$,
   $$ values ('rejected', 'Documento ilegible', 'a0000000-0000-4000-8000-000000000005'::uuid) $$,
   'the rejection keeps the reason and the reviewer'
 );
 select throws_ok(
   $$ select public.review_document(
-       (select id from public.documents where requirement_id = tests.requirement('tax_status_certificate')),
+       (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and requirement_id = tests.requirement('tax_status_certificate')),
        'approve') $$,
   '55000', null,
   'a reviewed document cannot be reviewed again'
 );
 select throws_ok(
   $$ select public.review_document(
-       (select id from public.documents where archived_at is not null), 'approve') $$,
+       (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and archived_at is not null), 'approve') $$,
   '55000', null,
   'a superseded document cannot be reviewed'
 );
 select throws_ok(
   $$ select public.review_document(
-       (select id from public.documents where archived_at is null
+       (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and archived_at is null
           and requirement_id = tests.requirement('proof_of_address')), 'maybe') $$,
   '22023', null,
   'the decision must be approve or reject'
 );
 select is(
   public.review_document(
-    (select id from public.documents where archived_at is null
+    (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and archived_at is null
        and requirement_id = tests.requirement('proof_of_address')),
     'approve'
   ),
@@ -390,7 +391,8 @@ select results_eq(
      from public.audit_log
      where table_name = 'documents'
        and record_id = (select id from public.documents
-                        where requirement_id = tests.requirement('tax_status_certificate')) $$,
+                        where company_id = 'c0000000-0000-4000-8000-00000000000a'
+                          and requirement_id = tests.requirement('tax_status_certificate')) $$,
   $$ values ('update', 'a0000000-0000-4000-8000-000000000005'::uuid, 'pending_review', 'rejected',
              'Documento ilegible') $$,
   'the audit log records who rejected what and why'

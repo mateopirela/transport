@@ -332,7 +332,7 @@ select is(
 select results_eq(
   $$ select data ->> 'vehicleId', data ->> 'originCity', data ->> 'destinationCity', (data ->> 'emptyKm')::int
      from public.notifications
-     where type = 'load_match' and data ->> 'loadId' = tests.val('l1')::text $$,
+     where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' = tests.val('l1')::text $$,
   $$ values ('e8000000-0000-4000-8000-0000000000a1'::text, 'Guadalajara'::text, 'Monterrey'::text, 4) $$,
   'the notification names the nearest unit, the route and the empty km'
 );
@@ -344,12 +344,12 @@ select is(
 );
 select is(
   (select count(*)::int from public.notifications
-   where type = 'load_match' and data ->> 'loadId' in (select id::text from tests.vals where name in ('l2', 'l5', 'l6'))),
+   where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' in (select id::text from tests.vals where name in ('l2', 'l5', 'l6'))),
   0, 'incompatible loads and drafts notify nobody'
 );
 select is(
   (select array_agg(user_id::text order by user_id) from public.notifications
-   where type = 'load_match' and data ->> 'loadId' = tests.val('l9')::text),
+   where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' = tests.val('l9')::text),
   array['a8000000-0000-4000-8000-000000000002', 'a8000000-0000-4000-8000-000000000003'],
   'l9 (MTY) notifies B (unit in MTY) and A (unit returning to MTY)'
 );
@@ -367,12 +367,12 @@ select tests.publish('l11', p_origin => 'SLW', p_destination => 'GDL', p_pickup_
 select tests.publish('l12', p_origin => 'SLW', p_destination => 'GDL', p_pickup_from => 0.1, p_pickup_to => 3);
 reset role;
 select is(
-  (select count(*)::int from public.notifications where type = 'load_match' and data ->> 'loadId' = tests.val('l11')::text),
+  (select count(*)::int from public.notifications where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' = tests.val('l11')::text),
   0, 'a pickup that closes before any unit can get there notifies nobody'
 );
 select is(
   (select array_agg(user_id::text) from public.notifications
-   where type = 'load_match' and data ->> 'loadId' = tests.val('l12')::text),
+   where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' = tests.val('l12')::text),
   array['a8000000-0000-4000-8000-000000000003'],
   'the same pickup with time to get there notifies B'
 );
@@ -390,7 +390,7 @@ select tests.login('a8000000-0000-4000-8000-000000000001');
 select public.publish_load(tests.val('l6'));
 reset role;
 select is(
-  (select count(*)::int from public.notifications where type = 'load_match' and data ->> 'loadId' = tests.val('l6')::text),
+  (select count(*)::int from public.notifications where type = 'load_match' and user_id::text like 'a8000000-%' and data ->> 'loadId' = tests.val('l6')::text),
   1, 'publishing a draft notifies the compatible carriers'
 );
 

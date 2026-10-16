@@ -72,4 +72,4 @@ Sin esos dos secretos el trabajo `dispatch-notifications` no hace nada (las noti
 ## Tests
 
 - `supabase test db supabase/seed-tests` verifica el seed (corre justo después de `supabase db reset`).
-- La suite pgTAP (`supabase test db`) crea sus propios datos y espera una base vacía: córrela después de `supabase db reset --no-seed`. CI hace ambas cosas.
+- La suite pgTAP (`supabase test db`) crea sus propios datos y acota sus comprobaciones a ellos: pasa tanto sobre la base con seed como sobre una vacía (`supabase db reset --no-seed`). CI corre las tres cosas.

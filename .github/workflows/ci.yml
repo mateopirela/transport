@@ -218,7 +218,11 @@ jobs:
       - name: Check the demo seed and the security matrix
         run: supabase test db supabase/seed-tests
 
-      # The pgTAP suite builds its own fixtures and expects an empty database.
+      # The pgTAP suite builds its own fixtures and scopes its checks to them,
+      # so it must pass both on top of the demo seed and on an empty database.
+      - name: Run pgTAP tests on the seeded database
+        run: supabase test db
+
       - name: Reset to an empty database for the pgTAP suite
         run: supabase db reset --no-seed
 

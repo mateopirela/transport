@@ -52,3 +52,75 @@ export function nextOperatorEvent(status: TripStatus): OperatorTripEvent | null 
 export function requiresUnloadEstimate(event: TripEventType): boolean {
   return event === 'unloading_started';
 }
+
+/** Operator status events in the order they happen on the road (B21). */
+export const OPERATOR_TRIP_STEPS = Object.keys(OPERATOR_TRIP_EVENTS) as OperatorTripEvent[];
+
+/**
+ * Status after applying operator events in order, or null when one of them
+ * does not follow (it would skip or repeat a step). The app uses it to show
+ * the trip as it will be once the offline queue is sent.
+ */
+export function statusAfterEvents(
+  status: TripStatus,
+  events: readonly OperatorTripEvent[],
+): TripStatus | null {
+  let current: TripStatus = status;
+  for (const event of events) {
+    const step = OPERATOR_TRIP_EVENTS[event];
+    if (step.from !== current) return null;
+    current = step.to;
+  }
+  return current;
+}
+
+/** Statuses in which a trip shows up in the operator's "Viaje asignado" screen. */
+const OPERATOR_SCREEN_PRIORITY: Partial<Record<TripStatus, number>> = {
+  ...Object.fromEntries(ACTIVE_TRIP_STATUSES.map((status) => [status, 0])),
+  assigned: 1,
+  // Delivered: the operator may still owe evidence (B23) until the shipper confirms.
+  delivered: 2,
+};
+
+/**
+ * The trip the operator works on now: the one on the road, else the next
+ * assigned one (earliest pickup), else the latest delivered. Null if none.
+ */
+export function pickOperatorTrip<T extends { status: TripStatus; pickupAt: string }>(
+  trips: readonly T[],
+): T | null {
+  // Lower is better: priority first, then the earliest pickup (latest if delivered).
+  const rank = (trip: T): [number, number] => {
+    const priority = OPERATOR_SCREEN_PRIORITY[trip.status] ?? Infinity;
+    const pickup = Date.parse(trip.pickupAt);
+    return [priority, trip.status === 'delivered' ? -pickup : pickup];
+  };
+  let best: T | null = null;
+  for (const trip of trips) {
+    if (OPERATOR_SCREEN_PRIORITY[trip.status] === undefined) continue;
+    if (best === null) {
+      best = trip;
+      continue;
+    }
+    const [p, t] = rank(trip);
+    const [bp, bt] = rank(best);
+    if (p < bp || (p === bp && t < bt)) best = trip;
+  }
+  return best;
+}
+
+/** Latest estimated end of unloading the app accepts, from the moment it is given. */
+export const MAX_UNLOAD_ESTIMATE_DAYS = 30;
+
+/**
+ * Why an estimated end of unloading is not acceptable at `at` (the moment it
+ * is recorded), or null if it is. Mirrors the range checked by
+ * record_trip_event: not before `at` and at most 30 days after it.
+ */
+export function unloadEstimateProblem(estimate: Date, at: Date): 'beforeNow' | 'tooFar' | null {
+  if (estimate.getTime() < at.getTime()) return 'beforeNow';
+  if (estimate.getTime() > at.getTime() + MAX_UNLOAD_ESTIMATE_DAYS * 24 * 60 * 60 * 1000) {
+    return 'tooFar';
+  }
+  return null;
+}

@@ -6,5 +6,6 @@ export * from './fleet';
 export * from './loads';
 export * from './mobile';
 export * from './permissions';
+export * from './trips';
 export * from './validation';
 export * from './verification';

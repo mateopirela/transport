@@ -16,6 +16,7 @@ export const paths = {
   shipper: '/cliente',
   shipperLoads: '/cliente/cargas',
   newLoad: '/cliente/cargas/nueva',
+  shipperNotifications: '/cliente/notificaciones',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -26,6 +27,14 @@ export const paths = {
 /** Shipper load detail and edit screens (B13). */
 export const loadPath = (loadId: string) => `/cliente/cargas/${loadId}`;
 export const editLoadPath = (loadId: string) => `/cliente/cargas/${loadId}/editar`;
+
+/** Shipper negotiation (offer history and chat) of a load (B14). */
+export const negotiationPath = (loadId: string, negotiationId: string) =>
+  `/cliente/cargas/${loadId}/negociaciones/${negotiationId}`;
+
+/** Redirect to a short-lived signed URL of a chat attachment (`{conversation}/{file}`). */
+export const chatAttachmentHref = (path: string) =>
+  `/cliente/adjuntos?ruta=${encodeURIComponent(path)}`;
 
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;

@@ -58,6 +58,10 @@ export type IncidentKind = (typeof INCIDENT_KINDS)[number];
 export const INCIDENT_STATUSES = DB_ENUMS.incident_status;
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
+/** Kind of a trip document (trip_documents, B15). Carta Porte is only stored (D09). */
+export const TRIP_DOCUMENT_KINDS = DB_ENUMS.trip_document_kind;
+export type TripDocumentKind = (typeof TRIP_DOCUMENT_KINDS)[number];
+
 /** A conversation belongs to a negotiation or to a trip (conversations, B07). */
 export const CONVERSATION_KINDS = DB_ENUMS.conversation_kind;
 export type ConversationKind = (typeof CONVERSATION_KINDS)[number];

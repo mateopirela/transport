@@ -11,6 +11,7 @@ import type {
   OfferSide,
   OfferStatus,
   SpecialRequirement,
+  TripDocumentKind,
   TripEventType,
   TripStatus,
   UnitType,
@@ -114,6 +115,11 @@ export const incidentKindLabels: Record<IncidentKind, string> = {
 export const incidentStatusLabels: Record<IncidentStatus, string> = {
   open: 'Abierta',
   resolved: 'Resuelta',
+};
+
+export const tripDocumentKindLabels: Record<TripDocumentKind, string> = {
+  carta_porte: 'Carta Porte',
+  other: 'Otro documento',
 };
 
 export const vehicleKindLabels: Record<VehicleKind, string> = {

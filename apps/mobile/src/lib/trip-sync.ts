@@ -6,9 +6,11 @@ import { AppState } from 'react-native';
 import type { AsyncStorageLike } from './chunked-storage';
 import {
   confirmLoadedPhotos,
+  evidenceQueueReady,
   flushEvidenceQueue,
   hasUnsentPhotos,
-  onPhotosUploaded,
+  onEvidenceProgress,
+  setPhotoUploadGate,
 } from './evidence-sync';
 import { isOffline } from './network';
 import { tripQueueStorage } from './secure-store';
@@ -17,6 +19,7 @@ import { sendQueuedAction, type OperatorTrip } from './trip-api';
 import {
   flushQueue,
   parseStoredQueue,
+  photoMustWait,
   pruneSent,
   type QueuedAction,
   type StoredQueue,
@@ -130,10 +133,29 @@ class QueueOwnerChangedError extends Error {}
 /** Thrown to wait while the photos a step needs are still on the phone (B23). */
 class EvidencePendingError extends Error {}
 
+// Actions the current run already sent (state.pending drops them only when the
+// run ends), so photos waiting on them can go right away.
+const sentThisRun = new Set<string>();
+
+// B23: a photo waits for the actions of its trip queued before the step that
+// needs it (the server refuses photos of a trip not yet at that stage), and
+// for this queue to be read from the device.
+setPhotoUploadGate(
+  (item, userId) =>
+    state.userId !== userId ||
+    !state.ready ||
+    photoMustWait(
+      state.pending.filter((a) => !sentThisRun.has(a.id)),
+      item.tripId,
+      item.stage,
+    ),
+);
+
 async function runFlush(client: Supabase): Promise<void> {
   for (;;) {
     const { userId, pending } = state;
     if (!userId || !state.ready || pending.length === 0) return;
+    sentThisRun.clear();
     const result = await flushQueue(pending, async (action) => {
       // Never send one user's actions with another session (or none): the
       // server would refuse them and they would be dropped. The error has no
@@ -145,14 +167,20 @@ async function runFlush(client: Supabase): Promise<void> {
       // Leaving the pickup and finishing the delivery need their photos on the
       // server first (record_trip_event refuses them otherwise). Codeless, so
       // it counts as retryable: the queue waits and resumes once they upload.
+      // The photo queue must be read from the device first: until then it
+      // looks empty and the step would be refused for missing evidence.
       const stage = action.kind === 'status' ? evidenceStageForEvent(action.event) : null;
       if (stage) {
+        if (!evidenceQueueReady(userId)) {
+          throw new EvidencePendingError('the photo queue is not loaded yet');
+        }
         await flushEvidenceQueue(client, { force: true });
         if (hasUnsentPhotos(action.tripId, stage)) {
           throw new EvidencePendingError('evidence photos are not uploaded yet');
         }
       }
       await sendQueuedAction(client, action);
+      sentThisRun.add(action.id);
     });
     // Signed out meanwhile: the stored queue keeps every unsent action, and the
     // sent ones are idempotent on their id if they go again.
@@ -167,6 +195,9 @@ async function runFlush(client: Supabase): Promise<void> {
       rejected: [...state.rejected, ...result.rejected],
       syncCount: state.syncCount + (done.size > 0 ? 1 : 0),
     });
+    sentThisRun.clear();
+    // Photos that waited for these steps can go now.
+    if (done.size > 0) void flushEvidenceQueue(client, { force: true });
     // If this write fails, sent actions may be sent again: the RPCs are
     // idempotent on the action id.
     await persist(userId).catch(() => undefined);
@@ -288,7 +319,10 @@ export function useTripQueue(client: Supabase | null, userId: string | null): Tr
   useEffect(() => {
     if (!userId) return;
     void loadQueue(userId).then(() => {
-      if (client) void flushTripQueue(client);
+      if (!client) return;
+      void flushTripQueue(client);
+      // Photos held until this queue was read can go now (B23).
+      void flushEvidenceQueue(client, { force: true });
     });
   }, [client, userId]);
 
@@ -302,7 +336,7 @@ export function useTripQueue(client: Supabase | null, userId: string | null): Tr
       if (appState === 'active') flush();
     });
     // A step waiting on its photos goes as soon as they upload.
-    const photos = onPhotosUploaded(flush);
+    const photos = onEvidenceProgress(flush);
     return () => {
       net();
       app.remove();

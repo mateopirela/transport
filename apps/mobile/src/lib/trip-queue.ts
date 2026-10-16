@@ -1,6 +1,8 @@
 import {
+  evidenceStageForEvent,
   MAX_RECEIVER_NAME_LENGTH,
   OPERATOR_TRIP_STEPS,
+  type EvidenceStage,
   statusAfterEvents,
   type OperatorTripEvent,
   type TripStatus,
@@ -148,6 +150,22 @@ export function nextOccurredAt(
   if (lastServerEventAt) times.push(lastServerEventAt);
   for (const time of times) latest = Math.max(latest, Date.parse(time));
   return new Date(latest).toISOString();
+}
+
+/**
+ * Whether a photo of `stage` must wait for queued actions of its trip (B23):
+ * the server only accepts photos once the trip is where the phone shows it,
+ * so every action queued before the first step that needs these photos goes
+ * first. That step itself waits for the photos, so it never blocks them.
+ */
+export function photoMustWait(
+  queue: readonly QueuedAction[],
+  tripId: string,
+  stage: EvidenceStage,
+): boolean {
+  const [first] = forTrip(queue, tripId);
+  if (!first) return false;
+  return !(first.kind === 'status' && evidenceStageForEvent(first.event) === stage);
 }
 
 /** The fields we read from PostgREST and fetch errors. */

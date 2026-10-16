@@ -80,6 +80,13 @@ async function loadPhotos(userId: string): Promise<void> {
     sent: stored.sent,
   });
   if (queuedMeanwhile.length > 0) await persist(userId).catch(() => undefined);
+  // The status queue waits for this before sending a step that needs photos.
+  notifyProgress();
+}
+
+/** Whether the photo queue of `userId` has been read from the device. */
+export function evidenceQueueReady(userId: string): boolean {
+  return state.userId === userId && state.ready;
 }
 
 /**
@@ -132,13 +139,27 @@ export function dismissRejectedPhotos(): void {
 /** Thrown to stop uploading when the session no longer belongs to the queue's user. */
 class QueueOwnerChangedError extends Error {}
 
-// Called after photos reach the server: the status queue may be waiting on them.
-const uploadedListeners = new Set<() => void>();
+// Called when the queue is read from the device and whenever photos reach the
+// server or are refused: the status queue may be waiting on them.
+const progressListeners = new Set<() => void>();
 
-/** Subscribes to "photos reached the server". Returns the unsubscribe function. */
-export function onPhotosUploaded(listener: () => void): () => void {
-  uploadedListeners.add(listener);
-  return () => uploadedListeners.delete(listener);
+function notifyProgress() {
+  for (const listener of progressListeners) listener();
+}
+
+/** Subscribes to the queue's progress (see above). Returns the unsubscribe function. */
+export function onEvidenceProgress(listener: () => void): () => void {
+  progressListeners.add(listener);
+  return () => progressListeners.delete(listener);
+}
+
+// Decides whether a photo must wait for something else first (the status
+// queue registers it: photos go after the steps queued before them).
+let uploadGate: (item: QueuedPhoto, userId: string) => boolean = () => false;
+
+/** Sets the rule that holds photos back (see trip-sync). */
+export function setPhotoUploadGate(gate: (item: QueuedPhoto, userId: string) => boolean): void {
+  uploadGate = gate;
 }
 
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -162,7 +183,7 @@ function scheduleRetry(client: Supabase) {
 async function runFlush(client: Supabase, force: boolean): Promise<void> {
   const { userId } = state;
   if (!userId || !state.ready) return;
-  const due = duePhotos(state.pending, new Date(), force);
+  const due = duePhotos(state.pending, new Date(), force).filter((p) => !uploadGate(p, userId));
   if (due.length === 0) {
     scheduleRetry(client);
     return;
@@ -199,7 +220,7 @@ async function runFlush(client: Supabase, force: boolean): Promise<void> {
   // upload skips an existing file and the RPC is idempotent on the path.
   await persist(userId).catch(() => undefined);
   scheduleRetry(client);
-  if (sentIds.size > 0) for (const listener of uploadedListeners) listener();
+  if (sentIds.size + rejectedIds.size > 0) notifyProgress();
 }
 
 let flushing: Promise<void> | null = null;

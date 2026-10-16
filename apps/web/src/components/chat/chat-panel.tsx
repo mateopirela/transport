@@ -16,10 +16,12 @@ import { Button } from '@/components/ui/button';
 import { markConversationRead, sendMessage } from '@/lib/chat/actions';
 import {
   attachmentIssue,
+  CHAT_PAGE_SIZE,
   isReadByCounterpart,
+  MESSAGE_COLUMNS,
   mergeMessages,
   mergeReads,
-  toAttachments,
+  toChatMessage,
   type ChatMessage,
   type ChatRead,
 } from '@/lib/chat/messages';
@@ -50,8 +52,9 @@ function senderLabel(message: ChatMessage, viewerId: string): string {
 /**
  * Real-time chat of a conversation (D01): messages and read markers arrive by
  * Realtime (RLS applies), files go straight to the private `chat` bucket and
- * send_message checks them. Without Realtime, the sender still sees their own
- * messages and the page shows the rest on reload.
+ * send_message checks them. Every time the channel (re)connects, the chat
+ * fetches what it may have missed. Without Realtime, the sender still sees
+ * their own messages and the page shows the rest on reload.
  */
 export function ChatPanel({
   conversationId,
@@ -66,8 +69,14 @@ export function ChatPanel({
   initialMessages: ChatMessage[];
   initialReads: ChatRead[];
 }) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [reads, setReads] = useState(initialReads);
+  // What arrived after the server render (Realtime, catch-up, own sends);
+  // merged with the server data, so a refresh of the page adds to it too.
+  const [live, setLive] = useState<ChatMessage[]>([]);
+  const [liveReads, setLiveReads] = useState<ChatRead[]>([]);
+  const messages = useMemo(() => mergeMessages(initialMessages, live), [initialMessages, live]);
+  const reads = useMemo(() => mergeReads(initialReads, liveReads), [initialReads, liveReads]);
+  // Newest message shown, so "read" never covers one the viewer has not seen.
+  const latestShown = useRef<string | null>(null);
   const [body, setBody] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -79,10 +88,41 @@ export function ChatPanel({
   const own = useMemo(() => new Set(ownCompanyUserIds), [ownCompanyUserIds]);
 
   useEffect(() => {
-    void markConversationRead(conversationId);
+    latestShown.current = messages.at(-1)?.id ?? null;
+  }, [messages]);
+
+  useEffect(() => {
+    const markShownRead = () => {
+      if (latestShown.current && document.visibilityState === 'visible') {
+        void markConversationRead(conversationId, latestShown.current);
+      }
+    };
+    markShownRead();
     const supabase = createBrowserSupabase();
     if (!supabase) return;
     const filter = `conversation_id=eq.${conversationId}`;
+    // Messages and markers written before the channel joined (or while it
+    // was disconnected) never arrive by Realtime: fetch them on each join.
+    const catchUp = async () => {
+      const [recent, markers] = await Promise.all([
+        supabase
+          .from('messages')
+          .select(MESSAGE_COLUMNS)
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(CHAT_PAGE_SIZE),
+        supabase
+          .from('message_reads')
+          .select('user_id, last_read_at')
+          .eq('conversation_id', conversationId),
+      ]);
+      if (recent.data) setLive((current) => mergeMessages(current, recent.data.map(toChatMessage)));
+      if (markers.data) setLiveReads((current) => mergeReads(current, markers.data));
+      const newest = recent.data?.[0];
+      if (newest && document.visibilityState === 'visible') {
+        void markConversationRead(conversationId, newest.id);
+      }
+    };
     const unsubscribe = subscribeAsUser(supabase, () =>
       supabase
         .channel(channelTopic(`chat:${conversationId}`))
@@ -90,15 +130,8 @@ export function ChatPanel({
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter },
           ({ new: row }) => {
-            const message: ChatMessage = {
-              id: row.id,
-              sender_id: row.sender_id,
-              sender_role: row.sender_role,
-              body: row.body,
-              attachments: toAttachments(row.attachments),
-              created_at: row.created_at,
-            };
-            setMessages((current) => mergeMessages(current, [message]));
+            const message = toChatMessage(row);
+            setLive((current) => mergeMessages(current, [message]));
             if (message.sender_id !== viewerId && document.visibilityState === 'visible') {
               void markConversationRead(conversationId, message.id);
             }
@@ -109,18 +142,18 @@ export function ChatPanel({
           { event: '*', schema: 'public', table: 'message_reads', filter },
           ({ new: row }) => {
             if ('user_id' in row && 'last_read_at' in row) {
-              setReads((current) =>
+              setLiveReads((current) =>
                 mergeReads(current, [{ user_id: row.user_id, last_read_at: row.last_read_at }]),
               );
             }
           },
         )
-        .subscribe(),
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') void catchUp();
+        }),
     );
     // Messages that arrived while the tab was hidden are read on return.
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void markConversationRead(conversationId);
-    };
+    const onVisible = () => markShownRead();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
@@ -178,7 +211,7 @@ export function ChatPanel({
     });
     if (result.error) return setError(result.error);
     const sent = result.message;
-    if (sent) setMessages((current) => mergeMessages(current, [sent]));
+    if (sent) setLive((current) => mergeMessages(current, [sent]));
     clientMessageId.current = null;
     setBody('');
     setDrafts([]);
@@ -255,6 +288,7 @@ export function ChatPanel({
           rows={2}
           maxLength={MAX_MESSAGE_LENGTH}
           placeholder={chatCopy.placeholder}
+          disabled={pending}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
         {drafts.length > 0 && (

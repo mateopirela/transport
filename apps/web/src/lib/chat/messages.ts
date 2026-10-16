@@ -10,6 +10,12 @@ import {
   type UserRole,
 } from '@transport/shared';
 
+/** Messages loaded when a chat opens or catches up (the most recent ones). */
+export const CHAT_PAGE_SIZE = 200;
+
+/** Columns of a message row that the chat shows. */
+export const MESSAGE_COLUMNS = 'id, sender_id, sender_role, body, attachments, created_at';
+
 export interface ChatMessage {
   id: string;
   sender_id: string;
@@ -73,6 +79,20 @@ export function isReadByCounterpart(
       !ownCompanyUserIds.has(read.user_id) &&
       isMessageReadBy(message.created_at, read.last_read_at),
   );
+}
+
+/** A message row (query, Realtime or send) as the chat shows it. */
+export function toChatMessage(
+  row: Omit<ChatMessage, 'attachments'> & { attachments: unknown },
+): ChatMessage {
+  return {
+    id: row.id,
+    sender_id: row.sender_id,
+    sender_role: row.sender_role,
+    body: row.body,
+    attachments: toAttachments(row.attachments),
+    created_at: row.created_at,
+  };
 }
 
 /** Normalizes the `attachments` JSON of a message row. */

@@ -8,6 +8,26 @@ import { buildOfferBoard, type BoardOffer, type BoardRow } from './board';
 const OFFER_COLUMNS =
   'id, negotiation_id, side, amount_cents, conditions, vehicle_id, status, status_reason, created_at';
 
+/** Rows per request; PostgREST caps a response (1,000 by default). */
+const OFFERS_PAGE_SIZE = 1000;
+
+/** Every offer of a load, in pages, so a long history is never cut short. */
+async function listLoadOffers(supabase: Supabase, loadId: string): Promise<BoardOffer[]> {
+  const offers: BoardOffer[] = [];
+  for (let from = 0; ; from += OFFERS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('offers')
+      .select(OFFER_COLUMNS)
+      .eq('load_id', loadId)
+      .order('created_at')
+      .order('id')
+      .range(from, from + OFFERS_PAGE_SIZE - 1);
+    if (error) throw new Error(`Offers query failed: ${error.message}`);
+    offers.push(...data.map((o) => ({ ...o, amount_cents: toCents(o.amount_cents) })));
+    if (data.length < OFFERS_PAGE_SIZE) return offers;
+  }
+}
+
 /**
  * Offers inbox of a load: offers through RLS (only the load's two companies
  * see them), carriers and proposed units through the B14 RPCs, which return
@@ -18,18 +38,17 @@ export async function getOfferBoard(
   load: { id: string; status: LoadStatus; proposed_price_cents: number },
 ): Promise<BoardRow[]> {
   const [offers, carriers, vehicles] = await Promise.all([
-    supabase.from('offers').select(OFFER_COLUMNS).eq('load_id', load.id),
+    listLoadOffers(supabase, load.id),
     supabase.rpc('load_negotiation_carriers', { p_load_id: load.id }),
     supabase.rpc('load_offer_vehicles', { p_load_id: load.id }),
   ]);
-  if (offers.error) throw new Error(`Offers query failed: ${offers.error.message}`);
   if (carriers.error) throw new Error(`Carriers query failed: ${carriers.error.message}`);
   if (vehicles.error) throw new Error(`Vehicles query failed: ${vehicles.error.message}`);
 
   return buildOfferBoard({
     loadStatus: load.status,
     proposedPriceCents: toCents(load.proposed_price_cents),
-    offers: offers.data.map((o): BoardOffer => ({ ...o, amount_cents: toCents(o.amount_cents) })),
+    offers,
     carriers: carriers.data.map((c) => ({ ...c, unread_messages: Number(c.unread_messages) })),
     vehicles: vehicles.data.map((v) => ({
       ...v,

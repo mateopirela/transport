@@ -149,14 +149,14 @@ insert into tests.vals select 'offerB', public.make_offer(tests.val('load1'), 33
 select tests.login('a8000000-0000-4000-8000-000000000001');
 select results_eq(
   $$ select carrier_legal_name, carrier_status::text, conversation_id is not null
-     from public.load_negotiation_carriers(tests.val('load1')) $$,
+     from public.load_negotiation_carriers(tests.val('load1')) order by carrier_legal_name $$,
   $$ values ('Fletes Alfa SA de CV', 'approved', true), ('Transportes Beta SA de CV', 'approved', true) $$,
   'the shipper sees each carrier with its verification status and conversation'
 );
 select is(
-  (select array_agg(c.id) from public.load_negotiation_carriers(tests.val('load1')) r
+  (select array_agg(c.id order by c.id) from public.load_negotiation_carriers(tests.val('load1')) r
    join public.conversations c on c.id = r.conversation_id and c.negotiation_id = r.negotiation_id),
-  (select array_agg(c.id) from public.conversations c where c.load_id = tests.val('load1')),
+  (select array_agg(c.id order by c.id) from public.conversations c where c.load_id = tests.val('load1')),
   'each row carries the conversation of its own negotiation'
 );
 select is(

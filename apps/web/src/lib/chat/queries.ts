@@ -1,10 +1,7 @@
 import 'server-only';
 
 import type { Supabase } from '../viewer';
-import { toAttachments, type ChatMessage, type ChatRead } from './messages';
-
-/** Messages shown when a chat opens (the most recent ones). */
-export const CHAT_PAGE_SIZE = 200;
+import { CHAT_PAGE_SIZE, MESSAGE_COLUMNS, toChatMessage, type ChatRead } from './messages';
 
 /**
  * A conversation's latest messages, the participants' read markers and the
@@ -15,7 +12,7 @@ export async function getChat(supabase: Supabase, conversationId: string, compan
   const [messages, reads, colleagues] = await Promise.all([
     supabase
       .from('messages')
-      .select('id, sender_id, sender_role, body, attachments, created_at')
+      .select(MESSAGE_COLUMNS)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(CHAT_PAGE_SIZE),
@@ -30,9 +27,7 @@ export async function getChat(supabase: Supabase, conversationId: string, compan
   if (colleagues.error) throw new Error(`Profiles query failed: ${colleagues.error.message}`);
 
   return {
-    messages: messages.data
-      .map((m): ChatMessage => ({ ...m, attachments: toAttachments(m.attachments) }))
-      .reverse(),
+    messages: messages.data.map(toChatMessage).reverse(),
     reads: reads.data satisfies ChatRead[],
     ownCompanyUserIds: colleagues.data.map((p) => p.id),
   };

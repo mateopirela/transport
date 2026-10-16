@@ -3,10 +3,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { PageHeading } from '@/components/app-shell';
+import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { markAllNotificationsRead, openNotification } from '@/lib/notifications/actions';
 import { notificationHref } from '@/lib/notifications/links';
-import { listNotifications } from '@/lib/notifications/queries';
+import { listNotifications, unreadNotificationCount } from '@/lib/notifications/queries';
 import { paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -17,18 +18,24 @@ const c = notificationsInboxCopy;
 export const metadata: Metadata = { title: c.title };
 
 /** In-app inbox (B07 notifications): newest first, opening one marks it read. */
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: PageProps<'/cliente/notificaciones'>) {
   const viewer = await requireAccess(paths.shipperNotifications);
   const supabase = await createClient();
   if (!supabase) notFound();
-  const notifications = await listNotifications(supabase, viewer.userId);
-  const anyUnread = notifications.some((n) => n.read_at === null);
+  const { error } = await searchParams;
+  // The whole unread count, not only the listed page: the badge counts all.
+  const [notifications, unreadCount] = await Promise.all([
+    listNotifications(supabase, viewer.userId),
+    unreadNotificationCount(viewer.userId),
+  ]);
 
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <PageHeading title={c.title} description={c.description} />
-        {anyUnread && (
+        {unreadCount > 0 && (
           <form action={markAllNotificationsRead}>
             <Button type="submit" variant="outline" size="sm">
               {c.markAllRead}
@@ -36,6 +43,11 @@ export default async function NotificationsPage() {
           </form>
         )}
       </div>
+      {error === 'leidas' && (
+        <div className="mb-4">
+          <Notice tone="error">{c.markFailed}</Notice>
+        </div>
+      )}
       {notifications.length === 0 ? (
         <p className="text-muted-foreground">{c.empty}</p>
       ) : (

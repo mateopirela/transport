@@ -115,6 +115,7 @@ export const notificationsInboxCopy = {
   unread: 'Nueva',
   open: 'Ver',
   markRead: 'Marcar como leída',
+  markFailed: 'No pudimos marcar las notificaciones como leídas. Intenta de nuevo.',
   badge: (count: number) => (count > 99 ? '99+' : String(count)),
   badgeLabel: (count: number) =>
     count === 1 ? '1 notificación sin leer' : `${count} notificaciones sin leer`,

@@ -3,9 +3,7 @@
 import { chatCopy, messageFormSchema, uuidField, type Json } from '@transport/shared';
 
 import { createClient } from '../supabase/server';
-import { toAttachments, type ChatMessage } from './messages';
-
-const MESSAGE_COLUMNS = 'id, sender_id, sender_role, body, attachments, created_at';
+import { MESSAGE_COLUMNS, toChatMessage, type ChatMessage } from './messages';
 
 /**
  * Sends a chat message with send_message, which checks that the caller takes
@@ -44,7 +42,7 @@ export async function sendMessage(input: {
     .select(MESSAGE_COLUMNS)
     .eq('id', id)
     .maybeSingle();
-  return data ? { message: { ...data, attachments: toAttachments(data.attachments) } } : {};
+  return data ? { message: toChatMessage(data) } : {};
 }
 
 /** Marks the conversation as read up to a message (or its latest one). Best effort. */

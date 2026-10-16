@@ -91,10 +91,14 @@ const post = (
 
 Deno.test('answers CORS preflight and rejects other methods', async () => {
   const { deps } = setup({});
-  assert.equal(
-    (await handleRecommendations(new Request('http://x', { method: 'OPTIONS' }), deps)).status,
-    204,
+  const preflight = await handleRecommendations(
+    new Request('http://x', { method: 'OPTIONS' }),
+    deps,
   );
+  assert.equal(preflight.status, 204);
+  // Browsers may send their own request id and read the one in the response.
+  assert.match(preflight.headers.get('Access-Control-Allow-Headers') ?? '', /x-request-id/u);
+  assert.equal(preflight.headers.get('Access-Control-Expose-Headers'), 'x-request-id');
   assert.equal((await handleRecommendations(new Request('http://x'), deps)).status, 405);
 });
 

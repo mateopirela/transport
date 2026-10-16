@@ -62,6 +62,30 @@ export async function listAdminLoads(supabase: Supabase, filters: LoadFilters) {
   return { rows: check(result, 'loads'), total: result.count ?? 0 };
 }
 
+/** PostgREST caps each response; offers are read in pages of this size. */
+const OFFERS_PAGE_SIZE = 1000;
+
+/** Every offer of a load, newest first, in pages so a long history is never cut short. */
+async function listAllLoadOffers(supabase: Supabase, loadId: string) {
+  const offers = [];
+  for (let from = 0; ; from += OFFERS_PAGE_SIZE) {
+    const page = check(
+      await supabase
+        .from('offers')
+        .select(
+          'id, side, amount_cents, conditions, status, carrier_company_id, created_by, created_at',
+        )
+        .eq('load_id', loadId)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, from + OFFERS_PAGE_SIZE - 1),
+      'offers',
+    );
+    offers.push(...page);
+    if (page.length < OFFERS_PAGE_SIZE) return offers;
+  }
+}
+
 /** A load with its offers (and who made them) and its trip, or null. */
 export async function getAdminLoad(supabase: Supabase, loadId: string) {
   if (!uuidField.safeParse(loadId).success) return null;
@@ -76,17 +100,10 @@ export async function getAdminLoad(supabase: Supabase, loadId: string) {
     .maybeSingle();
   if (error) throw new Error(`Admin load query failed: ${error.message}`);
   if (!load) return null;
-  const [offers, trip] = await Promise.all([
-    supabase
-      .from('offers')
-      .select(
-        'id, side, amount_cents, conditions, status, carrier_company_id, created_by, created_at',
-      )
-      .eq('load_id', load.id)
-      .order('created_at', { ascending: false }),
+  const [offerRows, trip] = await Promise.all([
+    listAllLoadOffers(supabase, load.id),
     supabase.from('trips').select('id, status').eq('load_id', load.id).maybeSingle(),
   ]);
-  const offerRows = check(offers, 'offers');
   const [names, admins] = await Promise.all([
     companyNames(
       supabase,

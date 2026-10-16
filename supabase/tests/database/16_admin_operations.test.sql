@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(35);
+select plan(42);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -123,6 +123,45 @@ select throws_ok(
   $$ select public.admin_accept_offer(tests.val('offerA2')) $$,
   '42501', null, 'a carrier cannot accept through the admin RPC'
 );
+select tests.login('a1600000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$ select public.admin_accept_offer(tests.val('offerA2')) $$,
+  '42501', null, 'the shipper of the load cannot accept through the admin RPC'
+);
+select tests.login('a1600000-0000-4000-8000-000000000005');
+select throws_ok(
+  $$ select public.admin_create_offer(tests.val('load1'), 'c1600000-0000-4000-8000-000000000003', 3000000, null,
+                                      null, true) $$,
+  '42501', null, 'an operator cannot offer through the admin RPC'
+);
+select throws_ok(
+  $$ select public.admin_accept_offer(tests.val('offerA2')) $$,
+  '42501', null, 'an operator cannot accept through the admin RPC'
+);
+set local role anon;
+select throws_ok(
+  $$ select public.admin_create_offer('00000000-0000-4000-8000-000000000000',
+                                      'c1600000-0000-4000-8000-000000000003', 3000000) $$,
+  '42501', null, 'anon cannot execute admin_create_offer'
+);
+select throws_ok(
+  $$ select public.admin_accept_offer('00000000-0000-4000-8000-000000000000') $$,
+  '42501', null, 'anon cannot execute admin_accept_offer'
+);
+set local role authenticated;
+select tests.login('a1600000-0000-4000-8000-000000000001');
+select results_eq(
+  $$ select l.status::text, (select count(*)::int from public.offers o where o.load_id = l.id)
+     from public.loads l where l.id = tests.val('load1') $$,
+  $$ values ('published', 0) $$,
+  'the refused calls created no offer and left load1 published'
+);
+select results_eq(
+  $$ select (select status::text from public.offers where id = tests.val('offerA2')),
+            (select status::text from public.loads where id = tests.val('load2')) $$,
+  $$ values ('pending', 'negotiating') $$,
+  'the refused acceptances left the offer pending and load2 negotiating'
+);
 
 select tests.login('a1600000-0000-4000-8000-000000000007');
 select throws_ok(
@@ -224,7 +263,8 @@ select isnt(tests.val('trip3'), null, 'the shipper accepts a carrier offer and g
 
 -- ---------------------------------------------------------------------------
 -- KPI fixtures (as the table owner): the unit of A does load1 and then
--- load3 (the way back); timings are set relative to now().
+-- load3 (the way back); timings are set relative to now(). The bookings are
+-- out of travel order: trip3 (travels later) was booked before trip1.
 -- ---------------------------------------------------------------------------
 reset role;
 select tests.login('a1600000-0000-4000-8000-000000000007');
@@ -235,10 +275,11 @@ select set_config('request.jwt.claims', '', true);
 update public.trips
 set status = 'assigned', vehicle_id = 'e1600000-0000-4000-8000-000000000003',
     operator_id = 'd1600000-0000-4000-8000-000000000005', assigned_at = now(),
-    created_at = case id when tests.val('trip1') then now() - interval '3 days' else now() - interval '1 day' end
+    created_at = case id when tests.val('trip1') then now() - interval '1 day' else now() - interval '3 days' end
 where id in (tests.val('trip1'), tests.val('trip3'));
 update public.loads
-set published_at = now() - interval '10 hours', contracted_at = now() - interval '5 hours'
+set published_at = now() - interval '10 hours', contracted_at = now() - interval '5 hours',
+    pickup_window_start = now() - interval '4 days'
 where id = tests.val('load1');
 update public.offers set created_at = now() - interval '8 hours' where id = tests.val('offerA1');
 insert into public.trip_events (trip_id, event_type, occurred_at, estimated_unload_end_at) values
@@ -269,7 +310,7 @@ select results_eq(
   $$ select previous_trip_id, empty_km, is_return_trip, avoided_empty_km
      from public.kpi_trip_metrics where trip_id = tests.val('trip1') $$,
   $$ values (null::uuid, null::numeric, false, null::numeric) $$,
-  'a first trip has no previous trip, no empty km and is not a return trip'
+  'the first trip in travel order has no previous trip, even if it was booked later'
 );
 select results_eq(
   $$ select previous_trip_id, empty_km, is_return_trip from public.kpi_trip_metrics

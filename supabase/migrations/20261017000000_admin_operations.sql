@@ -281,7 +281,10 @@ where l.published_at is not null
 
 -- Trips: empty km from the unit's previous trip, return trips, empty km
 -- avoided and accuracy of the estimated end of unloading.
---   * Previous trip: the latest earlier trip (not cancelled) of the same unit.
+--   * Previous trip: the trip (not cancelled) of the same unit that travels
+--     right before this one. Trips are ordered by travel time, not booking
+--     time: when the unit departed (started_at) or, for trips that have not
+--     started yet, the start of the load's pickup window; ties by trip id.
 --   * Empty km: straight line from the previous trip's destination to this
 --     pickup (unknown without a previous trip).
 --   * Return trip (producto §6): the pickup is within 150 km of the previous
@@ -316,16 +319,18 @@ select
   round((extract(epoch from u.finished_at - u.estimated_end_at) / 60)::numeric, 1) as unload_estimate_error_minutes
 from public.trips t
 join public.loads l on l.id = t.load_id
+cross join lateral (select coalesce(t.started_at, l.pickup_window_start) as travel_at) tt
 left join lateral (
   select pt.id as trip_id, pl.origin_location, pl.destination_location
   from public.trips pt
   join public.loads pl on pl.id = pt.load_id
+  cross join lateral (select coalesce(pt.started_at, pl.pickup_window_start) as travel_at) ptt
   where t.vehicle_id is not null
     and pt.vehicle_id = t.vehicle_id
     and pt.id <> t.id
     and pt.status <> 'cancelled'
-    and pt.created_at < t.created_at
-  order by pt.created_at desc, pt.id
+    and (ptt.travel_at, pt.id) < (tt.travel_at, t.id)
+  order by ptt.travel_at desc, pt.id desc
   limit 1
 ) p on true
 left join lateral (

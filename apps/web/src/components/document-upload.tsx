@@ -9,7 +9,6 @@ import {
   onboardingCopy,
   type DocumentOwnerType,
 } from '@transport/shared';
-import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
@@ -25,6 +24,9 @@ const ACCEPT = Object.keys(DOCUMENT_MIME_TYPES).join(',');
 /**
  * Uploads a file to the private `documents` bucket (Storage policies check
  * the company folder) and then registers it with `submit_document`.
+ * registerDocument revalidates the review page, and a server action that
+ * revalidates the current page brings its new tree in the same response, so
+ * no router.refresh() is needed (it would only render the page again).
  */
 export function DocumentUpload({
   companyId,
@@ -42,7 +44,6 @@ export function DocumentUpload({
   replacing: boolean;
 }) {
   const id = useId();
-  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -80,13 +81,12 @@ export function DocumentUpload({
     });
     if (result.error) return setError(result.error);
     setDone(true);
-    router.refresh();
   }
 
-  // Once registered, the requirement is pending review and the refresh drops
-  // this form. Until it lands, show only the confirmation: resetting the form
-  // to idle (empty input, "upload" button) would invite a second upload and
-  // could be mistaken for the next document's form.
+  // Once registered, the requirement is pending review and the revalidated
+  // page drops this form. Until it lands, show only the confirmation:
+  // resetting the form to idle (empty input, "upload" button) would invite a
+  // second upload and could be mistaken for the next document's form.
   if (done) return <Notice tone="success">{c.uploaded}</Notice>;
 
   return (

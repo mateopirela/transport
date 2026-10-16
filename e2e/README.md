@@ -10,6 +10,7 @@ Dos suites, contra Supabase local con los datos demo ([docs/demo-local.md](../do
 ## Escenarios (Playwright)
 
 - **`tests/shipper-journey.spec.ts`**: un cliente nuevo se registra en la web y confirma su correo (Mailpit), sube los documentos de su empresa, el admin los aprueba y aprueba la empresa, el cliente publica una carga MTY → GDL, negocia (oferta, contraoferta y contraoferta del transportista), acepta y sigue el viaje (asignado y con la salida del operador en la línea de tiempo).
+- **`tests/incident-report.spec.ts`**: la clienta del viaje MTY → GDL de la seed (Ana) envía dos veces seguidas el mismo reporte de incidencia (las dos peticiones llevan el mismo `clientEventId`) y en la línea de tiempo queda una sola; después, sin recargar, un reporte nuevo lleva otra llave y crea otra incidencia.
 - **`tests/return-trip.spec.ts`** (escenario estrella): la caja seca `CS53-01` está descargando en Guadalajara (viaje MTY → GDL de la seed). Su primera recomendación es la carga GDL → MTY; el transportista oferta, el cliente acepta en la web y el viaje de regreso queda contratado **antes de terminar la descarga**. Después el operador sube las fotos de entrega, termina la descarga y el transportista le asigna el viaje de regreso.
 
 El transportista y el operador usan la app móvil, que Playwright no maneja: en estas pruebas actúan con las mismas RPC que llama la app (`support/actors.ts`), con su propio JWT y la anon key, así que RLS y las validaciones de cada RPC aplican igual que en el teléfono. Sus pantallas se prueban con Maestro.

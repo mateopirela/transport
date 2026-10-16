@@ -69,19 +69,32 @@ $$;
 
 -- Runs the stale-location cron and returns how many reminders it sent for
 -- this test's trip, so active trips already in the database (e.g. the demo
--- seed's) do not change the result.
+-- seed's) do not change the result. It also checks that the count the cron
+-- returns matches every reminder it inserted (fails the test otherwise).
 create function tests.remind_stale(p_stale_after interval default interval '3 hours')
 returns integer
 language plpgsql
 as $$
 declare
-  v_before integer;
+  v_all_before integer;
+  v_trip_before integer;
+  v_returned integer;
+  v_inserted integer;
 begin
-  select count(*) into v_before from public.notifications
-  where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text;
-  perform public.remind_stale_trip_locations(p_stale_after);
+  select count(*), count(*) filter (where data ->> 'tripId' = tests.val('trip')::text)
+  into v_all_before, v_trip_before
+  from public.notifications where type = 'trip_location_stale';
+
+  v_returned := public.remind_stale_trip_locations(p_stale_after);
+
+  select count(*) - v_all_before into v_inserted
+  from public.notifications where type = 'trip_location_stale';
+  if v_returned is distinct from v_inserted then
+    raise exception 'remind_stale_trip_locations returned % but inserted % reminders', v_returned, v_inserted;
+  end if;
+
   return (select count(*) from public.notifications
-          where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text) - v_before;
+          where type = 'trip_location_stale' and data ->> 'tripId' = tests.val('trip')::text) - v_trip_before;
 end;
 $$;
 

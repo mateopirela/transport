@@ -159,23 +159,44 @@ export const HISTORY_PAGE_SIZE = 20;
 /** Rows per request, below PostgREST's max_rows (1000): longer lists are paged. */
 const PAGE_SIZE = 500;
 
-/** Every unfinished trip of the company, however many: fetched page by page. */
-async function openTrips(client: Supabase, companyId: string): Promise<TripRow[]> {
+/**
+ * Trips of the company, unfinished or finished, in a stable order (`column`
+ * then `id`), up to `max` rows. Pages of PAGE_SIZE continue after the last row
+ * fetched (keyset), so a trip that changes between requests never shifts
+ * another one out of the result, and lists longer than max_rows are complete.
+ */
+async function tripsInOrder(
+  client: Supabase,
+  companyId: string,
+  {
+    finished,
+    column,
+    ascending,
+    max,
+  }: { finished: boolean; column: 'created_at' | 'updated_at'; ascending: boolean; max: number },
+): Promise<TripRow[]> {
   const rows: TripRow[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
+  let last: TripRow | undefined;
+  while (rows.length < max) {
+    const size = Math.min(PAGE_SIZE, max - rows.length);
+    let query = client.from('trips').select(TRIP_COLUMNS).eq('carrier_company_id', companyId);
+    query = finished
+      ? query.in('status', FINISHED_STATUSES)
+      : query.not('status', 'in', `(${FINISHED_STATUSES.join(',')})`);
+    if (last) {
+      // Server values (a timestamp and a uuid), quoted for the filter syntax.
+      const op = ascending ? 'gt' : 'lt';
+      const at = `"${last[column]}"`;
+      query = query.or(`${column}.${op}.${at},and(${column}.eq.${at},id.${op}.${last.id})`);
+    }
     const page = check(
-      await client
-        .from('trips')
-        .select(TRIP_COLUMNS)
-        .eq('carrier_company_id', companyId)
-        .not('status', 'in', `(${FINISHED_STATUSES.join(',')})`)
-        .order('created_at')
-        .order('id')
-        .range(from, from + PAGE_SIZE - 1),
+      await query.order(column, { ascending }).order('id', { ascending }).limit(size),
     );
     rows.push(...page);
-    if (page.length < PAGE_SIZE) return rows;
+    last = page[page.length - 1];
+    if (page.length < size) break;
   }
+  return rows;
 }
 
 /** Loads of the given ids, in chunks so neither the URL nor max_rows limits them. */
@@ -206,18 +227,21 @@ export async function listCarrierTrips(
   companyId: string,
   historyLimit: number = HISTORY_PAGE_SIZE,
 ): Promise<CarrierTripList> {
-  const [open, finished] = await Promise.all([
-    openTrips(client, companyId),
-    client
-      .from('trips')
-      .select(TRIP_COLUMNS)
-      .eq('carrier_company_id', companyId)
-      .in('status', FINISHED_STATUSES)
-      .order('updated_at', { ascending: false })
-      .order('id')
-      .limit(historyLimit + 1),
+  const [open, history] = await Promise.all([
+    tripsInOrder(client, companyId, {
+      finished: false,
+      column: 'created_at',
+      ascending: true,
+      max: Infinity,
+    }),
+    // One more than shown, to know whether there is a next page.
+    tripsInOrder(client, companyId, {
+      finished: true,
+      column: 'updated_at',
+      ascending: false,
+      max: historyLimit + 1,
+    }),
   ]);
-  const history = check(finished);
   const trips = [...open, ...history.slice(0, historyLimit)];
   const hasMoreHistory = history.length > historyLimit;
   if (trips.length === 0) return { trips: [], hasMoreHistory };

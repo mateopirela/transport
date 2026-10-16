@@ -34,6 +34,9 @@ test('the GDL → MTY return trip is contracted before the unloading in Guadalaj
   await test.step('the return load is the first recommendation of the unit', async () => {
     const { source, recommendations } = await recommendationsFor(jorge, ids.dryVan);
     test.info().annotations.push({ type: 'recommendations', description: source });
+    // CI serves the functions (`supabase start`): the fallback must not hide a
+    // broken Edge Function there. Local runs may skip serving them.
+    if (process.env.CI) expect(source).toBe('edge-function');
     const [first] = recommendations;
     expect(first?.loadId).toBe(ids.returnLoad);
     expect(first?.origin.city).toBe('Guadalajara');

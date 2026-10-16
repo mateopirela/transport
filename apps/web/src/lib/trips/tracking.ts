@@ -30,6 +30,27 @@ export const NO_SIGNAL_AFTER_MS = 15 * 60_000;
 /** How often an active trip's page reloads its data (polling, plan B15). */
 export const TRIP_REFRESH_MS = 30_000;
 
+/** Before departure only the status changes, so the page checks less often. */
+export const PENDING_TRIP_REFRESH_MS = 60_000;
+
+/**
+ * How often the trip page reloads itself, or null when the trip will not
+ * change on its own (delivered waits for the shipper; closed and cancelled
+ * are final). Locations are only shown while active either way (RLS).
+ */
+export function tripRefreshMs(state: MapState): number | null {
+  switch (state.kind) {
+    case 'live':
+    case 'waiting':
+    case 'noSignal':
+      return TRIP_REFRESH_MS;
+    case 'notStarted':
+      return PENDING_TRIP_REFRESH_MS;
+    case 'finished':
+      return null;
+  }
+}
+
 export type MapState =
   | { kind: 'notStarted' }
   | { kind: 'finished' }

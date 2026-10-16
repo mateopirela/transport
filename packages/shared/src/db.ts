@@ -1047,6 +1047,51 @@ export interface Database {
         };
         Relationships: [];
       };
+      trip_documents: {
+        Row: {
+          created_at: string;
+          file_name: string;
+          id: string;
+          kind: Database['public']['Enums']['trip_document_kind'];
+          mime_type: string | null;
+          size_bytes: number | null;
+          storage_path: string;
+          trip_id: string;
+          uploaded_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          file_name: string;
+          id?: string;
+          kind: Database['public']['Enums']['trip_document_kind'];
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          storage_path: string;
+          trip_id: string;
+          uploaded_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          file_name?: string;
+          id?: string;
+          kind?: Database['public']['Enums']['trip_document_kind'];
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          storage_path?: string;
+          trip_id?: string;
+          uploaded_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'trip_documents_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trip_events: {
         Row: {
           accuracy_m: number | null;
@@ -1497,6 +1542,15 @@ export interface Database {
     Functions: {
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
+      add_trip_document: {
+        Args: {
+          p_file_name: string;
+          p_kind: Database['public']['Enums']['trip_document_kind'];
+          p_storage_path: string;
+          p_trip_id: string;
+        };
+        Returns: string;
+      };
       add_trip_evidence: {
         Args: {
           p_captured_at: string;
@@ -1942,6 +1996,17 @@ export interface Database {
         };
         Returns: string;
       };
+      shipper_trip_parties: {
+        Args: { p_trip_ids: string[] };
+        Returns: {
+          carrier_legal_name: string;
+          carrier_status: Database['public']['Enums']['verification_status'];
+          operator_name: string;
+          plate: string;
+          trip_id: string;
+          unit_type: Database['public']['Enums']['unit_type'];
+        }[];
+      };
       submit_document: {
         Args: {
           p_expires_at?: string;
@@ -2098,6 +2163,7 @@ export interface Database {
         | 'extended_cargo_insurance'
         | 'loading_crew';
       taxpayer_type: 'moral' | 'fisica';
+      trip_document_kind: 'carta_porte' | 'other';
       trip_event_type:
         | 'created'
         | 'assigned'
@@ -2345,6 +2411,7 @@ export const Constants = {
         'loading_crew',
       ],
       taxpayer_type: ['moral', 'fisica'],
+      trip_document_kind: ['carta_porte', 'other'],
       trip_event_type: [
         'created',
         'assigned',

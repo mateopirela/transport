@@ -26,7 +26,7 @@ import { shipperContext } from '@/lib/loads/queries';
 import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
 import { getCompanyTrip } from '@/lib/trips/queries';
-import { mapState, signalTime, TRIP_REFRESH_MS, type MapState } from '@/lib/trips/tracking';
+import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 
 const c = clientTripsCopy;
 
@@ -62,12 +62,14 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const last = locations.at(-1);
   const state = mapState(trip, last?.recorded_at ?? null, now);
   const live = state.kind === 'live' || state.kind === 'waiting' || state.kind === 'noSignal';
+  // Also before departure, so the page notices when the unit leaves.
+  const refreshMs = tripRefreshMs(state);
   const incidentsById = new Map(incidents.map((incident) => [incident.id, incident]));
   const d = c.detail;
 
   return (
     <>
-      {live && <AutoRefresh intervalMs={TRIP_REFRESH_MS} />}
+      {refreshMs !== null && <AutoRefresh intervalMs={refreshMs} />}
       <Link href={paths.shipperTrips} className="text-sm text-accent hover:underline">
         {d.back}
       </Link>

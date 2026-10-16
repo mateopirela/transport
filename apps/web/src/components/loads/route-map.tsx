@@ -135,14 +135,16 @@ export function RouteDiagram({
       </p>
     );
   }
-  // Project into a 100×60 box with a margin, keeping north up and the aspect.
-  const span = Math.max(
-    Math.abs(origin.lng - destination.lng),
-    Math.abs(origin.lat - destination.lat),
-    0.01,
-  );
-  const midLng = (origin.lng + destination.lng) / 2;
-  const midLat = (origin.lat + destination.lat) / 2;
+  // Project every point (route and trail) into a 100×60 box with a margin,
+  // keeping north up and the aspect.
+  const points = [origin, destination, ...trail];
+  const lngs = points.map((p) => p.lng);
+  const lats = points.map((p) => p.lat);
+  const [minLng, maxLng] = [Math.min(...lngs), Math.max(...lngs)];
+  const [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)];
+  const span = Math.max(maxLng - minLng, maxLat - minLat, 0.01);
+  const midLng = (minLng + maxLng) / 2;
+  const midLat = (minLat + maxLat) / 2;
   const project = (p: LatLng) => ({
     x: 50 + ((p.lng - midLng) / span) * 70,
     y: 30 - ((p.lat - midLat) / span) * 42,

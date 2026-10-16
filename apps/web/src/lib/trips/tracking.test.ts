@@ -8,7 +8,10 @@ import {
   NO_SIGNAL_AFTER_MS,
   parseTripFile,
   parseTripsView,
+  PENDING_TRIP_REFRESH_MS,
   signalTime,
+  TRIP_REFRESH_MS,
+  tripRefreshMs,
 } from './tracking';
 
 const TRIP = '00000000-0000-4000-8000-000000000001';
@@ -72,6 +75,16 @@ describe('mapState', () => {
     for (const status of TRIP_STATUSES) {
       expect(mapState({ status, started_at: started }, ago(1000), NOW).kind).toBeTruthy();
     }
+  });
+});
+
+describe('tripRefreshMs', () => {
+  it('polls while active and before departure, never once finished', () => {
+    expect(tripRefreshMs({ kind: 'live', lastAt: NOW.toISOString() })).toBe(TRIP_REFRESH_MS);
+    expect(tripRefreshMs({ kind: 'noSignal', since: NOW.toISOString() })).toBe(TRIP_REFRESH_MS);
+    expect(tripRefreshMs({ kind: 'waiting' })).toBe(TRIP_REFRESH_MS);
+    expect(tripRefreshMs({ kind: 'notStarted' })).toBe(PENDING_TRIP_REFRESH_MS);
+    expect(tripRefreshMs({ kind: 'finished' })).toBeNull();
   });
 });
 

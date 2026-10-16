@@ -6,8 +6,8 @@ import { useEffect } from 'react';
 /**
  * Re-renders the current page (server data) every `intervalMs` while the tab
  * is visible, and right away when it becomes visible again. The trip page
- * mounts it only while the trip is active, so the map stops updating once
- * the trip leaves the road.
+ * mounts it only while the trip can still change on its own (before
+ * departure and on the road), so it stops once the unit is unloaded.
  */
 export function AutoRefresh({ intervalMs }: { intervalMs: number }) {
   const router = useRouter();

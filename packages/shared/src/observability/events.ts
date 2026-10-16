@@ -13,7 +13,10 @@ export type ProductEventName = Enums<'product_event_name'>;
 const uuid = z.uuid();
 const count = z.int().min(0).max(1000);
 
-/** Properties per event. Same allowlist as track_product_event in SQL. */
+/**
+ * Properties per event: exact keys, types and values. Same rules as
+ * product_event_properties_valid in SQL, which track_product_event enforces.
+ */
 export const productEventSchemas = {
   recommendations_viewed: z.strictObject({
     recommendations: count,
@@ -23,7 +26,8 @@ export const productEventSchemas = {
   recommendation_opened: z.strictObject({
     vehicle_id: uuid,
     rank: z.int().min(1).max(100),
-    score: z.number().finite(),
+    // Bounded so a number cannot carry personal data (e.g. a phone number).
+    score: z.number().min(-100_000).max(100_000),
     return_trip: z.boolean(),
   }),
   offer_submitted: z.strictObject({

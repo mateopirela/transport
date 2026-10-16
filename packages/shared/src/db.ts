@@ -2392,6 +2392,10 @@ export interface Database {
         Returns: undefined;
       };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
+      product_event_properties_valid: {
+        Args: { p_name: Database['public']['Enums']['product_event_name']; p_properties: Json };
+        Returns: boolean;
+      };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       record_location_consent: {

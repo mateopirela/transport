@@ -228,6 +228,12 @@ describe('product events', () => {
     ).toBeNull();
     expect(
       productEventArgs({
+        name: 'recommendation_opened',
+        properties: { vehicle_id: VEHICLE, rank: 1, score: 8112345678, return_trip: true },
+      }),
+    ).toBeNull();
+    expect(
+      productEventArgs({
         name: 'offer_submitted',
         loadId: 'not-a-uuid',
         properties: { source: 'search', counter: false },

@@ -13,6 +13,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ChatPanel } from '../../../components/chat-panel';
 import { Badge, Loaded, SectionTitle } from '../../../components/fleet-ui';
 import { TripAssignForm } from '../../../components/trip-assign-form';
+import { TripDocumentsSection } from '../../../components/trip-documents-section';
 import { TripMap } from '../../../components/trip-map';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
@@ -122,6 +123,14 @@ export default function CarrierTripDetail() {
               {trip.unitName && trip.operatorName ? (
                 <Body>{carrierTripsCopy.assign.current(trip.unitName, trip.operatorName)}</Body>
               ) : null}
+
+              <TripDocumentsSection
+                client={carrier.client}
+                tripId={trip.id}
+                status={trip.status}
+                documents={detail.documents}
+                onChanged={reload}
+              />
 
               <TimelineSection
                 entries={detail.events.map((e) => ({

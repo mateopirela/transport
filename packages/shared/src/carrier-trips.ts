@@ -217,3 +217,45 @@ export function projectToBox(
 export function mapPointUrl({ lat, lng }: LatLng): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
+
+// ---------------------------------------------------------------------------
+// Trip documents (Carta Porte, D09): must match the `trip-documents` bucket
+// and add_trip_document (B15 migration).
+// ---------------------------------------------------------------------------
+
+export const TRIP_DOCUMENT_MIME_TYPES = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+} as const satisfies Record<string, string>;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+/**
+ * Object name in the `trip-documents` bucket: `{trip_id}/{uuid}.{ext}`. The
+ * extension comes from the MIME type, never from the user's file name.
+ */
+export function tripDocumentStoragePath({
+  tripId,
+  fileId,
+  mimeType,
+}: {
+  tripId: string;
+  fileId: string;
+  mimeType: string;
+}): string {
+  for (const id of [tripId, fileId]) {
+    if (!UUID.test(id)) throw new RangeError(`Invalid id: ${id}`);
+  }
+  if (!Object.hasOwn(TRIP_DOCUMENT_MIME_TYPES, mimeType)) {
+    throw new RangeError(`Unsupported trip document type: ${mimeType}`);
+  }
+  const ext = TRIP_DOCUMENT_MIME_TYPES[mimeType as keyof typeof TRIP_DOCUMENT_MIME_TYPES];
+  return `${tripId}/${fileId}.${ext}`;
+}
+
+/** Whether trip documents can still be added (bucket policy and add_trip_document). */
+export function canAddTripDocuments(status: TripStatus): boolean {
+  return status !== 'cancelled';
+}

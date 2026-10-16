@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  canAddTripDocuments,
   canAssignTrip,
   carrierTripGroup,
   checkAssignment,
@@ -10,10 +11,38 @@ import {
   locationFreshness,
   mapPointUrl,
   projectToBox,
+  tripDocumentStoragePath,
   type AssignableOperator,
   type AssignableUnit,
 } from './carrier-trips';
 import { TRIP_STATUSES } from './enums';
+
+describe('tripDocumentStoragePath', () => {
+  const tripId = '5eed0008-0000-4000-8000-000000000001';
+  const fileId = '0b6f1d2e-3c4a-4b5c-8d6e-7f8091a2b3c4';
+
+  it('builds {trip}/{uuid}.{ext} from the MIME type', () => {
+    expect(tripDocumentStoragePath({ tripId, fileId, mimeType: 'application/pdf' })).toBe(
+      `${tripId}/${fileId}.pdf`,
+    );
+    expect(tripDocumentStoragePath({ tripId, fileId, mimeType: 'image/jpeg' })).toBe(
+      `${tripId}/${fileId}.jpg`,
+    );
+  });
+
+  it('rejects types the bucket refuses and malformed ids', () => {
+    expect(() => tripDocumentStoragePath({ tripId, fileId, mimeType: 'image/heic' })).toThrow(
+      RangeError,
+    );
+    expect(() => tripDocumentStoragePath({ tripId: 'x', fileId, mimeType: 'image/png' })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('allows documents unless the trip was cancelled', () => {
+    expect(TRIP_STATUSES.filter((s) => !canAddTripDocuments(s))).toEqual(['cancelled']);
+  });
+});
 
 const MTY = { lat: 25.6866, lng: -100.3161 };
 const GDL = { lat: 20.6597, lng: -103.3496 };

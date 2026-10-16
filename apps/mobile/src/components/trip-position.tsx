@@ -1,5 +1,7 @@
 import {
   carrierTripsCopy,
+  formatDate,
+  formatDateTime,
   formatTime,
   loadedLegProgress,
   locationFreshness,
@@ -46,7 +48,12 @@ export function PositionLine({
     !position || freshness === 'none'
       ? copy.none
       : freshness === 'stale'
-        ? copy.stale(formatTime(position.recordedAt))
+        ? copy.stale(
+            // A bare time would mislead after a gap of more than a day.
+            formatDate(position.recordedAt) === formatDate(now)
+              ? formatTime(position.recordedAt)
+              : formatDateTime(position.recordedAt),
+          )
         : copy.live(Math.round((now.getTime() - Date.parse(position.recordedAt)) / 60_000));
   const progress =
     position && LOADED.includes(trip.status)

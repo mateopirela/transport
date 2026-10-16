@@ -59,6 +59,15 @@ Con EAS (cuando exista la cuenta): `eas build --profile development` (dispositiv
 - **Chat** de la negociación (B07): mensajes de texto en tiempo real (`send_message`, idempotente al reintentar) y lectura (`mark_conversation_read`). Los adjuntos que mande el cliente se indican, pero todavía no se abren desde la app.
 - Para probar con la seed: `jorge.villarreal@demo.test` ve arriba la carga GDL → MTY para `CS53-01`, que está descargando en Guadalajara.
 
+## Viajes y asignación del transportista (B20)
+
+- **Viajes** (pestaña): los viajes ganados en secciones **Por asignar**, **En curso** (con el mapa), **Próximos** e **Historial** (entregados, cerrados y cancelados). Se actualiza al entrar y cada 60 s mientras está abierta (`trips` no está en Realtime).
+- **Asignar operador** (detalle del viaje): se elige la unidad y el operador; arranca con la unidad de la oferta ganadora y su operador habitual. Se puede reasignar hasta que el operador salga. La pantalla avisa antes de lo que el servidor rechazaría (operador sin cuenta, unidad con documentos vencidos) y advierte si el tipo de unidad no es el pedido o si la unidad o el operador ya tienen otro viaje (`checkAssignment` en `@transport/shared`). Todo pasa por `assign_trip` (B06).
+- **Push al operador:** `assign_trip` registra el evento `assigned` y el trigger de B07 encola la notificación `trip_assigned` para el operador; el despachador (B09) la envía a sus dispositivos. La app ahora guarda el token de cada teléfono en `push_tokens` (`register_push_token`) y lo quita al cerrar sesión (`unregister_push_token`). Tocar el push abre el viaje (operador: "Viaje asignado"; transportista: el detalle). Sin `EXPO_PUBLIC_EAS_PROJECT_ID` no hay token y la app sigue funcionando sin push.
+- **Monitoreo:** mapa esquemático (origen, destino, trazo y última ubicación de cada unidad en camino), sin clave de Google Maps; "Ver ubicación en mapas" abre el punto en la app de mapas. Tras 15 min sin puntos muestra "Sin señal desde HH:MM". El mapa con calles queda para cuando existan las claves.
+- **Documentos del viaje:** Carta Porte u otro documento, en PDF o foto, al bucket privado `trip-documents` (`{trip}/{uuid}.{ext}`) y registrados con `add_trip_document` (B15). Solo se guardan (D09). El cliente los ve en la web.
+- Además: línea de tiempo, incidencias, conteo de fotos de evidencia y chat del viaje.
+
 ## Verificación
 
 ```sh

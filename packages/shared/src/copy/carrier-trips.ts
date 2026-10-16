@@ -102,7 +102,7 @@ export const carrierTripsCopy = {
   },
   documents: {
     title: 'Documentos del viaje',
-    help: 'Sube la Carta Porte y otros documentos del viaje. El cliente y el operador los verán. Solo se guardan; no se emiten ni se validan.',
+    help: 'Sube la Carta Porte y otros documentos del viaje. El cliente los verá en el detalle del viaje. Solo se guardan; no se emiten ni se validan.',
     empty: 'Aún no hay documentos.',
     kind: 'Tipo de documento',
     uploadCamera: 'Tomar foto',
@@ -110,7 +110,6 @@ export const carrierTripsCopy = {
     uploadPdf: 'Subir PDF',
     uploading: 'Subiendo…',
     uploaded: 'Documento guardado.',
-    open: 'Abrir',
     uploadedAt: (at: string) => `Subido: ${at}`,
     cancelled: 'El viaje está cancelado: ya no se pueden subir documentos.',
     cameraDenied:

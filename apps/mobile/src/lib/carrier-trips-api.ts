@@ -1,11 +1,16 @@
 import {
   isTripActive,
+  tripDocumentStoragePath,
   type AssignableOperator,
   type AssignableUnit,
   type Tables,
+  type TripDocumentKind,
   type TripStatus,
 } from '@transport/shared';
+import { randomUUID } from 'expo-crypto';
+import { File as LocalFile } from 'expo-file-system';
 
+import type { PickedFile } from './document-upload';
 import { listOperators, listVehicles, loadCompanyContext } from './fleet-api';
 import { unitLabel } from './loads-api';
 import type { Supabase } from './supabase';
@@ -210,7 +215,13 @@ export interface CarrierTripDetail {
   trail: { lat: number; lng: number }[];
   conversationId: string | null;
   assignment: AssignmentOptions;
+  documents: TripDocument[];
 }
+
+export type TripDocument = Pick<
+  Tables<'trip_documents'>,
+  'id' | 'kind' | 'storage_path' | 'file_name' | 'created_at'
+>;
 
 /** Units and operators the carrier can assign, with what else they are busy with. */
 async function assignmentOptions(
@@ -275,7 +286,7 @@ export async function loadCarrierTrip(
   const trip = found.data;
   if (!trip) return null;
 
-  const [load, names, events, incidents, evidence, trail, conversation, assignment] =
+  const [load, names, events, incidents, evidence, trail, conversation, assignment, documents] =
     await Promise.all([
       client.from('loads').select(LOAD_COLUMNS).eq('id', trip.load_id).single(),
       namesOf(client, companyId),
@@ -299,6 +310,11 @@ export async function loadCarrierTrip(
         .limit(300),
       client.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
       assignmentOptions(client, companyId, trip),
+      client
+        .from('trip_documents')
+        .select('id, kind, storage_path, file_name, created_at')
+        .eq('trip_id', trip.id)
+        .order('created_at'),
     ]);
   if (conversation.error) throw conversation.error;
   const points = check(trail);
@@ -323,6 +339,7 @@ export async function loadCarrierTrip(
     trail: points.map((p) => ({ lat: p.latitude, lng: p.longitude })).reverse(),
     conversationId: conversation.data?.id ?? null,
     assignment,
+    documents: check(documents),
   };
 }
 
@@ -339,4 +356,40 @@ export async function assignTrip(
     p_operator_id: operatorId,
   });
   if (error) throw error;
+}
+
+const TRIP_DOCUMENTS_BUCKET = 'trip-documents';
+
+/**
+ * Uploads a trip document (Carta Porte, D09) to `trip-documents` at
+ * `{trip}/{uuid}.{ext}` and registers it with add_trip_document (B15), which
+ * checks that the caller is the trip's carrier and uploaded that file.
+ */
+export async function uploadTripDocument(
+  client: Supabase,
+  input: { tripId: string; kind: TripDocumentKind; file: PickedFile },
+): Promise<void> {
+  const { tripId, kind, file } = input;
+  const path = tripDocumentStoragePath({ tripId, fileId: randomUUID(), mimeType: file.mimeType });
+  const bytes = await new LocalFile(file.uri).arrayBuffer();
+  const upload = await client.storage
+    .from(TRIP_DOCUMENTS_BUCKET)
+    .upload(path, bytes, { contentType: file.mimeType, upsert: false });
+  if (upload.error) throw upload.error;
+  const { error } = await client.rpc('add_trip_document', {
+    p_trip_id: tripId,
+    p_kind: kind,
+    p_storage_path: path,
+    p_file_name: file.name ?? path.slice(path.indexOf('/') + 1),
+  });
+  if (error) throw error;
+}
+
+/** Short-lived link to open a trip document (the bucket policy checks the reader). */
+export async function tripDocumentUrl(client: Supabase, storagePath: string): Promise<string> {
+  const { data, error } = await client.storage
+    .from(TRIP_DOCUMENTS_BUCKET)
+    .createSignedUrl(storagePath, 60);
+  if (error) throw error;
+  return data.signedUrl;
 }

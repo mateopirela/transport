@@ -19,6 +19,12 @@ const backend: KeyValueBackend = {
 /** Storage adapter for the Supabase session (tokens never touch AsyncStorage). */
 export const sessionStorage = createChunkedStorage(backend);
 
+/**
+ * Storage of the operator's offline trip queue (B21): events carry where the
+ * operator was, so they are kept encrypted like the session.
+ */
+export const tripQueueStorage = createChunkedStorage(backend);
+
 const PENDING_INVITATION_KEY = toStoreKey('transport.pending_invitation_code');
 
 /**

@@ -50,6 +50,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermission: false,
       },
     ],
+    // Trip status events keep where they happened (B21). Foreground only:
+    // background tracking and its consent arrive in B22.
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission: permissionCopy.locationWhenInUse,
+        isIosBackgroundLocationEnabled: false,
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: false,
+      },
+    ],
     [
       'expo-splash-screen',
       { backgroundColor: '#0B1F3A', image: './assets/splash-icon.png', imageWidth: 96 },

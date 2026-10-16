@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
 import { EVIDENCE_STAGES, INCIDENT_KINDS } from '../enums';
+import { mexicoCityDateTime } from '../fleet';
 import { MAX_LOCATION_BATCH } from '../trips';
 import {
   dateTimeField,
@@ -92,3 +93,26 @@ export const evidenceMetadataSchema = z
     ...onlyWhenValid,
   });
 export type EvidenceMetadata = z.output<typeof evidenceMetadataSchema>;
+
+/**
+ * Estimated end of unloading typed by the operator (date and time in Mexico
+ * City), as an ISO timestamp. The range against the current moment is
+ * checked with `unloadEstimateProblem`.
+ */
+export const unloadEstimateFormSchema = z
+  .object(
+    {
+      date: z.string({ error: m.date }),
+      time: z.string({ error: m.time }),
+    },
+    formError,
+  )
+  .transform((value, ctx) => {
+    const estimatedEndAt = mexicoCityDateTime(value.date, value.time);
+    if (!estimatedEndAt) {
+      ctx.addIssue({ code: 'custom', message: m.dateTime, path: ['date'] });
+      return z.NEVER;
+    }
+    return { estimatedEndAt };
+  });
+export type UnloadEstimateFormValues = z.output<typeof unloadEstimateFormSchema>;

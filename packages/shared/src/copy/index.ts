@@ -7,5 +7,6 @@ export * from './loads';
 export * from './mobile';
 export * from './notifications';
 export * from './permissions';
+export * from './trips';
 export * from './validation';
 export * from './verification';

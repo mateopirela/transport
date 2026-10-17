@@ -40,6 +40,92 @@ export interface Database {
         };
         Relationships: [];
       };
+      business_unit_coordinators: {
+        Row: {
+          business_unit_id: string;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          profile_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          business_unit_id: string;
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          profile_id: string;
+        };
+        Update: {
+          business_unit_id?: string;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          profile_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'business_unit_coordinators_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_unit_coordinators_unit_fkey';
+            columns: ['company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
+      business_units: {
+        Row: {
+          archived_at: string | null;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          name: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'business_units_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_units_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+        ];
+      };
       carrier_routes: {
         Row: {
           archived_at: string | null;
@@ -113,6 +199,7 @@ export interface Database {
           created_at: string;
           created_by: string | null;
           id: string;
+          is_owner_operator: boolean;
           legal_name: string;
           rfc: string;
           status: Database['public']['Enums']['verification_status'];
@@ -129,6 +216,7 @@ export interface Database {
           created_at?: string;
           created_by?: string | null;
           id?: string;
+          is_owner_operator?: boolean;
           legal_name: string;
           rfc: string;
           status?: Database['public']['Enums']['verification_status'];
@@ -144,6 +232,7 @@ export interface Database {
           created_at?: string;
           created_by?: string | null;
           id?: string;
+          is_owner_operator?: boolean;
           legal_name?: string;
           rfc?: string;
           status?: Database['public']['Enums']['verification_status'];
@@ -790,6 +879,7 @@ export interface Database {
       };
       negotiations: {
         Row: {
+          business_unit_id: string;
           carrier_company_id: string;
           created_at: string;
           created_by: string | null;
@@ -800,6 +890,7 @@ export interface Database {
         };
         ComputedFields: never;
         Insert: {
+          business_unit_id: string;
           carrier_company_id: string;
           created_at?: string;
           created_by?: string | null;
@@ -809,6 +900,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
+          business_unit_id?: string;
           carrier_company_id?: string;
           created_at?: string;
           created_by?: string | null;
@@ -818,6 +910,13 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'negotiations_business_unit_fkey';
+            columns: ['carrier_company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
           {
             foreignKeyName: 'negotiations_carrier_company_id_fkey';
             columns: ['carrier_company_id'];
@@ -1043,6 +1142,7 @@ export interface Database {
       operators: {
         Row: {
           archived_at: string | null;
+          business_unit_id: string;
           company_id: string;
           created_at: string;
           email: string | null;
@@ -1058,6 +1158,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           archived_at?: string | null;
+          business_unit_id: string;
           company_id: string;
           created_at?: string;
           email?: string | null;
@@ -1072,6 +1173,7 @@ export interface Database {
         };
         Update: {
           archived_at?: string | null;
+          business_unit_id?: string;
           company_id?: string;
           created_at?: string;
           email?: string | null;
@@ -1085,6 +1187,13 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'operators_business_unit_fkey';
+            columns: ['company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
           {
             foreignKeyName: 'operators_company_id_fkey';
             columns: ['company_id'];
@@ -1628,6 +1737,7 @@ export interface Database {
       trips: {
         Row: {
           assigned_at: string | null;
+          business_unit_id: string;
           cancellation_reason: string | null;
           cancelled_at: string | null;
           carrier_company_id: string;
@@ -1648,6 +1758,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           assigned_at?: string | null;
+          business_unit_id: string;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           carrier_company_id: string;
@@ -1667,6 +1778,7 @@ export interface Database {
         };
         Update: {
           assigned_at?: string | null;
+          business_unit_id?: string;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           carrier_company_id?: string;
@@ -1685,6 +1797,13 @@ export interface Database {
           vehicle_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'trips_business_unit_fkey';
+            columns: ['carrier_company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
           {
             foreignKeyName: 'trips_carrier_company_id_fkey';
             columns: ['carrier_company_id'];
@@ -1827,6 +1946,7 @@ export interface Database {
       vehicles: {
         Row: {
           archived_at: string | null;
+          business_unit_id: string;
           capacity_kg: number | null;
           capacity_m3: number | null;
           company_id: string;
@@ -1844,6 +1964,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           archived_at?: string | null;
+          business_unit_id: string;
           capacity_kg?: number | null;
           capacity_m3?: number | null;
           company_id: string;
@@ -1860,6 +1981,7 @@ export interface Database {
         };
         Update: {
           archived_at?: string | null;
+          business_unit_id?: string;
           capacity_kg?: number | null;
           capacity_m3?: number | null;
           company_id?: string;
@@ -1875,6 +1997,13 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'vehicles_business_unit_fkey';
+            columns: ['company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
           {
             foreignKeyName: 'vehicles_company_id_fkey';
             columns: ['company_id'];
@@ -2175,18 +2304,26 @@ export interface Database {
         };
         Returns: undefined;
       };
+      assert_vehicle_in_unit: {
+        Args: { p_business_unit_id: string; p_vehicle_id: string };
+        Returns: undefined;
+      };
       assign_trip: {
         Args: { p_operator_id: string; p_trip_id: string; p_vehicle_id: string };
         Returns: undefined;
       };
+      auth_business_unit_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      auth_carrier_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_fleet_company_id: { Args: Record<PropertyKey, never>; Returns: string };
+      auth_is_manager: { Args: Record<PropertyKey, never>; Returns: boolean };
       auth_operator_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_role: {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['user_role'];
       };
       auth_shipper_company_id: { Args: Record<PropertyKey, never>; Returns: string };
+      can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
       cancel_trip: { Args: { p_reason: string; p_trip_id: string }; Returns: undefined };
       check_offer_fields: {
@@ -2248,6 +2385,14 @@ export interface Database {
       consume_service_rate_limit: {
         Args: { p_bucket: string; p_subject: string };
         Returns: number;
+      };
+      conversation_business_unit_id: { Args: { p_conversation_id: string }; Returns: string };
+      coordinator_runs_document_owner: {
+        Args: {
+          p_owner_id: string;
+          p_owner_type: Database['public']['Enums']['document_owner_type'];
+        };
+        Returns: boolean;
       };
       counter_offer: {
         Args: {
@@ -2361,6 +2506,7 @@ export interface Database {
         Args: { p_trip_id: string };
         Returns: {
           assigned_at: string | null;
+          business_unit_id: string;
           cancellation_reason: string | null;
           cancelled_at: string | null;
           carrier_company_id: string;
@@ -2388,6 +2534,7 @@ export interface Database {
       make_offer: {
         Args: {
           p_amount_cents: number;
+          p_business_unit_id?: string;
           p_conditions?: string;
           p_load_id: string;
           p_vehicle_id?: string;
@@ -2428,6 +2575,23 @@ export interface Database {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      notify_business_unit_coordinators: {
+        Args: {
+          p_business_unit_id: string;
+          p_data: Json;
+          p_type: Database['public']['Enums']['notification_type'];
+        };
+        Returns: undefined;
+      };
+      notify_carrier_staff: {
+        Args: {
+          p_business_unit_id: string;
+          p_company_id: string;
+          p_data: Json;
+          p_type: Database['public']['Enums']['notification_type'];
+        };
+        Returns: undefined;
       };
       notify_company: {
         Args: {

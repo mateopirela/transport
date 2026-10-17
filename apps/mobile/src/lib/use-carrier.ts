@@ -1,4 +1,4 @@
-import { isCarrierStaff } from '@transport/shared';
+import { isCarrierStaff, isManager } from '@transport/shared';
 import { useCallback, useMemo } from 'react';
 
 import { useSession } from '../providers/session';
@@ -9,6 +9,8 @@ export interface CarrierContext {
   client: Supabase;
   companyId: string;
   companyName: string;
+  /** The Gerente controls the whole company; a Coordinador only their business units (G1a). */
+  isManager: boolean;
 }
 
 /**
@@ -20,9 +22,13 @@ export function useCarrier(): CarrierContext | null {
   const { profile } = useSession();
   const companyId = isCarrierStaff(profile?.role) ? profile.companyId : null;
   const companyName = profile?.companyName ?? '';
+  const manager = isManager(profile?.role);
   return useMemo(
-    () => (supabase && companyId ? { client: supabase, companyId, companyName } : null),
-    [companyId, companyName],
+    () =>
+      supabase && companyId
+        ? { client: supabase, companyId, companyName, isManager: manager }
+        : null,
+    [companyId, companyName, manager],
   );
 }
 

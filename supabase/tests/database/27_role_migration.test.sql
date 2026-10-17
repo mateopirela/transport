@@ -131,7 +131,7 @@ select throws_ok(
 );
 select throws_ok(
   $$ select public.submit_document(gen_random_uuid(), 'company', gen_random_uuid(), 'x') $$,
-  '42501', 'only shipper or carrier members can submit documents',
+  '42501', 'owner does not belong to the caller company',
   'a coordinator cannot submit company documents'
 );
 

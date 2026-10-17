@@ -8,6 +8,8 @@
 --   * 1 admin, 3 shipper companies and 3 carrier companies (the third one is a
 --     "hombre-camión": a persona física that is also its own operator, D13).
 --   * 8 units of several kinds and types, and 6 operators (4 with an account).
+--   * Business units (G1a.2): Transportes Regios del Norte has two, each with
+--     its coordinator; the other carriers have their "Principal" one.
 --   * 15 loads in both directions and in every status, with their
 --     negotiations, offers, trips, timelines, GPS points and chat messages.
 --   * Trip MTY -> GDL unloading with an estimated end, so its unit is
@@ -118,6 +120,8 @@ select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000007', 'jose.sanchez@d
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000008', 'pedro.lopez@demo.test', 'operator', 'Pedro López', '+52 81 1000 0008');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000009', 'raul.mendez@demo.test', 'operator', 'Raúl Méndez', '+52 81 1000 0009');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000010', 'miguel.hernandez@demo.test', 'operator', 'Miguel Hernández', '+52 33 1000 0010');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000011', 'andrea.cavazos@demo.test', 'coordinator', 'Andrea Cavazos', '+52 81 1000 0014');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000012', 'hector.ibarra@demo.test', 'coordinator', 'Héctor Ibarra', '+52 81 1000 0015');
 
 -- Admins cannot sign up (handle_new_user): they are promoted by the database
 -- owner, as with the service role in staging and production.
@@ -154,7 +158,10 @@ from (values
   -- Operators joined through an accepted invitation (D15).
   ('5eed0001-0000-4000-8000-000000000008', '5eed0002-0000-4000-8000-000000000004'),
   ('5eed0001-0000-4000-8000-000000000009', '5eed0002-0000-4000-8000-000000000004'),
-  ('5eed0001-0000-4000-8000-000000000010', '5eed0002-0000-4000-8000-000000000005')
+  ('5eed0001-0000-4000-8000-000000000010', '5eed0002-0000-4000-8000-000000000005'),
+  -- Coordinators joined through an invitation (G1b).
+  ('5eed0001-0000-4000-8000-000000000011', '5eed0002-0000-4000-8000-000000000004'),
+  ('5eed0001-0000-4000-8000-000000000012', '5eed0002-0000-4000-8000-000000000004')
 ) as v(profile_id, company_id)
 where p.id = v.profile_id;
 
@@ -573,6 +580,39 @@ join public.conversations c on c.trip_id = m.trip_id or c.negotiation_id = m.neg
 update public.conversations c
 set last_message_at = (select max(m.created_at) from public.messages m where m.conversation_id = c.id)
 where exists (select 1 from public.messages m where m.conversation_id = c.id);
+
+-- ---------------------------------------------------------------------------
+-- Business units (G1a.2). Every carrier got its "Principal" business unit when
+-- it was created, and everything above went to it. Transportes Regios del
+-- Norte splits its fleet in two, each run by its coordinator:
+--   * "Corredor MTY–GDL" (Andrea Cavazos): TRN-01, CS53-01 and Pedro López,
+--     with the trips and negotiations of the company;
+--   * "Regional Monterrey" (Héctor Ibarra): RF53-01, TT-01, Raúl Méndez and
+--     Arturo Cantú.
+-- Jorge Villarreal, the manager, sees and operates both.
+-- ---------------------------------------------------------------------------
+update public.business_units set name = 'Corredor MTY–GDL'
+where company_id = '5eed0002-0000-4000-8000-000000000004';
+
+insert into public.business_units (id, company_id, name, created_by, created_at)
+values ('5eed0009-0000-4000-8000-000000000002', '5eed0002-0000-4000-8000-000000000004', 'Regional Monterrey',
+        '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-30 days'));
+
+update public.vehicles set business_unit_id = '5eed0009-0000-4000-8000-000000000002'
+where id in ('5eed0004-0000-4000-8000-000000000003', '5eed0004-0000-4000-8000-000000000004');
+update public.operators set business_unit_id = '5eed0009-0000-4000-8000-000000000002'
+where id in ('5eed0003-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-000000000003');
+
+insert into public.business_unit_coordinators (business_unit_id, company_id, profile_id, created_by, created_at)
+select b.id, b.company_id, c.profile_id::uuid, '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-30 days')
+from (values
+  ('Corredor MTY–GDL', '5eed0001-0000-4000-8000-000000000011'),
+  ('Regional Monterrey', '5eed0001-0000-4000-8000-000000000012')
+) as c(unit_name, profile_id)
+join public.business_units b on b.company_id = '5eed0002-0000-4000-8000-000000000004' and b.name = c.unit_name;
+
+-- The hombre-camión (D13).
+update public.companies set is_owner_operator = true where id = '5eed0002-0000-4000-8000-000000000006';
 
 -- ---------------------------------------------------------------------------
 -- Notifications queued by the triggers: mark them as already dispatched so the

@@ -30,18 +30,22 @@ function describe(vehicle: VehicleSummary): string {
   const parts = [vehicleKindLabels[vehicle.kind]];
   if (vehicle.unit_type) parts.push(unitTypeLabels[vehicle.unit_type]);
   if (vehicle.fleet_number) parts.push(vehicle.fleet_number);
+  if (vehicle.businessUnitName) parts.push(fleetCopy.businessUnit(vehicle.businessUnitName));
   return parts.join(' · ');
 }
 
 /** The carrier's units with their availability (B18). */
 export default function UnitsTab() {
   const router = useRouter();
-  const { state, reload } = useCarrierData(loadVehicles);
+  const { carrier, state, reload } = useCarrierData(loadVehicles);
 
   return (
     <Screen>
       <Title>{copy.title}</Title>
-      <Button label={copy.add} onPress={() => router.push('/vehicle/new')} />
+      {/* Adding units is the manager's (G1a.2). */}
+      {carrier?.isManager ? (
+        <Button label={copy.add} onPress={() => router.push('/vehicle/new')} />
+      ) : null}
       <Loaded state={state} onRetry={() => void reload()}>
         {(vehicles) =>
           vehicles.length === 0 ? (

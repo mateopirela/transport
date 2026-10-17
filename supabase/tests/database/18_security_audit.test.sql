@@ -188,6 +188,9 @@ select set_eq(
     -- Context helpers (read only the caller's own row).
     'auth_role', 'auth_company_id', 'auth_shipper_company_id', 'auth_fleet_company_id', 'auth_operator_id',
     'is_admin', 'is_company_approved', 'has_location_consent', 'is_conversation_participant',
+    -- Business units (G1a.2): the caller's scope, or whether they run a row.
+    'auth_carrier_company_id', 'auth_is_manager', 'auth_business_unit_ids', 'can_operate_unit',
+    'conversation_business_unit_id', 'coordinator_runs_document_owner',
     -- Identity and verification (B01, B03, B12).
     'create_company', 'request_company_review', 'submit_document', 'review_document', 'review_company',
     'admin_list_users',
@@ -222,6 +225,7 @@ select set_eq(
     'handle_new_user', 'operators_revoke_invitations_on_email_change', 'audit_admin_action',
     'fleet_block_archive_with_trips', 'open_conversation', 'notify_offer', 'notify_trip_event',
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
+    'companies_create_default_business_unit', 'default_business_unit',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit'
   ],

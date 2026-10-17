@@ -17,6 +17,7 @@ describe('adminOpsErrorMessage', () => {
     ['55000', 'offer is no longer pending (status accepted)', e.notPending],
     ['55000', 'incident is already resolved', e.incidentResolved],
     ['22023', 'carrier not found', e.carrierNotFound],
+    ['23502', 'business_unit_id is required', e.businessUnitRequired],
     ['22023', 'invalid offer: amount out of range', e.invalidAmount],
   ])('maps %s "%s"', (code, message, expected) => {
     expect(adminOpsErrorMessage({ code, message })).toBe(expected);

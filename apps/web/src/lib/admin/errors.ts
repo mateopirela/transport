@@ -27,6 +27,10 @@ export function adminOpsErrorMessage(error: PostgrestLikeError): string {
       if (message.startsWith('offer is no longer pending')) return e.notPending;
       if (message.startsWith('incident is already resolved')) return e.incidentResolved;
       return e.generic;
+    case '23502':
+      return message.startsWith('business_unit_id is required')
+        ? e.businessUnitRequired
+        : e.generic;
     case '22023':
       if (message.startsWith('carrier not found')) return e.carrierNotFound;
       if (message.includes('amount')) return e.invalidAmount;

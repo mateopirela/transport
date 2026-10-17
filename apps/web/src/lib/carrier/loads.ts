@@ -38,7 +38,14 @@ function check<T>({ data, error }: { data: T; error: { message: string } | null 
 
 export type CarrierUnit = Pick<
   Tables<'vehicles'>,
-  'id' | 'plate' | 'fleet_number' | 'unit_type' | 'kind' | 'business_unit_id'
+  | 'id'
+  | 'plate'
+  | 'fleet_number'
+  | 'unit_type'
+  | 'kind'
+  | 'business_unit_id'
+  | 'capacity_kg'
+  | 'features'
 >;
 
 /**
@@ -55,7 +62,7 @@ export async function listCarrierUnits(
   return check(
     await supabase
       .from('vehicles')
-      .select('id, plate, fleet_number, unit_type, kind, business_unit_id')
+      .select('id, plate, fleet_number, unit_type, kind, business_unit_id, capacity_kg, features')
       .eq('company_id', companyId)
       .in('business_unit_id', [...businessUnitIds])
       .is('archived_at', null)
@@ -140,6 +147,13 @@ export interface EmptyLeg {
   /** Estimated road km (straight line × road factor) from where the unit is free to the pickup. */
   emptyKm: number;
   start: { city: string; lat: number; lng: number };
+  /**
+   * `matching`: the unit passed every check of match_pairs (B08: ready,
+   * compatible and free in time), so it may be proposed by default.
+   * `availability`: an estimate for a load the company already negotiates,
+   * from the unit's availability; shown, never proposed by default.
+   */
+  source: 'matching' | 'availability';
 }
 
 /**
@@ -151,19 +165,40 @@ export interface EmptyLeg {
  */
 export async function emptyLegs(
   supabase: Supabase,
-  load: Pick<CarrierLoad, 'id' | 'unit_type' | 'origin_lat' | 'origin_lng'>,
+  load: Pick<
+    CarrierLoad,
+    | 'id'
+    | 'unit_type'
+    | 'weight_kg'
+    | 'special_requirements'
+    | 'pickup_window_end'
+    | 'origin_lat'
+    | 'origin_lng'
+  >,
   units: readonly CarrierUnit[],
+  { negotiated }: { negotiated: boolean },
 ): Promise<EmptyLeg[]> {
-  const compatible = units.filter((unit) => unit.unit_type === load.unit_type);
+  // The same compatibility as match_pairs (B08): unit type, capacity and features.
+  const compatible = units.filter(
+    (unit) =>
+      unit.unit_type === load.unit_type &&
+      unit.capacity_kg !== null &&
+      load.weight_kg <= unit.capacity_kg &&
+      load.special_requirements.every((r) => unit.features.includes(r)),
+  );
   if (compatible.length === 0) return [];
-  const availability = await supabase
-    .from('vehicle_availability')
-    .select('vehicle_id, city, state')
-    .in(
-      'vehicle_id',
-      compatible.map((unit) => unit.id),
-    )
-    .is('archived_at', null);
+  // Only once the company negotiates the load, which match_pairs leaves out.
+  const availability = negotiated
+    ? await supabase
+        .from('vehicle_availability')
+        .select('vehicle_id, city, state, available_from')
+        .in(
+          'vehicle_id',
+          compatible.map((unit) => unit.id),
+        )
+        .is('archived_at', null)
+        .lte('available_from', load.pickup_window_end)
+    : { data: [], error: null };
   const freeAt = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const results = await Promise.all(
     compatible.map(async (unit): Promise<EmptyLeg[]> => {
@@ -184,6 +219,7 @@ export async function emptyLegs(
             vehicleId: unit.id,
             emptyKm: estimateFromStraightLine(row.empty_km),
             start: { city: row.start_city, lat: row.start_lat, lng: row.start_lng },
+            source: 'matching',
           },
         ];
       }
@@ -193,7 +229,14 @@ export async function emptyLegs(
       if (!place) return [];
       const start = { city: place.city, lat: place.lat, lng: place.lng };
       const pickup = { lat: load.origin_lat, lng: load.origin_lng };
-      return [{ vehicleId: unit.id, emptyKm: estimateRoadKm(start, pickup), start }];
+      return [
+        {
+          vehicleId: unit.id,
+          emptyKm: estimateRoadKm(start, pickup),
+          start,
+          source: 'availability',
+        },
+      ];
     }),
   );
   return results.flat().sort((a, b) => a.emptyKm - b.emptyKm);

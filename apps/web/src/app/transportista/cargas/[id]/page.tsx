@@ -72,10 +72,13 @@ export default async function CarrierLoadPage({
     );
   }
   // Compatible units nearest first; the unit it was recommended for leads.
-  const legs = await emptyLegs(supabase, load, carrierUnits);
+  const legs = await emptyLegs(supabase, load, carrierUnits, { negotiated: negotiation !== null });
   const preferred = recommendedFor.success ? recommendedFor.data : null;
   legs.sort((a, b) => Number(b.vehicleId === preferred) - Number(a.vehicleId === preferred));
   const best = legs[0];
+  // Only a unit the matching vetted (ready, compatible, free in time) is
+  // proposed by default; an availability estimate just informs the distance.
+  const defaultUnit = legs.find((leg) => leg.source === 'matching')?.vehicleId ?? null;
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
   const chat = negotiation?.conversationId
     ? await getChat(supabase, negotiation.conversationId, companyId)
@@ -157,7 +160,7 @@ export default async function CarrierLoadPage({
               businessUnitId: u.business_unit_id,
             }))}
             businessUnits={units.operable}
-            defaultVehicleId={best?.vehicleId ?? null}
+            defaultVehicleId={defaultUnit}
             defaultBusinessUnitId={units.selected?.id ?? null}
             negotiationBusinessUnitId={negotiation?.businessUnitId ?? null}
           />

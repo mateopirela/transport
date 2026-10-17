@@ -72,7 +72,7 @@ export default async function CarrierLoadPage({
     );
   }
   // Compatible units nearest first; the unit it was recommended for leads.
-  const legs = await emptyLegs(supabase, load, carrierUnits, { negotiated: negotiation !== null });
+  const legs = await emptyLegs(supabase, load, carrierUnits);
   const preferred = recommendedFor.success ? recommendedFor.data : null;
   legs.sort((a, b) => Number(b.vehicleId === preferred) - Number(a.vehicleId === preferred));
   const best = legs[0];

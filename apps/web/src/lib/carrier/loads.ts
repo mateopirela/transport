@@ -150,18 +150,19 @@ export interface EmptyLeg {
   /**
    * `matching`: the unit passed every check of match_pairs (B08: ready,
    * compatible and free in time), so it may be proposed by default.
-   * `availability`: an estimate for a load the company already negotiates,
-   * from the unit's availability; shown, never proposed by default.
+   * `availability`: an estimate from the unit's availability for a load the
+   * matching does not list (already negotiated, beyond its radius or its
+   * limit); shown, never proposed by default.
    */
   source: 'matching' | 'availability';
 }
 
 /**
  * Where each unit of the load's unit type is free and how far it is from the
- * pickup: from match_candidates (B08) while the load is still a candidate,
- * and, once the company negotiates it (match_pairs leaves it out), from the
- * unit's availability and the pickup, as the matching estimates without
- * Routes. Nearest first.
+ * pickup: from match_candidates (B08) when it lists the load, and otherwise
+ * (the company already negotiates it, or it is beyond the matching's radius
+ * or limit) from the unit's availability and the pickup, as the matching
+ * estimates without Routes. Nearest first.
  */
 export async function emptyLegs(
   supabase: Supabase,
@@ -176,7 +177,6 @@ export async function emptyLegs(
     | 'origin_lng'
   >,
   units: readonly CarrierUnit[],
-  { negotiated }: { negotiated: boolean },
 ): Promise<EmptyLeg[]> {
   // The same compatibility as match_pairs (B08): unit type, capacity and features.
   const compatible = units.filter(
@@ -187,18 +187,16 @@ export async function emptyLegs(
       load.special_requirements.every((r) => unit.features.includes(r)),
   );
   if (compatible.length === 0) return [];
-  // Only once the company negotiates the load, which match_pairs leaves out.
-  const availability = negotiated
-    ? await supabase
-        .from('vehicle_availability')
-        .select('vehicle_id, city, state, available_from')
-        .in(
-          'vehicle_id',
-          compatible.map((unit) => unit.id),
-        )
-        .is('archived_at', null)
-        .lte('available_from', load.pickup_window_end)
-    : { data: [], error: null };
+  // Free in time, as match_pairs requires.
+  const availability = await supabase
+    .from('vehicle_availability')
+    .select('vehicle_id, city, state, available_from')
+    .in(
+      'vehicle_id',
+      compatible.map((unit) => unit.id),
+    )
+    .is('archived_at', null)
+    .lte('available_from', load.pickup_window_end);
   const freeAt = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const results = await Promise.all(
     compatible.map(async (unit): Promise<EmptyLeg[]> => {

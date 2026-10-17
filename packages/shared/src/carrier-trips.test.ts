@@ -9,6 +9,7 @@ import {
   groupCarrierTrips,
   licenseAllowsLoad,
   licenseAllowsVehicle,
+  licensePairsFrom,
   loadedLegProgress,
   locationFreshness,
   mapPointUrl,
@@ -94,6 +95,27 @@ describe('license <-> unit kind (D16)', () => {
     expect(licenseAllowsLoad('B', ['tarp'])).toBe(true);
     expect(licenseAllowsLoad('E', ['hazmat_permit', 'tarp'])).toBe(true);
     expect(licenseAllowsLoad(null, [])).toBe(false);
+  });
+
+  it('follows the table the admin edits: pairs switched off or added win over the seeded list', () => {
+    const pairs = licensePairsFrom([
+      { license_type: 'C', vehicle_kind: 'rigid', allowed: true },
+      { license_type: 'C', vehicle_kind: 'tractor', allowed: true },
+      { license_type: 'E', vehicle_kind: 'tractor', allowed: false },
+      { license_type: 'E', vehicle_kind: 'rigid', allowed: true },
+    ]);
+    expect(pairs).toEqual({ B: [], C: ['rigid', 'tractor'], E: ['rigid'] });
+    expect(licenseAllowsVehicle('C', 'tractor', pairs)).toBe(true);
+    expect(licenseAllowsVehicle('E', 'tractor', pairs)).toBe(false);
+    expect(licenseAllowsVehicle('B', 'rigid', pairs)).toBe(false);
+    expect(
+      checkAssignment({
+        unit: unit({ kind: 'tractor' }),
+        operator: operator({ licenseType: 'C' }),
+        loadUnitType: 'dry_van',
+        licensePairs: pairs,
+      }).blockers,
+    ).toEqual([]);
   });
 });
 

@@ -1,10 +1,12 @@
 import {
   isTripActive,
+  licensePairsFrom,
   toMexicoCityDate,
   tripDocumentStoragePath,
   uploadableTripDocumentKinds,
   type AssignableOperator,
   type AssignableUnit,
+  type LicensePairs,
   type Tables,
   type TripChecklistRow,
   type TripDocumentKind,
@@ -288,6 +290,8 @@ export interface AssignmentOptions {
   operators: (AssignableOperator & { name: string })[];
   /** Unit of the winning offer, the default choice. */
   offeredUnitId: string | null;
+  /** Current license <-> unit kind pairs (license_unit_compatibility), as assign_trip checks them. */
+  licensePairs: LicensePairs;
 }
 
 export interface CarrierTripDetail {
@@ -346,7 +350,7 @@ async function assignmentOptions(
   isManager: boolean,
 ): Promise<AssignmentOptions> {
   const context = await loadCompanyContext(client, companyId);
-  const [vehicles, operators, busy, offer, usual] = await Promise.all([
+  const [vehicles, operators, busy, offer, usual, pairs] = await Promise.all([
     listVehicles(client, context),
     listOperators(client, companyId),
     client
@@ -361,6 +365,7 @@ async function assignmentOptions(
       .select('id, current_operator_id')
       .eq('company_id', companyId)
       .is('archived_at', null),
+    client.from('license_unit_compatibility').select('license_type, vehicle_kind, allowed'),
   ]);
   if (offer.error) throw offer.error;
   const others = check(busy);
@@ -389,6 +394,7 @@ async function assignmentOptions(
       otherTrips: others.filter((t) => t.operator_id === o.id).length,
     })),
     offeredUnitId: offer.data?.vehicle_id ?? null,
+    licensePairs: licensePairsFrom(check(pairs)),
   };
 }
 

@@ -208,7 +208,8 @@ with check ((select public.is_admin()));
 
 -- Whether the operator holds a current license: an approved, unexpired
 -- federal_driver_license document, or a license date on the operator today
--- or later. Internal (called by assign_trip under its locks).
+-- or later (today in Mexico City, like the apps: the session may run in UTC).
+-- Internal (called by assign_trip under its locks).
 create function public.operator_license_current(p_operator_id uuid)
 returns boolean
 language sql
@@ -217,7 +218,8 @@ set search_path = ''
 as $$
   select exists (
     select 1 from public.operators o
-    where o.id = p_operator_id and o.license_expires_on >= current_date
+    where o.id = p_operator_id
+      and o.license_expires_on >= (now() at time zone 'America/Mexico_City')::date
   ) or exists (
     select 1
     from public.documents d

@@ -65,20 +65,41 @@ export function groupCarrierTrips<T extends GroupableTrip>(
 // (provisional list, plan §G.2 follow-up 4) and the hazmat rule of assign_trip.
 // ---------------------------------------------------------------------------
 
-/** Unit kinds each federal license type may drive (same rows as the SQL table). */
+/** Unit kinds each license type may drive. */
+export type LicensePairs = Record<LicenseType, readonly VehicleKind[]>;
+
+/**
+ * The provisional pairs the migration seeds. The apps read the current table
+ * (admins may switch pairs on or off) and fall back to this list.
+ */
 export const LICENSE_VEHICLE_KINDS = {
   B: ['tractor', 'rigid', 'trailer'],
   C: ['rigid'],
   E: ['tractor', 'rigid', 'trailer'],
-} as const satisfies Record<LicenseType, readonly VehicleKind[]>;
+} as const satisfies LicensePairs;
+
+/** The allowed pairs from the rows of license_unit_compatibility. */
+export function licensePairsFrom(
+  rows: readonly { license_type: LicenseType; vehicle_kind: VehicleKind; allowed: boolean }[],
+): LicensePairs {
+  const pairs: LicensePairs = { B: [], C: [], E: [] };
+  for (const row of rows) {
+    if (row.allowed) pairs[row.license_type] = [...pairs[row.license_type], row.vehicle_kind];
+  }
+  return pairs;
+}
 
 /** License type a load with a hazmat permit requires. */
 export const HAZMAT_LICENSE_TYPE: LicenseType = 'E';
 
-/** Whether a license of `licenseType` may drive a unit of `kind`. */
-export function licenseAllowsVehicle(licenseType: LicenseType | null, kind: VehicleKind): boolean {
+/** Whether a license of `licenseType` may drive a unit of `kind` (mirrors assign_trip). */
+export function licenseAllowsVehicle(
+  licenseType: LicenseType | null,
+  kind: VehicleKind,
+  pairs: LicensePairs = LICENSE_VEHICLE_KINDS,
+): boolean {
   if (!licenseType) return false;
-  return (LICENSE_VEHICLE_KINDS[licenseType] as readonly VehicleKind[]).includes(kind);
+  return pairs[licenseType].includes(kind);
 }
 
 /** Whether a license of `licenseType` may carry a load with `requirements` (hazmat needs E). */
@@ -138,11 +159,14 @@ export function checkAssignment({
   operator,
   loadUnitType,
   loadRequirements = [],
+  licensePairs = LICENSE_VEHICLE_KINDS,
 }: {
   unit: AssignableUnit | null;
   operator: AssignableOperator | null;
   loadUnitType: UnitType;
   loadRequirements?: readonly SpecialRequirement[];
+  /** The current license_unit_compatibility rows (admins edit them); the seeded list by default. */
+  licensePairs?: LicensePairs;
 }): AssignmentCheck {
   const blockers: AssignmentBlocker[] = [];
   const warnings: AssignmentWarning[] = [];
@@ -152,7 +176,7 @@ export function checkAssignment({
   if (
     unit &&
     operator &&
-    (!licenseAllowsVehicle(operator.licenseType, unit.kind) ||
+    (!licenseAllowsVehicle(operator.licenseType, unit.kind, licensePairs) ||
       !licenseAllowsLoad(operator.licenseType, loadRequirements))
   ) {
     blockers.push('operatorLicenseMismatch');

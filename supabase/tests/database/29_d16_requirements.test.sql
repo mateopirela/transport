@@ -123,9 +123,9 @@ update public.profiles set role = 'admin' where id = 'a2900000-0000-4000-8000-00
 
 insert into public.operators (id, company_id, profile_id, full_name, license_type, license_expires_on) values
   ('d2900000-0000-4000-8000-000000000005', 'c2900000-0000-4000-8000-000000000003',
-   'a2900000-0000-4000-8000-000000000005', 'Omar Rígido', 'C', current_date + 365),
+   'a2900000-0000-4000-8000-000000000005', 'Omar Rígido', 'C', (now() at time zone 'America/Mexico_City')::date + 365),
   ('d2900000-0000-4000-8000-000000000006', 'c2900000-0000-4000-8000-000000000003',
-   'a2900000-0000-4000-8000-000000000006', 'Elena Federal', 'E', current_date - 1),
+   'a2900000-0000-4000-8000-000000000006', 'Elena Federal', 'E', (now() at time zone 'America/Mexico_City')::date - 1),
   ('d2900000-0000-4000-8000-000000000007', 'c2900000-0000-4000-8000-000000000003',
    'a2900000-0000-4000-8000-000000000007', 'Luis Sin Licencia', null, null);
 insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values

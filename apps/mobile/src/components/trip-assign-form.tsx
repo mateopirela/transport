@@ -65,6 +65,7 @@ export function TripAssignForm({
     operator,
     loadUnitType,
     loadRequirements,
+    licensePairs: options.licensePairs,
   });
 
   if (!canAssignTrip(status)) {

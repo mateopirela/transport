@@ -10,6 +10,8 @@ import {
   operatorStepConfirmLabels,
   operatorTripCopy as copy,
   formatDateTime,
+  missingTripDocumentsFromError,
+  tripDocumentKindLabels,
   tripEventTypeLabels,
   tripStatusLabels,
   unloadEstimateProblem,
@@ -150,14 +152,23 @@ export default function AssignedTripTab() {
     return <Loading label={copy.refresh} />;
   }
 
-  // Refused actions of any trip: the trip itself may no longer be shown.
+  // Refused actions of any trip: the trip itself may no longer be shown. A
+  // departure refused for missing documents (D22, blocks_departure) names
+  // them: the coordinator uploads them and the operator departs again.
+  const missingDocuments = queue.rejected.flatMap(
+    (a) => missingTripDocumentsFromError(queue.rejectedReasons[a.id] ?? '') ?? [],
+  );
   const rejectedNotice =
     queue.rejected.length > 0 ? (
       <Notice tone="danger" title={copy.rejectedTitle}>
         <Body>
-          {copy.rejectedBody(
-            queue.rejected.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
-          )}
+          {missingDocuments.length > 0
+            ? copy.rejectedMissingDocuments(
+                missingDocuments.map((kind) => tripDocumentKindLabels[kind]).join(', '),
+              )
+            : copy.rejectedBody(
+                queue.rejected.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
+              )}
         </Body>
         <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
       </Notice>

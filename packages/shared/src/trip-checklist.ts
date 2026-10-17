@@ -3,7 +3,7 @@
 // requirement rows from trip_document_requirements. Pure, so the carrier app,
 // the operator app and the shipper web share one grouping and one upload rule
 // (add_trip_document validates it again).
-import type { OfferSide, TripDocumentKind } from './enums';
+import { TRIP_DOCUMENT_KINDS, type OfferSide, type TripDocumentKind } from './enums';
 
 /** One row of the trip_checklist RPC. */
 export interface TripChecklistRow {
@@ -81,4 +81,22 @@ export function isTripDocumentCode(
   kinds: readonly TripDocumentKind[],
 ): code is TripDocumentKind {
   return (kinds as readonly string[]).includes(code);
+}
+
+const MISSING_DOCUMENTS_PREFIX = 'trip documents are missing: ';
+
+/**
+ * The kinds named by record_trip_event when a departure is refused for
+ * documents that block it (`trip documents are missing: carta_porte, …`), or
+ * null when the message is about something else.
+ */
+export function missingTripDocumentsFromError(message: string): TripDocumentKind[] | null {
+  if (!message.startsWith(MISSING_DOCUMENTS_PREFIX)) return null;
+  return message
+    .slice(MISSING_DOCUMENTS_PREFIX.length)
+    .split(',')
+    .map((kind) => kind.trim())
+    .filter((kind): kind is TripDocumentKind =>
+      (TRIP_DOCUMENT_KINDS as readonly string[]).includes(kind),
+    );
 }

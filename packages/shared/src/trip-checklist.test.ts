@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   groupTripChecklist,
   isTripDocumentCode,
+  missingTripDocumentsFromError,
   tripChecklistPending,
   uploadableTripDocumentKinds,
   type TripChecklistRow,
@@ -80,5 +81,16 @@ describe('uploadableTripDocumentKinds', () => {
   it('tells document codes from evidence codes', () => {
     expect(isTripDocumentCode('carta_porte', TRIP_DOCUMENT_KINDS)).toBe(true);
     expect(isTripDocumentCode('pickup_evidence', TRIP_DOCUMENT_KINDS)).toBe(false);
+  });
+
+  it('reads the kinds a refused departure names (record_trip_event, blocks_departure)', () => {
+    expect(
+      missingTripDocumentsFromError('trip documents are missing: service_order, carta_porte'),
+    ).toEqual(['service_order', 'carta_porte']);
+    expect(missingTripDocumentsFromError('trip documents are missing: unknown, invoice')).toEqual([
+      'invoice',
+    ]);
+    expect(missingTripDocumentsFromError('cannot record departed on a trip in status')).toBeNull();
+    expect(missingTripDocumentsFromError('')).toBeNull();
   });
 });

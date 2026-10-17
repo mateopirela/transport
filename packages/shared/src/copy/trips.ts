@@ -72,6 +72,9 @@ export const operatorTripCopy = {
   rejectedTitle: 'No se pudo registrar',
   rejectedBody: (what: string) =>
     `El servidor rechazó "${what}": el viaje pudo cambiar o reasignarse. Revisa su estado actual.`,
+  /** The departure was refused for missing trip documents (D22, blocks_departure). */
+  rejectedMissingDocuments: (documents: string) =>
+    `No puedes salir todavía: falta ${documents}. Pide a tu coordinador que lo suba y vuelve a registrar la salida.`,
   dismiss: 'Entendido',
   saveFailed: 'No pudimos guardar el registro en el teléfono. Inténtalo de nuevo.',
   // Timeline.

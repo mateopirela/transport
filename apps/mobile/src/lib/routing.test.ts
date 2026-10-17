@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { redirectFor, resolveArea, type ProfileSnapshot } from './routing';
 
 const profile = (overrides: Partial<ProfileSnapshot>): ProfileSnapshot => ({
-  role: 'carrier',
+  role: 'manager',
   companyId: null,
   companyStatus: null,
   ...overrides,
@@ -26,11 +26,20 @@ describe('resolveArea', () => {
     expect(resolveArea(signedIn(null, true))).toBe('problem');
   });
 
-  it('asks a carrier without a company to register it', () => {
-    expect(resolveArea(signedIn(profile({ role: 'carrier' })))).toBe('company_setup');
+  it('asks a manager without a company to register it', () => {
+    expect(resolveArea(signedIn(profile({ role: 'manager' })))).toBe('company_setup');
     expect(
       resolveArea(
-        signedIn(profile({ role: 'carrier', companyId: 'c1', companyStatus: 'pending_review' })),
+        signedIn(profile({ role: 'manager', companyId: 'c1', companyStatus: 'pending_review' })),
+      ),
+    ).toBe('carrier');
+  });
+
+  it('opens the carrier area to a coordinator of a company, and the join screen otherwise', () => {
+    expect(resolveArea(signedIn(profile({ role: 'coordinator' })))).toBe('join');
+    expect(
+      resolveArea(
+        signedIn(profile({ role: 'coordinator', companyId: 'c1', companyStatus: 'approved' })),
       ),
     ).toBe('carrier');
   });

@@ -44,8 +44,8 @@ grant select, insert, update on tests.codes to authenticated;
 --   ...04 shipper S      ...05 admin          ...06 operator, other email
 --   ...07 operator, unconfirmed email         ...08 operator (expired code)
 -- Companies: c...0a = A (carrier), c...0b = B (carrier), c...0c = S (shipper).
-select tests.new_user('b0000000-0000-4000-8000-000000000001', 'carla@a.test', 'carrier');
-select tests.new_user('b0000000-0000-4000-8000-000000000002', 'bruno@b.test', 'carrier');
+select tests.new_user('b0000000-0000-4000-8000-000000000001', 'carla@a.test', 'manager');
+select tests.new_user('b0000000-0000-4000-8000-000000000002', 'bruno@b.test', 'manager');
 select tests.new_user('b0000000-0000-4000-8000-000000000003', 'omar@a.test', 'operator');
 select tests.new_user('b0000000-0000-4000-8000-000000000004', 'sofia@s.test', 'shipper');
 select tests.new_user('b0000000-0000-4000-8000-000000000005', 'admin@x.test', 'shipper');

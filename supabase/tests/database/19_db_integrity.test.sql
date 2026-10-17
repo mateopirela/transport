@@ -95,7 +95,7 @@ grant execute on all functions in schema tests to authenticated, service_role;
 
 -- Users: ...01 shipper S   ...02 carrier A   ...03 operator O   ...04 operator P (both of A)
 select tests.new_user('af200000-0000-4000-8000-000000000001', 'sara@f2.test', 'shipper');
-select tests.new_user('af200000-0000-4000-8000-000000000002', 'ana@f2.test', 'carrier');
+select tests.new_user('af200000-0000-4000-8000-000000000002', 'ana@f2.test', 'manager');
 select tests.new_user('af200000-0000-4000-8000-000000000003', 'oscar@f2.test', 'operator');
 select tests.new_user('af200000-0000-4000-8000-000000000004', 'pablo@f2.test', 'operator');
 

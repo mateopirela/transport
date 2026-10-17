@@ -32,7 +32,7 @@ describe('notification email', () => {
     expect(notificationWebPath('shipper', { loadId: '../admin' })).toBe('/cliente/notificaciones');
     expect(notificationWebPath('shipper', null)).toBe('/cliente/notificaciones');
     expect(notificationWebPath('admin', { loadId: LOAD })).toBe('/admin');
-    expect(notificationWebPath('carrier', { loadId: LOAD })).toBeNull();
+    expect(notificationWebPath('manager', { loadId: LOAD })).toBeNull();
     expect(notificationWebPath(null, {})).toBeNull();
 
     const email = notificationEmail(

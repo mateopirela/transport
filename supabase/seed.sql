@@ -112,9 +112,9 @@ select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000001', 'admin@demo.tes
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000002', 'ana.garza@demo.test', 'shipper', 'Ana Garza', '+52 81 1000 0002');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000003', 'luis.ramirez@demo.test', 'shipper', 'Luis Ramírez', '+52 33 1000 0003');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000004', 'sofia.trevino@demo.test', 'shipper', 'Sofía Treviño', '+52 81 1000 0004');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000005', 'jorge.villarreal@demo.test', 'carrier', 'Jorge Villarreal', '+52 81 1000 0005');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000006', 'carmen.navarro@demo.test', 'carrier', 'Carmen Navarro', '+52 33 1000 0006');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000007', 'jose.sanchez@demo.test', 'carrier', 'José Sánchez Medina', '+52 81 1000 0007');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000005', 'jorge.villarreal@demo.test', 'manager', 'Jorge Villarreal', '+52 81 1000 0005');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000006', 'carmen.navarro@demo.test', 'manager', 'Carmen Navarro', '+52 33 1000 0006');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000007', 'jose.sanchez@demo.test', 'manager', 'José Sánchez Medina', '+52 81 1000 0007');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000008', 'pedro.lopez@demo.test', 'operator', 'Pedro López', '+52 81 1000 0008');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000009', 'raul.mendez@demo.test', 'operator', 'Raúl Méndez', '+52 81 1000 0009');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000010', 'miguel.hernandez@demo.test', 'operator', 'Miguel Hernández', '+52 33 1000 0010');
@@ -489,8 +489,8 @@ select e.trip_id::uuid, e.event_type::public.trip_event_type, e.from_status::pub
        e.actor_id::uuid, e.actor_role::public.user_role
 from (values
   -- Trip 1 · MTY -> GDL · Pedro López (Transportes Regios)
-  ('5eed0008-0000-4000-8000-000000000001', 'created', null, 'pending_assignment', '-30 hours', null::double precision, null::double precision, null, null, '5eed0001-0000-4000-8000-000000000005', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000001', 'assigned', 'pending_assignment', 'assigned', '-28 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000005', 'carrier'),
+  ('5eed0008-0000-4000-8000-000000000001', 'created', null, 'pending_assignment', '-30 hours', null::double precision, null::double precision, null, null, '5eed0001-0000-4000-8000-000000000005', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000001', 'assigned', 'pending_assignment', 'assigned', '-28 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000005', 'manager'),
   ('5eed0008-0000-4000-8000-000000000001', 'departed', 'assigned', 'en_route_to_pickup', '-21 hours', 25.7480, -100.2650, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
   ('5eed0008-0000-4000-8000-000000000001', 'arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', '-20 hours', 25.7016, -100.3392, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
   ('5eed0008-0000-4000-8000-000000000001', 'loading_started', 'at_pickup', 'loading', '-19 hours', 25.7016, -100.3392, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
@@ -499,10 +499,10 @@ from (values
   ('5eed0008-0000-4000-8000-000000000001', 'unloading_started', 'at_delivery', 'unloading', '-1 hour', 20.6280, -103.3560, '2 hours', 'Andén 4', '5eed0001-0000-4000-8000-000000000008', 'operator'),
   -- Trip 2 · Apodaca -> GDL · Miguel Hernández (Fletes Tapatíos)
   ('5eed0008-0000-4000-8000-000000000002', 'created', null, 'pending_assignment', '-4 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000004', 'shipper'),
-  ('5eed0008-0000-4000-8000-000000000002', 'assigned', 'pending_assignment', 'assigned', '-3 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000006', 'carrier'),
+  ('5eed0008-0000-4000-8000-000000000002', 'assigned', 'pending_assignment', 'assigned', '-3 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000006', 'manager'),
   -- Trip 3 · MTY -> GDL last week · Pedro López
   ('5eed0008-0000-4000-8000-000000000003', 'created', null, 'pending_assignment', '-206 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000002', 'shipper'),
-  ('5eed0008-0000-4000-8000-000000000003', 'assigned', 'pending_assignment', 'assigned', '-200 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000005', 'carrier'),
+  ('5eed0008-0000-4000-8000-000000000003', 'assigned', 'pending_assignment', 'assigned', '-200 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000005', 'manager'),
   ('5eed0008-0000-4000-8000-000000000003', 'departed', 'assigned', 'en_route_to_pickup', '-192 hours', 25.7480, -100.2650, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
   ('5eed0008-0000-4000-8000-000000000003', 'arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', '-191 hours', 25.7016, -100.3392, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
   ('5eed0008-0000-4000-8000-000000000003', 'loading_started', 'at_pickup', 'loading', '-190 hours', 25.7016, -100.3392, null, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
@@ -513,14 +513,14 @@ from (values
   ('5eed0008-0000-4000-8000-000000000003', 'delivery_confirmed', 'delivered', 'closed', '-160 hours', null, null, null, 'Recibido completo.', '5eed0001-0000-4000-8000-000000000002', 'shipper'),
   -- Trip 4 · GDL -> MTY · José Sánchez (hombre-camión, records as carrier)
   ('5eed0008-0000-4000-8000-000000000004', 'created', null, 'pending_assignment', '-158 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
-  ('5eed0008-0000-4000-8000-000000000004', 'assigned', 'pending_assignment', 'assigned', '-150 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'departed', 'assigned', 'en_route_to_pickup', '-144 hours', 20.6700, -103.3500, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', '-143 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'loading_started', 'at_pickup', 'loading', '-142 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'loading_finished', 'loading', 'in_transit', '-141 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'arrived_at_delivery', 'in_transit', 'at_delivery', '-125 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'unloading_started', 'at_delivery', 'unloading', '-124 hours', 25.7240, -100.2010, '-121 hours', null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
-  ('5eed0008-0000-4000-8000-000000000004', 'unloading_finished', 'unloading', 'delivered', '-122 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'carrier'),
+  ('5eed0008-0000-4000-8000-000000000004', 'assigned', 'pending_assignment', 'assigned', '-150 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'departed', 'assigned', 'en_route_to_pickup', '-144 hours', 20.6700, -103.3500, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', '-143 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'loading_started', 'at_pickup', 'loading', '-142 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'loading_finished', 'loading', 'in_transit', '-141 hours', 20.6560, -103.3910, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'arrived_at_delivery', 'in_transit', 'at_delivery', '-125 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'unloading_started', 'at_delivery', 'unloading', '-124 hours', 25.7240, -100.2010, '-121 hours', null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
+  ('5eed0008-0000-4000-8000-000000000004', 'unloading_finished', 'unloading', 'delivered', '-122 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
   ('5eed0008-0000-4000-8000-000000000004', 'delivery_confirmed', 'delivered', 'closed', '-110 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper')
 ) as e(trip_id, event_type, from_status, to_status, occurred_at, lat, lng, estimate, notes, actor_id, actor_role);
 
@@ -563,7 +563,7 @@ from (values
    'Ya estoy en el andén 4, empezamos a descargar.', '-55 minutes'),
   ('5eed0008-0000-4000-8000-000000000001', null, '5eed0001-0000-4000-8000-000000000002', 'shipper',
    'Gracias, Pedro. Avísame cuando terminen.', '-50 minutes'),
-  (null, '5eed0006-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000006', 'carrier',
+  (null, '5eed0006-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000006', 'manager',
    'Podemos recoger pasado mañana temprano con plataforma y cadenas.', '-20 hours'),
   (null, '5eed0006-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000003', 'shipper',
    'Te propongo $45,000 con las maniobras de carga incluidas.', '-3 hours')

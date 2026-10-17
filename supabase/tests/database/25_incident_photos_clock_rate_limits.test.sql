@@ -94,7 +94,7 @@ grant execute on all functions in schema tests to authenticated;
 
 -- Users: ...01 shipper S   ...02 carrier A   ...03 operator O (of A)
 select tests.new_user('af120000-0000-4000-8000-000000000001', 'sara@f12.test', 'shipper');
-select tests.new_user('af120000-0000-4000-8000-000000000002', 'ana@f12.test', 'carrier');
+select tests.new_user('af120000-0000-4000-8000-000000000002', 'ana@f12.test', 'manager');
 select tests.new_user('af120000-0000-4000-8000-000000000003', 'oscar@f12.test', 'operator');
 
 insert into public.companies (id, type, legal_name, rfc, status) values

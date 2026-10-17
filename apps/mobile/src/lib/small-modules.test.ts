@@ -191,14 +191,14 @@ describe('toProfileDetails', () => {
   it('maps the profile row and its company', () => {
     expect(
       toProfileDetails({
-        role: 'carrier',
+        role: 'manager',
         company_id: 'c1',
         full_name: 'Ana',
         phone: '8112345678',
         companies: { legal_name: 'Fletes Ana', status: 'rejected', status_reason: 'Falta RFC' },
       }),
     ).toEqual({
-      role: 'carrier',
+      role: 'manager',
       companyId: 'c1',
       companyStatus: 'rejected',
       fullName: 'Ana',

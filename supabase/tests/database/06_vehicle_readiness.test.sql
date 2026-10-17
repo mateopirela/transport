@@ -54,8 +54,8 @@ as $$
 $$;
 
 -- Users: ...01 carrier A, ...02 carrier B, ...03 shipper S, ...04 admin.
-select tests.new_user('f1000000-0000-4000-8000-000000000001', 'carrier');
-select tests.new_user('f1000000-0000-4000-8000-000000000002', 'carrier');
+select tests.new_user('f1000000-0000-4000-8000-000000000001', 'manager');
+select tests.new_user('f1000000-0000-4000-8000-000000000002', 'manager');
 select tests.new_user('f1000000-0000-4000-8000-000000000003', 'shipper');
 select tests.new_user('f1000000-0000-4000-8000-000000000004', 'shipper');
 

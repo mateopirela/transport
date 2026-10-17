@@ -17,7 +17,7 @@ export interface AuthBackend {
     email: string;
     password: string;
     redirectTo: string;
-    metadata: { role: 'carrier' | 'operator'; full_name: string; phone?: string };
+    metadata: { role: 'manager' | 'operator'; full_name: string; phone?: string };
   }): PromiseLike<Outcome & { hasSession: boolean }>;
   signOut(): PromiseLike<Outcome>;
   exchangeCode(code: string): PromiseLike<Outcome>;
@@ -102,7 +102,7 @@ export function createAuthActions(
           email: input.email,
           password: input.password,
           redirectTo,
-          metadata: { role: 'carrier', full_name: input.fullName, phone: input.phone },
+          metadata: { role: 'manager', full_name: input.fullName, phone: input.phone },
         });
         if (error) return fail(error);
         return ok(hasSession ? 'signed_in' : 'check_email');

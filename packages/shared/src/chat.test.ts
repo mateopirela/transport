@@ -81,9 +81,9 @@ describe('chatSenderLabel', () => {
 
   it('labels the viewer, the other roles and a deleted account', () => {
     expect(chatSenderLabel({ sender_id: ME, sender_role: 'shipper' }, ME)).toBe('Tú');
-    expect(chatSenderLabel({ sender_id: OTHER, sender_role: 'carrier' }, ME)).toBe('Transportista');
+    expect(chatSenderLabel({ sender_id: OTHER, sender_role: 'manager' }, ME)).toBe('Transportista');
     expect(chatSenderLabel({ sender_id: OTHER, sender_role: 'operator' }, ME)).toBe('Operador');
-    expect(chatSenderLabel({ sender_id: null, sender_role: 'carrier' }, ME)).toBe(
+    expect(chatSenderLabel({ sender_id: null, sender_role: 'manager' }, ME)).toBe(
       'Cuenta eliminada',
     );
   });
@@ -103,7 +103,7 @@ describe('mergeMessages', () => {
   const message = (id: string, at: string, sender: string | null = SENDER): ChatMessage => ({
     id,
     sender_id: sender,
-    sender_role: 'carrier',
+    sender_role: 'manager',
     body: `Mensaje ${id}`,
     attachments: [],
     created_at: at,

@@ -101,8 +101,8 @@ create table tests.preexisting_notifications as select id from public.notificati
 select tests.new_user('a7000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
 select tests.new_user('a7000000-0000-4000-8000-000000000002', 'sofia@s.test', 'shipper');
 select tests.new_user('a7000000-0000-4000-8000-000000000003', 'tomas@t.test', 'shipper');
-select tests.new_user('a7000000-0000-4000-8000-000000000004', 'ana@a.test', 'carrier');
-select tests.new_user('a7000000-0000-4000-8000-000000000005', 'beto@b.test', 'carrier');
+select tests.new_user('a7000000-0000-4000-8000-000000000004', 'ana@a.test', 'manager');
+select tests.new_user('a7000000-0000-4000-8000-000000000005', 'beto@b.test', 'manager');
 select tests.new_user('a7000000-0000-4000-8000-000000000006', 'oscar@a.test', 'operator');
 select tests.new_user('a7000000-0000-4000-8000-000000000007', 'pedro@a.test', 'operator');
 select tests.new_user('a7000000-0000-4000-8000-000000000008', 'admin@x.test', 'shipper');
@@ -240,7 +240,7 @@ select 'msg1', public.send_message(tests.val('convA'), '  ¿Pueden cargar a las 
                                    'f7000000-0000-4000-8000-000000000001');
 select results_eq(
   $$ select sender_id, sender_role::text, body, attachments from public.messages where id = tests.val('msg1') $$,
-  $$ values ('a7000000-0000-4000-8000-000000000004'::uuid, 'carrier', '¿Pueden cargar a las 8?', '[]'::jsonb) $$,
+  $$ values ('a7000000-0000-4000-8000-000000000004'::uuid, 'manager', '¿Pueden cargar a las 8?', '[]'::jsonb) $$,
   'a participant sends a message (trimmed, with sender and role)'
 );
 select is(
@@ -273,7 +273,7 @@ select throws_ok($$ select public.send_message(tests.val('convA'), repeat('a', 4
   'a message has at most 4000 characters');
 select throws_ok(
   $$ insert into public.messages (conversation_id, sender_id, sender_role, body)
-     values (tests.val('convA'), 'a7000000-0000-4000-8000-000000000004', 'carrier', 'directo') $$,
+     values (tests.val('convA'), 'a7000000-0000-4000-8000-000000000004', 'manager', 'directo') $$,
   '42501', null, 'clients cannot insert messages directly'
 );
 

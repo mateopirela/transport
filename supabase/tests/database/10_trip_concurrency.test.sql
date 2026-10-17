@@ -124,7 +124,7 @@ select extensions.dblink_exec('setup', $sql$
     ('a5400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@ts.test', now(),
      '{"role":"shipper"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@ta.test', now(),
-     '{"role":"carrier"}', now(), now()),
+     '{"role":"manager"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'oscar@ta.test', now(),
      '{"role":"operator"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'pedro@ta.test', now(),

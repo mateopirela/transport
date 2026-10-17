@@ -86,8 +86,8 @@ grant execute on all functions in schema tests to authenticated;
 --        ...03 carrier A1 and ...04 carrier A2 (company A)
 select tests.new_user('af600000-0000-4000-8000-000000000001', 'sara@f6.test', 'shipper');
 select tests.new_user('af600000-0000-4000-8000-000000000002', 'sofia@f6.test', 'shipper');
-select tests.new_user('af600000-0000-4000-8000-000000000003', 'ana@f6.test', 'carrier');
-select tests.new_user('af600000-0000-4000-8000-000000000004', 'alma@f6.test', 'carrier');
+select tests.new_user('af600000-0000-4000-8000-000000000003', 'ana@f6.test', 'manager');
+select tests.new_user('af600000-0000-4000-8000-000000000004', 'alma@f6.test', 'manager');
 
 insert into public.companies (id, type, legal_name, rfc, status) values
   ('cf600000-0000-4000-8000-000000000001', 'shipper', 'Envíos Sigma SA de CV', 'ESI030303EF3', 'approved'),

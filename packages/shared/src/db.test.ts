@@ -8,7 +8,13 @@ import type { Database, Enums, Tables } from './index';
 describe('generated database types (B01)', () => {
   it('exposes the identity enums', () => {
     expect(Constants.public.Enums.company_type).toEqual(['shipper', 'carrier']);
-    expect(Constants.public.Enums.user_role).toEqual(['shipper', 'carrier', 'operator', 'admin']);
+    expect(Constants.public.Enums.user_role).toEqual([
+      'shipper',
+      'manager',
+      'coordinator',
+      'operator',
+      'admin',
+    ]);
     expect(Constants.public.Enums.verification_status).toEqual([
       'pending_review',
       'approved',

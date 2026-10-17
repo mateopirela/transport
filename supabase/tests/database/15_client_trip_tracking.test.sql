@@ -69,8 +69,8 @@ grant execute on function tests.doc_path(text, text) to authenticated;
 --        ...05 operator O of A   ...07 admin
 select tests.new_user('a1500000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
 select tests.new_user('a1500000-0000-4000-8000-000000000002', 'tomas@t.test', 'shipper');
-select tests.new_user('a1500000-0000-4000-8000-000000000003', 'ana@a.test', 'carrier');
-select tests.new_user('a1500000-0000-4000-8000-000000000004', 'beto@b.test', 'carrier');
+select tests.new_user('a1500000-0000-4000-8000-000000000003', 'ana@a.test', 'manager');
+select tests.new_user('a1500000-0000-4000-8000-000000000004', 'beto@b.test', 'manager');
 select tests.new_user('a1500000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
 select tests.new_user('a1500000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');
 
@@ -294,7 +294,7 @@ select throws_ok(
 );
 
 -- Deleting the uploader's account only clears uploaded_by (on delete set null).
-select tests.new_user('a1500000-0000-4000-8000-000000000008', 'eva@a.test', 'carrier');
+select tests.new_user('a1500000-0000-4000-8000-000000000008', 'eva@a.test', 'manager');
 update public.profiles set company_id = 'c1500000-0000-4000-8000-000000000003'
 where id = 'a1500000-0000-4000-8000-000000000008';
 set local role authenticated;

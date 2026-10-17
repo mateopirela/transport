@@ -75,7 +75,7 @@ grant execute on all functions in schema tests to authenticated;
 
 -- Users: ...01 shipper S   ...02 carrier A   ...03 operator O (of A)   ...04 shipper T (another company)
 select tests.new_user('af800000-0000-4000-8000-000000000001', 'sara@f8.test', 'shipper');
-select tests.new_user('af800000-0000-4000-8000-000000000002', 'ana@f8.test', 'carrier');
+select tests.new_user('af800000-0000-4000-8000-000000000002', 'ana@f8.test', 'manager');
 select tests.new_user('af800000-0000-4000-8000-000000000003', 'oscar@f8.test', 'operator');
 select tests.new_user('af800000-0000-4000-8000-000000000004', 'tere@f8.test', 'shipper');
 

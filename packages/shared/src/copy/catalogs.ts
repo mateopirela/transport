@@ -27,7 +27,8 @@ export const companyTypeLabels: Record<CompanyType, string> = {
 
 export const userRoleLabels: Record<UserRole, string> = {
   shipper: 'Cliente',
-  carrier: 'Transportista',
+  manager: 'Gerente',
+  coordinator: 'Coordinador',
   operator: 'Operador',
   admin: 'Administrador',
 };

@@ -7,6 +7,8 @@ import {
   checkAssignment,
   defaultAssignment,
   groupCarrierTrips,
+  licenseAllowsLoad,
+  licenseAllowsVehicle,
   loadedLegProgress,
   locationFreshness,
   mapPointUrl,
@@ -59,6 +61,7 @@ const SALTILLO = { lat: 25.4232, lng: -101.0053 };
 
 const unit = (over: Partial<AssignableUnit> = {}): AssignableUnit => ({
   id: 'u1',
+  kind: 'trailer',
   unitType: 'dry_van',
   expiredDocuments: false,
   currentOperatorId: null,
@@ -69,8 +72,29 @@ const unit = (over: Partial<AssignableUnit> = {}): AssignableUnit => ({
 const operator = (over: Partial<AssignableOperator> = {}): AssignableOperator => ({
   id: 'o1',
   hasAccount: true,
+  licenseType: 'E',
+  licenseCurrent: true,
   otherTrips: 0,
   ...over,
+});
+
+describe('license <-> unit kind (D16)', () => {
+  it('mirrors license_unit_compatibility: B and E drive everything, C only rigid units', () => {
+    expect(licenseAllowsVehicle('B', 'tractor')).toBe(true);
+    expect(licenseAllowsVehicle('B', 'trailer')).toBe(true);
+    expect(licenseAllowsVehicle('C', 'rigid')).toBe(true);
+    expect(licenseAllowsVehicle('C', 'tractor')).toBe(false);
+    expect(licenseAllowsVehicle('C', 'trailer')).toBe(false);
+    expect(licenseAllowsVehicle('E', 'tractor')).toBe(true);
+    expect(licenseAllowsVehicle(null, 'rigid')).toBe(false);
+  });
+
+  it('needs type E for a load with a hazmat permit', () => {
+    expect(licenseAllowsLoad('C', ['hazmat_permit'])).toBe(false);
+    expect(licenseAllowsLoad('B', ['tarp'])).toBe(true);
+    expect(licenseAllowsLoad('E', ['hazmat_permit', 'tarp'])).toBe(true);
+    expect(licenseAllowsLoad(null, [])).toBe(false);
+  });
 });
 
 describe('carrierTripGroup', () => {
@@ -133,6 +157,31 @@ describe('checkAssignment', () => {
         loadUnitType: 'dry_van',
       }),
     ).toEqual({ blockers: ['operatorWithoutAccount', 'unitExpired'], warnings: [] });
+  });
+
+  it('blocks an operator whose license is expired or does not fit the unit or the cargo (D16)', () => {
+    expect(
+      checkAssignment({
+        unit: unit({ kind: 'tractor' }),
+        operator: operator({ licenseType: 'C', licenseCurrent: false }),
+        loadUnitType: 'dry_van',
+      }).blockers,
+    ).toEqual(['operatorLicenseExpired', 'operatorLicenseMismatch']);
+    expect(
+      checkAssignment({
+        unit: unit({ kind: 'rigid' }),
+        operator: operator({ licenseType: 'C' }),
+        loadUnitType: 'dry_van',
+        loadRequirements: ['hazmat_permit'],
+      }).blockers,
+    ).toEqual(['operatorLicenseMismatch']);
+    expect(
+      checkAssignment({
+        unit: unit({ kind: 'rigid' }),
+        operator: operator({ licenseType: 'C' }),
+        loadUnitType: 'dry_van',
+      }).blockers,
+    ).toEqual([]);
   });
 
   it('warns about a different unit type and units or operators on other trips', () => {

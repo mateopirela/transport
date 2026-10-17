@@ -94,6 +94,9 @@ insert into public.operators (id, company_id, profile_id, full_name) values
    'a7000000-0000-4000-8000-000000000005', 'Óscar Operador'),
   ('d7000000-0000-4000-8000-000000000006', 'c7000000-0000-4000-8000-000000000003',
    'a7000000-0000-4000-8000-000000000006', 'Pedro Operador');
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
   ('e7000000-0000-4000-8000-000000000003', 'c7000000-0000-4000-8000-000000000003', 'rigid', 'AAA2222', 'dry_van', 30000);
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
-import { EVIDENCE_STAGES, INCIDENT_KINDS } from '../enums';
+import { EVIDENCE_STAGES, INCIDENT_KINDS, TRIP_DOCUMENT_KINDS } from '../enums';
 import { mexicoCityDateTime } from '../fleet';
 import { MAX_LOCATION_BATCH } from '../trips';
 import {
@@ -71,6 +71,18 @@ export const incidentFormSchema = z.object(
   formError,
 );
 export type IncidentFormValues = z.output<typeof incidentFormSchema>;
+
+/** Registers a file uploaded to `trip-documents` (input of `add_trip_document`, D22). */
+export const tripDocumentSchema = z.object(
+  {
+    tripId: uuidField,
+    kind: enumField(TRIP_DOCUMENT_KINDS),
+    storagePath: z.string({ error: m.required }).min(1, { error: m.required }).max(300),
+    fileName: requiredText(255),
+  },
+  formError,
+);
+export type TripDocumentValues = z.output<typeof tripDocumentSchema>;
 
 /** Who received the cargo, asked when the operator finishes unloading (B23). */
 export const receiverFormSchema = z.object({ receivedBy: requiredText(200) }, formError);

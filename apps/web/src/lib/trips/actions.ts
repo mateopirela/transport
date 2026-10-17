@@ -4,6 +4,7 @@ import {
   authErrors,
   clientTripsCopy,
   incidentFormSchema,
+  tripDocumentSchema,
   uuidField,
   validationMessages,
 } from '@transport/shared';
@@ -89,4 +90,27 @@ export async function reportIncident(_prev: FormState, formData: FormData): Prom
     };
   }
   return done(clientTripsCopy.incidents.sent);
+}
+
+/**
+ * Registers a file the shipper already uploaded to the `trip-documents`
+ * bucket (D22: the service order, or another document). add_trip_document
+ * checks the trip, the side that may upload the kind, the path and that the
+ * caller uploaded the file.
+ */
+export async function registerTripDocument(input: unknown): Promise<{ error?: string }> {
+  const parsed = tripDocumentSchema.safeParse(input);
+  if (!parsed.success) return { error: clientTripsCopy.errors.generic };
+  const supabase = await createClient();
+  if (!supabase) return { error: authErrors.notConfigured };
+  const v = parsed.data;
+  const { error } = await supabase.rpc('add_trip_document', {
+    p_trip_id: v.tripId,
+    p_kind: v.kind,
+    p_storage_path: v.storagePath,
+    p_file_name: v.fileName,
+  });
+  if (error) return { error: tripErrorMessage(error) };
+  revalidatePath(paths.shipper, 'layout');
+  return {};
 }

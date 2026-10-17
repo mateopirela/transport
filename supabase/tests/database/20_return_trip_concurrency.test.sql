@@ -176,6 +176,9 @@ select extensions.dblink_exec('setup', $sql$
 
   insert into public.operators (id, company_id, profile_id, full_name) values
     ('d2f00000-0000-4000-8000-000000000003', 'c2f00000-0000-4000-8000-000000000002', 'a2f00000-0000-4000-8000-000000000003', 'Óscar Operador');
+  -- D16 (G3): assign_trip needs a current license of a suitable type.
+  update public.operators set license_type = 'E', license_expires_on = current_date + 365
+  where license_type is null;
   insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
     ('e2f00000-0000-4000-8000-000000000001', 'c2f00000-0000-4000-8000-000000000002', 'rigid', 'RCA1111', 'dry_van', 30000),
     ('e2f00000-0000-4000-8000-000000000002', 'c2f00000-0000-4000-8000-000000000002', 'rigid', 'RCA2222', 'dry_van', 30000);

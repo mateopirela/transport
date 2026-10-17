@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(36);
+select plan(37);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -94,6 +94,9 @@ update public.profiles set role = 'admin' where id = 'a1500000-0000-4000-8000-00
 insert into public.operators (id, company_id, profile_id, full_name) values
   ('d1500000-0000-4000-8000-000000000005', 'c1500000-0000-4000-8000-000000000003',
    'a1500000-0000-4000-8000-000000000005', 'Óscar Operador');
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
   ('e1500000-0000-4000-8000-000000000003', 'c1500000-0000-4000-8000-000000000003', 'rigid', 'AAA1111', 'dry_van', 30000);
 
@@ -139,11 +142,19 @@ select throws_ok(
   '42501', null, 'document paths are {trip}/{uuid}.{pdf or image extension}'
 );
 select tests.login('a1500000-0000-4000-8000-000000000001');
-select throws_ok(
+-- G3 (D22): the shipper uploads into its trip (the service order), but never
+-- registers a Carta Porte: that kind belongs to the carrier side.
+select lives_ok(
   $$ insert into storage.objects (bucket_id, name, owner_id)
      values ('trip-documents', tests.doc_path('trip1', 'b1500000-0000-4000-8000-000000000003.pdf'),
              'a1500000-0000-4000-8000-000000000001') $$,
-  '42501', null, 'the shipper cannot upload trip documents'
+  'the shipper can upload into its own trip folder (D22)'
+);
+select throws_ok(
+  $$ select public.add_trip_document(tests.val('trip1'), 'carta_porte',
+       tests.doc_path('trip1', 'b1500000-0000-4000-8000-000000000003.pdf'), 'carta.pdf') $$,
+  '42501', 'the shipper side does not upload carta_porte documents',
+  'the shipper cannot register a Carta Porte'
 );
 select tests.login('a1500000-0000-4000-8000-000000000005');
 select throws_ok(
@@ -227,8 +238,8 @@ select throws_ok(
 select tests.login('a1500000-0000-4000-8000-000000000001');
 select is((select count(*) from public.trip_documents), 1::bigint, 'the shipper sees its trip documents');
 select is(
-  (select count(*) from storage.objects where bucket_id = 'trip-documents'), 1::bigint,
-  'the shipper can read the document file'
+  (select count(*) from storage.objects where bucket_id = 'trip-documents'), 2::bigint,
+  'the shipper can read the document file (and the one it uploaded)'
 );
 select tests.login('a1500000-0000-4000-8000-000000000005');
 select is((select count(*) from public.trip_documents), 1::bigint, 'the assigned operator sees the documents');

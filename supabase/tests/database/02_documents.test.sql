@@ -102,6 +102,10 @@ update public.profiles set company_id = 'c0000000-0000-4000-8000-00000000000c'
 where id = 'a0000000-0000-4000-8000-000000000006';
 update public.profiles set role = 'admin' where id = 'a0000000-0000-4000-8000-000000000005';
 
+-- D16 archived the carrier-only company requirements; this suite still needs
+-- one to check that carrier-only requirements do not apply to shippers.
+update public.document_requirements set archived_at = null where code = 'sct_permit';
+
 -- ---------------------------------------------------------------------------
 -- Schema, catalog and bucket
 -- ---------------------------------------------------------------------------
@@ -121,8 +125,8 @@ select results_eq(
 );
 select is(
   (select count(*)::int from public.document_requirements),
-  9,
-  'provisional requirement list is seeded (D16)'
+  11,
+  'the requirement catalog is seeded: the provisional list of B03 plus the D16 rows (archived ones kept)'
 );
 
 -- ---------------------------------------------------------------------------
@@ -133,7 +137,7 @@ set local role authenticated;
 
 select is(
   (select count(*)::int from public.document_requirements),
-  9,
+  11,
   'members read the requirement catalog'
 );
 select throws_ok(
@@ -196,21 +200,21 @@ select results_eq(
 );
 select throws_ok(
   $$ select public.submit_document(
-       tests.requirement('proof_of_address'), 'company', 'c0000000-0000-4000-8000-00000000000a',
+       tests.requirement('tax_status_certificate'), 'company', 'c0000000-0000-4000-8000-00000000000a',
        tests.path('c0000000-0000-4000-8000-00000000000a', 'f0000000-0000-4000-8000-0000000000ff')) $$,
   '22023', 'file was not uploaded',
   'a document needs an uploaded file'
 );
 select throws_ok(
   $$ select public.submit_document(
-       tests.requirement('proof_of_address'), 'company', 'c0000000-0000-4000-8000-00000000000a',
+       tests.requirement('tax_status_certificate'), 'company', 'c0000000-0000-4000-8000-00000000000a',
        tests.path('c0000000-0000-4000-8000-00000000000a', 'f0000000-0000-4000-8000-000000000001')) $$,
   '23505', null,
   'a file cannot back two documents'
 );
 select throws_ok(
   $$ select public.submit_document(
-       tests.requirement('proof_of_address'), 'company', 'c0000000-0000-4000-8000-00000000000b',
+       tests.requirement('tax_status_certificate'), 'company', 'c0000000-0000-4000-8000-00000000000b',
        tests.path('c0000000-0000-4000-8000-00000000000b', 'f0000000-0000-4000-8000-000000000004')) $$,
   '42501', null,
   'shipper cannot submit documents for another company'
@@ -273,11 +277,11 @@ select is(
 );
 
 -- Superseding: a new submission archives the pending one for the same requirement.
-select tests.submit('proof_of_address', 'f0000000-0000-4000-8000-000000000010');
-select tests.submit('proof_of_address', 'f0000000-0000-4000-8000-000000000011');
+select tests.submit('legal_representative_id', 'f0000000-0000-4000-8000-000000000010', now() + interval '2 years');
+select tests.submit('legal_representative_id', 'f0000000-0000-4000-8000-000000000011', now() + interval '2 years');
 select results_eq(
   $$ select count(*)::int, count(*) filter (where archived_at is null)::int
-     from public.documents where requirement_id = tests.requirement('proof_of_address') $$,
+     from public.documents where requirement_id = tests.requirement('legal_representative_id') $$,
   $$ values (2, 1) $$,
   'a new submission supersedes the pending one'
 );
@@ -371,14 +375,14 @@ select throws_ok(
 select throws_ok(
   $$ select public.review_document(
        (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and archived_at is null
-          and requirement_id = tests.requirement('proof_of_address')), 'maybe') $$,
+          and requirement_id = tests.requirement('legal_representative_id')), 'maybe') $$,
   '22023', null,
   'the decision must be approve or reject'
 );
 select is(
   public.review_document(
     (select id from public.documents where company_id = 'c0000000-0000-4000-8000-00000000000a' and archived_at is null
-       and requirement_id = tests.requirement('proof_of_address')),
+       and requirement_id = tests.requirement('legal_representative_id')),
     'approve'
   ),
   'approved'::public.verification_status,
@@ -424,8 +428,8 @@ select is(
 select throws_ok(
   $$ select public.review_company('c0000000-0000-4000-8000-00000000000a', 'approve') $$,
   '55000',
-  'company is missing required documents: tax_status_certificate, articles_of_incorporation, legal_representative_id',
-  'a company without its required documents cannot be approved'
+  'company is missing required documents: tax_status_certificate',
+  'a company without its required documents cannot be approved (the rejected constancia; the id is optional for shippers, D16)'
 );
 select throws_ok(
   $$ select public.review_company('c0000000-0000-4000-8000-00000000000a', 'reject') $$,
@@ -446,8 +450,6 @@ select results_eq(
 -- Shipper A completes its documents: the rejected company returns to review.
 select tests.login('a0000000-0000-4000-8000-000000000001');
 select tests.submit('tax_status_certificate', 'f0000000-0000-4000-8000-000000000030');
-select tests.submit('articles_of_incorporation', 'f0000000-0000-4000-8000-000000000031');
-select tests.submit('legal_representative_id', 'f0000000-0000-4000-8000-000000000032', now() + interval '2 years');
 select is(
   (select status::text from public.companies where id = 'c0000000-0000-4000-8000-00000000000a'),
   'pending_review',
@@ -492,24 +494,24 @@ select throws_ok(
   '55000', null,
   'an approved company cannot be rejected (suspend it instead)'
 );
-update public.document_requirements set requires_expiry = true where code = 'proof_of_address';
+update public.document_requirements set requires_expiry = true where code = 'tax_status_certificate';
 select results_eq(
   $$ select code from public.company_missing_requirements('c0000000-0000-4000-8000-00000000000a') $$,
-  $$ values ('proof_of_address') $$,
+  $$ values ('tax_status_certificate') $$,
   'documents approved without expiry stop counting when the requirement starts requiring one'
 );
 
--- Persona física (company C) does not need the acta constitutiva.
+-- Persona física (company C): the same list as a persona moral since D16 (the acta is archived).
 select tests.login('a0000000-0000-4000-8000-000000000006');
 select results_eq(
   $$ select code from public.company_missing_requirements('c0000000-0000-4000-8000-00000000000c') $$,
-  $$ values ('tax_status_certificate'), ('legal_representative_id'), ('proof_of_address') $$,
-  'a persona física does not need the acta constitutiva'
+  $$ values ('tax_status_certificate') $$,
+  'a persona física needs the constancia; the id of the legal representative is optional for shippers'
 );
 select throws_ok(
   $$ select tests.submit('articles_of_incorporation', 'f0000000-0000-4000-8000-000000000040') $$,
-  '22023', null,
-  'requirements for personas morales do not apply to personas físicas'
+  '22023', 'unknown document requirement',
+  'the archived acta constitutiva no longer accepts documents'
 );
 select is(
   (select count(*)::int from public.company_missing_requirements('c0000000-0000-4000-8000-00000000000a')),

@@ -78,6 +78,12 @@ export const operatorTripCopy = {
   timeline: 'Línea de tiempo',
   timelineEmpty: 'Aún no hay eventos.',
   pendingTag: 'Por enviar',
+  // Trip documents (D22): the operator reads the service order and the Carta Porte on the road.
+  documents: 'Documentos del viaje',
+  documentsHelp:
+    'La orden de servicio y la Carta Porte de este viaje, por si te las piden en el camino.',
+  documentsEmpty: 'Tu coordinador aún no sube documentos de este viaje.',
+  documentOpenFailed: 'No pudimos abrir el documento. Revisa tu conexión e inténtalo de nuevo.',
   // Incidents.
   incidents: 'Incidencias',
   reportIncident: 'Reportar incidencia',

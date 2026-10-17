@@ -1,9 +1,12 @@
 import {
   isTripActive,
+  toMexicoCityDate,
   tripDocumentStoragePath,
+  uploadableTripDocumentKinds,
   type AssignableOperator,
   type AssignableUnit,
   type Tables,
+  type TripChecklistRow,
   type TripDocumentKind,
   type TripStatus,
 } from '@transport/shared';
@@ -11,7 +14,7 @@ import { randomUUID } from 'expo-crypto';
 import { File as LocalFile } from 'expo-file-system';
 
 import type { PickedFile } from './document-upload';
-import { listOperators, listVehicles, loadCompanyContext } from './fleet-api';
+import { listOperators, listVehicles, loadCompanyContext, type CompanyContext } from './fleet-api';
 import { unitLabel } from './loads-api';
 import type { Supabase } from './supabase';
 
@@ -46,7 +49,7 @@ type TripRow = Pick<
 >;
 
 const LOAD_COLUMNS =
-  'id, origin_city, origin_state, origin_address, origin_lat, origin_lng, destination_city, destination_state, destination_address, destination_lat, destination_lng, pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end, cargo_type, description, weight_kg, unit_type, agreed_price_cents';
+  'id, origin_city, origin_state, origin_address, origin_lat, origin_lng, destination_city, destination_state, destination_address, destination_lat, destination_lng, pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end, cargo_type, description, weight_kg, unit_type, special_requirements, agreed_price_cents';
 
 export type CarrierTripLoad = Pick<
   Tables<'loads'>,
@@ -69,6 +72,7 @@ export type CarrierTripLoad = Pick<
   | 'description'
   | 'weight_kg'
   | 'unit_type'
+  | 'special_requirements'
   | 'agreed_price_cents'
 >;
 
@@ -297,12 +301,38 @@ export interface CarrierTripDetail {
   conversationId: string | null;
   assignment: AssignmentOptions;
   documents: TripDocument[];
+  /** What the trip still needs (trip_checklist, D22). */
+  checklist: TripChecklistRow[];
+  /** Kinds the carrier side may upload, in catalog order. */
+  uploadableKinds: TripDocumentKind[];
 }
 
 export type TripDocument = Pick<
   Tables<'trip_documents'>,
   'id' | 'kind' | 'storage_path' | 'file_name' | 'created_at'
 >;
+
+/** Whether the operator's license is current: an approved unexpired license document, or its date on the operator (mirrors operator_license_current). */
+function licenseCurrent(
+  operator: { id: string; license_expires_on: string | null },
+  context: CompanyContext,
+  now: Date,
+): boolean {
+  const today = toMexicoCityDate(now.toISOString());
+  if (operator.license_expires_on && operator.license_expires_on >= today) return true;
+  const license = context.requirements.find((r) => r.code === 'federal_driver_license');
+  return context.documents.some(
+    (d) =>
+      license !== undefined &&
+      d.requirement_id === license.id &&
+      d.owner_type === 'operator' &&
+      d.owner_id === operator.id &&
+      d.status === 'approved' &&
+      d.archived_at === null &&
+      d.expires_at !== null &&
+      Date.parse(d.expires_at) > now.getTime(),
+  );
+}
 
 /**
  * Units and operators the carrier can assign, with what else they are busy
@@ -337,12 +367,14 @@ async function assignmentOptions(
   const inScope = (row: { business_unit_id: string }) =>
     isManager || row.business_unit_id === trip.business_unit_id;
   const usualOperator = new Map(check(usual).map((v) => [v.id, v.current_operator_id]));
+  const now = new Date();
   return {
     units: vehicles
       .filter((v) => v.unit_type !== null && inScope(v))
       .map((v) => ({
         id: v.id,
         name: unitLabel(v),
+        kind: v.kind,
         unitType: v.unit_type,
         expiredDocuments: v.readiness === 'expired_documents',
         currentOperatorId: usualOperator.get(v.id) ?? null,
@@ -352,6 +384,8 @@ async function assignmentOptions(
       id: o.id,
       name: o.full_name,
       hasAccount: o.profile_id !== null,
+      licenseType: o.license_type,
+      licenseCurrent: licenseCurrent(o, context, now),
       otherTrips: others.filter((t) => t.operator_id === o.id).length,
     })),
     offeredUnitId: offer.data?.vehicle_id ?? null,
@@ -375,36 +409,49 @@ export async function loadCarrierTrip(
   const trip = found.data;
   if (!trip) return null;
 
-  const [load, names, events, incidents, evidence, trail, conversation, assignment, documents] =
-    await Promise.all([
-      client.from('loads').select(LOAD_COLUMNS).eq('id', trip.load_id).single(),
-      namesOf(client, companyId),
-      client
-        .from('trip_events')
-        .select('id, event_type, occurred_at, estimated_unload_end_at, received_by_name')
-        .eq('trip_id', trip.id)
-        .order('occurred_at')
-        .order('recorded_at'),
-      client
-        .from('incidents')
-        .select('id, kind, description, status, occurred_at')
-        .eq('trip_id', trip.id)
-        .order('occurred_at', { ascending: false }),
-      client.from('trip_evidence').select('stage').eq('trip_id', trip.id),
-      client
-        .from('trip_locations')
-        .select('latitude, longitude, recorded_at')
-        .eq('trip_id', trip.id)
-        .order('recorded_at', { ascending: false })
-        .limit(300),
-      client.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
-      assignmentOptions(client, companyId, trip, isManager),
-      client
-        .from('trip_documents')
-        .select('id, kind, storage_path, file_name, created_at')
-        .eq('trip_id', trip.id)
-        .order('created_at'),
-    ]);
+  const [
+    load,
+    names,
+    events,
+    incidents,
+    evidence,
+    trail,
+    conversation,
+    assignment,
+    documents,
+    checklist,
+    requirements,
+  ] = await Promise.all([
+    client.from('loads').select(LOAD_COLUMNS).eq('id', trip.load_id).single(),
+    namesOf(client, companyId),
+    client
+      .from('trip_events')
+      .select('id, event_type, occurred_at, estimated_unload_end_at, received_by_name')
+      .eq('trip_id', trip.id)
+      .order('occurred_at')
+      .order('recorded_at'),
+    client
+      .from('incidents')
+      .select('id, kind, description, status, occurred_at')
+      .eq('trip_id', trip.id)
+      .order('occurred_at', { ascending: false }),
+    client.from('trip_evidence').select('stage').eq('trip_id', trip.id),
+    client
+      .from('trip_locations')
+      .select('latitude, longitude, recorded_at')
+      .eq('trip_id', trip.id)
+      .order('recorded_at', { ascending: false })
+      .limit(300),
+    client.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
+    assignmentOptions(client, companyId, trip, isManager),
+    client
+      .from('trip_documents')
+      .select('id, kind, storage_path, file_name, created_at')
+      .eq('trip_id', trip.id)
+      .order('created_at'),
+    client.rpc('trip_checklist', { p_trip_id: trip.id }),
+    client.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
+  ]);
   if (conversation.error) throw conversation.error;
   const points = check(trail);
   const latest = points[0];
@@ -429,6 +476,8 @@ export async function loadCarrierTrip(
     conversationId: conversation.data?.id ?? null,
     assignment,
     documents: check(documents),
+    checklist: check(checklist),
+    uploadableKinds: uploadableTripDocumentKinds(check(requirements), 'carrier'),
   };
 }
 

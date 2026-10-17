@@ -85,6 +85,10 @@ export const carrierTripsCopy = {
     noOperators: 'No tienes operadores. Invita uno en "Más" → "Operadores".',
     unitExpiredTag: 'Documentos vencidos',
     noAccountTag: 'Sin cuenta',
+    /** License type of the operator and whether it is current (D16). */
+    licenseTag: (type: string, current: boolean) =>
+      current ? `Licencia ${type}` : `Licencia ${type} vencida`,
+    noLicenseTag: 'Sin licencia registrada',
     submit: 'Asignar operador',
     resubmit: 'Guardar cambios',
     confirmTitle: 'Confirmar asignación',
@@ -97,6 +101,10 @@ export const carrierTripsCopy = {
       missingSelection: 'Elige una unidad y un operador.',
       operatorWithoutAccount:
         'Este operador aún no acepta su invitación: no podría registrar el viaje. Invítalo o elige otro.',
+      operatorLicenseExpired:
+        'La licencia de este operador no está vigente. Actualiza su licencia o elige otro operador.',
+      operatorLicenseMismatch:
+        'La licencia de este operador no es adecuada para esta unidad o esta carga. Elige otra unidad u otro operador.',
       unitExpired: 'Esta unidad tiene documentos vencidos. Actualízalos o elige otra unidad.',
     } satisfies Record<AssignmentBlocker, string>,
     warnings: {
@@ -107,8 +115,9 @@ export const carrierTripsCopy = {
   },
   documents: {
     title: 'Documentos del viaje',
-    help: 'Sube la Carta Porte y otros documentos del viaje. El cliente los verá en el detalle del viaje. Solo se guardan; no se emiten ni se validan.',
+    help: 'Sube la orden de servicio (si no la subió el cliente), el CFDI con complemento Carta Porte y, al terminar, la factura. El cliente los ve en el detalle del viaje. Solo se guardan; no se emiten ni se validan.',
     empty: 'Aún no hay documentos.',
+    files: 'Archivos',
     kind: 'Tipo de documento',
     uploadCamera: 'Tomar foto',
     uploadLibrary: 'Elegir foto',
@@ -134,7 +143,16 @@ export const carrierTripsCopy = {
     operatorUnavailable: 'Este operador ya no está disponible o no tiene cuenta. Elige otro.',
     unitUnavailable: 'Esta unidad ya no está disponible. Elige otra.',
     unitExpired: 'Esta unidad tiene documentos vencidos. Actualízalos o elige otra unidad.',
+    /** assign_trip (D16): the operator's license is missing or past its date. */
+    operatorLicenseExpired: (operator: string) =>
+      `La licencia de ${operator} no está vigente. Actualízala o elige otro operador.`,
+    /** assign_trip (D16): the license type does not fit the unit kind or the cargo. */
+    operatorLicenseMismatch: (operator: string) =>
+      `La licencia de ${operator} no es adecuada para esta unidad.`,
+    operatorLicenseHazmat: (operator: string) =>
+      `La licencia de ${operator} no permite mercancía peligrosa: se necesita tipo E.`,
     tripCancelled: 'El viaje está cancelado.',
+    documentSideNotAllowed: 'Este tipo de documento lo sube la otra parte del viaje.',
     invalidFile: 'El archivo no es válido. Sube un PDF o una foto de hasta 15 MB.',
     generic: 'No pudimos guardar el cambio. Inténtalo de nuevo.',
   },

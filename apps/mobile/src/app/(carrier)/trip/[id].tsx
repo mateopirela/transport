@@ -116,6 +116,7 @@ export default function CarrierTripDetail() {
                   tripId={trip.id}
                   status={trip.status}
                   loadUnitType={l.unit_type}
+                  loadRequirements={l.special_requirements}
                   current={{ vehicleId: trip.vehicleId, operatorId: trip.operatorId }}
                   options={detail.assignment}
                   onAssigned={reload}
@@ -130,6 +131,8 @@ export default function CarrierTripDetail() {
                 tripId={trip.id}
                 status={trip.status}
                 documents={detail.documents}
+                checklist={detail.checklist}
+                uploadableKinds={detail.uploadableKinds}
                 onChanged={reload}
               />
 

@@ -161,6 +161,9 @@ where p.id = c.uid;
 insert into public.operators (id, company_id, profile_id, full_name) values
   ('d9000000-0000-4000-8000-000000000005', 'c9000000-0000-4000-8000-000000000002',
    'a9000000-0000-4000-8000-000000000005', 'Óscar Operador');
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 
 insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg, capacity_m3) values
   ('e9000000-0000-4000-8000-0000000000a1', 'c9000000-0000-4000-8000-000000000002', 'trailer', 'AAA1111', 'dry_van', 30000, 100);
@@ -503,7 +506,7 @@ select results_eq(
   $$ select data ->> 'requirementName', data ->> 'ownerLabel', (data ->> 'daysLeft')::int between 2 and 4
      from public.notifications
      where type = 'document_expiring' and user_id = 'a9000000-0000-4000-8000-000000000005' $$,
-  $$ values ('Licencia federal de conductor'::text, 'Óscar Operador'::text, true) $$,
+  $$ values ('Licencia de conducir vigente'::text, 'Óscar Operador'::text, true) $$,
   'the operator is warned about their own license, with its name and the days left'
 );
 select is(

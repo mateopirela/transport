@@ -18,6 +18,7 @@ export * from './notification-email';
 export * from './notifications';
 export * from './permissions';
 export * from './tracking';
+export * from './trip-documents';
 export * from './trips';
 export * from './validation';
 export * from './verification';

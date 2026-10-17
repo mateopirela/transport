@@ -2,10 +2,10 @@ import {
   canAddTripDocuments,
   carrierTripsCopy,
   formatDateTime,
-  TRIP_DOCUMENT_KINDS,
   tripDocumentFileIssue,
   tripDocumentKindLabels,
   toOptions,
+  type TripChecklistRow,
   type TripDocumentKind,
   type TripStatus,
 } from '@transport/shared';
@@ -17,6 +17,7 @@ import { tripDocumentUrl, uploadTripDocument, type TripDocument } from '../lib/c
 import { pickDocument, type PickOutcome, type PickSource } from '../lib/document-upload';
 import type { Supabase } from '../lib/supabase';
 import { Card, ChoiceChips, SectionTitle } from './fleet-ui';
+import { TripChecklist } from './trip-checklist';
 import { Body, Button, Notice } from './ui';
 
 const copy = carrierTripsCopy.documents;
@@ -28,28 +29,36 @@ const SOURCES: { source: PickSource; label: string }[] = [
 ];
 
 /**
- * Documents of the trip (B20): the carrier uploads the Carta Porte and other
- * files (PDF or photo); the shipper and the operator see them. D09: they are
- * only stored, never issued or validated.
+ * Documents of the trip (B20, D22): the checklist of what the trip needs by
+ * stage, the files uploaded so far and the upload of the kinds the carrier
+ * side registers (service order, Carta Porte, invoice, others). The shipper
+ * uploads the service order from the web; the operator reads them. D09: they
+ * are only stored, never issued or validated.
  */
 export function TripDocumentsSection({
   client,
   tripId,
   status,
   documents,
+  checklist,
+  uploadableKinds,
   onChanged,
 }: {
   client: Supabase;
   tripId: string;
   status: TripStatus;
   documents: readonly TripDocument[];
+  checklist: readonly TripChecklistRow[];
+  /** Kinds the carrier may upload (trip_document_requirements), in order. */
+  uploadableKinds: readonly TripDocumentKind[];
   onChanged: () => Promise<void>;
 }) {
-  const [kind, setKind] = useState<TripDocumentKind>('carta_porte');
+  const [kind, setKind] = useState<TripDocumentKind | undefined>(uploadableKinds[0]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
 
   async function upload(source: PickSource) {
+    if (!kind) return;
     setMessage(null);
     let picked: PickOutcome;
     try {
@@ -88,11 +97,13 @@ export function TripDocumentsSection({
     }
   }
 
-  const canAdd = canAddTripDocuments(status);
+  const canAdd = canAddTripDocuments(status) && uploadableKinds.length > 0;
   return (
     <>
       <SectionTitle>{copy.title}</SectionTitle>
       <Body>{copy.help}</Body>
+      <TripChecklist rows={checklist} />
+      <SectionTitle>{copy.files}</SectionTitle>
       {documents.length === 0 ? <Body>{copy.empty}</Body> : null}
       {documents.map((d) => (
         <Card
@@ -106,7 +117,7 @@ export function TripDocumentsSection({
         <>
           <ChoiceChips
             label={copy.kind}
-            options={toOptions(TRIP_DOCUMENT_KINDS, tripDocumentKindLabels)}
+            options={toOptions(uploadableKinds, tripDocumentKindLabels)}
             value={kind}
             onChange={setKind}
           />
@@ -115,12 +126,12 @@ export function TripDocumentsSection({
               key={source}
               label={busy ? copy.uploading : label}
               variant="secondary"
-              disabled={busy}
+              disabled={busy || !kind}
               onPress={() => void upload(source)}
             />
           ))}
         </>
-      ) : (
+      ) : canAddTripDocuments(status) ? null : (
         <Body>{copy.cancelled}</Body>
       )}
       {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}

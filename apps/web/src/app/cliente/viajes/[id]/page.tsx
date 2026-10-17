@@ -20,6 +20,8 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { VerificationBadge } from '@/components/offers/offer-board';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
+import { TripChecklist } from '@/components/trips/trip-checklist';
+import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { getChat } from '@/lib/chat/queries';
@@ -201,6 +203,11 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
           <section className="space-y-3">
             <h2 className="text-2xl">{c.documents.title}</h2>
             <p className="text-sm text-muted-foreground">{c.documents.description}</p>
+            <TripChecklist rows={data.checklist} />
+            {trip.status !== 'cancelled' && (
+              <TripDocumentUpload tripId={trip.id} kinds={data.uploadableKinds} />
+            )}
+            <h3 className="text-lg">{c.documents.files}</h3>
             {documents.length === 0 ? (
               <p className="text-sm text-muted-foreground">{c.documents.empty}</p>
             ) : (

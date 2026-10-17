@@ -36,6 +36,9 @@ select set_eq(
   array[
     'carrier_routes:INSERT', 'carrier_routes:UPDATE', 'companies:UPDATE',
     'document_requirements:INSERT', 'document_requirements:UPDATE',
+    -- G3 catalogs (D16, D22): admins only, by RLS.
+    'license_unit_compatibility:INSERT', 'license_unit_compatibility:UPDATE',
+    'trip_document_requirements:UPDATE',
     'operators:INSERT', 'operators:UPDATE', 'profiles:UPDATE', 'trip_evidence_requirements:UPDATE',
     'vehicles:INSERT', 'vehicles:UPDATE'
   ],

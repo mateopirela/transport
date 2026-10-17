@@ -79,8 +79,10 @@ insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg
   ('e1000000-0000-4000-8000-0000000000b1', 'c1000000-0000-4000-8000-00000000000b', 'rigid', 'BBB0001', 'torton', 12000);
 
 select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a1', 'vehicle_registration_card', now() + interval '1 year');
+select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a1', 'vehicle_permit', now() + interval '1 year');
 select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a1', 'vehicle_insurance_policy', now() + interval '1 year');
 select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a2', 'vehicle_registration_card', now() + interval '1 year');
+select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a2', 'vehicle_permit', now() + interval '1 year');
 select tests.approved_vehicle_document('e1000000-0000-4000-8000-0000000000a2', 'vehicle_insurance_policy', now() - interval '1 day');
 
 -- ---------------------------------------------------------------------------
@@ -149,8 +151,8 @@ select throws_ok(
 );
 select is(
   (select count(*)::int from public.vehicle_missing_requirements('e1000000-0000-4000-8000-0000000000b1')),
-  2,
-  'a unit without documents misses every required vehicle document'
+  3,
+  'a unit without documents misses every required vehicle document (card, permit and insurance, D16)'
 );
 select lives_ok(
   $$ select public.set_vehicle_availability('e1000000-0000-4000-8000-0000000000b1', now(), 20.67, -103.35, 'Guadalajara', 'Jalisco') $$,
@@ -185,7 +187,7 @@ select results_eq(
 );
 select is(
   (select count(*)::int from public.vehicle_missing_requirements('e1000000-0000-4000-8000-0000000000b1')),
-  2,
+  3,
   'an admin sees the missing documents of any unit'
 );
 

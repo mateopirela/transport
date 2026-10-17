@@ -119,6 +119,9 @@ update public.profiles set role = 'admin' where id = 'a8000000-0000-4000-8000-00
 insert into public.operators (id, company_id, profile_id, full_name) values
   ('d8000000-0000-4000-8000-000000000005', 'c8000000-0000-4000-8000-000000000002',
    'a8000000-0000-4000-8000-000000000005', 'Óscar Operador');
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 
 -- Units: A1 (dry van 30 t, GDL), A2 (dry van 20 t / 50 m³, GDL from +5 h),
 -- A3 (dry van without documents, GDL), B1 (dry van, MTY), C1 (dry van, GDL).

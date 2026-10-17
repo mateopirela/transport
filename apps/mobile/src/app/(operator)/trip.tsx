@@ -29,6 +29,7 @@ import {
   type EvidenceItem,
 } from '../../components/evidence-section';
 import { Badge, SectionTitle } from '../../components/fleet-ui';
+import { OperatorDocumentsSection } from '../../components/operator-documents-section';
 import { IncidentForm, UnloadEstimateForm } from '../../components/trip-forms';
 import {
   IncidentList,
@@ -585,6 +586,8 @@ function TripView({
       ) : null}
 
       <InstructionsSection trip={trip} />
+
+      <OperatorDocumentsSection documents={trip.documents} />
 
       <View style={styles.section}>
         <SectionTitle>{copy.incidents}</SectionTitle>

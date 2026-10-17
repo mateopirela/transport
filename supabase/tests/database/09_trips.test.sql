@@ -116,6 +116,9 @@ insert into public.operators (id, company_id, profile_id, full_name) values
    'a6000000-0000-4000-8000-000000000006', 'Pedro Operador'),
   ('d6000000-0000-4000-8000-000000000009', 'c6000000-0000-4000-8000-000000000003', null, 'Ulises Sin Cuenta'),
   ('d6000000-0000-4000-8000-000000000008', 'c6000000-0000-4000-8000-000000000004', null, 'Quique Operador');
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 -- O and P consented to share their location (B22: record_trip_locations
 -- requires it; 13_location_consents covers the consent itself).
 insert into public.location_consents (user_id, policy_version, platform) values

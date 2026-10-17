@@ -143,6 +143,9 @@ select extensions.dblink_exec('setup', $sql$
                ('d2800000-0000-4000-8000-00000000000b', 'Unidad B', 'a2800000-0000-4000-8000-000000000006', 'Pablo B'))
        as o(id, unit_name, profile_id, full_name)
   join public.business_units b on b.company_id = 'c2800000-0000-4000-8000-000000000002' and b.name = o.unit_name;
+  -- D16 (G3): assign_trip needs a current license of a suitable type.
+  update public.operators set license_type = 'E', license_expires_on = current_date + 365
+  where license_type is null;
   insert into public.vehicles (id, company_id, business_unit_id, kind, plate, unit_type, capacity_kg)
   select v.id::uuid, 'c2800000-0000-4000-8000-000000000002', b.id, 'rigid', v.plate, 'dry_van', 30000
   from (values ('e2800000-0000-4000-8000-00000000000a', 'Unidad A', 'GGA2801'),

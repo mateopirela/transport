@@ -13,6 +13,7 @@ import {
   documentFileIssue,
   documentStoragePath,
   endOfDayInMexicoCity,
+  isRequiredFor,
   progressSummary,
   requirementProgress,
   taxpayerTypeForRfc,
@@ -35,6 +36,7 @@ function req(code: string, extra: Partial<Requirement> = {}): Requirement {
     company_type: null,
     taxpayer_type: null,
     is_required: true,
+    optional_for: [],
     requires_expiry: false,
     sort_order: 0,
     archived_at: null,
@@ -103,6 +105,35 @@ describe('applicableRequirements', () => {
       rfc: 'GOMA800101AB1',
     });
     expect(vehicle.map((r) => r.code)).toEqual(['vehicle_card']);
+  });
+
+  it('resolves is_required for the company type (optional_for, D16)', () => {
+    const catalog = [
+      req('tax_status_certificate', { sort_order: 10 }),
+      req('legal_representative_id', { sort_order: 30, optional_for: ['shipper'] }),
+    ];
+    const shipper = applicableRequirements(catalog, 'company', {
+      type: 'shipper',
+      rfc: 'ACE010101AB1',
+    });
+    expect(shipper.map((r) => [r.code, r.is_required])).toEqual([
+      ['tax_status_certificate', true],
+      ['legal_representative_id', false],
+    ]);
+    const carrier = applicableRequirements(catalog, 'company', {
+      type: 'carrier',
+      rfc: 'TBE020202CD2',
+    });
+    expect(carrier.map((r) => [r.code, r.is_required])).toEqual([
+      ['tax_status_certificate', true],
+      ['legal_representative_id', true],
+    ]);
+    expect(isRequiredFor({ is_required: false, optional_for: [] }, 'carrier')).toBe(false);
+    // The optional requirement still counts as sent for the summary, not as required.
+    const summary = progressSummary(
+      requirementProgress(shipper, [], { type: 'company', id: COMPANY }),
+    );
+    expect(summary).toEqual({ required: 1, approved: 0, submitted: 0, needsAction: 1 });
   });
 
   it('breaks sort ties by code', () => {

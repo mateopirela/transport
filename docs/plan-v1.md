@@ -609,7 +609,7 @@ Ola GE   G9 (todos)
     - `revoke_invitation(p_invitation_id)`.
     - `invitation_preview(p_token text)`, otorgada a `anon` y `authenticated`: devuelve `kind`, `company_legal_name`, nombres de las unidades de negocio, nombre de quien invita y `expires_at`. Mismo error para desconocida, vencida, usada o revocada (`22023 invalid or expired invitation`); no devuelve ids.
     - `accept_coordinator_invitation(p_token text)`: quien llama tiene rol `coordinator`, sin empresa y con correo confirmado; lo liga a la empresa y a las unidades de negocio. Bloquea invitación → perfil.
-    - `redeem_operator_invitation_service(p_token text, p_user_id uuid, p_full_name text, p_phone text, p_email text)`: **solo `service_role`** (la llama la Edge Function de G2). `operator`: crea la fila de `operators` en la unidad de negocio, ligada a `p_user_id`, y pone la empresa en el perfil. `operator_access_reset`: valida y marca usada. Devuelve `(operator_id, profile_id, kind)`.
+    - `redeem_operator_invitation_service(p_token text, p_user_id uuid, p_full_name text, p_phone text, p_email text)`: **solo `service_role`** (la llama la Edge Function de G2). `operator`: crea la fila de `operators` en la unidad de negocio, ligada a `p_user_id`, y pone la empresa en el perfil. `operator_access_reset` (con `p_user_id` nulo): valida, marca usada y devuelve el perfil del operador. Siempre devuelve `(operator_id, profile_id, kind)`.
   - `operator_invitations` (B04, por correo) queda como está; G2 la retira.
   - `packages/shared`: `invitationUrl(siteUrl, token)` y `parseInvitationLink(url)`.
 - **Fuera de alcance:** la Edge Function de canje y las pantallas (G2); la lista de invitaciones del Gerente (G4).
@@ -669,7 +669,7 @@ Ola GE   G9 (todos)
   - `/transportista/flota/unidades` y `/[id]` (datos, documentos y disponibilidad), `/transportista/flota/operadores` y `/[id]` (datos y documentos), `/transportista/rutas`.
   - El Coordinador no ve el alta ni las bajas (son del Gerente; G4).
   - Reutilizar el formulario de documentos de B12.
-- **Fuera de alcance:** cambiar de unidad de negocio, bajas e invitaciones (G4).
+- **Fuera de alcance:** cambiar de unidad de negocio, bajas e invitaciones, también las del Coordinador a sus operadores (G4).
 - **Tests:** Playwright `carrier-web-assign.spec.ts` (Andrea asigna `CS53-01` y Pedro al viaje ganado en G10a); Vitest de lo puro nuevo.
 - **Aceptación:** lo que hace hoy el transportista en la app (B18–B20) se puede hacer en la web.
 - **E2E que probablemente se rompan:** ninguno.
@@ -690,7 +690,7 @@ Ola GE   G9 (todos)
     1. Límite de frecuencia por IP (hash) y por token con `consume_service_rate_limit`.
     2. `invitation_preview` para validar el token.
     3. `operator`: `auth.admin.createUser({ email: phoneAuthEmail(phone), password, email_confirm: true, user_metadata: { role: 'operator', full_name, phone }, app_metadata: { provisioned_by: 'redeem-invitation' } })` y luego `redeem_operator_invitation_service`. Si la RPC falla, borra el usuario creado (compensación).
-    4. `operator_access_reset`: `auth.admin.updateUserById(profile_id, { password })` y cierra sus sesiones.
+    4. `operator_access_reset`: primero `redeem_operator_invitation_service(token, null, …)`, que bloquea la invitación, la marca usada y devuelve el `profile_id` del operador (el preview no da ids). Después, `auth.admin.updateUserById(profile_id, { password })` y `auth.admin.signOut` de sus sesiones. Si el cambio de contraseña falla, el enlace ya quedó usado: la respuesta pide generar otro, nunca deja dos canjes válidos del mismo enlace.
     5. Nunca registra en logs ni Sentry el teléfono ni la contraseña.
   - `handle_new_user` acepta el rol `operator` **solo** si `raw_app_meta_data ->> 'provisioned_by' = 'redeem-invitation'` (solo la *service role* puede escribir `app_metadata`). Se retira el flujo B04/B17 de operador por correo: se revocan las `operator_invitations` pendientes y se borran `create_operator_invitation` y `accept_operator_invitation` (la tabla queda como historial). Los operadores que ya entran con correo siguen entrando igual.
   - **Coordinador:** `/invitacion/[token]` (web) y `invitacion/[token]` (app) muestran el preview. Formulario de nombre, correo, teléfono y contraseña → `auth.signUp` con rol `coordinator` y `emailRedirectTo` a `/invitacion/<token>`. Al volver confirmado, `accept_coordinator_invitation`. Si ya tiene sesión como Coordinador sin empresa, solo un botón "Unirme".
@@ -701,7 +701,7 @@ Ola GE   G9 (todos)
 - **Fuera de alcance:** la lista de invitaciones y "restablecer acceso" en la UI del Gerente (G4, que usa las RPC de G1b).
 - **Tests:**
   - pgTAP `31_registration.test.sql`: `register_company` por tipo, datos fiscales obligatorios para aprobar, el hombre-camión crea su fila de operador, teléfono obligatorio y con formato, y el rol `operator` solo con `provisioned_by`.
-  - Deno: `redeem-invitation` con cliente admin simulado (éxito, compensación, token inválido, límite de frecuencia, teléfono ya registrado).
+  - Deno: `redeem-invitation` con cliente admin simulado: alta exitosa, compensación, token inválido, límite de frecuencia, teléfono ya registrado, **restablecimiento exitoso** (canjea, cambia la contraseña del `profile_id` devuelto y cierra sesiones) y **segundo canje del mismo enlace rechazado** (sin tocar la contraseña).
   - Vitest: teléfono, identificador de login y esquemas.
   - Playwright `invitations.spec.ts`: coordinador por enlace con confirmación en Mailpit; operador por enlace, que después entra con su teléfono.
   - Maestro `08-operator-invite.yaml`: el operador crea su cuenta desde el enlace y ve "Sin viaje asignado".
@@ -721,10 +721,11 @@ Ola GE   G9 (todos)
     - `move_vehicle_to_unit(p_vehicle_id, p_unit_id)` y `move_operator_to_unit(p_operator_id, p_unit_id)`: fallan si el camión u operador está en un viaje en curso (`trip_in_operator_hands`) o comprometido (`vehicle_committing_trip`); mover un operador lo quita de los camiones de otra unidad de negocio.
     - Bajas de camión y operador: el `archived_at` que ya existe (con `fleet_block_archive_with_trips`), ahora solo del Gerente.
   - **App** ("Más → Mi empresa") y **web** (`/transportista/empresa`), con las mismas secciones: Unidades de negocio (crear, renombrar, archivar y ver contenido), Coordinadores (invitar por enlace con la hoja de compartir del sistema, cambiar sus unidades de negocio, dar de baja), Camiones (agrupados por unidad de negocio; mover y dar de baja), Operadores (agrupados; invitar, restablecer acceso, mover y dar de baja) e Invitaciones pendientes (revocar).
+  - **Coordinador (operadores de sus unidades de negocio):** en la lista de operadores de la flota (app `operators.tsx` y `operator/[id].tsx`; web `/transportista/flota/operadores`), los botones "Invitar operador" (por enlace, con la hoja de compartir) y "Restablecer acceso", con las RPC de G1b. El selector de unidad de negocio solo ofrece las suyas, y no ve "Mover" ni "Dar de baja" (son del Gerente).
   - **Supervisión:** el inicio del Gerente muestra viajes activos y unidades pendientes de liberar por unidad de negocio (enlaza a `/transportista/viajes?unidad=`).
 - **Fuera de alcance:** mover una negociación o un viaje a otra unidad de negocio (Seguimiento); bitácora de acciones del Gerente.
 - **RLS:** sin tablas nuevas; las RPC validan `auth_is_manager()` y la empresa.
-- **Tests:** pgTAP `32_manager_company.test.sql` (cada RPC: un Coordinador recibe 42501; mover con viaje activo falla; archivar con contenido falla; dar de baja a un Coordinador le quita el acceso al instante). Vitest de agrupación. Playwright `manager-company.spec.ts` (Jorge crea "Bajío", mueve `TT-01` y le asigna a Héctor). Maestro `09-manager-company.yaml`.
+- **Tests:** pgTAP `32_manager_company.test.sql` (cada RPC: un Coordinador recibe 42501; mover con viaje activo falla; archivar con contenido falla; dar de baja a un Coordinador le quita el acceso al instante). Vitest de agrupación. Playwright `manager-company.spec.ts` (Jorge crea "Bajío", mueve `TT-01` y le asigna a Héctor) y `coordinator-operators.spec.ts` (Héctor invita un operador a "Regional Monterrey", no puede elegir "Corredor MTY–GDL" y le restablece el acceso a Raúl Méndez; el enlace nuevo funciona y el anterior no). Maestro `09-manager-company.yaml`.
 - **Aceptación:** todo lo de "Gerente" de producto §3 se puede hacer en web y app; ninguna baja deja un viaje activo sin camión u operador.
 - **E2E que probablemente se rompan:** ninguno (agrega flujos).
 
@@ -779,7 +780,7 @@ Ola GE   G9 (todos)
     - `provider_status_changed` (Gerente y coordinadores de la unidad de negocio del viaje o negociación más reciente)
     - `trip_document_added` (a la otra parte: el cliente cuando sube el transportista; la unidad de negocio cuando el cliente sube la orden de servicio)
     - Revisar que `load_match` (G1a) llegue solo a coordinadores cuya unidad de negocio tenga un camión **disponible, con documentos listos y compatible**, y al Gerente, sin duplicados por usuario. `trip_assigned` al operador ya existe (B07): verificar que llegue también al operador por teléfono.
-  - **Chat interno del viaje** (operador ↔ coordinador): migración sola `alter type conversation_kind add value 'trip_internal'`. Se abre con cada viaje. Participan el Gerente, los coordinadores de la unidad de negocio y el operador asignado; el cliente **no** la ve (`is_conversation_participant`). En la app del operador, "Chat con tu coordinador" va primero y "Chat con el cliente" después.
+  - **Chat interno del viaje** (operador ↔ coordinador): migración sola `alter type conversation_kind add value 'trip_internal'`. En la siguiente, las restricciones de `conversations`: `conversations_subject` admite `trip_internal` con `trip_id` y sin `negotiation_id`, y `conversations_trip_key unique (trip_id)` se reemplaza por `unique (trip_id, kind)` (una conversación por viaje y tipo). `open_conversation` abre las dos con cada viaje y un backfill crea la interna de los viajes existentes. Participan el Gerente, los coordinadores de la unidad de negocio y el operador asignado; el cliente **no** la ve (`is_conversation_participant`). En la app del operador, "Chat con tu coordinador" va primero y "Chat con el cliente" después.
   - **UI web del cliente:** en `/cliente/viajes/[id]`, la sección "Documentos del transportista" (lista y "Ver", que abre la URL firmada). En el comparador de ofertas y en el viaje: "Dar de alta como proveedor", "Rechazar" y "Revocar alta", con la etiqueta "Proveedor aprobado".
   - **UI del transportista** (app y web): estado del alta de proveedor en el viaje y lista de documentos compartidos (el Gerente puede revocar).
 - **Fuera de alcance:** que el alta bloquee la asignación (Seguimiento); compartir con terceros (G7).

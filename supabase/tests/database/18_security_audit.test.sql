@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(37);
+select plan(38);
 
 -- ---------------------------------------------------------------------------
 -- Table privileges
@@ -217,10 +217,21 @@ select set_eq(
     'mark_notifications_read',
     -- Product analytics (B25): records the caller's own event.
     'track_product_event',
+    -- Share links (G7, D23). The two public_* views are also granted to anon
+    -- (checked below); the rest need a session.
+    'create_share_link', 'revoke_share_link', 'open_internal_share', 'public_shared_load', 'public_shared_trip',
     -- Rate limits (B24).
     'consume_rate_limit'
   ],
   'every client-callable security definer function is on the reviewed list'
+);
+-- anon reaches exactly the two sanitized share-link views (G7): a token of
+-- 256 bits is the only credential, and 37_share_links checks what they return.
+select set_eq(
+  $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute') $$,
+  array['public_shared_load', 'public_shared_trip'],
+  'anon executes only the two public share-link views'
 );
 select set_eq(
   $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace

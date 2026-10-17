@@ -54,8 +54,10 @@ const AREA_ROUTES: Record<
   auth: { home: '/sign-in', segments: ['(auth)', 'invite'] },
   join: { home: '/invite', segments: ['invite'] },
   company_setup: { home: '/company', segments: ['company'] },
-  carrier: { home: '/home', segments: ['(carrier)'] },
-  operator: { home: '/trip', segments: ['(operator)'] },
+  // `shared` is a load shared with the team (G7); `compartido` is its deep
+  // link (transport://compartido/<token>), which redirects to `shared`.
+  carrier: { home: '/home', segments: ['(carrier)', 'shared', 'compartido'] },
+  operator: { home: '/trip', segments: ['(operator)', 'shared', 'compartido'] },
   unsupported: { home: '/unsupported', segments: ['unsupported'] },
   problem: { home: '/problem', segments: ['problem'] },
 };

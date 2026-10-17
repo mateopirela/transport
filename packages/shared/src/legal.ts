@@ -12,14 +12,12 @@ export type LegalDocumentKind = keyof typeof LEGAL_PATHS;
 const LOOPBACK = new Set(['localhost', '127.0.0.1']);
 
 /**
- * Absolute URL of a legal page on the public web app, or `null` when
- * `siteUrl` is missing or invalid (the caller hides the link). Only https is
- * accepted, except plain http on loopback for local development.
+ * Origin of the public web app from its configured URL, or `null` when it is
+ * missing or invalid (the caller hides the link). Only https is accepted,
+ * except plain http on loopback for local development. Shared by the legal
+ * pages and the share links (G7).
  */
-export function legalUrl(
-  siteUrl: string | null | undefined,
-  kind: LegalDocumentKind,
-): string | null {
+export function publicSiteOrigin(siteUrl: string | null | undefined): string | null {
   const raw = siteUrl?.trim();
   if (!raw) return null;
   let url: URL;
@@ -32,5 +30,14 @@ export function legalUrl(
   const local = url.protocol === 'http:' && LOOPBACK.has(url.hostname);
   if (!secure && !local) return null;
   if (url.username || url.password) return null;
-  return `${url.origin}${LEGAL_PATHS[kind]}`;
+  return url.origin;
+}
+
+/** Absolute URL of a legal page on the public web app, or `null` (see publicSiteOrigin). */
+export function legalUrl(
+  siteUrl: string | null | undefined,
+  kind: LegalDocumentKind,
+): string | null {
+  const origin = publicSiteOrigin(siteUrl);
+  return origin ? `${origin}${LEGAL_PATHS[kind]}` : null;
 }

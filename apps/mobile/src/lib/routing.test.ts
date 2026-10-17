@@ -97,3 +97,19 @@ describe('redirectFor', () => {
     expect(redirectFor('carrier', ['auth', 'callback'])).toBeNull();
   });
 });
+
+describe('redirectFor: shared loads (G7)', () => {
+  it('lets the carrier staff and the operators open a load shared with the team', () => {
+    for (const area of ['carrier', 'operator'] as const) {
+      expect(redirectFor(area, ['shared', 'abc'])).toBeNull();
+      expect(redirectFor(area, ['compartido', 'abc'])).toBeNull();
+    }
+  });
+
+  it('asks everyone else to sign in or finish joining first', () => {
+    expect(redirectFor('auth', ['shared', 'abc'])).toBe('/sign-in');
+    expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invite');
+    expect(redirectFor('company_setup', ['shared', 'abc'])).toBe('/company');
+    expect(redirectFor('unsupported', ['shared', 'abc'])).toBe('/unsupported');
+  });
+});

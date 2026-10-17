@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   carrierLoadPath,
   carrierNegotiationPath,
+  carrierSharedPath,
   chatAttachmentHref,
   homeFor,
   paths,
   resolveRoute,
   safeNextPath,
+  sharedPath,
   type Viewer,
 } from './routing';
 
@@ -79,6 +81,24 @@ describe('resolveRoute', () => {
       expect(resolveRoute('/terminos', viewer)).toBeNull();
     }
     expect(resolveRoute('/terminos-falsos', null)).toBe('/login?next=%2Fterminos-falsos');
+  });
+
+  it('opens the public share links to everyone, signed in or not (G7)', () => {
+    const token = 'Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+    for (const viewer of [null, admin, approvedShipper, pendingShipper, manager, operator]) {
+      expect(resolveRoute(`/compartido/${token}`, viewer)).toBeNull();
+    }
+    expect(resolveRoute('/compartido', null)).toBeNull();
+    expect(resolveRoute('/compartidos', null)).toBe('/login?next=%2Fcompartidos');
+  });
+
+  it('opens the internal share links only to the carrier staff, remembering the link (G7)', () => {
+    const path = '/transportista/compartido/Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+    expect(resolveRoute(path, null)).toBe(`/login?next=${encodeURIComponent(path)}`);
+    expect(resolveRoute(path, manager)).toBeNull();
+    expect(resolveRoute(path, coordinator)).toBeNull();
+    expect(resolveRoute(path, operator)).toBe(paths.mobileOnly);
+    expect(resolveRoute(path, approvedShipper)).toBe(paths.shipper);
   });
 
   it('sends signed-in users away from the guest screens', () => {
@@ -169,6 +189,12 @@ describe('path helpers', () => {
   it('builds the carrier web paths (G10a)', () => {
     expect(carrierLoadPath('abc')).toBe('/transportista/cargas/abc');
     expect(carrierNegotiationPath('abc')).toBe('/transportista/negociaciones/abc');
+  });
+
+  it('builds the share link paths (G7)', () => {
+    expect(sharedPath('abc')).toBe('/compartido/abc');
+    expect(carrierSharedPath('abc')).toBe('/transportista/compartido/abc');
+    expect(sharedPath('a/b')).toBe('/compartido/a%2Fb');
   });
 
   it('points chat attachments at the viewer area', () => {

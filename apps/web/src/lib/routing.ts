@@ -3,7 +3,12 @@
 // redirects) and the layouts (authoritative checks) share one definition and
 // it can be unit-tested. Data access itself is enforced by RLS in Postgres;
 // this only decides which screens a user may open.
-import { LEGAL_PATHS, type UserRole, type VerificationStatus } from '@transport/shared';
+import {
+  LEGAL_PATHS,
+  SHARE_PATHS,
+  type UserRole,
+  type VerificationStatus,
+} from '@transport/shared';
 
 export const paths = {
   home: '/',
@@ -33,6 +38,10 @@ export const paths = {
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,
+  /** Public share links (G7): a load or the tracking of a trip, read-only, no session. */
+  shared: SHARE_PATHS.public,
+  /** Internal share links (G7): a load shared with the carrier's team. */
+  carrierShared: SHARE_PATHS.internal,
 } as const;
 
 /** Shipper load detail and edit screens (B13). */
@@ -64,6 +73,13 @@ export const carrierLoadPath = (loadId: string) => `/transportista/cargas/${load
 export const carrierNegotiationPath = (negotiationId: string) =>
   `/transportista/negociaciones/${negotiationId}`;
 
+/** Public view of a shared load or trip tracking (G7); no session. */
+export const sharedPath = (token: string) => `${paths.shared}/${encodeURIComponent(token)}`;
+
+/** A load shared with the carrier's team (G7); needs a session of that company. */
+export const carrierSharedPath = (token: string) =>
+  `${paths.carrierShared}/${encodeURIComponent(token)}`;
+
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;
 
@@ -84,10 +100,11 @@ export type Viewer = {
 const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.checkEmail];
 
 /**
- * Open to everyone: auth callbacks must work with or without a session, and
- * the legal pages (B27) are linked from the stores and the mobile app.
+ * Open to everyone: auth callbacks must work with or without a session, the
+ * legal pages (B27) are linked from the stores and the mobile app, and the
+ * public share links (G7) are read by anyone who has the token.
  */
-const PUBLIC = ['/auth', paths.privacy, paths.terms];
+const PUBLIC = ['/auth', paths.privacy, paths.terms, paths.shared];
 
 /** Areas that only one kind of user may open: their home. */
 const HOME_ONLY = [

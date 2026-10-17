@@ -51,12 +51,15 @@ select is_empty(
   'every security definer function in public sets search_path'
 );
 
--- No security definer function in public is executable by anon, except the
+-- The only security definer functions in public that anon can execute are
 -- reviewed ones that are public by design: invitation_preview (G1b) answers
--- only to a valid invitation token and returns no id.
-select is_empty(
+-- only to a valid invitation token and returns no id (excluded below), and
+-- the two public share-link views (G7, D23) take a 256-bit token, answer a
+-- sanitized JSON and fail the same way for an unknown, expired or revoked
+-- token (37_share_links). Anything else must stay closed to anon.
+select set_eq(
   $$
-    select p.oid::regprocedure::text
+    select p.proname::text
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
@@ -64,7 +67,8 @@ select is_empty(
       and has_function_privilege('anon', p.oid, 'execute')
       and p.oid::regprocedure::text not in ('invitation_preview(text)')
   $$,
-  'anon cannot execute any security definer function in public (except the reviewed public preview)'
+  array['public_shared_load', 'public_shared_trip'],
+  'anon executes no security definer function in public besides the reviewed invitation preview and the two public share-link views'
 );
 
 -- anon has no privileges on the identity tables.

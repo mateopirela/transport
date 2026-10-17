@@ -246,7 +246,8 @@ select is(
    where t.tgfoid = 'public.enforce_rate_limit()'::regprocedure and t.tgenabled = 'O'),
   array[
     'incidents:incidents_rate_limit', 'invitations:invitations_rate_limit', 'loads:loads_rate_limit',
-    'messages:messages_rate_limit', 'offers:offers_rate_limit', 'trip_evidence:trip_evidence_rate_limit',
+    'messages:messages_rate_limit', 'offers:offers_rate_limit', 'share_links:share_links_rate_limit',
+    'trip_evidence:trip_evidence_rate_limit',
     'trip_locations:trip_locations_rate_limit'
   ],
   'every write of the limited RPCs goes through the rate-limit trigger (invitations since G1b)'
@@ -259,10 +260,10 @@ select ok(
 select is(
   (select array_agg(format('%s:%s/%s', b, (public.rate_limit_policy(b)).max_hits,
                            (public.rate_limit_policy(b)).window_seconds) order by b)
-   from unnest(array['add_trip_evidence', 'create_load', 'offers', 'record_trip_locations', 'report_incident',
-                     'send_message']) b),
-  array['add_trip_evidence:120/60', 'create_load:30/60', 'offers:60/60', 'record_trip_locations:120/60',
-        'report_incident:20/60', 'send_message:60/60'],
+   from unnest(array['add_trip_evidence', 'create_load', 'create_share_link', 'offers', 'record_trip_locations',
+                     'report_incident', 'send_message']) b),
+  array['add_trip_evidence:120/60', 'create_load:30/60', 'create_share_link:30/60', 'offers:60/60',
+        'record_trip_locations:120/60', 'report_incident:20/60', 'send_message:60/60'],
   'the limits documented in docs/seguridad.md'
 );
 -- Start the buckets from zero (the writes above counted) in a window that

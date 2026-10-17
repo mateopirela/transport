@@ -197,7 +197,8 @@ using (
 );
 
 -- Published loads: every manager and coordinator of an approved carrier.
--- Negotiated ones: whoever sees the negotiation.
+-- Negotiated ones: whoever sees the negotiation, or the trip (a trip the
+-- manager moved to another business unit keeps its negotiation in the old one).
 drop policy loads_select on public.loads;
 create policy loads_select
 on public.loads
@@ -224,6 +225,14 @@ using (
               n.carrier_company_id = (select public.auth_fleet_company_id())
               or n.business_unit_id = any ((select public.auth_business_unit_ids())::uuid[])
             )
+        )
+      )
+      or (
+        carrier_company_id = (select public.auth_carrier_company_id())
+        and exists (
+          select 1 from public.trips t
+          where t.load_id = loads.id
+            and t.business_unit_id = any ((select public.auth_business_unit_ids())::uuid[])
         )
       )
     )

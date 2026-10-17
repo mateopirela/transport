@@ -216,6 +216,8 @@ insert into tests.unit_ownership values
   ('public.loads', $$
      exists (select 1 from public.negotiations n where n.load_id = t.id and n.business_unit_id = any ($3)
              and (t.carrier_company_id is null or t.carrier_company_id = $1))
+     or (t.carrier_company_id = $1
+         and exists (select 1 from public.trips x where x.load_id = t.id and x.business_unit_id = any ($3)))
      or (t.status in ('published', 'negotiating') and t.archived_at is null
          and exists (select 1 from public.companies c
                      where c.id = $1 and c.type = 'carrier' and c.status = 'approved' and c.archived_at is null))

@@ -136,13 +136,11 @@ as $$
 declare
   v_match record;
   v_route jsonb := public.load_route_data(new.id);
-  v_data jsonb;
-  v_notified uuid[] := '{}';
 begin
-  -- The best unit of each business unit with a compatible truck goes to its
-  -- coordinators, and the best of the whole company to its managers, so each
+  -- The best unit of the whole company goes to its managers, and the best
+  -- unit among the business units each coordinator runs goes to them, so each
   -- person gets one notification. At most 50 companies, nearest first.
-  for v_match in
+  create temp table load_match_units on commit drop as
     with fits as (
       select m.company_id, v.business_unit_id, m.vehicle_id, m.empty_km
       from public.match_pairs(null, new.id, 150) m
@@ -165,17 +163,32 @@ begin
       join companies c on c.company_id = f.company_id
       order by f.business_unit_id, f.empty_km
     )
-    select u.*, u.empty_km = (select c.empty_km from companies c where c.company_id = u.company_id) as best_of_company
-    from units u
-    order by u.empty_km, u.business_unit_id
+    select u.company_id, u.business_unit_id, u.vehicle_id, u.empty_km,
+           u.empty_km = (select c.empty_km from companies c where c.company_id = u.company_id) as best_of_company
+    from units u;
+
+  -- The managers: the best unit of their company.
+  for v_match in
+    select * from load_match_units where best_of_company order by empty_km, business_unit_id
   loop
-    v_data := v_route || jsonb_build_object('vehicleId', v_match.vehicle_id, 'emptyKm', round(v_match.empty_km)::integer);
-    perform public.notify_business_unit_coordinators(v_match.business_unit_id, 'load_match', v_data);
-    if v_match.best_of_company and not (v_match.company_id = any (v_notified)) then
-      perform public.notify_carrier_staff(v_match.company_id, null, 'load_match', v_data);
-      v_notified := v_notified || v_match.company_id;
-    end if;
+    perform public.notify_carrier_staff(
+      v_match.company_id, null, 'load_match',
+      v_route || jsonb_build_object('vehicleId', v_match.vehicle_id, 'emptyKm', round(v_match.empty_km)::integer)
+    );
   end loop;
+
+  -- The coordinators: the best unit among their business units, once each.
+  insert into public.notifications (user_id, type, data)
+  select distinct on (bc.profile_id) bc.profile_id, 'load_match',
+         v_route || jsonb_build_object('vehicleId', u.vehicle_id, 'emptyKm', round(u.empty_km)::integer)
+  from load_match_units u
+  join public.business_unit_coordinators bc on bc.business_unit_id = u.business_unit_id
+  join public.business_units b on b.id = bc.business_unit_id and b.archived_at is null
+  join public.profiles p on p.id = bc.profile_id and p.role = 'coordinator' and p.company_id = b.company_id
+  where bc.profile_id is distinct from (select auth.uid())
+  order by bc.profile_id, u.empty_km, u.business_unit_id;
+
+  drop table load_match_units;
   return null;
 end;
 $$;
@@ -843,11 +856,14 @@ begin
     raise exception 'trip not found' using errcode = '42501';
   end if;
   select * into v_trip from public.trips where id = p_trip_id for update;
-  -- Re-checked under the lock: the manager may have moved it meanwhile.
-  if not found or not (
+  -- Re-checked under the lock: the manager may have moved it meanwhile. The
+  -- shipper comparison is null for carrier staff, so the whole test is
+  -- coalesced: a null must refuse, never pass.
+  if not found or not coalesce(
     v_is_admin
     or v_trip.shipper_company_id = public.auth_shipper_company_id()
-    or public.can_operate_unit(v_trip.business_unit_id)
+    or public.can_operate_unit(v_trip.business_unit_id),
+    false
   ) then
     raise exception 'trip not found' using errcode = '42501';
   end if;
@@ -892,6 +908,10 @@ begin
     raise exception 'trip not found' using errcode = '42501';
   end if;
   select * into v_trip from public.trips where id = p_trip_id for update;
+  -- Re-checked under the lock: the manager may have moved it meanwhile.
+  if not found or not public.can_operate_unit(v_trip.business_unit_id) then
+    raise exception 'trip not found' using errcode = '42501';
+  end if;
 
   select d.id into v_id from public.trip_documents d where d.trip_id = v_trip.id and d.storage_path = p_storage_path;
   if found then

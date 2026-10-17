@@ -13,7 +13,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(58);
+select plan(62);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -414,6 +414,53 @@ select is(tests.matrix($$ select 1 from public.trips where id = tests.val('trip1
   '1,1,0,1,0,0,0', 'now B sees the trip and A does not (nor O, who was unassigned)');
 select is(tests.matrix($$ select 1 from public.conversations where trip_id = tests.val('trip1') $$),
   '1,1,0,1,0,0,0', 'and its chat');
+select is(tests.matrix($$ select 1 from public.loads where id = tests.val('load1') $$),
+  '1,1,1,1,0,0,0', 'B reads the load through the trip; A still through the negotiation');
+select is(tests.matrix($$ select 1 from public.trip_events where trip_id = tests.val('trip1') $$),
+  '3,3,0,3,0,0,0', 'the trip events follow the moved trip');
+
+-- ---------------------------------------------------------------------------
+-- Matching alerts: a coordinator who runs several matching business units
+-- gets one alert, with the best of their units; the manager one for the company
+-- ---------------------------------------------------------------------------
+reset role;
+-- A now also runs unit B. Unit A's truck has the availability A set above;
+-- unit B's truck is on trip 1, so B gets a second, free truck near MTY.
+insert into public.business_unit_coordinators (business_unit_id, company_id, profile_id)
+values (tests.val('bu_b'), 'c2600000-0000-4000-8000-000000000002', 'a2600000-0000-4000-8000-000000000003');
+insert into public.vehicles (id, company_id, business_unit_id, kind, plate, unit_type, capacity_kg) values
+  ('e2600000-0000-4000-8000-00000000000c', 'c2600000-0000-4000-8000-000000000002', tests.val('bu_b'),
+   'rigid', 'GGB2602', 'dry_van', 30000);
+insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+select v.company_id, r.id, 'vehicle', v.id, v.company_id || '/vehicle/' || v.id || '/' || gen_random_uuid() || '.pdf',
+       'approved', case when r.requires_expiry then now() + interval '1 year' end
+from public.vehicles v
+cross join public.document_requirements r
+where v.id = 'e2600000-0000-4000-8000-00000000000c'
+  and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
+insert into public.vehicle_availability (company_id, vehicle_id, available_from, location, city, state, source)
+values ('c2600000-0000-4000-8000-000000000002', 'e2600000-0000-4000-8000-00000000000c', now(),
+        extensions.st_setsrid(extensions.st_makepoint(-100.3161, 25.6866), 4326)::extensions.geography,
+        'Monterrey', 'Nuevo León', 'manual');
+set local role authenticated;
+select tests.login('a2600000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load3', public.create_load(tests.payload(3));
+select public.publish_load(tests.val('load3'));
+reset role;
+select is(
+  (select count(*)::int from public.notifications
+   where type = 'load_match' and data ->> 'loadId' = tests.val('load3')::text
+     and user_id = 'a2600000-0000-4000-8000-000000000003'),
+  1, 'a coordinator of two matching business units gets one match alert'
+);
+select is(
+  (select array_agg(user_id order by user_id) from public.notifications
+   where type = 'load_match' and data ->> 'loadId' = tests.val('load3')::text
+     and user_id::text like 'a2600000-%'),
+  array['a2600000-0000-4000-8000-000000000002', 'a2600000-0000-4000-8000-000000000003',
+        'a2600000-0000-4000-8000-000000000004']::uuid[],
+  'the manager, A and B each get exactly one match alert'
+);
 
 -- Carrier notifications go through notify_carrier_staff, so coordinators get them.
 select is_empty(

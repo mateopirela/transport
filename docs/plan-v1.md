@@ -522,7 +522,7 @@ Jorge queda **solo como Gerente**: los flujos de Maestro y Playwright que hoy en
 ```
 Ola GA   G1a
 Ola GB   G1b · G3 · G10a                     (tras G1a)
-Ola GC   G2 (G1b, G10a) · G10b (G10a, G3) · G7 (G10a) · G8 (G10a)
+Ola GC   G2 (G1b, G10a) · G10b (G10a, G3) · G7 (G10a)
 Ola GD   G4 (G2, G10b) · G5 (G10b) · G6 (G10b)
 Ola GE   G9 (todos)
 ```
@@ -536,11 +536,11 @@ Ola GE   G9 (todos)
 | G10b | G10a, G3 |
 | G2 | G1b, G10a |
 | G7 | G10a |
-| G8 | G10a |
+| G8 | Pospuesto (D24) |
 | G4 | G2, G10b |
 | G5 | G10b |
 | G6 | G10b (y por ella G3 y G1a) |
-| G9 | G1a, G1b, G2, G3, G4, G5, G6, G7, G8, G10a, G10b |
+| G9 | G1a, G1b, G2, G3, G4, G5, G6, G7, G10a, G10b |
 
 **Ajustes al reparto propuesto, y por qué:**
 - **G1 se divide en G1a y G1b.** Renombrar el rol, crear las unidades de negocio y reescribir ~50 políticas y RPC ya excede las ~800 líneas; las invitaciones por enlace son independientes y van en G1b.
@@ -652,7 +652,7 @@ Ola GE   G9 (todos)
 - **Depende de:** G1a.
 - **Alcance:**
   - Ruteo: `manager` y `coordinator` → `/transportista`; `/solo-app` queda solo para el operador. Empresa en revisión → `/cuenta-en-revision`. Gerente sin empresa → `/completar-registro` (G2 le pone los datos fiscales; mientras tanto, el formulario actual).
-  - Layout `/transportista` con navegación: Inicio, Cargas, Negociaciones, Viajes (G10b), Flota (G10b), Mi empresa (G4), Suscripción (G8) y Notificaciones; selector de unidad de negocio ("Todas" para el Gerente).
+  - Layout `/transportista` con navegación: Inicio, Cargas, Negociaciones, Viajes (G10b), Flota (G10b), Mi empresa (G4) y Notificaciones; selector de unidad de negocio ("Todas" para el Gerente).
   - Páginas: `/transportista` (cargas recomendadas por unidad y "Viajes de regreso", con la Edge Function `recommendations` y el mismo respaldo de scoring local que la app); `/transportista/cargas` (búsqueda y filtros); `/transportista/cargas/[id]` (detalle con mapa y km en vacío; ofertar con un camión de sus unidades de negocio); `/transportista/negociaciones` y `/transportista/negociaciones/[id]` (contraofertar, aceptar, rechazar y chat en tiempo real); `/transportista/notificaciones`.
   - Reutilizar la lógica de `apps/mobile/src/lib/loads-api.ts`: si hace falta, moverla a `packages/shared` (sin cambiar su comportamiento en la app).
   - `dispatch-notifications`: `EMAIL_ROLES` suma `manager` y `coordinator`; `notificationWebPath` les da rutas de `/transportista/…`.
@@ -823,7 +823,9 @@ Ola GE   G9 (todos)
 - **E2E que probablemente se rompan:** los tests del middleware de la web (ruta pública nueva).
 - **Revisión 🔒:** entropía y vencimiento del token, que `anon` no pueda llegar a otras RPC, el saneado del JSON y los encabezados.
 
-#### G8 · Suscripción (D24) 🔒
+#### G8 · Suscripción (D24) 🔒 — POSPUESTO
+> **Pospuesto por Mateo (2026-10-16).** No se implementa en esta ola: el piloto es gratis. Ningún otro bloque depende de G8 ni debe agregar pantallas o rutas de suscripción. La especificación se conserva para cuando se retome.
+
 - **Objetivo:** que la empresa transportista pague su suscripción con Stripe y, sin claves, todo siga funcionando en "Piloto gratis".
 - **Depende de:** G10a.
 - **Alcance:**
@@ -861,7 +863,7 @@ Ola GE   G9 (todos)
 - **Depende de:** todos los bloques G.
 - **Alcance:**
   - **D17:** función pura `locationAdvice({ foreground, background, accuracy })` en `shared` → `ok` | `enable_always` | `enable_precise` | `denied`, con Vitest. Banner en el viaje del operador, en el consentimiento y en "Mi viaje" del hombre-camión: "Activa la ubicación precisa y 'Siempre' para que tu coordinador y el cliente vean tu avance", con botón "Abrir ajustes" (`Linking.openSettings()`). La precisión sale del permiso de `expo-location` (`ios.accuracy` `full`/`reduced`; `android.accuracy` `fine`/`coarse`; verificar con la versión instalada).
-  - **Playwright:** un recorrido por perfil con la seed nueva: Cliente, Gerente, Coordinador (aislamiento), hombre-camión (web) y anónimo (enlace compartido). Se suman a los de G2–G8.
+  - **Playwright:** un recorrido por perfil con la seed nueva: Cliente, Gerente, Coordinador (aislamiento), hombre-camión (web) y anónimo (enlace compartido). Se suman a los de G2–G7.
   - **Maestro:** Gerente, Coordinador, Operador por teléfono y hombre-camión (oferta y opera su propio viaje). Actualizar `apps/mobile/.maestro/README.md` y `scripts/e2e-mobile.mjs`.
   - **Capturas** de web y app en la rama `assets/G9-screenshots`.
   - **Docs:** `docs/demo-local.md` (usuarios demo finales y escenarios), `docs/seguridad.md` (matriz con los roles y tablas nuevas), `docs/tiendas.md` (justificación de ubicación precisa y "Siempre") y `docs/observabilidad.md` (eventos nuevos, si los hay).

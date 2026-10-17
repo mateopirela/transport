@@ -115,7 +115,7 @@ transport/
 | Viajes | `trips`, `trip_events` (tipo, occurred_at, ubicación, **estimated_unload_end_at**), `trip_locations` (alto volumen), `trip_evidence` (fotos + metadatos), `incidents` |
 | Comunicación | `conversations` (por negociación o viaje), `messages` (inmutables), `message_reads`, `push_tokens`, `notifications` |
 | Mapas | `route_distance_cache` (origen/destino redondeados → km, minutos) |
-| §G (2026-10-16) | `business_units`, `business_unit_coordinators`, `invitations`, `vehicle_release_tasks`, `trip_document_requirements`, `license_unit_compatibility`, `document_shares`, `document_share_views`, `provider_approvals`, `share_links`, `subscription_plans`, `company_subscriptions`, `billing_events`. Roles: `user_role` pasa a `shipper`/`manager`/`coordinator`/`operator`/`admin` (ver §G) |
+| §G (2026-10-16) | `business_units`, `business_unit_coordinators`, `invitations`, `vehicle_release_tasks`, `trip_document_requirements`, `license_unit_compatibility`, `document_shares`, `document_share_views`, `provider_approvals`, `share_links` (y, cuando se retome G8, pospuesto por D24: `subscription_plans`, `company_subscriptions` y `billing_events`). Roles: `user_role` pasa a `shipper`/`manager`/`coordinator`/`operator`/`admin` (ver §G) |
 
 **Máquinas de estado** (código en `packages/shared`, validación en SQL):
 - `loads`: `draft → published → negotiating → contracted → in_progress → completed`. Desde los primeros estados también puede ir a `cancelled` o `expired`.
@@ -451,7 +451,7 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 | Cuenta de Expo/EAS | B17 | Mateo |
 | Clave de Google Maps Platform con facturación (Places, Maps JS, Maps SDK y Routes) | B08, B13 y B19 | Mateo |
 | ✅ Lista oficial de documentos por perfil (D16), recibida el 2026-10-16 | G3 | JP |
-| Cuenta de Stripe (México) con un producto y un precio en MXN por plan, y el webhook apuntando a la Edge Function | G8 (sin ella, todo queda en "Piloto gratis") | Mateo |
+| Cuenta de Stripe (México) con un producto y un precio en MXN por plan, y el webhook apuntando a la Edge Function | G8, pospuesto (D24): no hace falta en esta ola | Mateo |
 | Apple Developer ($99 USD/año) y Google Play Console ($25 USD) | B27 | Mateo / Fulmis |
 | Proyectos Supabase en la nube y Vercel | B27 | Mateo |
 | Proveedor de email transaccional (Resend o similar) y dominio | B09 y B27 | Mateo |
@@ -470,7 +470,7 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 
 ## 5. Después de la V1 (no se construye ahora)
 
-Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La suscripción y la web del transportista **entraron** a la V1 el 2026-10-16 (§G).
+Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8).
 
 ---
 
@@ -868,7 +868,7 @@ Ola GE   G9 (todos)
   - **Capturas** de web y app en la rama `assets/G9-screenshots`.
   - **Docs:** `docs/demo-local.md` (usuarios demo finales y escenarios), `docs/seguridad.md` (matriz con los roles y tablas nuevas), `docs/tiendas.md` (justificación de ubicación precisa y "Siempre") y `docs/observabilidad.md` (eventos nuevos, si los hay).
   - **Revisión final de consistencia:** que no quede copy "Transportista" donde debe decir Gerente o Coordinador, ni el rol `carrier` en código, ni D06 viejo en textos (`/solo-app`); que `.env.example` y `docs/release.md` estén completos.
-- **Aceptación:** `pnpm e2e:mobile` y Playwright pasan con la seed; producto §3 y §6 se cumplen en la demo.
+- **Aceptación:** `pnpm e2e:mobile` y Playwright pasan con la seed; producto §3 y §6 se cumplen en la demo, **salvo las funciones marcadas como pospuestas** (la suscripción, D24/G8). No se prueban ni se construyen pantallas, rutas, avisos ni notificaciones de suscripción.
 - **E2E que probablemente se rompan:** los que aún no se hayan ajustado en los bloques anteriores.
 
 ### G.2 Seguimiento (dudas abiertas para Mateo y JP)
@@ -881,7 +881,7 @@ Las decisiones de arriba se toman con un valor por defecto para no bloquear; cad
 4. Compatibilidad **licencia ↔ unidad** provisional (B, C y E); que JP la confirme (G3).
 5. ¿El operador sigue en el chat del viaje **con el cliente**, o solo en el interno con su coordinador? (G6).
 6. ¿El enlace público de seguimiento muestra la placa completa, enmascarada (por defecto) o no la muestra? (G7).
-7. Precios de la suscripción, planes (flota y hombre-camión), fecha de fin del piloto, y si la suscripción necesita factura CFDI (G8).
+7. Precios de la suscripción, planes (flota y hombre-camión), fecha de fin del piloto, y si la suscripción necesita factura CFDI (G8, pospuesto: se retoma cuando se reactive).
 8. ¿OXXO es indispensable para la suscripción? (G8).
 9. ¿Los coordinadores también dan de alta camiones, o solo el Gerente? Por defecto, solo el Gerente (G1a/G4).
 10. Nombre en la UI para las unidades de negocio: "Unidad de negocio" (por defecto) o "Grupo".

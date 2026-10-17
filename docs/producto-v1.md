@@ -27,7 +27,7 @@
 | Perfil | Quién es | Plataforma V1 |
 |---|---|---|
 | **Cliente** | Empresa que necesita mover carga | Web |
-| **Gerente** (transportista) | Dueño o director de la empresa transportista: lo legal, la flota, las unidades de negocio, los coordinadores y la suscripción | App móvil y web (D06-E1) |
+| **Gerente** (transportista) | Dueño o director de la empresa transportista: lo legal, la flota, las unidades de negocio, los coordinadores y, más adelante, la suscripción (pospuesta, D24) | App móvil y web (D06-E1) |
 | **Coordinador** (transportista) | Opera una o varias unidades de negocio: busca cargas, negocia, asigna y supervisa | App móvil y web (D06-E1) |
 | **Operador** | Conductor que ejecuta el viaje | App móvil (vista de operador) |
 | **Hombre-camión** | Transportista independiente: una sola cuenta con los perfiles de Gerente y Operador (D13) | App móvil y web |
@@ -69,7 +69,7 @@
   - las bajas nunca rompen un viaje activo (se bloquean mientras haya uno)
 - Supervisar **todos** los viajes de la empresa, con filtro por unidad de negocio.
 - Todo lo que hace un coordinador, en cualquier unidad de negocio.
-- **Suscripción**: ver el estado; pagar y administrarla en la web (D24).
+- *(Pospuesto, D24)* **Suscripción**: ver el estado; pagar y administrarla en la web.
 
 ### Coordinador (app y web)
 - Registro por enlace del Gerente: nombre, correo, teléfono y contraseña. No vuelve a registrar la empresa.
@@ -103,14 +103,14 @@
 ### Hombre-camión (app y web)
 - En el registro elige "Hombre camión": una sola cuenta crea la empresa, su perfil de Gerente y su perfil de Operador (D13).
 - Sube sus documentos fiscales, personales (identificación y licencia) y del camión.
-- Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación, subir evidencias y pagar la suscripción.
+- Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación y subir evidencias. Pagar la suscripción queda pospuesto (D24).
 
 ### Admin (web)
 - Cola de verificación de empresas, documentos, unidades y operadores: aprobar o rechazar con motivo.
 - Usuarios: buscar, suspender y reactivar.
 - Supervisión de cargas y viajes, con asignación manual.
 - Incidencias: seguimiento y resolución.
-- Estado de suscripción de cada empresa transportista y fin del periodo piloto.
+- *(Pospuesto, D24)* Estado de suscripción de cada empresa transportista y fin del periodo piloto.
 - Estadísticas básicas: cargas publicadas, ofertas, viajes, viajes de regreso logrados y km en vacío.
 - Bitácora de auditoría de acciones administrativas.
 
@@ -124,7 +124,7 @@
   - un documento del viaje nuevo, o documentos compartidos
   - una unidad pendiente de liberar
   - un documento aprobado, rechazado o por vencer
-  - una suscripción por vencer o vencida
+  - *(pospuesto, D24)* una suscripción por vencer o vencida
 - Alertas de **documentos por vencer** (licencias, seguros y demás documentos con vigencia).
 - Aviso de privacidad (LFPDPPP) y términos, con consentimiento de ubicación registrado.
 
@@ -145,7 +145,7 @@
 
 ## 4. Fuera de la V1
 
-Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o validación de Carta Porte, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros o de flotas (D17). La suscripción **sí** entra (D24). Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
+Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o validación de Carta Porte, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros o de flotas (D17). La suscripción entró a la V1 (D24), pero Mateo la **pospuso** el 2026-10-16: no se construye en esta ola y el piloto es gratis. Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
 
 ## 5. Indicadores de éxito del piloto (MTY ↔ GDL)
 
@@ -180,7 +180,7 @@ Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o
 | Ver documentos compartidos del transportista | ✅ (de sus viajes) | — | — | — | ✅ |
 | Dar de alta a un transportista como proveedor | ✅ | — | — | — | 👁 |
 | Compartir por enlace | ✅ carga y seguimiento (público) | ✅ carga (interno) | 🔸 carga (interno) | — | — |
-| Pagar y administrar la suscripción | — | ✅ (web) | 👁 estado | — | 👁 |
+| Pagar y administrar la suscripción *(pospuesto, D24: no se construye en esta ola)* | — | ✅ (web) | 👁 estado | — | 👁 |
 
 ## 7. Glosario
 

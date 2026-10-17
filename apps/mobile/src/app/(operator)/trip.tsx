@@ -154,22 +154,32 @@ export default function AssignedTripTab() {
 
   // Refused actions of any trip: the trip itself may no longer be shown. A
   // departure refused for missing documents (D22, blocks_departure) names
-  // them: the coordinator uploads them and the operator departs again.
+  // them: the coordinator uploads them and the operator departs again. Any
+  // other refusal (an incident, a step after a changed trip) is listed too, so
+  // the operator knows what to submit again.
   const missingDocuments = queue.rejected.flatMap(
     (a) => missingTripDocumentsFromError(queue.rejectedReasons[a.id] ?? '') ?? [],
+  );
+  const otherRefused = queue.rejected.filter(
+    (a) => missingTripDocumentsFromError(queue.rejectedReasons[a.id] ?? '') === null,
   );
   const rejectedNotice =
     queue.rejected.length > 0 ? (
       <Notice tone="danger" title={copy.rejectedTitle}>
-        <Body>
-          {missingDocuments.length > 0
-            ? copy.rejectedMissingDocuments(
-                missingDocuments.map((kind) => tripDocumentKindLabels[kind]).join(', '),
-              )
-            : copy.rejectedBody(
-                queue.rejected.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
-              )}
-        </Body>
+        {missingDocuments.length > 0 ? (
+          <Body>
+            {copy.rejectedMissingDocuments(
+              missingDocuments.map((kind) => tripDocumentKindLabels[kind]).join(', '),
+            )}
+          </Body>
+        ) : null}
+        {otherRefused.length > 0 ? (
+          <Body>
+            {copy.rejectedBody(
+              otherRefused.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
+            )}
+          </Body>
+        ) : null}
         <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
       </Notice>
     ) : null;

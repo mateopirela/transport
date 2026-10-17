@@ -76,19 +76,24 @@ Dos temas. Nunca negro puro ni blanco puro de fondo. Los nombres son los del sis
 | `surfaceHigh` | `#ECE8E2` | `#2A282C` | un paso más que la página: tiles de icono, controles deshabilitados, burbujas propias del chat |
 | `text` | `#1A1917` | `#F2F0EE` | texto |
 | `textDim` | `#6E6963` | `#A5A09B` | secundario |
-| `textFaint` | `#A39E97` | `#6E6A66` | terciario, placeholders |
+| `textFaint` | `#736D67` | `#8F8A84` | terciario, placeholders (AA sobre `cell` y `bg`) |
 | `accent` | `#1F5EFF` | `#5C8CFF` | **el** acento: primario, selección, distintivos |
 | `accentText` | `#0F47D4` | `#8AB0FF` | acento como texto sobre la página |
 | `accentInk` | `#FFFFFF` | `#0B1430` | tinta sobre el acento |
 | `accentSoft` | `#E4ECFF` | `#1C2742` | acento al 14 %: fondo de píldoras y filas seleccionadas |
-| `ok` | `#2B8A57` | `#5FCF95` | éxito, "Disponible", "Entregado" |
-| `amber` | `#B8781A` | `#E9B45A` | pendiente, por vencer |
-| `red` | `#C0392B` | `#FF8A7E` | error, vencido, destructivo |
+| `ok` | `#2B8A57` | `#5FCF95` | éxito: rellenos, iconos, puntos de la línea de tiempo, texto ≥ 20 px |
+| `okText` | `#1F6B43` | `#5FCF95` | éxito como texto pequeño: píldoras, "Disponible", "Entregado" |
+| `amber` | `#B8781A` | `#E9B45A` | pendiente, por vencer: rellenos e iconos |
+| `amberText` | `#8A5A12` | `#E9B45A` | pendiente como texto pequeño |
+| `red` | `#C0392B` | `#FF8A7E` | error, vencido, destructivo: rellenos, iconos y botón destructivo |
+| `redText` | `#A52E22` | `#FF8A7E` | error como texto pequeño |
 | `highlight` | `#F4E9DA` | `#3E3328` | aviso después de algo que salió bien |
 | `glass` | `rgba(255,255,255,0.74)` | `rgba(29,28,31,0.82)` | barra flotante y barra inferior (con desenfoque) |
 | `glassLine` | `rgba(0,0,0,0.06)` | `rgba(255,255,255,0.08)` | borde del vidrio |
 
-Los tonos de estado (`ok`, `amber`, `red`, `accent`) se usan **sobre su propio 14 %** en las píldoras (`Pill`), nunca como texto suelto sobre blanco salvo `accentText` y `red`.
+Los tonos de estado se usan **sobre su propio 14 %** en las píldoras (`Pill`): el fondo es el tono base al 14 % sobre `cell`, y el texto es el tono `*Text` (`okText`, `amberText`, `redText`, `accentText`), que cumple 4.5:1 ahí y sobre `cell` y `bg`. El tono base (`ok`, `amber`, `red`, `accent`) solo va en rellenos, iconos y texto de 20 px o más. En el tema oscuro los tonos base ya cumplen y el `*Text` es el mismo valor.
+
+Contrastes de la tabla (los fija la prueba de U1): `text`/`cell` 17.6, `textDim`/`cell` 5.4, `textFaint`/`cell` 5.1 y `/bg` 4.6, `accentInk`/`accent` 5.1 (oscuro 5.7), `accentText`/`bg` 6.5, `okText`/`okSoft` 5.5, `amberText`/`amberSoft` 5.1, `redText`/`redSoft` 5.6.
 
 El azul se eligió por continuidad con la marca actual (`#2563EB`) y porque la pantalla de logística vive entre mapas y estados verde/ámbar/rojo: un acento frío los deja respirar. Es un dato: cambiarlo es editar dos líneas de `tokens.ts`.
 
@@ -186,14 +191,14 @@ Formato: objetivo, alcance, fuera de alcance, tests, aceptación, E2E que probab
 
 - **Objetivo:** que las dos apps lean los colores, la tipografía y los radios de un solo lugar, con tema claro y oscuro, sin tocar aún ninguna pantalla.
 - **Alcance:**
-  - `packages/shared/src/design/tokens.ts`: `palette` (claro y oscuro, §1.1), `typeScale` (§1.2), `spacing`, `radii`, `shape`. Función pura `contrastRatio(a, b)` y test de Vitest que afirma AA para cada par texto/fondo que el sistema usa (`text`/`bg`, `text`/`cell`, `textDim`/`cell`, `accentInk`/`accent`, `accentText`/`bg`, cada tono sobre su `*Soft`). Exportado desde `@transport/shared`.
-  - **App:** `apps/mobile/src/theme.tsx` reemplaza a `theme.ts`: `ThemeProvider` (claro / oscuro / sistema, guardado con `expo-secure-store` o `AsyncStorage`, lo que ya exista), `useTheme()` → `{ theme, colors, type, box }`, `useStyles()`, `useStackScreenOptions()` (cabecera sin sombra, color de página, título `headline`, botón atrás minimal). Carga de Hanken Grotesk antes de ocultar el splash. **Alias** de las claves actuales (`navy`, `accent`, `background`, `surface`, `textMuted`, `border`, `dangerSurface`…) sobre los valores nuevos, de modo que `components/ui.tsx` y todas las pantallas cambien de paleta y fuente sin editarlas. `Title` pasa a Hanken 700.
+  - `packages/shared/src/design/tokens.ts`: `palette` (claro y oscuro, §1.1), `typeScale` (§1.2), `spacing`, `radii`, `shape`. Función pura `contrastRatio(a, b)` y test de Vitest que afirma AA (≥ 4.5) para cada par texto/fondo que el sistema usa, en los dos temas: `text`, `textDim` y `textFaint` sobre `cell` y sobre `bg`; `accentInk` sobre `accent`; `accentText` sobre `bg` y `cell`; `okText`, `amberText`, `redText` y `accentText` sobre su `*Soft` (el tono base al 14 % sobre `cell`). Si un valor no pasa, se ajusta el token (y la tabla de §1.1), no la prueba. Exportado desde `@transport/shared`.
+  - **App:** `apps/mobile/src/theme.tsx` reemplaza a `theme.ts`: `ThemeProvider` (claro / oscuro / sistema, guardado con `expo-secure-store` o `AsyncStorage`, lo que ya exista), `useTheme()` → `{ theme, colors, type, box }`, `useStyles()`, `useStackScreenOptions()` (cabecera sin sombra, color de página, título `headline`, botón atrás minimal). Carga de Hanken Grotesk antes de ocultar el splash. **Alias** de las claves actuales (`navy`, `accent`, `background`, `surface`, `textMuted`, `border`, `dangerSurface`…) sobre los valores **del tema claro**, de modo que `components/ui.tsx` y todas las pantallas pasen a la paleta y la fuente nuevas sin editarlas. Esas pantallas capturan los colores en `StyleSheet.create` al cargar el módulo, así que **no siguen el tema oscuro** hasta que U3–U5 las migren a `useTheme()`; en U1 el tema oscuro se acepta solo en lo que ya lo lee (cabeceras, barra de pestañas, fondo de pantalla, el kit cuando llegue). `Title` pasa a Hanken 700.
   - **Web:** `globals.css` con los tokens como variables (`--bg`, `--cell`, … y los nombres de shadcn mapeados: `--background`, `--card`, `--primary` = acento, `--muted`, `--border`), tema oscuro por `prefers-color-scheme` y por clase `.dark` (la elección se guarda en una cookie `theme`, leída en `layout.tsx` para evitar el parpadeo), `--font-sans` = Hanken; sin `--font-serif`; `h1–h3` sin `font-serif`. Test de Vitest que lee `globals.css` y comprueba que cada hex coincide con `tokens.ts`.
   - Conmutador de tema: fila "Apariencia" en la cuenta (app) y en el menú de la cuenta (web). Copy nuevo en `packages/shared/src/copy/` (`appearance: { title, system, light, dark }`).
   - D26 en `docs/decisiones.md`.
 - **Fuera de alcance:** componentes y pantallas nuevas.
 - **Tests:** contraste; CSS ↔ tokens; `resolveTheme(choice, scheme)` puro.
-- **Aceptación:** `pnpm lint/typecheck/test` verde; la app y la web abren con la fuente y la paleta nuevas en claro y oscuro sin pantallas rotas; Maestro 01 y Playwright pasan sin cambios.
+- **Aceptación:** `pnpm lint/typecheck/test` verde; la app y la web abren con la fuente y la paleta nuevas en claro sin pantallas rotas; el conmutador cambia el tema en lo que ya lo lee (web entera, y en la app las cabeceras y los fondos); Maestro 01 y Playwright pasan sin cambios.
 - **E2E que probablemente se rompan:** ninguno (solo cambian estilos).
 
 #### U2 · Kit de UI móvil

@@ -468,4 +468,6 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 
 ## 5. Después de la V1 (no se construye ahora)
 
+> **Rediseño visual (U1–U9):** [plan-rediseno.md](plan-rediseno.md). Solo presentación; se ejecuta con el workflow `transport-redesign` (`.claude/workflows/`).
+
 Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pagos dentro de la plataforma, comisiones y suscripciones; emisión y validación de Carta Porte; integración con GPS de flotas; calificaciones y reputación; app de cliente en móvil y transportista en web; inglés; hardware propio.

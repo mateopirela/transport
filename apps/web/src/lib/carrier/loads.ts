@@ -7,6 +7,8 @@ import {
   carrierNegotiationState,
   DEFAULT_ROAD_DISTANCE_FACTOR,
   DEFAULT_TOP_N,
+  estimateRoadKm,
+  findCityPreset,
   matchExplanation,
   recommend,
   toRecommendation,
@@ -141,32 +143,57 @@ export interface EmptyLeg {
 }
 
 /**
- * Where each compatible unit is free and how far it is from the pickup of one
- * load (match_candidates, B08), nearest first.
+ * Where each unit of the load's unit type is free and how far it is from the
+ * pickup: from match_candidates (B08) while the load is still a candidate,
+ * and, once the company negotiates it (match_pairs leaves it out), from the
+ * unit's availability and the pickup, as the matching estimates without
+ * Routes. Nearest first.
  */
 export async function emptyLegs(
   supabase: Supabase,
-  loadId: string,
+  load: Pick<CarrierLoad, 'id' | 'unit_type' | 'origin_lat' | 'origin_lng'>,
   units: readonly CarrierUnit[],
 ): Promise<EmptyLeg[]> {
+  const compatible = units.filter((unit) => unit.unit_type === load.unit_type);
+  if (compatible.length === 0) return [];
+  const availability = await supabase
+    .from('vehicle_availability')
+    .select('vehicle_id, city, state')
+    .in(
+      'vehicle_id',
+      compatible.map((unit) => unit.id),
+    )
+    .is('archived_at', null);
+  const freeAt = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const results = await Promise.all(
-    units.map(async (unit) => {
+    compatible.map(async (unit): Promise<EmptyLeg[]> => {
       const { data, error } = await supabase.rpc('match_candidates', {
         p_vehicle_id: unit.id,
         p_limit: 200,
       });
       // A unit that is not ready (documents, availability) has no candidates.
-      if (error) return [];
-      const row = data.find((r) => r.load_id === loadId);
-      if (!row?.start_city || typeof row.empty_km !== 'number') return [];
-      if (typeof row.start_lat !== 'number' || typeof row.start_lng !== 'number') return [];
-      return [
-        {
-          vehicleId: unit.id,
-          emptyKm: estimateFromStraightLine(row.empty_km),
-          start: { city: row.start_city, lat: row.start_lat, lng: row.start_lng },
-        },
-      ];
+      const row = error ? undefined : data.find((r) => r.load_id === load.id);
+      if (
+        row?.start_city &&
+        typeof row.empty_km === 'number' &&
+        typeof row.start_lat === 'number' &&
+        typeof row.start_lng === 'number'
+      ) {
+        return [
+          {
+            vehicleId: unit.id,
+            emptyKm: estimateFromStraightLine(row.empty_km),
+            start: { city: row.start_city, lat: row.start_lat, lng: row.start_lng },
+          },
+        ];
+      }
+      // Availability is stored as a city preset (B18), so its coordinates are known.
+      const free = freeAt.get(unit.id);
+      const place = free && findCityPreset(free.city, free.state);
+      if (!place) return [];
+      const start = { city: place.city, lat: place.lat, lng: place.lng };
+      const pickup = { lat: load.origin_lat, lng: load.origin_lng };
+      return [{ vehicleId: unit.id, emptyKm: estimateRoadKm(start, pickup), start }];
     }),
   );
   return results.flat().sort((a, b) => a.emptyKm - b.emptyKm);
@@ -294,6 +321,8 @@ export async function getLoadNegotiation(
   companyId: string,
   loadId: string,
 ): Promise<CarrierNegotiation | null> {
+  // A malformed id from the URL is "not found", not a database error.
+  if (!uuidField.safeParse(loadId).success) return null;
   const { data, error } = await supabase
     .from('negotiations')
     .select(NEGOTIATION_COLUMNS)

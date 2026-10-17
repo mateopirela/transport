@@ -45,11 +45,17 @@ export default async function CarrierLoadPage({
   const { id } = await params;
   const { supabase, viewer, companyId, units } = await carrierContext(carrierLoadPath(id));
   const recommendedFor = uuidField.safeParse((await searchParams)[RECOMMENDED_UNIT_PARAM]);
-  const [load, negotiation, carrierUnits] = await Promise.all([
+  const [load, negotiation] = await Promise.all([
     getCarrierLoad(supabase, id),
     getLoadNegotiation(supabase, companyId, id),
-    listCarrierUnits(supabase, companyId, units.ids),
   ]);
+  // With a negotiation under way, only its business unit's units may be
+  // proposed (make_offer, counter_offer), whatever the picker says.
+  const carrierUnits = await listCarrierUnits(
+    supabase,
+    companyId,
+    negotiation ? [negotiation.businessUnitId] : units.ids,
+  );
   const back = (
     <Link href={paths.carrierLoads} className="text-sm text-accent hover:underline">
       {c.back}
@@ -66,7 +72,7 @@ export default async function CarrierLoadPage({
     );
   }
   // Compatible units nearest first; the unit it was recommended for leads.
-  const legs = await emptyLegs(supabase, load.id, carrierUnits);
+  const legs = await emptyLegs(supabase, load, carrierUnits);
   const preferred = recommendedFor.success ? recommendedFor.data : null;
   legs.sort((a, b) => Number(b.vehicleId === preferred) - Number(a.vehicleId === preferred));
   const best = legs[0];

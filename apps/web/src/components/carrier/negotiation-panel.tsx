@@ -7,6 +7,7 @@ import {
   formatDateTime,
   formatMxn,
   offerStatusLabels,
+  offerStatusReasonText,
   sortOffers,
   type LoadStatus,
   type NegotiationOffer,
@@ -127,9 +128,9 @@ export function CarrierNegotiationPanel({
                       {c.unit}: {unit?.label ?? (offer.vehicle_id ? '—' : c.noUnit)}
                     </p>
                   )}
-                  {offer.status_reason && offer.status_reason !== 'other_offer_accepted' && (
+                  {offerStatusReasonText(offer.status_reason) && (
                     <p className="text-xs text-muted-foreground">
-                      {c.reason}: {offer.status_reason}
+                      {c.reason}: {offerStatusReasonText(offer.status_reason)}
                     </p>
                   )}
                 </li>
@@ -145,7 +146,8 @@ export function CarrierNegotiationPanel({
             loadId={load.id}
             proposed={proposed}
             vehicleId={defaultUnit}
-            businessUnitId={chooseBusinessUnit ? defaultBusinessUnitId : null}
+            businessUnits={chooseBusinessUnit ? businessUnits : []}
+            defaultBusinessUnitId={chooseBusinessUnit ? defaultBusinessUnitId : null}
           />
           <OfferForm
             action={makeCarrierOffer}
@@ -224,18 +226,27 @@ function Feedback({ state }: { state: FormState }) {
 }
 
 /** One-step offer of the proposed price, after an explicit confirmation. */
+/**
+ * One-step offer of the proposed price, after an explicit confirmation. The
+ * unit decides the business unit; without one, and with several business
+ * units to choose from, the confirmation asks for it (make_offer needs one).
+ */
 function AcceptProposedForm({
   loadId,
   proposed,
   vehicleId,
-  businessUnitId,
+  businessUnits,
+  defaultBusinessUnitId,
 }: {
   loadId: string;
   proposed: string;
   vehicleId: string | null;
-  businessUnitId: string | null;
+  /** Business units to choose from; empty when the unit or the only one decides. */
+  businessUnits: readonly PanelBusinessUnit[];
+  defaultBusinessUnitId: string | null;
 }) {
   const [state, action, pending] = useActionState(acceptProposedPrice, {});
+  const askBusinessUnit = vehicleId === null && businessUnits.length > 0;
   return (
     <details className="rounded-lg border p-4 open:bg-muted/40" open={Boolean(state.error)}>
       <summary className="cursor-pointer text-sm font-medium text-success">
@@ -245,7 +256,29 @@ function AcceptProposedForm({
         <p className="font-medium">{c.acceptProposedTitle}</p>
         <p className="text-sm text-muted-foreground">{a.acceptProposedHelp(proposed)}</p>
         <Feedback state={state} />
-        <Hidden values={{ loadId, vehicleId, businessUnitId }} />
+        <Hidden values={{ loadId, vehicleId }} />
+        {askBusinessUnit ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="accept-business-unit">{c.businessUnitField}</Label>
+            <select
+              id="accept-business-unit"
+              name="businessUnitId"
+              required
+              defaultValue={defaultBusinessUnitId ?? ''}
+              className={select}
+            >
+              <option value="">—</option>
+              {businessUnits.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">{c.acceptProposedBusinessUnitHint}</p>
+          </div>
+        ) : (
+          <Hidden values={{ businessUnitId: defaultBusinessUnitId }} />
+        )}
         <Button type="submit" variant="accent" disabled={pending}>
           {pending ? c.sending : c.acceptProposedConfirm}
         </Button>

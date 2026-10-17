@@ -115,6 +115,8 @@ export const carrierWebCopy = {
     reason: 'Motivo',
     acceptProposedTitle: '¿Aceptar el precio propuesto?',
     acceptProposedConfirm: 'Sí, ofertar ese precio',
+    acceptProposedBusinessUnitHint:
+      'No hay un camión disponible que decida la unidad de negocio: elige con cuál ofertas.',
     negotiateTitle: 'Tu oferta',
     counterTitle: 'Tu contraoferta',
     amount: 'Tu precio (MXN)',

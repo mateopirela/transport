@@ -5,6 +5,7 @@ import {
   carrierNegotiationState,
   carrierOfferErrorText,
   directionsUrl,
+  offerStatusReasonText,
   FEED_RECOMMENDATIONS,
   RETURN_TRIPS_PER_UNIT,
   sortOffers,
@@ -14,6 +15,7 @@ import {
 } from './carrier-loads';
 import { carrierLoadsCopy } from './copy/carrier-loads';
 import { matchExplanation } from './copy/matching';
+import { offersCopy } from './copy/negotiation';
 import { recommend, type MatchCandidate } from './matching';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
@@ -206,6 +208,21 @@ describe('carrierOfferErrorText', () => {
     expect(carrierOfferErrorText('duplicate key value violates unique constraint')).toBeNull();
     // Only the start of the message counts.
     expect(carrierOfferErrorText('context: load not found')).toBeNull();
+  });
+});
+
+describe('offerStatusReasonText', () => {
+  it('translates the fixed reasons and keeps the ones a person typed', () => {
+    expect(offerStatusReasonText('other_offer_accepted')).toBe(
+      offersCopy.statusReasons.other_offer_accepted,
+    );
+    expect(offerStatusReasonText('load_cancelled')).toBe(offersCopy.statusReasons.load_cancelled);
+    expect(offerStatusReasonText('load_expired')).toBe(offersCopy.statusReasons.load_expired);
+    expect(offerStatusReasonText('Muy caro para la ruta')).toBe('Muy caro para la ruta');
+    expect(offerStatusReasonText(null)).toBeNull();
+    expect(offerStatusReasonText('')).toBeNull();
+    // Object prototype keys are not reasons.
+    expect(offerStatusReasonText('constructor')).toBe('constructor');
   });
 });
 

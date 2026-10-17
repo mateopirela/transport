@@ -4,6 +4,7 @@ import {
   formatMxn,
   offersCopy,
   offerStatusLabels,
+  offerStatusReasonText,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -80,9 +81,9 @@ export default async function NegotiationPage({
                       {c.conditions}: {offer.conditions}
                     </p>
                   )}
-                  {offer.status_reason && offer.status_reason !== 'other_offer_accepted' && (
+                  {offerStatusReasonText(offer.status_reason) && (
                     <p className="text-sm text-muted-foreground">
-                      {c.reason}: {offer.status_reason}
+                      {c.reason}: {offerStatusReasonText(offer.status_reason)}
                     </p>
                   )}
                 </li>

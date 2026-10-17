@@ -4,6 +4,7 @@
 // and the allowed actions are unit-tested; Postgres validates every action
 // again in the negotiation RPCs (B05).
 import { carrierLoadsCopy } from './copy/carrier-loads';
+import { offersCopy } from './copy/negotiation';
 import type { LoadStatus, OfferSide, OfferStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
@@ -202,6 +203,17 @@ const OFFER_ERRORS: readonly (readonly [RegExp, string])[] = [
 export function carrierOfferErrorText(message: string): string | null {
   for (const [pattern, text] of OFFER_ERRORS) if (pattern.test(message)) return text;
   return null;
+}
+
+/**
+ * What to show for an offer's `status_reason`: the Spanish copy of a fixed
+ * reason written by the platform, the text itself when a person typed it, or
+ * null when there is none.
+ */
+export function offerStatusReasonText(reason: string | null): string | null {
+  if (!reason) return null;
+  const fixed = offersCopy.statusReasons;
+  return Object.hasOwn(fixed, reason) ? fixed[reason as keyof typeof fixed] : reason;
 }
 
 /**

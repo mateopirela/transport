@@ -69,6 +69,11 @@ test('the carrier staff negotiate on the web within their business units', async
     await expect(await negotiationRows(andrea, LEON_ROUTE)).toHaveCount(1);
   });
 
+  await test.step('a malformed load link shows the unavailable message', async () => {
+    await andrea.goto('/transportista/cargas/no-es-un-id');
+    await expect(andrea.getByText(carrierWebCopy.detail.notFound)).toBeVisible();
+  });
+
   await test.step('Héctor sees neither the recommendation nor the negotiation', async () => {
     await signInOnWeb(hector, 'hector');
     await expect(hector).toHaveURL(/\/transportista$/u);

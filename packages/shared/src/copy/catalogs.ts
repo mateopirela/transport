@@ -6,6 +6,7 @@ import type {
   EvidenceStage,
   IncidentKind,
   IncidentStatus,
+  InvitationKind,
   LicenseType,
   LoadStatus,
   OfferSide,
@@ -31,6 +32,12 @@ export const userRoleLabels: Record<UserRole, string> = {
   coordinator: 'Coordinador',
   operator: 'Operador',
   admin: 'Administrador',
+};
+
+export const invitationKindLabels: Record<InvitationKind, string> = {
+  coordinator: 'Invitación de coordinador',
+  operator: 'Invitación de operador',
+  operator_access_reset: 'Restablecer acceso de operador',
 };
 
 export const verificationStatusLabels: Record<VerificationStatus, string> = {

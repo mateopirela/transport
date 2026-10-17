@@ -603,6 +603,77 @@ export interface Database {
           },
         ];
       };
+      invitations: {
+        Row: {
+          accepted_at: string | null;
+          accepted_by: string | null;
+          business_unit_ids: string[];
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          invitee_name: string | null;
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          business_unit_ids: string[];
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          invitee_name?: string | null;
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id?: string | null;
+          revoked_at?: string | null;
+          token_hash: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          business_unit_ids?: string[];
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          invitee_name?: string | null;
+          kind?: Database['public']['Enums']['invitation_kind'];
+          operator_id?: string | null;
+          revoked_at?: string | null;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'invitations_operator_fkey';
+            columns: ['company_id', 'operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'operators';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
       loads: {
         Row: {
           accepted_offer_id: string | null;
@@ -2161,6 +2232,7 @@ export interface Database {
       };
     };
     Functions: {
+      accept_coordinator_invitation: { Args: { p_token: string }; Returns: string };
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
       add_trip_document: {
@@ -2413,6 +2485,20 @@ export interface Database {
         };
         Returns: string;
       };
+      create_invitation: {
+        Args: {
+          p_business_unit_ids: string[];
+          p_invitee_name?: string;
+          p_kind: Database['public']['Enums']['invitation_kind'];
+          p_operator_id?: string;
+          p_valid_for_hours?: number;
+        };
+        Returns: {
+          expires_at: string;
+          invitation_id: string;
+          token: string;
+        }[];
+      };
       create_load: { Args: { p_load: Json }; Returns: string };
       create_operator_invitation: {
         Args: { p_operator_id: string; p_valid_for_hours?: number };
@@ -2445,6 +2531,18 @@ export interface Database {
         }[];
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
+      invitation_preview: {
+        Args: { p_token: string };
+        Returns: {
+          business_unit_names: string[];
+          company_legal_name: string;
+          expires_at: string;
+          invitee_name: string;
+          inviter_name: string;
+          kind: Database['public']['Enums']['invitation_kind'];
+        }[];
+      };
+      invitation_token_hash: { Args: { p_token: string }; Returns: string };
       invoke_notification_dispatcher: { Args: Record<PropertyKey, never>; Returns: number };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -2641,6 +2739,20 @@ export interface Database {
         Returns: string;
       };
       record_trip_locations: { Args: { p_points: Json; p_trip_id: string }; Returns: number };
+      redeem_operator_invitation_service: {
+        Args: {
+          p_email?: string;
+          p_full_name?: string;
+          p_phone?: string;
+          p_token: string;
+          p_user_id: string;
+        };
+        Returns: {
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id: string;
+          profile_id: string;
+        }[];
+      };
       register_push_token: {
         Args: { p_platform: Database['public']['Enums']['push_platform']; p_token: string };
         Returns: undefined;
@@ -2684,6 +2796,7 @@ export interface Database {
         };
         Returns: Database['public']['Enums']['verification_status'];
       };
+      revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
       revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       send_message: {
@@ -2885,6 +2998,7 @@ export interface Database {
         | 'road_blockade'
         | 'other';
       incident_status: 'open' | 'resolved';
+      invitation_kind: 'coordinator' | 'operator' | 'operator_access_reset';
       license_type: 'B' | 'C' | 'E';
       load_status:
         | 'draft'
@@ -3133,6 +3247,7 @@ export const Constants = {
         'other',
       ],
       incident_status: ['open', 'resolved'],
+      invitation_kind: ['coordinator', 'operator', 'operator_access_reset'],
       license_type: ['B', 'C', 'E'],
       load_status: [
         'draft',

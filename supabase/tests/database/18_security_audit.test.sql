@@ -197,6 +197,9 @@ select set_eq(
     -- Fleet (B04).
     'create_operator_invitation', 'revoke_operator_invitation', 'accept_operator_invitation',
     'set_vehicle_availability', 'clear_vehicle_availability',
+    -- Invitations by link (G1b). invitation_preview is also granted to anon:
+    -- it answers only to a valid token and returns no id.
+    'create_invitation', 'revoke_invitation', 'invitation_preview', 'accept_coordinator_invitation',
     -- Loads and negotiation (B05, B14, B16, B19).
     'create_load', 'update_load', 'publish_load', 'cancel_load', 'make_offer', 'counter_offer',
     'reject_offer', 'withdraw_offer', 'accept_offer', 'admin_create_offer', 'admin_accept_offer',
@@ -227,7 +230,9 @@ select set_eq(
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
     'companies_create_default_business_unit', 'default_business_unit',
     -- Edge Functions.
-    'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit'
+    'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
+    -- G2's redeem-invitation Edge Function (G1b): also checks the JWT role claim.
+    'redeem_operator_invitation_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

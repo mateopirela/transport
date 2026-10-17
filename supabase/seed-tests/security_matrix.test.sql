@@ -21,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(31);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -100,6 +100,23 @@ values ('f2400000-0000-4000-8000-000000000001', tests.val('carrier_company'), te
         -- spaces and dashes and upper-cases it).
         'zoe@fuera.test', sha256(convert_to('B24INVITECODE', 'UTF8')), now() + interval '1 day');
 insert into tests.vals values ('invitation', 'f2400000-0000-4000-8000-000000000001');
+-- Invitation links (G1b): a coordinator invitation of the carrier and an
+-- operator invitation of "Corredor MTY–GDL", both with a fixed token.
+insert into public.invitations (id, company_id, kind, business_unit_ids, token_hash, expires_at, created_by)
+values ('f2400000-0000-4000-8000-000000000002', tests.val('carrier_company'), 'coordinator',
+        array(select id from public.business_units where company_id = tests.val('carrier_company') order by name),
+        sha256(convert_to(rpad('b24coordinatorlink', 43, '0'), 'UTF8')), now() + interval '1 day',
+        '5eed0001-0000-4000-8000-000000000005'),
+       ('f2400000-0000-4000-8000-000000000003', tests.val('carrier_company'), 'operator',
+        array[(select business_unit_id from public.operators where id = tests.val('operator'))],
+        sha256(convert_to(rpad('b24operatorlink', 43, '0'), 'UTF8')), now() + interval '1 day',
+        '5eed0001-0000-4000-8000-000000000011');
+insert into tests.vals values ('link_invitation', 'f2400000-0000-4000-8000-000000000003');
+-- The business units of the carrier, by id: an outsider cannot read them, so
+-- the RPC calls below must name them, not look them up.
+insert into tests.vals select 'corredor_unit', business_unit_id from public.operators where id = tests.val('operator');
+insert into tests.vals select 'regional_unit', id from public.business_units
+where company_id = tests.val('carrier_company') and id <> tests.val('corredor_unit');
 insert into public.push_tokens (user_id, token, platform)
 values ('5eed0001-0000-4000-8000-000000000008', 'ExponentPushToken[b24SeedDeviceToken]', 'android');
 insert into public.route_distance_cache (origin_lat, origin_lng, destination_lat, destination_lng, distance_km, duration_minutes)
@@ -148,6 +165,7 @@ insert into tests.ownership values
   ('public.vehicles', 't.company_id = $1'),
   ('public.operators', 't.company_id = $1'),
   ('public.operator_invitations', 't.company_id = $1'),
+  ('public.invitations', 't.company_id = $1'),
   ('public.carrier_routes', 't.company_id = $1'),
   ('public.business_units', 't.company_id = $1'),
   ('public.business_unit_coordinators', 't.company_id = $1'),
@@ -206,6 +224,7 @@ insert into tests.unit_ownership values
   ('public.vehicles', 't.business_unit_id = any ($3)'),
   ('public.operators', 't.business_unit_id = any ($3)'),
   ('public.operator_invitations', 'exists (select 1 from public.operators o where o.id = t.operator_id and o.business_unit_id = any ($3))'),
+  ('public.invitations', 't.kind <> ''coordinator'' and t.business_unit_ids <@ $3'),
   ('public.vehicle_availability', 'exists (select 1 from public.vehicles v where v.id = t.vehicle_id and v.business_unit_id = any ($3))'),
   ('public.documents', $$
      t.company_id = $1 and (
@@ -451,6 +470,12 @@ insert into tests.rpc_calls values
   ('create_operator_invitation', $$ (select count(*) from public.create_operator_invitation(tests.val('operator_without_account'), 24)) $$),
   ('revoke_operator_invitation', $$ public.revoke_operator_invitation(tests.val('invitation')) $$),
   ('accept_operator_invitation', $$ public.accept_operator_invitation('B24-INVITE-CODE') $$),
+  ('create_invitation', $$ (select count(*) from public.create_invitation('coordinator',
+       array[tests.val('corredor_unit'), tests.val('regional_unit')])) $$),
+  ('create_invitation', $$ (select count(*) from public.create_invitation('operator', array[tests.val('corredor_unit')])) $$),
+  ('create_invitation', $$ (select count(*) from public.create_invitation('operator_access_reset', '{}', tests.val('operator'))) $$),
+  ('revoke_invitation', $$ public.revoke_invitation(tests.val('link_invitation')) $$),
+  ('accept_coordinator_invitation', $$ public.accept_coordinator_invitation(rpad('b24coordinatorlink', 43, '0')) $$),
   ('set_vehicle_availability', $$ public.set_vehicle_availability(tests.val('vehicle'), now() + interval '1 hour',
        25.69, -100.32, 'Monterrey', 'Nuevo León') $$),
   ('clear_vehicle_availability', $$ public.clear_vehicle_availability(tests.val('vehicle')) $$),
@@ -504,7 +529,9 @@ select ok(
 
 -- RPCs without a foreign target: they act on the caller's own rows only
 -- (reviewed in docs/seguridad.md). register_push_token reassigns a token to
--- the device's current user by design.
+-- the device's current user by design. invitation_preview (G1b) is public by
+-- design: the token is the credential, and it returns no id (29_invitations
+-- covers the guessed, expired, used and revoked tokens).
 create table tests.self_scoped (fn text);
 insert into tests.self_scoped values
   ('auth_role'), ('auth_company_id'), ('auth_shipper_company_id'), ('auth_fleet_company_id'), ('auth_operator_id'),
@@ -512,7 +539,7 @@ insert into tests.self_scoped values
   ('auth_carrier_company_id'), ('auth_is_manager'), ('auth_business_unit_ids'), ('can_operate_unit'),
   ('coordinator_runs_document_owner'), ('conversation_business_unit_id'),
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
-  ('consume_rate_limit'), ('track_product_event');
+  ('consume_rate_limit'), ('track_product_event'), ('invitation_preview');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,
@@ -615,7 +642,8 @@ select is_empty(
   $$ select * from tests.rpc_breaches_of('5eed0001-0000-4000-8000-000000000012', array[
        'set_vehicle_availability', 'clear_vehicle_availability', 'assign_trip', 'cancel_trip', 'report_incident',
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
-       'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer']) $$,
+       'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
+       'create_invitation', 'revoke_invitation']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
 );
 
@@ -657,6 +685,11 @@ select ok(
 select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000005', (select call from tests.rpc_calls where fn = 'set_vehicle_availability')),
   'harness: the manager can set it too'
+);
+select ok(
+  tests.changes_data('5eed0001-0000-4000-8000-000000000011',
+                     (select call from tests.rpc_calls where fn = 'create_invitation' and call like '%''operator'',%')),
+  'harness: the coordinator of the business unit can invite the operator Héctor could not'
 );
 
 select * from finish();

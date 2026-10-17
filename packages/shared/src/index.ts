@@ -11,6 +11,7 @@ export * from './fleet';
 export * from './formatters';
 export * from './geo';
 export * from './invitation-code';
+export * from './invitation-link';
 export * from './kpis';
 export * from './legal';
 export * from './matching';

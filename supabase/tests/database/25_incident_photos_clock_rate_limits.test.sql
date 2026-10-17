@@ -242,11 +242,11 @@ select is(
    from pg_trigger t join pg_class c on c.oid = t.tgrelid
    where t.tgfoid = 'public.enforce_rate_limit()'::regprocedure and t.tgenabled = 'O'),
   array[
-    'incidents:incidents_rate_limit', 'loads:loads_rate_limit', 'messages:messages_rate_limit',
-    'offers:offers_rate_limit', 'trip_evidence:trip_evidence_rate_limit',
+    'incidents:incidents_rate_limit', 'invitations:invitations_rate_limit', 'loads:loads_rate_limit',
+    'messages:messages_rate_limit', 'offers:offers_rate_limit', 'trip_evidence:trip_evidence_rate_limit',
     'trip_locations:trip_locations_rate_limit'
   ],
-  'every write of the limited RPCs goes through the rate-limit trigger'
+  'every write of the limited RPCs goes through the rate-limit trigger (invitations since G1b)'
 );
 select ok(
   not has_function_privilege('authenticated', 'public.enforce_rate_limit()', 'execute')

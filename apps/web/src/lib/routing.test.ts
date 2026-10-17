@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { homeFor, paths, resolveRoute, safeNextPath, type Viewer } from './routing';
+import {
+  carrierLoadPath,
+  carrierNegotiationPath,
+  chatAttachmentHref,
+  homeFor,
+  paths,
+  resolveRoute,
+  safeNextPath,
+  type Viewer,
+} from './routing';
 
 type SignedIn = NonNullable<Viewer>;
 
@@ -10,6 +19,9 @@ const pendingShipper: SignedIn = { role: 'shipper', company: { status: 'pending_
 const newShipper: SignedIn = { role: 'shipper', company: null };
 const manager: SignedIn = { role: 'manager', company: { status: 'approved' } };
 const coordinator: SignedIn = { role: 'coordinator', company: { status: 'approved' } };
+const pendingManager: SignedIn = { role: 'manager', company: { status: 'pending_review' } };
+const suspendedCoordinator: SignedIn = { role: 'coordinator', company: { status: 'suspended' } };
+const newManager: SignedIn = { role: 'manager', company: null };
 const operator: SignedIn = { role: 'operator', company: null };
 
 describe('homeFor', () => {
@@ -19,8 +31,11 @@ describe('homeFor', () => {
     [pendingShipper, paths.review],
     [{ role: 'shipper', company: { status: 'suspended' } } as SignedIn, paths.review],
     [newShipper, paths.completeCompany],
-    [manager, paths.mobileOnly],
-    [coordinator, paths.mobileOnly],
+    [manager, paths.carrier],
+    [coordinator, paths.carrier],
+    [pendingManager, paths.review],
+    [suspendedCoordinator, paths.review],
+    [newManager, paths.completeCompany],
     [operator, paths.mobileOnly],
   ])('%o lands on %s', (viewer, home) => {
     expect(homeFor(viewer)).toBe(home);
@@ -32,6 +47,9 @@ describe('resolveRoute', () => {
     expect(resolveRoute('/', null)).toBe('/login');
     expect(resolveRoute('/admin/empresas', null)).toBe('/login?next=%2Fadmin%2Fempresas');
     expect(resolveRoute('/cliente', null)).toBe('/login?next=%2Fcliente');
+    expect(resolveRoute('/transportista/cargas', null)).toBe(
+      '/login?next=%2Ftransportista%2Fcargas',
+    );
     expect(resolveRoute('/restablecer', null)).toBe('/login?next=%2Frestablecer');
   });
 
@@ -65,6 +83,7 @@ describe('resolveRoute', () => {
 
   it('sends signed-in users away from the guest screens', () => {
     expect(resolveRoute('/login', approvedShipper)).toBe(paths.shipper);
+    expect(resolveRoute('/login', coordinator)).toBe(paths.carrier);
     expect(resolveRoute('/registro', admin)).toBe(paths.admin);
     expect(resolveRoute('/auth/confirm', admin)).toBeNull();
   });
@@ -95,27 +114,68 @@ describe('resolveRoute', () => {
     expect(resolveRoute('/cliente', pendingShipper)).toBe(paths.review);
     expect(resolveRoute('/cliente', newShipper)).toBe(paths.completeCompany);
     expect(resolveRoute('/cliente', admin)).toBe(paths.admin);
-    expect(resolveRoute('/cliente', manager)).toBe(paths.mobileOnly);
-    expect(resolveRoute('/cliente', coordinator)).toBe(paths.mobileOnly);
+    expect(resolveRoute('/cliente', manager)).toBe(paths.carrier);
+    expect(resolveRoute('/cliente', coordinator)).toBe(paths.carrier);
+    expect(resolveRoute('/cliente/adjuntos?ruta=x', operator)).toBe(paths.mobileOnly);
+  });
+
+  it('opens the carrier area only to the staff of an approved carrier (G10a)', () => {
+    for (const path of [
+      '/transportista',
+      '/transportista/cargas',
+      '/transportista/negociaciones/abc',
+      '/transportista/notificaciones',
+    ]) {
+      expect(resolveRoute(path, manager)).toBeNull();
+      expect(resolveRoute(path, coordinator)).toBeNull();
+    }
+    expect(resolveRoute('/transportista', pendingManager)).toBe(paths.review);
+    expect(resolveRoute('/transportista', suspendedCoordinator)).toBe(paths.review);
+    expect(resolveRoute('/transportista', newManager)).toBe(paths.completeCompany);
+    expect(resolveRoute('/transportista', approvedShipper)).toBe(paths.shipper);
+    expect(resolveRoute('/transportista', admin)).toBe(paths.admin);
+    expect(resolveRoute('/transportista/cargas', operator)).toBe(paths.mobileOnly);
+    expect(resolveRoute('/transportistas', approvedShipper)).toBeNull();
   });
 
   it('shows the review and completion screens only when they apply', () => {
     expect(resolveRoute('/cuenta-en-revision', pendingShipper)).toBeNull();
+    expect(resolveRoute('/cuenta-en-revision', pendingManager)).toBeNull();
     expect(resolveRoute('/cuenta-en-revision', approvedShipper)).toBe(paths.shipper);
+    expect(resolveRoute('/cuenta-en-revision', manager)).toBe(paths.carrier);
     expect(resolveRoute('/completar-registro', newShipper)).toBeNull();
+    expect(resolveRoute('/completar-registro', newManager)).toBeNull();
     expect(resolveRoute('/completar-registro', pendingShipper)).toBe(paths.review);
     expect(resolveRoute('/solo-app', operator)).toBeNull();
     expect(resolveRoute('/solo-app', admin)).toBe(paths.admin);
+    // Carrier staff no longer live on the mobile-only screen (D06-E1).
+    expect(resolveRoute('/solo-app', manager)).toBe(paths.carrier);
+    expect(resolveRoute('/solo-app', coordinator)).toBe(paths.carrier);
   });
 
   it('routes the root to the home of each user', () => {
     expect(resolveRoute('/', admin)).toBe(paths.admin);
     expect(resolveRoute('/', pendingShipper)).toBe(paths.review);
+    expect(resolveRoute('/', manager)).toBe(paths.carrier);
   });
 
   it('lets any signed-in user set a new password', () => {
     expect(resolveRoute('/restablecer', operator)).toBeNull();
     expect(resolveRoute('/restablecer', pendingShipper)).toBeNull();
+  });
+});
+
+describe('path helpers', () => {
+  it('builds the carrier web paths (G10a)', () => {
+    expect(carrierLoadPath('abc')).toBe('/transportista/cargas/abc');
+    expect(carrierNegotiationPath('abc')).toBe('/transportista/negociaciones/abc');
+  });
+
+  it('points chat attachments at the viewer area', () => {
+    expect(chatAttachmentHref('c/f.png')).toBe('/cliente/adjuntos?ruta=c%2Ff.png');
+    expect(chatAttachmentHref('c/f.png', 'transportista')).toBe(
+      '/transportista/adjuntos?ruta=c%2Ff.png',
+    );
   });
 });
 

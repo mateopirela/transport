@@ -5,16 +5,19 @@ import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
 import type { ViewerDetails } from '@/lib/viewer';
 
-/** Header and frame of the signed-in area (Cliente or Admin). */
+/** Header and frame of the signed-in area (Cliente, Transportista or Admin). */
 export function AppShell({
   area,
   nav,
+  toolbar,
   viewer,
   children,
 }: {
   area?: string;
   /** Section links shown under the header, optionally with a badge. */
   nav?: readonly { href: string; label: string; badge?: React.ReactNode }[];
+  /** Controls at the end of the section bar (e.g. the business unit picker). */
+  toolbar?: React.ReactNode;
   viewer: ViewerDetails;
   children: React.ReactNode;
 }) {
@@ -41,19 +44,22 @@ export function AppShell({
       </header>
       {nav && (
         <nav className="border-b bg-card">
-          <ul className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 text-sm sm:px-6">
-            {nav.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="inline-block px-3 py-3 whitespace-nowrap text-muted-foreground hover:text-foreground"
-                >
-                  {item.label}
-                  {item.badge}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 px-4 text-sm sm:px-6">
+            <ul className="flex gap-1 overflow-x-auto">
+              {nav.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="inline-block px-3 py-3 whitespace-nowrap text-muted-foreground hover:text-foreground"
+                  >
+                    {item.label}
+                    {item.badge}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {toolbar && <div className="ml-auto py-2">{toolbar}</div>}
+          </div>
         </nav>
       )}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>

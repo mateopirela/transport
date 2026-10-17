@@ -256,7 +256,9 @@ interface EmailOutcome {
   error?: string;
 }
 
-const EMAIL_ROLES: readonly (UserRole | null)[] = ['shipper', 'admin'];
+// Roles that use the web (D06-E1): the Gerente and the Coordinador since G10a.
+// The operator only uses the app, so they get push, never email.
+const EMAIL_ROLES: readonly (UserRole | null)[] = ['shipper', 'admin', 'manager', 'coordinator'];
 
 async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<EmailOutcome> {
   if (!row.email_pending || !row.email || !EMAIL_ROLES.includes(row.role)) {

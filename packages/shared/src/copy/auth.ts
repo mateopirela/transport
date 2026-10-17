@@ -91,6 +91,7 @@ export const authCopy = {
 export const shellCopy = {
   signOut: 'Cerrar sesión',
   shipperArea: 'Cliente',
+  carrierArea: 'Transportista',
   adminArea: 'Administración',
   shipperHome: {
     title: 'Inicio',
@@ -125,6 +126,6 @@ export const shellCopy = {
   mobileOnly: {
     title: 'Usa la app móvil',
     description:
-      'Los transportistas y operadores trabajan desde la app móvil. Descárgala e inicia sesión con la misma cuenta.',
+      'Los operadores trabajan desde la app móvil. Descárgala e inicia sesión con la misma cuenta.',
   },
 } as const;

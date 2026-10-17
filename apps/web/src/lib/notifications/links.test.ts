@@ -35,9 +35,30 @@ describe('notificationHref', () => {
     expect(notificationHref('trip_unassigned', { loadId: LOAD })).toBeNull();
   });
 
-  it('handles every notification type', () => {
+  it('sends the carrier staff to their negotiation or load (G10a)', () => {
+    const data = { loadId: LOAD, negotiationId: NEGOTIATION };
+    for (const type of ['offer_received', 'counter_offer_received', 'offer_accepted'] as const) {
+      expect(notificationHref(type, data, 'transportista')).toBe(
+        `/transportista/negociaciones/${NEGOTIATION}`,
+      );
+      expect(notificationHref(type, { loadId: LOAD }, 'transportista')).toBe(
+        `/transportista/cargas/${LOAD}`,
+      );
+    }
+    expect(notificationHref('load_match', { loadId: LOAD }, 'transportista')).toBe(
+      `/transportista/cargas/${LOAD}`,
+    );
+    // Trips arrive with G10b.
+    expect(notificationHref('trip_assigned', { loadId: LOAD, tripId: LOAD }, 'transportista')).toBe(
+      null,
+    );
+    expect(notificationHref('document_expiring', { loadId: LOAD }, 'transportista')).toBeNull();
+  });
+
+  it('handles every notification type in both areas', () => {
     for (const type of NOTIFICATION_TYPES) {
       expect(() => notificationHref(type, {})).not.toThrow();
+      expect(() => notificationHref(type, {}, 'transportista')).not.toThrow();
     }
   });
 });

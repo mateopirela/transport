@@ -4,6 +4,7 @@ export * from './admin-ops';
 export * from './auth';
 export * from './carrier-loads';
 export * from './carrier-trips';
+export * from './carrier-web';
 export * from './catalogs';
 export * from './client-trips';
 export * from './errors';

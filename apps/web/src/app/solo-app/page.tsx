@@ -9,7 +9,7 @@ const c = shellCopy.mobileOnly;
 
 export const metadata: Metadata = { title: c.title };
 
-/** Carriers and operators work from the mobile app (D06). */
+/** Operators work from the mobile app (D06; the carrier staff has the web since G10a, D06-E1). */
 export default async function MobileOnlyPage() {
   const viewer = await requireAccess(paths.mobileOnly);
   return (

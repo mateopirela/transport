@@ -3,6 +3,7 @@
 // the link that opens a route in the phone's maps app. Pure, so the ordering
 // and the allowed actions are unit-tested; Postgres validates every action
 // again in the negotiation RPCs (B05).
+import { carrierLoadsCopy } from './copy/carrier-loads';
 import type { LoadStatus, OfferSide, OfferStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
@@ -163,6 +164,44 @@ export function carrierNegotiationState(
   if (latest.status !== 'pending') return 'reopen';
   // Only the counterparty answers an offer (accept_offer, counter_offer, reject_offer).
   return latest.side === 'shipper' ? 'respond' : 'awaiting_shipper';
+}
+
+/**
+ * Errors raised by the negotiation RPCs (make_offer, counter_offer,
+ * accept_offer, reject_offer, withdraw_offer; supabase/migrations), by the
+ * start of their fixed English message. Only known ones are mapped, so
+ * database text never reaches the user. Shared by the app and the web (G10a).
+ */
+const OFFER_ERRORS: readonly (readonly [RegExp, string])[] = [
+  [/^company is not approved|^only carriers can make offers/u, carrierLoadsCopy.errors.notApproved],
+  [/^load not found|^offer not found/u, carrierLoadsCopy.errors.loadGone],
+  [
+    /^cannot offer on a load in status|^load is no longer open/u,
+    carrierLoadsCopy.errors.loadClosed,
+  ],
+  [/^pickup window already ended/u, carrierLoadsCopy.errors.pickupEnded],
+  [/^negotiation already has a pending offer/u, carrierLoadsCopy.errors.pending],
+  [
+    /^offer is no longer pending|^offer cannot be answered by this side/u,
+    carrierLoadsCopy.errors.notPending,
+  ],
+  [/^invalid offer: amount|^invalid offer: conditions/u, carrierLoadsCopy.errors.invalidAmount],
+  [
+    /^invalid offer: vehicle not found|^business unit not found/u,
+    carrierLoadsCopy.errors.invalidUnit,
+  ],
+  [
+    /^another business unit of the company already negotiates this load/u,
+    carrierLoadsCopy.errors.otherBusinessUnit,
+  ],
+  [/^business_unit_id is required/u, carrierLoadsCopy.errors.businessUnitRequired],
+  [/^both companies must be approved/u, carrierLoadsCopy.errors.bothApproved],
+];
+
+/** Spanish text for a known error message of an offer RPC, or null when unknown. */
+export function carrierOfferErrorText(message: string): string | null {
+  for (const [pattern, text] of OFFER_ERRORS) if (pattern.test(message)) return text;
+  return null;
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCarrierFeed,
   carrierNegotiationState,
+  carrierOfferErrorText,
   directionsUrl,
   FEED_RECOMMENDATIONS,
   RETURN_TRIPS_PER_UNIT,
@@ -11,6 +12,7 @@ import {
   type NegotiationOffer,
   type Recommendation,
 } from './carrier-loads';
+import { carrierLoadsCopy } from './copy/carrier-loads';
 import { matchExplanation } from './copy/matching';
 import { recommend, type MatchCandidate } from './matching';
 
@@ -171,6 +173,39 @@ describe('carrierNegotiationState', () => {
       offer({ id: 'a', created_at: '2026-10-20T12:00:00Z' }),
     ];
     expect(sortOffers(offers).map((o) => o.id)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('carrierOfferErrorText', () => {
+  it('maps the fixed messages of the negotiation RPCs to Spanish copy', () => {
+    const e = carrierLoadsCopy.errors;
+    const cases: [string, string][] = [
+      ['company is not approved', e.notApproved],
+      ['only carriers can make offers', e.notApproved],
+      ['load not found', e.loadGone],
+      ['offer not found', e.loadGone],
+      ['cannot offer on a load in status contracted', e.loadClosed],
+      ['load is no longer open (status cancelled)', e.loadClosed],
+      ['pickup window already ended', e.pickupEnded],
+      ['negotiation already has a pending offer', e.pending],
+      ['offer is no longer pending (status countered)', e.notPending],
+      ['offer cannot be answered by this side', e.notPending],
+      ['invalid offer: amount must be positive', e.invalidAmount],
+      ['invalid offer: conditions too long', e.invalidAmount],
+      ['invalid offer: vehicle not found', e.invalidUnit],
+      ['business unit not found', e.invalidUnit],
+      ['another business unit of the company already negotiates this load', e.otherBusinessUnit],
+      ['business_unit_id is required', e.businessUnitRequired],
+      ['both companies must be approved', e.bothApproved],
+    ];
+    for (const [message, text] of cases) expect(carrierOfferErrorText(message)).toBe(text);
+  });
+
+  it('returns null for anything else, so database text never reaches the user', () => {
+    expect(carrierOfferErrorText('')).toBeNull();
+    expect(carrierOfferErrorText('duplicate key value violates unique constraint')).toBeNull();
+    // Only the start of the message counts.
+    expect(carrierOfferErrorText('context: load not found')).toBeNull();
   });
 });
 

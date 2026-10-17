@@ -50,8 +50,8 @@ Turborepo cachea las tareas; para filtrar por paquete: `pnpm turbo run test --fi
 ## Estructura
 
 ```
-apps/web        Next.js (Cliente y Admin)            ← B11
-apps/mobile     Expo (Transportista y Operador)      ← B17
+apps/web        Next.js (Cliente, Admin y, desde G10a, Gerente y Coordinador)  ← B11
+apps/mobile     Expo (Gerente, Coordinador y Operador)                         ← B17
 packages/shared Tipos, enums, zod, máquinas de estado, copy
 supabase/       Migraciones, Edge Functions, pgTAP   ← B01
 e2e/            Playwright (web) contra Supabase local; Maestro en apps/mobile/.maestro ← B26

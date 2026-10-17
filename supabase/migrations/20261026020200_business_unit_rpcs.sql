@@ -167,9 +167,13 @@ begin
            u.empty_km = (select c.empty_km from companies c where c.company_id = u.company_id) as best_of_company
     from units u;
 
-  -- The managers: the best unit of their company.
+  -- The managers: the best unit of their company, once even when two business
+  -- units tie (trucks at the same yard).
   for v_match in
-    select * from load_match_units where best_of_company order by empty_km, business_unit_id
+    select distinct on (company_id) *
+    from load_match_units
+    where best_of_company
+    order by company_id, empty_km, business_unit_id
   loop
     perform public.notify_carrier_staff(
       v_match.company_id, null, 'load_match',

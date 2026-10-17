@@ -13,7 +13,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(62);
+select plan(63);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -438,9 +438,11 @@ from public.vehicles v
 cross join public.document_requirements r
 where v.id = 'e2600000-0000-4000-8000-00000000000c'
   and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
+-- Same yard as unit A's truck (A set 25.69, -100.32 above): the two business
+-- units tie for the company's shortest empty_km.
 insert into public.vehicle_availability (company_id, vehicle_id, available_from, location, city, state, source)
 values ('c2600000-0000-4000-8000-000000000002', 'e2600000-0000-4000-8000-00000000000c', now(),
-        extensions.st_setsrid(extensions.st_makepoint(-100.3161, 25.6866), 4326)::extensions.geography,
+        extensions.st_setsrid(extensions.st_makepoint(-100.32, 25.69), 4326)::extensions.geography,
         'Monterrey', 'Nuevo León', 'manual');
 set local role authenticated;
 select tests.login('a2600000-0000-4000-8000-000000000001');
@@ -459,7 +461,13 @@ select is(
      and user_id::text like 'a2600000-%'),
   array['a2600000-0000-4000-8000-000000000002', 'a2600000-0000-4000-8000-000000000003',
         'a2600000-0000-4000-8000-000000000004']::uuid[],
-  'the manager, A and B each get exactly one match alert'
+  'the manager, A and B each get exactly one match alert, even with the two business units tied'
+);
+select is(
+  (select count(*)::int from public.notifications
+   where type = 'load_match' and data ->> 'loadId' = tests.val('load3')::text
+     and user_id = 'a2600000-0000-4000-8000-000000000002'),
+  1, 'the manager gets one alert when two business units tie for the best truck'
 );
 
 -- Carrier notifications go through notify_carrier_staff, so coordinators get them.

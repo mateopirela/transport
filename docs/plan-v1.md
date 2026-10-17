@@ -75,8 +75,8 @@ Las pistas web (Ola 3) y móvil (Ola 4) corren **en paralelo** cuando las Olas 1
 ```
 transport/
 ├─ apps/
-│  ├─ web/          Next.js (App Router) + Tailwind + shadcn/ui  → Cliente y Admin
-│  └─ mobile/       Expo (Expo Router, dev build con EAS)        → Transportista y Operador
+│  ├─ web/          Next.js (App Router) + Tailwind + shadcn/ui  → Cliente, Admin, Gerente y Coordinador (D06-E1)
+│  └─ mobile/       Expo (Expo Router, dev build con EAS)        → Gerente, Coordinador y Operador
 ├─ packages/
 │  └─ shared/       Tipos de BD generados, enums + etiquetas en español, esquemas zod,
 │                   máquinas de estado, scoring de matching, formateadores, copy
@@ -115,6 +115,7 @@ transport/
 | Viajes | `trips`, `trip_events` (tipo, occurred_at, ubicación, **estimated_unload_end_at**), `trip_locations` (alto volumen), `trip_evidence` (fotos + metadatos), `incidents` |
 | Comunicación | `conversations` (por negociación o viaje), `messages` (inmutables), `message_reads`, `push_tokens`, `notifications` |
 | Mapas | `route_distance_cache` (origen/destino redondeados → km, minutos) |
+| §G (2026-10-16) | `business_units`, `business_unit_coordinators`, `invitations`, `vehicle_release_tasks`, `trip_document_requirements`, `license_unit_compatibility`, `document_shares`, `document_share_views`, `provider_approvals`, `share_links`, `subscription_plans`, `company_subscriptions`, `billing_events`. Roles: `user_role` pasa a `shipper`/`manager`/`coordinator`/`operator`/`admin` (ver §G) |
 
 **Máquinas de estado** (código en `packages/shared`, validación en SQL):
 - `loads`: `draft → published → negotiating → contracted → in_progress → completed`. Desde los primeros estados también puede ir a `cancelled` o `expired`.
@@ -449,7 +450,8 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 | ✅ D14 (gate de merge) y D15 (acceso de operadores) decididos | B00, B04 y B17 | Mateo |
 | Cuenta de Expo/EAS | B17 | Mateo |
 | Clave de Google Maps Platform con facturación (Places, Maps JS, Maps SDK y Routes) | B08, B13 y B19 | Mateo |
-| Lista oficial de documentos por perfil (D16) | Reemplaza la seed de B03; no bloquea | JP |
+| ✅ Lista oficial de documentos por perfil (D16), recibida el 2026-10-16 | G3 | JP |
+| Cuenta de Stripe (México) con un producto y un precio en MXN por plan, y el webhook apuntando a la Edge Function | G8 (sin ella, todo queda en "Piloto gratis") | Mateo |
 | Apple Developer ($99 USD/año) y Google Play Console ($25 USD) | B27 | Mateo / Fulmis |
 | Proyectos Supabase en la nube y Vercel | B27 | Mateo |
 | Proveedor de email transaccional (Resend o similar) y dominio | B09 y B27 | Mateo |
@@ -468,4 +470,417 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 
 ## 5. Después de la V1 (no se construye ahora)
 
-Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pagos dentro de la plataforma, comisiones y suscripciones; emisión y validación de Carta Porte; integración con GPS de flotas; calificaciones y reputación; app de cliente en móvil y transportista en web; inglés; hardware propio.
+Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La suscripción y la web del transportista **entraron** a la V1 el 2026-10-16 (§G).
+
+---
+
+## §G · Respuestas de JP (2026-10-16)
+
+El 2026-10-16, JP y Mateo respondieron las preguntas pendientes del piloto. Eso cambia el modelo de producto: el transportista se divide en **Gerente** y **Coordinador**, aparecen las **unidades de negocio**, el operador entra con **teléfono**, el hombre-camión es **Gerente + Operador**, llegan la lista oficial de documentos, los documentos compartidos al cliente, la cancelación con unidad pendiente de liberar, los enlaces compartidos y la **suscripción**. Las decisiones están en [decisiones.md](decisiones.md) (D06-E1, D08-E1, D13, D15-E1, D16, D17 y D19–D24) y el producto en [producto-v1.md](producto-v1.md) (§2, §3 y §6).
+
+Toda la V1 anterior (B00–B27 y F1–F16) ya está en `main`. Estos bloques la modifican; cada uno es un PR con el ciclo de §0.1, la definición de terminado de §0.3 y el gate D14. Rama `v1/<id>-<slug>` (p. ej. `v1/G1a-roles-business-units`) y título `[G1a] BD: roles Gerente/Coordinador y unidades de negocio`.
+
+### G.0 Reglas comunes de los bloques G
+
+1. **Enums.** `alter type … rename value` y `alter type … add value` van en **su propia migración**, antes de la que usa el valor nuevo (Postgres no deja usar un valor agregado dentro de la misma transacción).
+2. **Migraciones en paralelo.** Varios bloques G tocan a la vez `supabase/seed.sql`, `packages/shared/src/db.ts` y funciones compartidas (`assign_trip`, `cancel_trip`, `make_offer`, `notify_*`). Al rebasar: renombrar las migraciones para que queden después de las de `main`, regenerar `pnpm db:types` (no se resuelven conflictos de `db.ts` a mano) y, si otro bloque ya redefinió la función, partir de **su** versión (`create or replace` con el comentario "Same as <bloque>, except …", como en F5/F13).
+3. **Rol literal.** Después de G1a nadie escribe `'carrier'` como `user_role`. Ojo: `company_type` y `offer_side` **siguen** teniendo `'carrier'` (es la empresa o el lado de la negociación, no el rol).
+4. **Autorización.** Toda regla vive en Postgres (RLS y RPC `security definer` con `search_path = ''`, revocadas de `public` y `anon`). Las Edge Functions con *service role* solo llaman RPC `*_service` que validan sus argumentos.
+5. **Notificaciones nuevas.** Cada valor nuevo de `notification_type` lleva su copy (título, cuerpo, email) en `packages/shared/src/copy/notifications.ts` y `notification-email.ts`, su ruta en la app y en la web, y test de copy.
+6. **Textos de UI** en `packages/shared/src/copy/`. Términos: "Gerente", "Coordinador", "Operador", "Cliente", "Hombre camión", "Unidad de negocio" (plural "Unidades de negocio"). **"Unidad" o "camión" sigue siendo el vehículo**; nunca se dice solo "unidad" para un grupo.
+7. **E2E.** Cada bloque indica qué pruebas existentes probablemente se rompen. Arreglarlas es parte del bloque, no un seguimiento. La suite pgTAP sigue pasando con y sin seed (F3/F10).
+8. **Tamaño.** Si un bloque pasa de ~800 líneas (sin generados), se divide como dice el propio bloque.
+
+**Helpers de autorización después de G1a** (todos `stable security definer`, `search_path = ''`, solo leen la fila del que llama):
+
+| Helper | Devuelve |
+|---|---|
+| `auth_role()`, `auth_company_id()`, `is_admin()`, `auth_shipper_company_id()`, `auth_operator_id()` | Sin cambio |
+| `auth_carrier_company_id()` (nuevo) | La empresa transportista activa del que llama si su rol es `manager` o `coordinator`; si no, `null` |
+| `auth_fleet_company_id()` | **Solo para `manager`** (control total de la empresa). Mismo significado que hoy |
+| `auth_is_manager()` (nuevo) | `true` si es Gerente de una empresa transportista activa |
+| `auth_business_unit_ids()` (nuevo) | `uuid[]`: Gerente → todas las unidades de negocio activas de su empresa; Coordinador → las que tiene asignadas y activas; cualquier otro → `'{}'` |
+| `can_operate_unit(p_unit_id uuid)` (nuevo) | `p_unit_id = any(auth_business_unit_ids())` |
+
+**Usuarios demo después de §G** (contraseña `Demo1234`, solo local; G1a y G2 los crean, G9 deja la tabla final en `docs/demo-local.md`):
+
+| Usuario | Perfil | Empresa · unidad de negocio |
+|---|---|---|
+| `jorge.villarreal@demo.test` | Gerente | Transportes Regios del Norte (ve y opera todo) |
+| `andrea.cavazos@demo.test` (nueva) | Coordinadora | TRN · "Corredor MTY–GDL": `TRN-01`, `CS53-01`, Pedro López |
+| `hector.ibarra@demo.test` (nuevo) | Coordinador | TRN · "Regional Monterrey": `RF53-01`, `TT-01`, Raúl Méndez, Arturo Cantú |
+| `carmen.navarro@demo.test` | Gerente | Fletes Tapatíos · "Principal" |
+| `jose.sanchez@demo.test` | Hombre-camión (Gerente + Operador) | José Sánchez Medina · "Principal" |
+| `pedro.lopez@demo.test`, `raul.mendez@demo.test`, `miguel.hernandez@demo.test` | Operador (correo, como hoy) | Sin cambio |
+| `+52 81 1000 0013` (nuevo, G2) | Operador con teléfono (Iván Garza) | TRN · "Regional Monterrey" |
+| Clientes y admin | Sin cambio | Sin cambio |
+
+Jorge queda **solo como Gerente**: los flujos de Maestro y Playwright que hoy entran como Jorge siguen funcionando (el Gerente opera todo) y las coordinadoras nuevas prueban el aislamiento por unidad de negocio.
+
+### G.1 Olas y dependencias
+
+```
+Ola GA   G1a
+Ola GB   G1b · G3 · G10a                     (tras G1a)
+Ola GC   G2 (G1b, G10a) · G10b (G10a, G3) · G7 (G10a) · G8 (G10a)
+Ola GD   G4 (G2, G10b) · G5 (G10b) · G6 (G10b)
+Ola GE   G9 (todos)
+```
+
+| Bloque | Depende de |
+|---|---|
+| G1a | `main` |
+| G1b | G1a |
+| G3 | G1a |
+| G10a | G1a |
+| G10b | G10a, G3 |
+| G2 | G1b, G10a |
+| G7 | G10a |
+| G8 | G10a |
+| G4 | G2, G10b |
+| G5 | G10b |
+| G6 | G10b (y por ella G3 y G1a) |
+| G9 | G1a, G1b, G2, G3, G4, G5, G6, G7, G8, G10a, G10b |
+
+**Ajustes al reparto propuesto, y por qué:**
+- **G1 se divide en G1a y G1b.** Renombrar el rol, crear las unidades de negocio y reescribir ~50 políticas y RPC ya excede las ~800 líneas; las invitaciones por enlace son independientes y van en G1b.
+- **Bloques nuevos G10a y G10b (web del transportista).** D06-E1 da web al Gerente y al Coordinador, pero hoy `apps/web` no tiene ninguna pantalla de transportista (los manda a `/solo-app`). Sin esa base, G2, G4, G5, G6, G7 y G8 no tendrían dónde poner su parte web.
+- Por lo mismo, G2, G4, G5, G6, G7 y G8 dependen de G10a o G10b, y G10b depende de G3 (muestra el checklist de documentos del viaje).
+
+---
+
+#### G1a · BD y permisos: roles Gerente/Coordinador y unidades de negocio 🔒
+- **Objetivo:** que el rol `carrier` pase a ser `manager` (Gerente), exista `coordinator` y que los coordinadores vean y operen solo sus unidades de negocio, sin romper nada de lo que ya funciona.
+- **Depende de:** `main`.
+- **Alcance:**
+  - **Migración 1** (`…_user_role_manager_coordinator.sql`), sola: `alter type public.user_role rename value 'carrier' to 'manager'; alter type public.user_role add value 'coordinator';`. Las filas existentes (`profiles.role`, `messages.sender_role`, `trip_events.actor_role`) quedan en `manager` solas; las políticas se actualizan solas (guardan el OID). **Los cuerpos de funciones no**: son texto y fallan en ejecución si dicen `'carrier'`.
+  - **Migración 2** (`…_business_units.sql`):
+    - Tablas `business_units` y `business_unit_coordinators` (abajo).
+    - Columna `business_unit_id uuid not null` en `vehicles`, `operators`, `negotiations` y `trips`, con FK compuesta a `business_units (company_id, id)` (`carrier_company_id` en negociaciones y viajes) e índices. Backfill: una unidad de negocio **"Principal"** por empresa transportista existente, y todo lo existente a ella.
+    - `companies.is_owner_operator boolean not null default false` (lo usa G2; se agrega aquí para que la seed marque a José).
+    - Trigger `companies_create_default_business_unit` (after insert, `type = 'carrier'`): crea "Principal".
+    - Trigger `fleet_default_business_unit` (before insert en `vehicles` y `operators`): si `business_unit_id` es nulo, usa la única unidad de negocio activa de la empresa, o la única del coordinador que inserta; si hay varias, error `23502 business_unit_id is required`. Así las pantallas actuales de alta siguen funcionando hasta G4.
+    - Trigger `fleet_guard_business_unit` (before update en `vehicles` y `operators`): un `coordinator` no puede cambiar `business_unit_id` ni `archived_at` (eso es de G4 y del Gerente).
+    - Helpers de la tabla de G.0.
+    - `notify_carrier_staff(p_company_id uuid, p_business_unit_id uuid, p_type notification_type, p_data jsonb)`: Gerentes de la empresa + coordinadores de esa unidad de negocio (si no es nula), sin el que llama. Reemplaza las llamadas `notify_company(…, 'carrier', …)`.
+  - **Funciones a recrear porque nombran el rol** (confirmar con `git grep -n "'carrier'" supabase/migrations` y con el test de higiene):
+    - `handle_new_user`: acepta `shipper`, `manager`, `coordinator` y `operator`; `carrier` llega de builds viejas y se guarda como `manager`.
+    - `create_company`: `manager` → empresa `carrier`; `coordinator` y `operator` no crean empresa (un `user_role::text::company_type` ya no sirve; mapear explícito).
+    - `submit_document`, `request_company_review`, `auth_fleet_company_id`.
+    - `notify_offer`, `notify_trip_event` (incluye la excepción del hombre-camión, que hoy compara `p.role = 'carrier'`), `notify_load_match` (ahora por unidad de negocio: la mejor unidad de cada unidad de negocio con camión compatible), `notify_document_review` y `process_document_expiry` (hacen `company_type::text::user_role`, que se rompe con el renombre).
+  - **Políticas a reescribir** con `business_unit_id = any((select public.auth_business_unit_ids()))` (el Gerente tiene todas, así que para él no cambia nada): `vehicles_select`/`vehicles_update`, `operators_select`/`operators_insert`/`operators_update`, `operator_invitations_select`, `vehicle_availability_select` (por la unidad de negocio del vehículo), `negotiations`/`offers` (lado transportista), `loads_select` (las publicadas: cualquier `auth_carrier_company_id()` de empresa aprobada; las negociadas: por la unidad de negocio de la negociación), `trips_select`, `trip_locations_select`, `documents_select` y Storage `documents` (empresa: Gerente escribe, Coordinador lee; vehículo/operador: por unidad de negocio), Storage `trip-documents` y `evidence`, `is_conversation_participant`, `carrier_routes` (siguen siendo de empresa: las leen y escriben Gerente y Coordinador vía `auth_carrier_company_id()`). `vehicles_insert` sigue siendo solo del Gerente.
+  - **RPC a reescribir** (`company_id is distinct from auth_fleet_company_id()` → `not can_operate_unit(<unidad de negocio de la fila>)`): `set_vehicle_availability`, `clear_vehicle_availability`, `create_operator_invitation`, `revoke_operator_invitation`, `make_offer`, `lock_offer_for_response`, `counter_offer`, `reject_offer`, `withdraw_offer`, `assign_trip`, `cancel_trip`, `add_trip_document`, `report_incident`, `resolve_incident`, `match_candidates`/`match_pairs` (solo vehículos de sus unidades de negocio).
+    - `make_offer(p_load_id, p_amount_cents, p_conditions default null, p_vehicle_id default null, p_business_unit_id default null)`: la unidad de negocio sale de `p_business_unit_id`, o de la del vehículo, o de la única del que llama; si es ambigua, error. El vehículo debe ser de esa unidad de negocio. **Una negociación por carga y empresa** (se mantiene `negotiations_load_carrier_key`): si otra unidad de negocio de la misma empresa ya negocia la carga, error `23505` con copy "Otra unidad de negocio de tu empresa ya negocia esta carga" (el Gerente sí puede operarla).
+    - `create_trip_for_accepted_offer` copia `negotiations.business_unit_id` al viaje.
+    - `assign_trip`: un Coordinador solo asigna vehículo y operador de la unidad de negocio del viaje; el Gerente puede usar cualquiera, y el viaje pasa a la unidad de negocio del vehículo. Se conserva el orden de bloqueo de F5 (viaje → vehículos en orden de id).
+  - `packages/shared`: tipos regenerados, `USER_ROLE_LABELS` (`manager` "Gerente", `coordinator` "Coordinador"), helpers puros `isCarrierStaff(role)` y `isManager(role)`, copy.
+  - **Adaptación mínima de las apps:**
+    - Web: `manager` y `coordinator` van a `/solo-app` hasta G10a; el admin ve los roles nuevos en Usuarios.
+    - App: `resolveArea` manda `manager` y `coordinator` al área de transportista. El Coordinador no ve "Agregar unidad", ni las bajas, ni la subida de documentos de empresa (los ve en solo lectura). Cada camión y operador muestra el nombre de su unidad de negocio.
+    - `dispatch-notifications`: tipos actualizados (sin cambio de comportamiento).
+  - **Seed:** roles renombrados; en TRN, las unidades de negocio "Corredor MTY–GDL" y "Regional Monterrey" y los coordinadores de la tabla de G.0 (`5eed0001-…-000000000011` Andrea Cavazos, `…012` Héctor Ibarra); Fletes Tapatíos y José, con "Principal"; José con `is_owner_operator = true`; negociaciones y viajes con su unidad de negocio. `docs/demo-local.md` con los usuarios nuevos.
+- **Fuera de alcance:** invitaciones por enlace (G1b), registro (G2), pantallas de gestión del Gerente (G4), web del transportista (G10a).
+- **Modelo de datos:**
+  - `business_units`: `id`, `company_id` (FK a una empresa `carrier`), `name` (1–80), `created_by`, `created_at`, `updated_at`, `archived_at`; `unique (company_id, id)`; índice único `(company_id, lower(name)) where archived_at is null`.
+  - `business_unit_coordinators`: `business_unit_id`, `company_id`, `profile_id` (FK `profiles`, `on delete cascade`), `created_by`, `created_at`; PK `(business_unit_id, profile_id)`; FK compuesta `(company_id, business_unit_id)`; trigger que exige que el perfil sea `coordinator` de esa empresa.
+  - Escrituras solo por RPC (G4) o en la seed; en G1a no hay RPC de gestión.
+- **RLS:** `business_units`: select para el personal de la empresa (`auth_carrier_company_id()`) y admin. `business_unit_coordinators`: el Gerente ve todas las de su empresa; el Coordinador, las suyas; admin todas. Sin insert, update ni delete para clientes.
+- **Tests:**
+  - pgTAP `26_business_units_rls.test.sql`: matriz Gerente / Coordinador A / Coordinador B / Gerente de otra empresa / operador / cliente × `vehicles`, `operators`, `vehicle_availability`, `negotiations`, `offers`, `loads`, `trips`, `trip_events`, `trip_locations`, `trip_evidence`, `trip_documents`, `conversations`, `messages`, `documents` y Storage. Y las RPC: el Coordinador B no puede ofertar con un camión de A, ni asignar, cancelar o cambiar la disponibilidad de A.
+  - pgTAP `27_role_migration.test.sql`: el enum ya no tiene `carrier`; un registro con rol `carrier` queda `manager`; un Coordinador no crea empresa; **higiene**: ninguna función de `public` tiene en su cuerpo `role … 'carrier'`, `notify_company(… 'carrier'` ni `::text::public.user_role`.
+  - Actualizar todos los pgTAP y `supabase/seed-tests` que crean usuarios con rol `carrier`, incluida la matriz de `security_matrix.test.sql` (agregar Coordinador y "Coordinador de otra unidad de negocio").
+  - Vitest de los helpers de rol y de `resolveArea`.
+- **Aceptación:**
+  - `supabase db reset` aplica con y sin seed; la suite pgTAP y los seed-tests pasan.
+  - Andrea ve `CS53-01`, su viaje y su chat; Héctor no ve nada de eso, pero sí las cargas publicadas; Jorge ve todo.
+  - Playwright (3 specs) y Maestro 01–07 pasan sin cambiar su intención.
+- **E2E que probablemente se rompan:** `e2e/support/demo.ts` y `actors.ts` (tipos de rol); `apps/web/src/lib/routing.test.ts`; `apps/mobile/src/lib/routing.test.ts`; `supabase/functions/dispatch-notifications/handler.test.ts` (`role: 'carrier'`); `packages/shared/src/copy/notification-email.test.ts`; casi todos los `supabase/tests/database/*.test.sql` (crean usuarios `carrier`); `seed-tests/security_matrix.test.sql`. Maestro: el `sign-in` de todos los flujos depende de `resolveArea`.
+- **Revisión 🔒:** que ningún helper nuevo cause recursión de políticas; que no quede ningún `'carrier'` de rol; que el orden de bloqueo de F5 no cambie; que un Coordinador sin unidades de negocio no vea nada de la flota. Si crece de más: **G1a.1** (renombre del rol y funciones) y **G1a.2** (unidades de negocio y RLS).
+
+#### G1b · Invitaciones por enlace: coordinador y operador 🔒
+- **Objetivo:** que el Gerente invite coordinadores, y el Gerente o el Coordinador inviten operadores (o les restablezcan el acceso), con un enlace de un solo uso.
+- **Depende de:** G1a.
+- **Alcance:**
+  - Enum `invitation_kind`: `coordinator`, `operator`, `operator_access_reset`.
+  - Tabla `invitations`: `id`, `company_id`, `kind`, `business_unit_ids uuid[]` (coordinador: 1 o más; operador: exactamente 1), `operator_id` (obligatorio en `operator_access_reset`; en `operator` se llena al canjear), `invitee_name` (opcional, solo para mostrar), `token_hash bytea unique not null`, `expires_at`, `created_by`, `created_at`, `accepted_at`, `accepted_by`, `revoked_at`; checks de un solo desenlace y de forma por tipo.
+  - **Token:** 32 bytes de `gen_random_bytes` en base64url (43 caracteres); solo se guarda el SHA-256. Enlace web `/invitacion/<token>`; deep link `transport://invitacion/<token>`. Vence a los 7 días por defecto (de 1 a 720 horas).
+  - RPC:
+    - `create_invitation(p_kind, p_business_unit_ids uuid[], p_operator_id uuid default null, p_invitee_name text default null, p_valid_for_hours integer default 168)` → `(invitation_id, token, expires_at)`. `coordinator`: solo el Gerente. `operator` y `operator_access_reset`: Gerente, o Coordinador con `can_operate_unit` sobre la unidad de negocio (y el operador debe ser de ella). Reemitir revoca la pendiente del mismo operador. Pasa por `consume_rate_limit('create_invitation')`.
+    - `revoke_invitation(p_invitation_id)`.
+    - `invitation_preview(p_token text)`, otorgada a `anon` y `authenticated`: devuelve `kind`, `company_legal_name`, nombres de las unidades de negocio, nombre de quien invita y `expires_at`. Mismo error para desconocida, vencida, usada o revocada (`22023 invalid or expired invitation`); no devuelve ids.
+    - `accept_coordinator_invitation(p_token text)`: quien llama tiene rol `coordinator`, sin empresa y con correo confirmado; lo liga a la empresa y a las unidades de negocio. Bloquea invitación → perfil.
+    - `redeem_operator_invitation_service(p_token text, p_user_id uuid, p_full_name text, p_phone text, p_email text)`: **solo `service_role`** (la llama la Edge Function de G2). `operator`: crea la fila de `operators` en la unidad de negocio, ligada a `p_user_id`, y pone la empresa en el perfil. `operator_access_reset`: valida y marca usada. Devuelve `(operator_id, profile_id, kind)`.
+  - `operator_invitations` (B04, por correo) queda como está; G2 la retira.
+  - `packages/shared`: `invitationUrl(siteUrl, token)` y `parseInvitationLink(url)`.
+- **Fuera de alcance:** la Edge Function de canje y las pantallas (G2); la lista de invitaciones del Gerente (G4).
+- **RLS:** `invitations` select: el Gerente, todas las de su empresa; el Coordinador, las de operador de sus unidades de negocio; admin. `token_hash` nunca se otorga a `authenticated`. Sin escrituras de clientes.
+- **Tests:** pgTAP `28_invitations.test.sql`: matriz; vencida, usada y revocada fallan igual; un Coordinador no invita coordinadores ni a otra unidad de negocio; un cliente no acepta; `redeem_…_service` falla para `authenticated`; dos `accept` concurrentes del mismo token: gana uno (patrón de `04_fleet_concurrency`). Vitest de los helpers de enlace.
+- **Aceptación:** con la seed, Jorge crea una invitación de coordinador y su preview anónimo muestra "Transportes Regios del Norte"; un token adivinado no revela nada.
+- **E2E que probablemente se rompan:** ninguno.
+- **Revisión 🔒:** entropía del token, que el preview anónimo no filtre datos, orden de bloqueo.
+
+#### G3 · Documentos D16 y documentos por viaje (D22)
+- **Objetivo:** cargar la lista oficial de JP como datos y modelar los documentos de cada viaje: quién sube cada uno y en qué etapa.
+- **Depende de:** G1a.
+- **Alcance:**
+  - **Catálogo `document_requirements`** (migración de datos, sin borrar filas):
+    - Archivar (`archived_at`): `articles_of_incorporation`, `proof_of_address`, `sct_permit` y `carrier_insurance_policy` (empresa).
+    - Columna nueva `optional_for public.company_type[] not null default '{}'`: el requisito aplica pero no es obligatorio para esos tipos de empresa. `legal_representative_id` → `optional_for = '{shipper}'` ("cuando se requiera"). `company_missing_requirements` lo respeta.
+    - Columna nueva `shareable_with_shipper boolean not null default false` (la usa G6). `true` en `tax_status_certificate`, `vehicle_registration_card`, `vehicle_permit`, `vehicle_insurance_policy` y `federal_driver_license`; `false` en las identificaciones (datos personales; ver Seguimiento).
+    - Nuevas: `operator_official_id` (operador, "Identificación oficial", "INE u otra identificación oficial vigente", con vencimiento) y `vehicle_permit` (unidad, "Permisos correspondientes", "Permiso SICT de autotransporte federal y los especiales que apliquen").
+    - Renombrar textos: `federal_driver_license` → "Licencia de conducir vigente" ("Federal (SICT), del tipo adecuado a la unidad"); `vehicle_insurance_policy` → "Seguro vigente".
+    - Placas, tipo de unidad y capacidad ya son campos de `vehicles`: sin cambio.
+  - **Licencia adecuada al vehículo:** tabla de datos `license_unit_compatibility (license_type, vehicle_kind)` con la lista provisional B → tractor, rígido y remolque; C → rígido; E → todos. Además, una carga con `hazmat_permit` exige licencia E. `assign_trip` valida que el operador tenga licencia vigente (documento aprobado no vencido o `license_expires_on` ≥ hoy) y compatible; error con copy "La licencia de {operador} no es adecuada para esta unidad".
+  - **Documentos del viaje:**
+    - Migración sola: `alter type trip_document_kind add value 'service_order'` y `'invoice'`. `carta_porte` se queda con la etiqueta "CFDI con complemento Carta Porte".
+    - Enum `trip_document_stage` (`before_departure`, `billing`) y tabla de datos `trip_document_requirements`: `kind` (PK), `stage`, `uploader_sides offer_side[]`, `is_required`, `blocks_departure boolean default false`, `sort_order`; editable por admin y auditada. Filas: `service_order` (antes de salir; cliente y transportista), `carta_porte` (antes de salir; transportista), `invoice` (para cobrar; transportista), `other` (opcional; ambos).
+    - `add_trip_document` (misma firma): el cliente del viaje sube los tipos con `'shipper'` en `uploader_sides`; el personal con `can_operate_unit(trip.business_unit_id)`, los de `'carrier'`. Política de Storage `trip-documents` para el cliente.
+    - `record_trip_event('departed')`: si un requisito con `blocks_departure` falta, error `55000` (ninguno bloquea por defecto: D22).
+    - RPC `trip_checklist(p_trip_id)` (`security invoker`): una fila por documento o evidencia, con `code`, `stage`, `responsible` (`shipper`, `carrier` u `operator`), `required` y `done_at`. Combina `trip_document_requirements`, la evidencia mínima de `trip_evidence_requirements` y el nombre de quien recibe (evidencia firmada de entrega).
+  - **Vencimientos:** `process_document_expiry` (B09) ya avisa de todo documento con `expires_at`; G3 hace que avise también al **coordinador de la unidad de negocio** del vehículo u operador (`notify_carrier_staff`), además del Gerente y del operador.
+  - **UI app:** documentos del operador (identificación y licencia) y de la unidad (tarjeta, permisos y seguro) desde el catálogo; checklist "Documentos del viaje" en el detalle del viaje del transportista, con subida; el operador ve en solo lectura la orden de servicio y la Carta Porte de su viaje (las necesita en carretera).
+  - **UI web del cliente:** checklist del viaje y subida de la orden de servicio en `/cliente/viajes/[id]`.
+  - **Seed:** documentos aprobados de los requisitos nuevos para todas las empresas, unidades y operadores, para que la aprobación y el *matching* no cambien.
+- **Fuera de alcance:** compartir documentos con el cliente (G6); la web del transportista (G10b muestra el checklist).
+- **RLS:** `trip_document_requirements` y `license_unit_compatibility`: lectura para `authenticated`, escritura solo admin (con auditoría). `trip_documents` sin cambio de lectura.
+- **Tests:** pgTAP `29_d16_requirements.test.sql` (faltantes por tipo de empresa, persona física o moral, `optional_for`, y una unidad sin permiso no está lista para *matching*), `30_trip_documents.test.sql` (quién sube cada tipo, `blocks_departure`, `trip_checklist`) y casos de licencia en `assign_trip`. Vitest: agrupación del checklist y compatibilidad de licencia (espejo puro de la tabla).
+- **Aceptación:** el registro de cliente y de transportista pide exactamente la lista D16; el cliente sube la orden de servicio y el coordinador ve el checklist completo; asignar un operador con licencia C a un tractocamión falla con mensaje claro.
+- **E2E que probablemente se rompan:** `return-trip.spec.ts` y Maestro `01`/`03` si la seed no aprueba `vehicle_permit` (`CS53-01` dejaría de estar lista); `shipper-journey.spec.ts` (cambia la cantidad de documentos; el ciclo de subida es genérico, verificarlo); `seed-tests/seed.test.sql` (documentos completos de las empresas aprobadas); pgTAP `02_documents` y `06_vehicle_readiness`.
+
+#### G10a · Web del transportista: base, cargas y negociación
+- **Objetivo:** que el Gerente y el Coordinador trabajen en la web (D06-E1): inicio con recomendaciones, búsqueda de cargas, ofertas y chat.
+- **Depende de:** G1a.
+- **Alcance:**
+  - Ruteo: `manager` y `coordinator` → `/transportista`; `/solo-app` queda solo para el operador. Empresa en revisión → `/cuenta-en-revision`. Gerente sin empresa → `/completar-registro` (G2 le pone los datos fiscales; mientras tanto, el formulario actual).
+  - Layout `/transportista` con navegación: Inicio, Cargas, Negociaciones, Viajes (G10b), Flota (G10b), Mi empresa (G4), Suscripción (G8) y Notificaciones; selector de unidad de negocio ("Todas" para el Gerente).
+  - Páginas: `/transportista` (cargas recomendadas por unidad y "Viajes de regreso", con la Edge Function `recommendations` y el mismo respaldo de scoring local que la app); `/transportista/cargas` (búsqueda y filtros); `/transportista/cargas/[id]` (detalle con mapa y km en vacío; ofertar con un camión de sus unidades de negocio); `/transportista/negociaciones` y `/transportista/negociaciones/[id]` (contraofertar, aceptar, rechazar y chat en tiempo real); `/transportista/notificaciones`.
+  - Reutilizar la lógica de `apps/mobile/src/lib/loads-api.ts`: si hace falta, moverla a `packages/shared` (sin cambiar su comportamiento en la app).
+  - `dispatch-notifications`: `EMAIL_ROLES` suma `manager` y `coordinator`; `notificationWebPath` les da rutas de `/transportista/…`.
+- **Fuera de alcance:** viajes y flota (G10b), gestión de la empresa (G4).
+- **Tests:** Vitest de ruteo y de `notificationWebPath`. Playwright `carrier-web-offer.spec.ts`: Andrea entra a la web, ve como primera recomendación de `CS53-01` la carga GDL → MTY y oferta; Héctor no ve esa recomendación.
+- **Aceptación:** el escenario estrella (B26) se puede hacer en la web del transportista; ninguna pantalla muestra datos de otra unidad de negocio a un Coordinador.
+- **E2E que probablemente se rompan:** `apps/web/src/lib/routing.test.ts`, `notification-email.test.ts` (`carrier` ya tiene ruta), `handler.test.ts` (correo a roles nuevos).
+
+#### G10b · Web del transportista: viajes y flota
+- **Objetivo:** completar la web del transportista con viajes, asignación, documentos del viaje y flota.
+- **Depende de:** G10a y G3.
+- **Alcance:**
+  - `/transportista/viajes` (filtros por estado y unidad de negocio; el Gerente ve todos) y `/transportista/viajes/[id]`: asignar camión y operador, mapa en vivo, línea de tiempo, evidencia, checklist de documentos (G3) con subida, chat del viaje y cancelar.
+  - `/transportista/flota/unidades` y `/[id]` (datos, documentos y disponibilidad), `/transportista/flota/operadores` y `/[id]` (datos y documentos), `/transportista/rutas`.
+  - El Coordinador no ve el alta ni las bajas (son del Gerente; G4).
+  - Reutilizar el formulario de documentos de B12.
+- **Fuera de alcance:** cambiar de unidad de negocio, bajas e invitaciones (G4).
+- **Tests:** Playwright `carrier-web-assign.spec.ts` (Andrea asigna `CS53-01` y Pedro al viaje ganado en G10a); Vitest de lo puro nuevo.
+- **Aceptación:** lo que hace hoy el transportista en la app (B18–B20) se puede hacer en la web.
+- **E2E que probablemente se rompan:** ninguno.
+
+#### G2 · Registro y alta: datos fiscales, teléfono, invitaciones y hombre-camión 🔒
+- **Objetivo:** el registro de D16 para todos los perfiles, en web y app, con el operador por teléfono y la opción "Hombre camión".
+- **Depende de:** G1b y G10a.
+- **Alcance:**
+  - **Datos fiscales de la empresa** (cliente y transportista): columnas en `companies`: `fiscal_street`, `fiscal_exterior_number`, `fiscal_interior_number` (opcional), `fiscal_neighborhood`, `fiscal_postal_code` (5 dígitos), `fiscal_municipality`, `fiscal_state` (uno de los 32 estados; catálogo `MX_STATES` en `shared`) y `legal_representative_name`. RFC: el formato y la fecha ya se validan (`parseRfc`); el dígito verificador sigue como pista para el admin (B02).
+  - RPC `register_company(p_payload jsonb)`: `kind` `shipper` | `carrier` | `owner_operator`, razón social, RFC, domicilio fiscal, representante legal y contacto. Para `owner_operator`: empresa `carrier` con `is_owner_operator = true`, unidad de negocio "Principal" y una fila de `operators` ligada al perfil del que llama, en esa unidad de negocio (D13). `create_company` se queda como envoltura para builds viejas (la empresa queda con datos fiscales faltantes).
+  - `company_missing_fields(p_company_id)`: lo que falta de los datos fiscales; `review_company` no aprueba una empresa con faltantes; el panel de verificación (B12) los muestra.
+  - **Teléfono obligatorio:** `normalizeMxPhone` en `shared` (E.164, `+52` y 10 dígitos); `handle_new_user` lo exige a todos los roles; check `profiles.phone ~ '^\+[1-9][0-9]{7,14}$'`; la migración normaliza los existentes (quita espacios y guiones). Quien no tenga teléfono ve "Completa tu teléfono" en su perfil.
+  - **Operador por teléfono (D15-E1).** Se eligió **correo sintético + Edge Function** sobre Supabase Auth por teléfono sin OTP:
+    - Con el proveedor de teléfono de Supabase Auth y confirmaciones apagadas, cualquiera podría crear cuentas con cualquier número por el endpoint público de registro, y el proveedor de teléfono pide configurar SMS.
+    - Con correo sintético, la cuenta **solo** la crea la Edge Function con una invitación válida, y el login es el mismo `signInWithPassword` por correo que ya usan web y app, en local y en la nube.
+    - Correo de Auth: `52XXXXXXXXXX@tel.transport.invalid`. El TLD `.invalid` (RFC 2606) nunca entrega correo. Helpers en `shared`: `phoneAuthEmail(e164)` y `resolveLoginIdentifier(input)` (correo o teléfono → correo de Auth).
+  - **Edge Function `redeem-invitation`** (`verify_jwt = false`). Recibe `{ token, fullName, phone, password, email? }`, validado con el zod `operatorRedeemSchema` de `shared`. Pasos:
+    1. Límite de frecuencia por IP (hash) y por token con `consume_service_rate_limit`.
+    2. `invitation_preview` para validar el token.
+    3. `operator`: `auth.admin.createUser({ email: phoneAuthEmail(phone), password, email_confirm: true, user_metadata: { role: 'operator', full_name, phone }, app_metadata: { provisioned_by: 'redeem-invitation' } })` y luego `redeem_operator_invitation_service`. Si la RPC falla, borra el usuario creado (compensación).
+    4. `operator_access_reset`: `auth.admin.updateUserById(profile_id, { password })` y cierra sus sesiones.
+    5. Nunca registra en logs ni Sentry el teléfono ni la contraseña.
+  - `handle_new_user` acepta el rol `operator` **solo** si `raw_app_meta_data ->> 'provisioned_by' = 'redeem-invitation'` (solo la *service role* puede escribir `app_metadata`). Se retira el flujo B04/B17 de operador por correo: se revocan las `operator_invitations` pendientes y se borran `create_operator_invitation` y `accept_operator_invitation` (la tabla queda como historial). Los operadores que ya entran con correo siguen entrando igual.
+  - **Coordinador:** `/invitacion/[token]` (web) y `invitacion/[token]` (app) muestran el preview. Formulario de nombre, correo, teléfono y contraseña → `auth.signUp` con rol `coordinator` y `emailRedirectTo` a `/invitacion/<token>`. Al volver confirmado, `accept_coordinator_invitation`. Si ya tiene sesión como Coordinador sin empresa, solo un botón "Unirme".
+  - **Operador:** la misma ruta muestra nombre, teléfono, contraseña y correo (opcional) → `redeem-invitation` → inicia sesión con su teléfono. En la web, al terminar: "Descarga la app y entra con tu teléfono" (el operador solo usa la app) y botón "Abrir en la app".
+  - **Login** web y app: un campo "Correo o teléfono".
+  - **Hombre camión:** en `/registro` (web) y en el registro de la app se elige "Soy cliente", "Soy transportista (empresa)" o "Soy hombre camión". En la app, un Gerente con fila de operador propia ve, además de las pestañas del transportista, la pestaña **"Mi viaje"** (las pantallas del operador: estados, ubicación y evidencia). En la web ve el área de transportista.
+  - **Seed:** datos fiscales de todas las empresas, teléfonos normalizados, el operador por teléfono Iván Garza (`+52 81 1000 0013`, TRN "Regional Monterrey") y dos invitaciones demo con token fijo (solo local): `/invitacion/demo-coordinador-trn` y `/invitacion/demo-operador-trn`.
+- **Fuera de alcance:** la lista de invitaciones y "restablecer acceso" en la UI del Gerente (G4, que usa las RPC de G1b).
+- **Tests:**
+  - pgTAP `31_registration.test.sql`: `register_company` por tipo, datos fiscales obligatorios para aprobar, el hombre-camión crea su fila de operador, teléfono obligatorio y con formato, y el rol `operator` solo con `provisioned_by`.
+  - Deno: `redeem-invitation` con cliente admin simulado (éxito, compensación, token inválido, límite de frecuencia, teléfono ya registrado).
+  - Vitest: teléfono, identificador de login y esquemas.
+  - Playwright `invitations.spec.ts`: coordinador por enlace con confirmación en Mailpit; operador por enlace, que después entra con su teléfono.
+  - Maestro `08-operator-invite.yaml`: el operador crea su cuenta desde el enlace y ve "Sin viaje asignado".
+- **Aceptación:** los cuatro perfiles y el hombre-camión se registran en web y app con los datos de D16; un operador sin correo entra con teléfono y contraseña; nadie crea una cuenta de operador sin invitación.
+- **E2E que probablemente se rompan:** `shipper-journey.spec.ts` (el registro pide domicilio fiscal y representante); el subflujo de Maestro `sign-in.yaml` (etiqueta "Correo o teléfono"); la pantalla `invite.tsx` de la app y sus tests; los tests de invitación de `03_fleet_rls` y `04_fleet_concurrency` (las RPC viejas se borran: portarlos a G1b); `packages/shared/src/schemas/auth.test.ts`.
+- **Revisión 🔒:** que solo la Edge Function cree operadores; compensación; que no haya enumeración de teléfonos sin token válido; que no haya PII en los logs. Si crece de más: **G2a** (BD, datos fiscales y hombre-camión) y **G2b** (operador por teléfono e invitaciones).
+
+#### G4 · Apartado del Gerente: Mi empresa (web y app)
+- **Objetivo:** que el Gerente organice unidades de negocio, coordinadores, camiones y operadores, y los edite o dé de baja sin romper viajes activos.
+- **Depende de:** G2 y G10b.
+- **Alcance:**
+  - RPC (solo Gerente, `security definer`, con mensajes en `copy/errors`):
+    - `create_business_unit(p_name)`, `rename_business_unit(p_id, p_name)`.
+    - `archive_business_unit(p_id)`: falla si tiene camiones u operadores activos, o negociaciones o viajes abiertos; quita las asignaciones de coordinadores.
+    - `set_coordinator_units(p_profile_id, p_unit_ids uuid[])`: 1 o más unidades de negocio.
+    - `remove_company_member(p_profile_id)`: un Coordinador pierde sus unidades de negocio y su empresa (sus mensajes se conservan); no aplica a Gerentes ni a uno mismo.
+    - `move_vehicle_to_unit(p_vehicle_id, p_unit_id)` y `move_operator_to_unit(p_operator_id, p_unit_id)`: fallan si el camión u operador está en un viaje en curso (`trip_in_operator_hands`) o comprometido (`vehicle_committing_trip`); mover un operador lo quita de los camiones de otra unidad de negocio.
+    - Bajas de camión y operador: el `archived_at` que ya existe (con `fleet_block_archive_with_trips`), ahora solo del Gerente.
+  - **App** ("Más → Mi empresa") y **web** (`/transportista/empresa`), con las mismas secciones: Unidades de negocio (crear, renombrar, archivar y ver contenido), Coordinadores (invitar por enlace con la hoja de compartir del sistema, cambiar sus unidades de negocio, dar de baja), Camiones (agrupados por unidad de negocio; mover y dar de baja), Operadores (agrupados; invitar, restablecer acceso, mover y dar de baja) e Invitaciones pendientes (revocar).
+  - **Supervisión:** el inicio del Gerente muestra viajes activos y unidades pendientes de liberar por unidad de negocio (enlaza a `/transportista/viajes?unidad=`).
+- **Fuera de alcance:** mover una negociación o un viaje a otra unidad de negocio (Seguimiento); bitácora de acciones del Gerente.
+- **RLS:** sin tablas nuevas; las RPC validan `auth_is_manager()` y la empresa.
+- **Tests:** pgTAP `32_manager_company.test.sql` (cada RPC: un Coordinador recibe 42501; mover con viaje activo falla; archivar con contenido falla; dar de baja a un Coordinador le quita el acceso al instante). Vitest de agrupación. Playwright `manager-company.spec.ts` (Jorge crea "Bajío", mueve `TT-01` y le asigna a Héctor). Maestro `09-manager-company.yaml`.
+- **Aceptación:** todo lo de "Gerente" de producto §3 se puede hacer en web y app; ninguna baja deja un viaje activo sin camión u operador.
+- **E2E que probablemente se rompan:** ninguno (agrega flujos).
+
+#### G5 · Cancelación de un viaje que ya salió (D20) 🔒
+- **Objetivo:** que la unidad de un viaje cancelado después de salir quede "pendiente de liberar" hasta que su coordinador confirme dónde quedó, y que entonces vuelva a recibir recomendaciones.
+- **Depende de:** G10b.
+- **Alcance:**
+  - **Quién cancela:** sin cambio (B06): Cliente y personal de la unidad de negocio hasta `at_pickup`; el admin hasta `unloading`. Ver Seguimiento.
+  - **Motivo estructurado:** enum `trip_cancellation_reason` (`shipper_request`, `carrier_request`, `mechanical_failure`, `accident`, `cargo_issue`, `documentation`, `other`). Columnas `trips.cancellation_reason_code` y `trips.cancelled_by_side` (`shipper`, `carrier` o `admin`). RPC `cancel_trip(p_trip_id, p_reason_code, p_notes)`; la firma vieja `(p_trip_id, p_reason)` queda como envoltura con `other`. Las notas son obligatorias cuando el motivo es `other`.
+  - **Tabla `vehicle_release_tasks`:** `id`, `company_id`, `vehicle_id`, `business_unit_id`, `trip_id` (unique), `status` (enum `release_task_status`: `pending`, `released`), `last_known_location`, `last_known_at`, `created_at`, `released_at`, `released_by`, `released_location`, `released_city`, `released_state`, `released_available_from`, `notes`. Índice único `(vehicle_id) where status = 'pending'`.
+  - **Trigger `trips_create_release_task`** (after update of status, cuando el viaje pasa a `cancelled` desde un estado posterior a `assigned` y tiene vehículo):
+    - Crea la tarea con el último punto de `trip_locations`.
+    - Archiva cualquier disponibilidad activa del vehículo (p. ej. la estimada en el destino por `set_trip_vehicle_availability`) con `ended_by_trip_id = null`, para que F5 no la restaure.
+    - Usa el bloqueo del vehículo de F5.
+    - Antes de la salida no cambia nada: `trips_restore_vehicle_availability` (F5/F13) sigue restaurando.
+  - **Mientras está pendiente**, la unidad no recibe disponibilidad ni compromisos: `set_vehicle_availability`, `assign_trip` y `make_offer` con ese vehículo fallan con `55000 vehicle is pending release` (copy "Primero libera la unidad"). `match_pairs` la excluye.
+  - RPC `vehicle_release_context(p_task_id)`: último punto, hora y viaje (para precargar el formulario).
+  - RPC `release_vehicle(p_task_id, p_available_from, p_latitude, p_longitude, p_city, p_state, p_notes)` (Gerente o `can_operate_unit`). Bloquea tarea → vehículo, marca `released` y escribe la disponibilidad con la fuente nueva `release` (agregarla a `availability_source` en su propia migración). Si el vehículo ya estaba comprometido con otro viaje, la fila queda retenida como en F5. Después, `notify_matches_for_vehicle(vehicle_id)`: las 3 mejores cargas de `match_pairs` como `load_match` al personal de la unidad de negocio.
+  - **Notificaciones nuevas:** `vehicle_release_pending` (Gerente y coordinadores de la unidad de negocio) y `vehicle_released`. El operador sigue recibiendo `trip_status_changed`.
+  - **UI app y web** (G10b):
+    - Diálogo de cancelar con selector de motivo.
+    - Etiqueta "Pendiente de liberar" en la lista de camiones y tarjeta "Unidades por liberar (n)" en el inicio.
+    - Pantalla de liberar: mapa con la última posición, "¿Dónde está el camión?" (última ubicación, punto en el mapa o ciudad), "¿Desde cuándo está libre?" (ahora por defecto), notas y botón "Liberar unidad".
+    - Al liberar, se vuelven a cargar las recomendaciones de esa unidad.
+- **Fuera de alcance:** que el transportista cancele con la carga a bordo (Seguimiento); el GPS del camión (D17).
+- **RLS:** `vehicle_release_tasks` select por `business_unit_id = any(auth_business_unit_ids())` y admin; escrituras solo por trigger y RPC.
+- **Tests:**
+  - pgTAP `33_vehicle_release.test.sql`: cancelar después de salir crea la tarea y archiva la estimada; antes de salir, F5 restaura (los tests de `21_unit_availability` siguen verdes); los bloqueos mientras está pendiente; un Coordinador de otra unidad de negocio no libera; liberar escribe disponibilidad `release` y `match_candidates` la ve; notificaciones.
+  - Concurrencia: liberar y asignar el mismo vehículo a la vez (patrón de `20_return_trip_concurrency`).
+  - Vitest de los motivos y del formulario.
+  - Playwright `trip-cancel-release.spec.ts` (el cliente cancela en `en_route_to_pickup`; Andrea libera en la web y vuelve a ver recomendaciones). Maestro `10-coordinator-release.yaml`.
+- **Aceptación:** con la seed, el viaje asignado de Fletes Tapatíos (Miguel) sale, el cliente lo cancela, la unidad aparece "Pendiente de liberar", Carmen la libera en Apodaca y la app le recomienda cargas desde ahí.
+- **E2E que probablemente se rompan:** pgTAP `09_trips` y `21_unit_availability` (firma de `cancel_trip` y cancelación después de salir), `10_trip_concurrency`; el diálogo de cancelar de `/cliente/viajes/[id]` y su test de UI.
+- **Revisión 🔒:** orden de bloqueo (viaje → vehículo → tarea), que la disponibilidad estimada no reviva y que la tarea no se duplique.
+
+#### G6 · Cliente y proveedor: documentos compartidos, alta de proveedor y avisos (D21) 🔒
+- **Objetivo:** al aceptar una oferta, el cliente ve los documentos del transportista (y luego los de la unidad y el operador), puede darlo de alta como proveedor, y cada quien recibe los avisos del flujo de JP.
+- **Depende de:** G10b (y por ella G3 y G1a).
+- **Alcance:**
+  - **Tabla `document_shares`:** `id`, `trip_id`, `document_id`, `shipper_company_id`, `carrier_company_id`, `owner_type`, `granted_at`, `granted_reason` (`offer_accepted` o `trip_assigned`), `revoked_at`, `revoked_reason` (`trip_closed`, `trip_cancelled`, `reassigned`, `document_replaced` o `manager_revoked`); `unique (trip_id, document_id)`. Triggers:
+    - Viaje creado (`accept_offer`): comparte los documentos de empresa **aprobados**, vigentes y con `shareable_with_shipper`.
+    - Asignación o reasignación: comparte los de la unidad y del operador asignados y revoca los anteriores.
+    - Viaje cerrado o cancelado: revoca todo.
+    - Documento reemplazado: revoca el viejo y, si el viaje sigue abierto, comparte el nuevo en cuanto se aprueba.
+  - **Tabla inmutable `document_share_views`:** `share_id`, `viewer_id`, `viewed_at`.
+  - RPC `trip_shared_documents(p_trip_id)` (cliente del viaje y admin): lista sin rutas de Storage. RPC `authorize_shared_document_view_service(p_share_id, p_user_id)`, **solo `service_role`**: valida que la comparte esté activa y que el usuario sea del cliente del viaje, registra la consulta y devuelve la ruta.
+  - **Edge Function `shared-document-url`** (con JWT; toma el usuario del JWT): llama a la RPC y devuelve una URL firmada de 60 s. El cliente **nunca** recibe permisos de Storage sobre `documents`.
+  - El Gerente revoca a mano con `revoke_document_share(p_share_id)`; el personal de la unidad de negocio ve qué se compartió.
+  - **Alta de proveedor:** enum `provider_status` (`approved`, `rejected`, `revoked`); tabla `provider_approvals` (PK `(shipper_company_id, carrier_company_id)`, `status`, `notes`, `decided_by`, `decided_at`) y tabla inmutable `provider_approval_events` (historial). RPC `set_provider_status(p_carrier_company_id, p_status, p_notes)`: solo el cliente, y solo si tiene una negociación o un viaje con ese transportista. Sin fila = "Pendiente". En V1 no bloquea nada (D21).
+  - **Notificaciones nuevas:**
+    - `documents_shared` (al cliente)
+    - `provider_status_changed` (Gerente y coordinadores de la unidad de negocio del viaje o negociación más reciente)
+    - `trip_document_added` (a la otra parte: el cliente cuando sube el transportista; la unidad de negocio cuando el cliente sube la orden de servicio)
+    - Revisar que `load_match` (G1a) llegue solo a coordinadores cuya unidad de negocio tenga un camión **disponible, con documentos listos y compatible**, y al Gerente, sin duplicados por usuario. `trip_assigned` al operador ya existe (B07): verificar que llegue también al operador por teléfono.
+  - **Chat interno del viaje** (operador ↔ coordinador): migración sola `alter type conversation_kind add value 'trip_internal'`. Se abre con cada viaje. Participan el Gerente, los coordinadores de la unidad de negocio y el operador asignado; el cliente **no** la ve (`is_conversation_participant`). En la app del operador, "Chat con tu coordinador" va primero y "Chat con el cliente" después.
+  - **UI web del cliente:** en `/cliente/viajes/[id]`, la sección "Documentos del transportista" (lista y "Ver", que abre la URL firmada). En el comparador de ofertas y en el viaje: "Dar de alta como proveedor", "Rechazar" y "Revocar alta", con la etiqueta "Proveedor aprobado".
+  - **UI del transportista** (app y web): estado del alta de proveedor en el viaje y lista de documentos compartidos (el Gerente puede revocar).
+- **Fuera de alcance:** que el alta bloquee la asignación (Seguimiento); compartir con terceros (G7).
+- **RLS:** `document_shares` select para el cliente del viaje (sin `storage_path`), el personal de la unidad de negocio y admin. `document_share_views`: admin y Gerente. `provider_approvals` y sus eventos: el cliente y la empresa transportista involucrada, y admin. Sin escrituras de clientes.
+- **Tests:**
+  - pgTAP `34_document_shares.test.sql`: comparte al aceptar, solo aprobados y compartibles, agrega al asignar, revoca al reasignar y al cerrar; el cliente no lee Storage directo; otro cliente no puede; la consulta se registra; falla después de revocar.
+  - pgTAP `35_provider_approvals.test.sql` (matriz) y `36_trip_internal_chat.test.sql` (el cliente no lee la conversación interna).
+  - Deno de `shared-document-url`.
+  - Playwright `shipper-provider.spec.ts`: Ana ve la Constancia de Transportes Regios en su viaje y lo da de alta.
+- **Aceptación:** el paso 5–6 del flujo de JP (producto §3) funciona de punta a punta; cada consulta de documento queda registrada.
+- **E2E que probablemente se rompan:** pgTAP `11_chat_notifications` y `12_chat_concurrency` (dos conversaciones por viaje); conteos de `seed-tests/seed.test.sql`; la pantalla de chat del operador (Maestro `02`, `05` y `07` si abren el chat).
+- **Revisión 🔒:** que no haya acceso a Storage sin bitácora, que se revoque al terminar y que no se compartan identificaciones. Si crece de más: **G6a** (documentos compartidos y alta de proveedor) y **G6b** (notificaciones y chat interno).
+
+#### G7 · Compartir por enlace (D23) 🔒
+- **Objetivo:** el coordinador comparte una carga con su equipo, y el cliente comparte una carga o el seguimiento de un viaje con cualquiera, en solo lectura.
+- **Depende de:** G10a.
+- **Alcance:**
+  - Enum `share_link_kind`: `load_internal`, `load_public`, `trip_tracking_public`.
+  - Tabla `share_links`: `id`, `kind`, `company_id` (de quien crea), `load_id`, `trip_id`, `token_hash bytea unique` (token de 32 bytes en base64url), `created_by`, `created_at`, `expires_at not null`, `revoked_at`, `last_viewed_at` y `view_count`.
+  - RPC:
+    - `create_share_link(p_kind, p_load_id, p_trip_id, p_valid_for_hours default null)` → `(id, token, expires_at)`. Vigencia por defecto: interna 72 h, carga pública 7 días, seguimiento hasta 24 h después del cierre; máximo 30 días.
+    - Quién crea cada tipo: `load_internal`, el personal que ve la carga (publicada o negociada por su unidad de negocio); `load_public`, el cliente dueño de la carga publicada; `trip_tracking_public`, el cliente del viaje.
+    - `revoke_share_link(p_id)`.
+    - `open_internal_share(p_token)` (`authenticated`): quien llama debe ser de la empresa que compartió (Gerente, Coordinador u operador). Devuelve el resumen de la carga y `can_offer`.
+    - `public_shared_load(p_token)` y `public_shared_trip(p_token)`, otorgadas a `anon`, devuelven JSON saneado:
+      - carga: ciudad y estado de origen y destino, ventanas, tipo de carga, peso, tipo de unidad y requisitos;
+      - viaje: estado, línea de tiempo (tipos y horas, sin notas), última posición **solo mientras el viaje está activo**, fin estimado de descarga, razón social del transportista, tipo de unidad y placa enmascarada (últimos 3 caracteres);
+      - **nunca**: precio, contactos, direcciones exactas, documentos, chat, nombre ni teléfono del operador.
+      - Mismo error para un token inválido, vencido o revocado.
+  - **Web:**
+    - En `/cliente/cargas/[id]` y `/cliente/viajes/[id]`, el botón "Compartir" abre un diálogo con vigencia, "Copiar enlace", los enlaces activos y "Revocar".
+    - Página pública `/compartido/[token]`: sin sesión, `noindex`, `Referrer-Policy: no-referrer`, refresco cada 60 s para el seguimiento. Mensaje "Este enlace ya no está disponible" si no sirve.
+    - `/transportista/compartido/[token]` para los enlaces internos.
+  - **App:** en el detalle de la carga, "Compartir con mi equipo" abre la hoja de compartir del sistema con `https://<sitio>/transportista/compartido/<token>`. El deep link `transport://compartido/<token>` abre la ruta `shared/[token]`, que pide sesión y muestra la carga en solo lectura (el operador también).
+  - El middleware de la web deja pasar `/compartido/*` sin sesión.
+- **Fuera de alcance:** compartir documentos (G6); enlaces sin vencimiento.
+- **RLS:** `share_links` select para la empresa que los creó (sin `token_hash`) y admin; escrituras solo por RPC. `anon` solo ejecuta las dos RPC públicas.
+- **Tests:** pgTAP `37_share_links.test.sql`: matriz; un enlace interno abierto por otra empresa falla; vencido y revocado fallan; las llaves del JSON público no incluyen precio, contactos ni direcciones (se comparan con una lista permitida). Vitest de los constructores de enlaces y del saneado. Playwright `share-links.spec.ts`: un visitante anónimo ve el seguimiento sin precio y, al revocar, ve el mensaje.
+- **Aceptación:** un enlace de seguimiento funciona sin cuenta y deja de funcionar al revocarse o vencer; nada sensible sale en el JSON.
+- **E2E que probablemente se rompan:** los tests del middleware de la web (ruta pública nueva).
+- **Revisión 🔒:** entropía y vencimiento del token, que `anon` no pueda llegar a otras RPC, el saneado del JSON y los encabezados.
+
+#### G8 · Suscripción (D24) 🔒
+- **Objetivo:** que la empresa transportista pague su suscripción con Stripe y, sin claves, todo siga funcionando en "Piloto gratis".
+- **Depende de:** G10a.
+- **Alcance:**
+  - **Modelo:**
+    - Enum `subscription_status`: `pilot_free` "Piloto gratis", `active` "Activa", `past_due` "Vencida", `canceled` "Cancelada".
+    - `subscription_plans` (datos): `id`, `code` único, `name`, `description`, `amount_cents`, `currency` (check `'MXN'`), `interval` (`month` o `year`), `stripe_price_id`, `audience` (`fleet`, `owner_operator` o `any`), `active` y `sort_order`. La migración no inserta planes: los da de alta el admin por SQL (`docs/release.md`); la seed local trae dos planes demo sin `stripe_price_id`.
+    - `company_subscriptions`: PK `company_id` (empresa `carrier`), `status` (por defecto `pilot_free`), `plan_id`, `stripe_customer_id` (unique), `stripe_subscription_id` (unique), `current_period_end`, `cancel_at_period_end`, `pilot_ends_at` (nulo = piloto sin fecha de fin) y `updated_at`. Un trigger la crea con cada empresa transportista; backfill de las existentes.
+    - `billing_events`: PK `stripe_event_id`, `type`, `received_at`, `processed_at` y `summary` (solo ids y estados, sin datos personales).
+  - **RPC:**
+    - `company_billing_state()`: estado, plan, `pilot_ends_at` y nivel de aviso (`none`, `pilot`, `pilot_ending` si faltan ≤ 14 días, `inactive`). Espejo puro `billingNotice(state, now)` en `shared`.
+    - `admin_set_pilot_end(p_company_id, p_ends_at)`.
+    - `billing_link_customer_service(p_company_id, p_customer_id)` y `billing_apply_event_service(...)`, **solo `service_role`**. La segunda es idempotente: inserta en `billing_events` con `on conflict do nothing` y, si el evento ya estaba, no hace nada.
+    - Mapeo de Stripe: `active`/`trialing` → `active`; `past_due`/`unpaid`/`incomplete` → `past_due`; `canceled`/`incomplete_expired` → `canceled`.
+  - **Edge Functions** (Deno, `npm:stripe@<versión fija>` con `Stripe.createFetchHttpClient()`):
+    - `billing-checkout` (con JWT; solo Gerente): `{ planCode }`. Crea o reutiliza el Customer (metadata `company_id`) y una Checkout Session `mode: 'subscription'` con el `stripe_price_id` del plan, `client_reference_id = company_id`, regreso a `${SITE_URL}/transportista/suscripcion?estado=ok|cancelado` y llave de idempotencia.
+    - `billing-portal` (con JWT; solo Gerente): sesión del Customer Portal.
+    - `stripe-webhook` (`verify_jwt = false`): verifica `Stripe-Signature` con `STRIPE_WEBHOOK_SECRET` (`constructEventAsync` + `createSubtleCryptoProvider`) sobre el cuerpo crudo y responde 400 si no coincide. Atiende `checkout.session.completed`, `customer.subscription.created|updated|deleted`, `invoice.paid` e `invoice.payment_failed`; lee la suscripción en Stripe para tener el estado real. Un evento repetido responde 200.
+    - Sin `STRIPE_SECRET_KEY`, las tres responden `503 { code: 'billing_disabled' }` y la UI muestra "Durante la prueba piloto la plataforma es gratis".
+    - **Métodos de pago:** tarjeta. OXXO: verificar en la documentación vigente de Stripe si Checkout lo acepta en modo suscripción; si no, se queda solo con tarjeta y OXXO va a Seguimiento (sería con facturas `send_invoice`).
+  - **Gating suave:** sin suscripción activa después del piloto hay banner en la web y la app del transportista ("Tu periodo de prueba terminó…"); **ninguna RPC se bloquea** en V1 (D24).
+  - **UI:**
+    - Web `/transportista/suscripcion`: estado, planes, "Suscribirme" y "Administrar pago". El Coordinador solo ve el estado.
+    - App "Más → Suscripción": estado y "Administrar en la web" (abre `SITE_URL` con `expo-web-browser`). **No se vende dentro de la app** (regla 3.1.1 de App Store; ver Seguimiento).
+    - Admin: estado de suscripción y fin del piloto en el detalle de la empresa.
+  - **Variables:** `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` (secretos de Edge Functions) en `.env.example` y en `docs/release.md` §3.1, con los pasos de Stripe: producto y precio en MXN por plan, endpoint `https://<ref>.supabase.co/functions/v1/stripe-webhook` con sus eventos y configuración del Portal. No hace falta clave publicable (Checkout redirige).
+- **Fuera de alcance:** cobro del flete y comisiones (D08-E1); facturación CFDI de la suscripción (Seguimiento); bloqueo duro.
+- **RLS:** `subscription_plans` select de los activos para `authenticated`; `company_subscriptions` select para el personal de la empresa y admin; `billing_events` solo admin. Sin escrituras de clientes.
+- **Tests:** pgTAP `38_billing.test.sql` (matriz, idempotencia, RPC de servicio, fila automática por empresa nueva). Deno: webhook con firma válida e inválida (`generateTestHeaderString`), evento duplicado y funciones sin clave. Vitest de `billingNotice`. Playwright `subscription.spec.ts`: sin claves, Jorge ve "Piloto gratis" y la explicación.
+- **Aceptación:** en local, sin claves, todas las empresas están en "Piloto gratis"; con claves de prueba de Stripe (manual, documentado), un Gerente se suscribe y el webhook la deja "Activa".
+- **E2E que probablemente se rompan:** ninguno.
+- **Revisión 🔒:** verificación de firma, idempotencia, que ningún secreto llegue al cliente y que solo el Gerente de la empresa pueda abrir Checkout o el Portal.
+
+#### G9 · Cierre: ubicación precisa, E2E de los cuatro perfiles y revisión final
+- **Objetivo:** cumplir D17 en la app del operador y dejar probado y documentado todo §G.
+- **Depende de:** todos los bloques G.
+- **Alcance:**
+  - **D17:** función pura `locationAdvice({ foreground, background, accuracy })` en `shared` → `ok` | `enable_always` | `enable_precise` | `denied`, con Vitest. Banner en el viaje del operador, en el consentimiento y en "Mi viaje" del hombre-camión: "Activa la ubicación precisa y 'Siempre' para que tu coordinador y el cliente vean tu avance", con botón "Abrir ajustes" (`Linking.openSettings()`). La precisión sale del permiso de `expo-location` (`ios.accuracy` `full`/`reduced`; `android.accuracy` `fine`/`coarse`; verificar con la versión instalada).
+  - **Playwright:** un recorrido por perfil con la seed nueva: Cliente, Gerente, Coordinador (aislamiento), hombre-camión (web) y anónimo (enlace compartido). Se suman a los de G2–G8.
+  - **Maestro:** Gerente, Coordinador, Operador por teléfono y hombre-camión (oferta y opera su propio viaje). Actualizar `apps/mobile/.maestro/README.md` y `scripts/e2e-mobile.mjs`.
+  - **Capturas** de web y app en la rama `assets/G9-screenshots`.
+  - **Docs:** `docs/demo-local.md` (usuarios demo finales y escenarios), `docs/seguridad.md` (matriz con los roles y tablas nuevas), `docs/tiendas.md` (justificación de ubicación precisa y "Siempre") y `docs/observabilidad.md` (eventos nuevos, si los hay).
+  - **Revisión final de consistencia:** que no quede copy "Transportista" donde debe decir Gerente o Coordinador, ni el rol `carrier` en código, ni D06 viejo en textos (`/solo-app`); que `.env.example` y `docs/release.md` estén completos.
+- **Aceptación:** `pnpm e2e:mobile` y Playwright pasan con la seed; producto §3 y §6 se cumplen en la demo.
+- **E2E que probablemente se rompan:** los que aún no se hayan ajustado en los bloques anteriores.
+
+### G.2 Seguimiento (dudas abiertas para Mateo y JP)
+
+Las decisiones de arriba se toman con un valor por defecto para no bloquear; cada una se puede cambiar como dato o en un bloque pequeño:
+
+1. ¿El transportista puede cancelar un viaje **con la carga a bordo** (después de cargar)? Hoy solo el admin puede (G5).
+2. ¿El **alta de proveedor** debe bloquear la asignación o la salida para ciertos clientes? En V1 es informativa (G6).
+3. ¿Se comparten con el cliente las **identificaciones** (INE del operador o del representante)? Por defecto no, por datos personales (G3/G6).
+4. Compatibilidad **licencia ↔ unidad** provisional (B, C y E); que JP la confirme (G3).
+5. ¿El operador sigue en el chat del viaje **con el cliente**, o solo en el interno con su coordinador? (G6).
+6. ¿El enlace público de seguimiento muestra la placa completa, enmascarada (por defecto) o no la muestra? (G7).
+7. Precios de la suscripción, planes (flota y hombre-camión), fecha de fin del piloto, y si la suscripción necesita factura CFDI (G8).
+8. ¿OXXO es indispensable para la suscripción? (G8).
+9. ¿Los coordinadores también dan de alta camiones, o solo el Gerente? Por defecto, solo el Gerente (G1a/G4).
+10. Nombre en la UI para las unidades de negocio: "Unidad de negocio" (por defecto) o "Grupo".
+11. ¿Se mueven una negociación o un viaje abiertos entre unidades de negocio? (G4).
+12. D18 (borrado de cuenta y chat) y D25 (nombre comercial) siguen pendientes.

@@ -12,8 +12,6 @@ import {
   archiveBusinessUnit,
   createBusinessUnit,
   issueInvitation,
-  moveOperator,
-  moveVehicle,
   removeCoordinator,
   renameBusinessUnit,
   setCoordinatorUnits,
@@ -24,7 +22,6 @@ import { revokeInvitation } from '../lib/fleet-api';
 import { companyErrorMessage } from '../lib/fleet-errors';
 import type { CarrierContext } from '../lib/use-carrier';
 import { spacing } from '../theme';
-import { MoveToBusinessUnit } from './business-unit-fields';
 import { Badge, Card, MultiChips, SectionTitle } from './fleet-ui';
 import { InvitationLinkIssuer } from './invitation-link';
 import { Body, Button, Field, Notice } from './ui';
@@ -290,13 +287,16 @@ export function CoordinatorsSection({ carrier, company, onChanged }: SectionProp
 // Units and operators, by business unit
 // ---------------------------------------------------------------------------
 
+/** Units or operators by business unit; each opens its screen, where the Gerente moves or archives it. */
 export function FleetByUnitSection({
-  carrier,
   company,
-  onChanged,
   kind,
   onOpen,
-}: SectionProps & { kind: 'vehicles' | 'operators'; onOpen: (id: string) => void }) {
+}: {
+  company: ManagerCompany;
+  kind: 'vehicles' | 'operators';
+  onOpen: (id: string) => void;
+}) {
   const rows =
     kind === 'vehicles'
       ? company.vehicles.map((v) => ({
@@ -312,7 +312,6 @@ export function FleetByUnitSection({
           unitId: o.business_unit_id,
         }));
   const groups = groupByBusinessUnit(company.units, rows, (row) => row.unitId);
-  const move = kind === 'vehicles' ? moveVehicle : moveOperator;
   return (
     <View style={{ gap: spacing.md }}>
       <SectionTitle>
@@ -330,14 +329,7 @@ export function FleetByUnitSection({
               title={row.title}
               subtitle={row.subtitle}
               onPress={() => onOpen(row.id)}
-            >
-              <MoveToBusinessUnit
-                units={company.units}
-                currentId={row.unitId}
-                move={(unitId) => move(carrier.client, row.id, unitId)}
-                onMoved={onChanged}
-              />
-            </Card>
+            />
           ))}
         </View>
       ))}

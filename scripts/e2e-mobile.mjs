@@ -295,6 +295,7 @@ const steps = [
     needs: 'trip-cancelled-on-the-way',
     run: () => flow('10-coordinator-release'),
   },
+  { name: '09-manager-company', run: () => flow('09-manager-company') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

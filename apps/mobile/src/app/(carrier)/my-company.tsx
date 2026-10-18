@@ -40,16 +40,12 @@ export default function MyCompany() {
                   <CoordinatorsSection carrier={carrier} company={company} onChanged={reload} />
                   <FleetByUnitSection
                     kind="vehicles"
-                    carrier={carrier}
                     company={company}
-                    onChanged={reload}
                     onOpen={(id) => router.push({ pathname: '/vehicle/[id]', params: { id } })}
                   />
                   <FleetByUnitSection
                     kind="operators"
-                    carrier={carrier}
                     company={company}
-                    onChanged={reload}
                     onOpen={(id) => router.push({ pathname: '/operator/[id]', params: { id } })}
                   />
                   <InvitationsSection carrier={carrier} company={company} onChanged={reload} />

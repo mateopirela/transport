@@ -11,10 +11,14 @@ import {
 } from '@transport/shared';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 import { siteUrl } from '../env';
 import type { FormState } from '../forms';
+import { withParams } from '../pagination';
 import { paths } from '../routing';
+import type { CompanyFlash } from './company';
+import { FLEET_FLASH_PARAM } from './fleet-forms';
 import { createClient } from '../supabase/server';
 
 // Server actions of "Mi empresa" (G4) and of the invitation links of the
@@ -137,25 +141,29 @@ export async function removeCoordinatorAction(
 // Moving units and operators
 // ---------------------------------------------------------------------------
 
+// The row changes group (or leaves the list) and its form is remounted, so a
+// move or an archive redirects with its notice (COMPANY_FLASH) instead of
+// returning it.
+function companyFlash(key: CompanyFlash): never {
+  revalidatePath(paths.carrier, 'layout');
+  redirect(withParams(paths.carrierCompany, {}, { [FLEET_FLASH_PARAM]: key }));
+}
+
 export async function moveFleetRowAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = uuidOf(formData, 'id');
   const unitId = uuidOf(formData, 'businessUnitId');
   if (!id) return { error: managerCompanyErrorCopy.notFound };
   if (!unitId) return { error: managerCompanyErrorCopy.businessUnitNotFound };
   const kind = formData.get('kind');
-  if (kind === 'vehicle') {
-    return rpcState(
-      (supabase) => supabase.rpc('move_vehicle_to_unit', { p_vehicle_id: id, p_unit_id: unitId }),
-      c.fleet.moved,
-    );
-  }
-  if (kind === 'operator') {
-    return rpcState(
-      (supabase) => supabase.rpc('move_operator_to_unit', { p_operator_id: id, p_unit_id: unitId }),
-      c.fleet.moved,
-    );
-  }
-  return { error: managerCompanyErrorCopy.notFound };
+  if (kind !== 'vehicle' && kind !== 'operator') return { error: managerCompanyErrorCopy.notFound };
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+  const { error } =
+    kind === 'vehicle'
+      ? await supabase.rpc('move_vehicle_to_unit', { p_vehicle_id: id, p_unit_id: unitId })
+      : await supabase.rpc('move_operator_to_unit', { p_operator_id: id, p_unit_id: unitId });
+  if (error) return { error: companyError(error) };
+  companyFlash('movido');
 }
 
 /**
@@ -184,8 +192,7 @@ export async function archiveFleetRowAction(
     .maybeSingle();
   if (error) return { error: companyError(error) };
   if (!data) return { error: managerCompanyErrorCopy.notFound };
-  revalidatePath(paths.carrier, 'layout');
-  return { message: kind === 'vehicle' ? c.fleet.archivedUnit : c.fleet.archivedOperator };
+  companyFlash(kind === 'vehicle' ? 'baja-unidad' : 'baja-operador');
 }
 
 // ---------------------------------------------------------------------------

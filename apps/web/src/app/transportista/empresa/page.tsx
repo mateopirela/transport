@@ -22,8 +22,9 @@ import {
 } from '@/components/carrier/company-forms';
 import { InvitationLinkForm } from '@/components/carrier/invitation-link-form';
 import { Table } from '@/components/ui/table';
-import { loadManagerCompany } from '@/lib/carrier/company';
+import { companyFlashMessage, loadManagerCompany } from '@/lib/carrier/company';
 import { carrierContext } from '@/lib/carrier/context';
+import { FLEET_FLASH_PARAM } from '@/lib/carrier/fleet-forms';
 import { TRIP_FILTER_PARAMS } from '@/lib/carrier/trip-filters';
 import { withParams } from '@/lib/pagination';
 import { carrierOperatorPath, carrierUnitPath, paths } from '@/lib/routing';
@@ -57,8 +58,11 @@ function Section({
  * the pending invitation links (revoke). Every change is an RPC that checks
  * the Gerente again; a Coordinador only gets the notice.
  */
-export default async function CarrierCompanyPage() {
+export default async function CarrierCompanyPage({
+  searchParams,
+}: PageProps<'/transportista/empresa'>) {
   const { supabase, viewer, companyId, isManager } = await carrierContext(paths.carrierCompany);
+  const flash = companyFlashMessage((await searchParams)[FLEET_FLASH_PARAM]);
   if (!isManager) {
     return (
       <>
@@ -82,6 +86,11 @@ export default async function CarrierCompanyPage() {
   return (
     <>
       <PageHeading title={c.title} description={c.description} />
+      {flash && (
+        <div className="mb-6">
+          <Notice tone="success">{flash}</Notice>
+        </div>
+      )}
       <div className="space-y-10">
         <Section title={c.sections.businessUnits} description={c.businessUnits.description}>
           <Table headers={[c.columns.name, c.columns.content, c.columns.actions]}>

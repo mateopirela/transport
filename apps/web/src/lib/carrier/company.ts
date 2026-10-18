@@ -5,6 +5,7 @@ import {
   pendingInvitations,
   type BusinessUnitRef,
   type InvitationSummary,
+  managerCompanyCopy,
   type Tables,
 } from '@transport/shared';
 
@@ -14,6 +15,22 @@ import type { Supabase } from '../viewer';
 // Reads of "Mi empresa" (G4, D19) and of the Gerente's supervision. RLS gives
 // the Gerente the whole company (business units, coordinators, fleet and
 // invitations); every write is a manager RPC in company-actions.ts.
+
+/** The notices of "Mi empresa" after a move or an archive, by their `aviso` value. */
+export const COMPANY_FLASH = {
+  movido: managerCompanyCopy.fleet.moved,
+  'baja-unidad': managerCompanyCopy.fleet.archivedUnit,
+  'baja-operador': managerCompanyCopy.fleet.archivedOperator,
+} as const;
+
+export type CompanyFlash = keyof typeof COMPANY_FLASH;
+
+/** The notice for an `aviso` search param, if it is one of COMPANY_FLASH. */
+export function companyFlashMessage(value: string | string[] | undefined): string | null {
+  return typeof value === 'string' && Object.hasOwn(COMPANY_FLASH, value)
+    ? COMPANY_FLASH[value as CompanyFlash]
+    : null;
+}
 
 function check<T>({ data, error }: { data: T; error: { message: string } | null }): NonNullable<T> {
   if (error) throw new Error(error.message);

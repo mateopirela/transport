@@ -1,0 +1,63 @@
+# Gerente (G4): "Más → Mi empresa". Jorge creates the business unit "Bajío",
+# moves TT-01 to it from its screen and gives "Bajío" to Héctor Ibarra.
+# Runs after 08 on the same seed (TT-01 is never used by 01-08).
+appId: ${APP_ID}
+name: Gerente · Mi empresa
+tags: [carrier, manager]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+# Tab buttons read "<label>, tab, n of 5".
+- extendedWaitUntil:
+    visible: 'Más, tab.*'
+    timeout: 30000
+- tapOn: 'Más, tab.*'
+- tapOn: 'Mi empresa'
+- extendedWaitUntil:
+    visible: 'Regional Monterrey'
+    timeout: 15000
+- takeScreenshot: 09-1-manager-company
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Nombre'
+      TEXT: 'Bajío'
+- tapOn: 'Crear unidad de negocio'
+- extendedWaitUntil:
+    visible: 'Unidad de negocio creada.'
+    timeout: 15000
+- takeScreenshot: 09-2-business-unit-created
+# Coordinators: Héctor gets "Bajío" too (the chips of his card; the first
+# "Bajío" is the business unit card above).
+- scrollUntilVisible:
+    element: 'Héctor Ibarra'
+    centerElement: true
+- tapOn:
+    text: 'Cambiar unidades de negocio'
+    below: 'Héctor Ibarra'
+- tapOn:
+    text: 'Bajío'
+    index: 1
+- tapOn: 'Guardar unidades de negocio'
+- extendedWaitUntil:
+    visible: 'Unidades de negocio guardadas.'
+    timeout: 15000
+- takeScreenshot: 09-3-coordinator-units
+# Units: open TT-01 and move it to "Bajío".
+- scrollUntilVisible:
+    element: '.*TT-01'
+    centerElement: true
+- tapOn: '.*TT-01'
+- scrollUntilVisible:
+    element: 'Mover a…'
+    centerElement: true
+- tapOn:
+    text: 'Bajío'
+    below: 'Mover a…'
+- tapOn: 'Mover'
+- extendedWaitUntil:
+    visible: 'Movido de unidad de negocio.'
+    timeout: 15000
+- takeScreenshot: 09-4-unit-moved

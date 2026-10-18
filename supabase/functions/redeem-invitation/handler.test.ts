@@ -33,6 +33,7 @@ function setup(
     redeem?: Answer;
     updatePassword?: Answer;
     deleteUser?: Answer;
+    linked?: Answer;
     revokeSessions?: Answer;
   } = {},
 ) {
@@ -81,6 +82,9 @@ function setup(
       if (url.endsWith(`/auth/v1/admin/users/${PROFILE_ID}`) && method === 'PUT') {
         return Promise.resolve(answer(options.updatePassword, Response.json({ id: PROFILE_ID })));
       }
+      if (url.includes('/rest/v1/operators?') && method === 'GET') {
+        return Promise.resolve(answer(options.linked, Response.json([])));
+      }
       if (url.endsWith('/rpc/revoke_user_sessions_service')) {
         return Promise.resolve(answer(options.revokeSessions, Response.json(2)));
       }
@@ -120,6 +124,28 @@ Deno.test('creates no account when the ticket cannot be issued', async () => {
   const response = await handleRedeem(post(operatorBody), deps);
   assert.equal(response.status, 502);
   assert.equal(of('/auth/v1/admin/users').length, 0);
+});
+
+Deno.test('a lost answer of a committed redemption keeps the account', async () => {
+  const { deps, of } = setup({
+    redeem: () => {
+      throw new TypeError('connection reset');
+    },
+    linked: Response.json([{ id: 'op' }]),
+  });
+  const response = await handleRedeem(post(operatorBody), deps);
+  assert.equal(response.status, 200);
+  assert.equal(of('/auth/v1/admin/users/').filter((c) => c.method === 'DELETE').length, 0);
+});
+
+Deno.test('the account is kept when the compensation check fails', async () => {
+  const { deps, of } = setup({
+    redeem: postgrestError('XX000', 'boom', 500),
+    linked: postgrestError('XX000', 'down', 503),
+  });
+  const response = await handleRedeem(post(operatorBody), deps);
+  assert.equal(response.status, 502);
+  assert.equal(of('/auth/v1/admin/users/').filter((c) => c.method === 'DELETE').length, 0);
 });
 
 Deno.test('answers CORS preflight and rejects other methods', async () => {

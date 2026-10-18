@@ -148,6 +148,8 @@ interface Backend {
   }): Promise<string>;
   updatePassword(userId: string, password: string): Promise<void>;
   deleteUser(userId: string): Promise<void>;
+  /** True when an operator row is linked to the account (the redemption committed). */
+  isLinkedOperator(userId: string): Promise<boolean>;
 }
 
 function createBackend(supabaseUrl: string, serviceKey: string, fetch: FetchLike): Backend {
@@ -194,6 +196,14 @@ function createBackend(supabaseUrl: string, serviceKey: string, fetch: FetchLike
     },
     async deleteUser(userId) {
       await call(`/auth/v1/admin/users/${userId}`, { method: 'DELETE' }, 'deleteUser');
+    },
+    async isLinkedOperator(userId) {
+      const rows = await call(
+        `/rest/v1/operators?select=id&profile_id=eq.${encodeURIComponent(userId)}&limit=1`,
+        { method: 'GET' },
+        'isLinkedOperator',
+      );
+      return Array.isArray(rows) && rows.length > 0;
     },
   };
 }
@@ -328,11 +338,28 @@ async function redeemOperator(body: unknown, backend: Backend, log: Logger): Pro
       p_email: email ?? null,
     });
   } catch (error) {
-    // Compensation: the link did not take, so the account must not stay.
+    // Compensation: the link did not take, so the account must not stay. A
+    // lost answer (timeout, dropped connection) may hide a redemption that
+    // did commit: check first, and never delete an account that is linked
+    // (or whose state cannot be read).
+    let linked: boolean | null;
     try {
-      await backend.deleteUser(userId);
-    } catch (cleanupError) {
-      log.error('compensation failed: orphan operator account', { userId, error: cleanupError });
+      linked = await backend.isLinkedOperator(userId);
+    } catch (checkError) {
+      linked = null;
+      log.error('compensation check failed: account kept', { userId, error: checkError });
+    }
+    if (linked) {
+      log.warn('redeem answer lost but the redemption committed', { userId });
+      log.info('redeemed', { kind: 'operator', userId });
+      return json({ kind: 'operator', email: authEmail });
+    }
+    if (linked === false) {
+      try {
+        await backend.deleteUser(userId);
+      } catch (cleanupError) {
+        log.error('compensation failed: orphan operator account', { userId, error: cleanupError });
+      }
     }
     if (isInvalidInvitation(error)) {
       log.info('redeem refused', { kind: 'operator', reason: 'invalid_invitation' });

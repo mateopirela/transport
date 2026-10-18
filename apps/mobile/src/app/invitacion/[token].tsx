@@ -130,6 +130,7 @@ function WrongAccount({ message }: { message: string }) {
 
 function JoinCompany({ token }: { token: string }) {
   const { actions, refreshProfile } = useSession();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -138,8 +139,12 @@ function JoinCompany({ token }: { token: string }) {
     setSubmitting(true);
     try {
       const result = await actions.acceptCoordinatorInvitation(token);
-      if (result.ok) await refreshProfile();
-      else setError(mobileErrorCopy[result.error]);
+      if (result.ok) {
+        await refreshProfile();
+        // Invitation routes are open to any session (lib/routing.ts), so the
+        // guard does not move the new Coordinador: go to their area.
+        router.replace('/');
+      } else setError(mobileErrorCopy[result.error]);
     } finally {
       setSubmitting(false);
     }
@@ -313,8 +318,10 @@ function OperatorRedeem({ token }: { token: string }) {
     });
     setSubmitting(false);
     if (!result.ok) setFormError(mobileErrorCopy[result.error]);
-    // Signed in: the session moves the user to the operator area by itself.
     else if (result.value === 'redeemed') setRedeemed(true);
+    // Signed in: invitation routes are open to any session (lib/routing.ts),
+    // so go to the operator's area explicitly.
+    else router.replace('/');
   }
 
   if (redeemed) {

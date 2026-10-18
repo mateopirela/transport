@@ -24,9 +24,10 @@ const ACCEPT = Object.keys(DOCUMENT_MIME_TYPES).join(',');
 /**
  * Uploads a file to the private `documents` bucket (Storage policies check
  * the company folder) and then registers it with `submit_document`.
- * registerDocument revalidates the review page, and a server action that
- * revalidates the current page brings its new tree in the same response, so
- * no router.refresh() is needed (it would only render the page again).
+ * registerDocument revalidates the review page (the carrier's fleet screens,
+ * G10b, pass their own action), and a server action that revalidates the
+ * current page brings its new tree in the same response, so no
+ * router.refresh() is needed (it would only render the page again).
  */
 export function DocumentUpload({
   companyId,
@@ -35,6 +36,7 @@ export function DocumentUpload({
   requirementId,
   requiresExpiry,
   replacing,
+  registerAction = registerDocument,
 }: {
   companyId: string;
   ownerType: DocumentOwnerType;
@@ -42,6 +44,8 @@ export function DocumentUpload({
   requirementId: string;
   requiresExpiry: boolean;
   replacing: boolean;
+  /** Server action that registers the uploaded file (the shipper's by default). */
+  registerAction?: (input: unknown) => Promise<{ error?: string }>;
 }) {
   const id = useId();
   const [pending, setPending] = useState(false);
@@ -71,7 +75,7 @@ export function DocumentUpload({
       .upload(storagePath, file, { contentType: file.type, upsert: false });
     if (uploaded.error) return setError(onboardingCopy.errors.upload);
 
-    const result = await registerDocument({
+    const result = await registerAction({
       requirementId,
       ownerType,
       ownerId,

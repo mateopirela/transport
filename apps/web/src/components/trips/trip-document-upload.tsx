@@ -22,19 +22,26 @@ const c = clientTripsCopy.documents.upload;
 const ACCEPT = Object.keys(TRIP_DOCUMENT_MIME_TYPES).join(',');
 
 /**
- * Uploads a trip document of the shipper (D22: the service order, or another
- * file) to the private `trip-documents` bucket (its policy checks the trip)
- * and registers it with add_trip_document, which checks the kind the shipper
- * side may upload. The action revalidates the trip page, so the checklist and
- * the file list refresh in the same response.
+ * Uploads a trip document (D22) to the private `trip-documents` bucket (its
+ * policy checks the trip) and registers it with add_trip_document, which
+ * checks the kind the side may upload: the shipper's service order (B15) or,
+ * in the carrier web (G10b), the Carta Porte, the invoice and the rest. The
+ * action revalidates the trip page, so the checklist and the file list
+ * refresh in the same response.
  */
 export function TripDocumentUpload({
   tripId,
   kinds,
+  registerAction = registerTripDocument,
+  doneText = c.done,
 }: {
   tripId: string;
-  /** Kinds the shipper may upload (trip_document_requirements), in order. */
+  /** Kinds the viewer's side may upload (trip_document_requirements), in order. */
   kinds: readonly TripDocumentKind[];
+  /** Server action of the area (the shipper's by default). */
+  registerAction?: (input: unknown) => Promise<{ error?: string }>;
+  /** Confirmation shown after a successful upload. */
+  doneText?: string;
 }) {
   const id = useId();
   const [pending, setPending] = useState(false);
@@ -64,7 +71,7 @@ export function TripDocumentUpload({
       .upload(storagePath, file, { contentType: file.type, upsert: false });
     if (uploaded.error) return setError(clientTripsCopy.errors.uploadFailed);
 
-    const result = await registerTripDocument({
+    const result = await registerAction({
       tripId,
       kind,
       storagePath,
@@ -94,7 +101,7 @@ export function TripDocumentUpload({
     >
       <p className="font-medium">{c.title}</p>
       {error && <Notice tone="error">{error}</Notice>}
-      {done && <Notice tone="success">{c.done}</Notice>}
+      {done && <Notice tone="success">{doneText}</Notice>}
       <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-end">
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-kind`}>{c.kind}</Label>

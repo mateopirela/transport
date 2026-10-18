@@ -1,11 +1,9 @@
-import { adminCopy, uuidField } from '@transport/shared';
+import { adminCopy } from '@transport/shared';
 import { NextResponse } from 'next/server';
 
 import { getViewer } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
-
-/** Signed URLs live just long enough to open the file. */
-const SIGNED_URL_SECONDS = 60;
+import { documentFileRedirect } from '@/lib/verification/document-file';
 
 /**
  * Document viewer for admins: redirects to a short-lived signed URL of the
@@ -20,24 +18,6 @@ export async function GET(_request: Request, ctx: RouteContext<'/admin/documento
     return new NextResponse(adminCopy.errors.forbidden, { status: 403 });
   }
   const supabase = await createClient();
-  if (!supabase || !uuidField.safeParse(id).success) {
-    return new NextResponse(adminCopy.errors.fileUnavailable, { status: 404 });
-  }
-
-  const { data: document } = await supabase
-    .from('documents')
-    .select('storage_path')
-    .eq('id', id)
-    .maybeSingle();
-  if (!document) return new NextResponse(adminCopy.errors.fileUnavailable, { status: 404 });
-
-  const { data, error } = await supabase.storage
-    .from('documents')
-    .createSignedUrl(document.storage_path, SIGNED_URL_SECONDS);
-  if (error) return new NextResponse(adminCopy.errors.fileUnavailable, { status: 404 });
-
-  const response = NextResponse.redirect(data.signedUrl);
-  response.headers.set('Cache-Control', 'no-store');
-  response.headers.set('Referrer-Policy', 'no-referrer');
-  return response;
+  if (!supabase) return new NextResponse(adminCopy.errors.fileUnavailable, { status: 404 });
+  return documentFileRedirect(supabase, id, adminCopy.errors.fileUnavailable);
 }

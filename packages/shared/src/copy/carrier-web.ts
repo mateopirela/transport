@@ -1,13 +1,17 @@
 // Spanish copy of the carrier web (G10a, D06-E1): the area the Gerente and the
 // Coordinador use in the browser. Recommendations, load detail, negotiation
 // states, offer actions and their errors reuse carrierLoadsCopy (B19), so the
-// app and the web say the same thing; the chat reuses chatCopy.
+// app and the web say the same thing; the chat reuses chatCopy. Trips and the
+// fleet (G10b) reuse carrierTripsCopy (B20) and fleetCopy (B18) the same way.
+import type { CarrierTripGroup } from '../carrier-trips';
 
 export const carrierWebCopy = {
   nav: {
     home: 'Inicio',
     loads: 'Cargas',
     negotiations: 'Negociaciones',
+    trips: 'Viajes',
+    fleet: 'Flota',
   },
   businessUnit: {
     label: 'Unidad de negocio',
@@ -150,5 +154,188 @@ export const carrierWebCopy = {
       'Sube los documentos de tu empresa para que podamos verificarla. Mientras tu cuenta está en revisión no podrás ofertar.',
     coordinator:
       'Tu empresa está en revisión. El Gerente sube los documentos; aquí puedes consultar su estado.',
+  },
+  trips: {
+    title: 'Viajes',
+    description:
+      'Los viajes ganados de tus unidades de negocio: asigna camión y operador y sigue los que van en camino.',
+    /** Link from a won negotiation or load to its trip. */
+    seeTrip: 'Ver el viaje',
+    tabs: {
+      open: 'Abiertos',
+      to_assign: 'Por asignar',
+      upcoming: 'Próximos',
+      active: 'En curso',
+      history: 'Historial',
+    } satisfies Record<'open' | CarrierTripGroup, string>,
+    emptyOpen: 'No hay viajes abiertos en las unidades de negocio seleccionadas.',
+    /** The list narrowed to one business unit by the `unidad` parameter (G4 links here). */
+    forBusinessUnit: (name: string) => `Viajes de la unidad de negocio ${name}`,
+    allBusinessUnits: 'Ver todas las unidades de negocio',
+    columns: {
+      route: 'Ruta',
+      businessUnit: 'Unidad de negocio',
+      pickup: 'Recolección',
+      assignment: 'Camión y operador',
+      status: 'Estado',
+      actions: '',
+    },
+    open: 'Ver',
+    detail: {
+      back: 'Volver a viajes',
+      load: 'Ver la carga',
+      data: 'Datos del viaje',
+      assignment: 'Asignación',
+      /** Live map section; the messages reuse clientTripsCopy.map. */
+      map: 'Ubicación',
+      evidence: 'Evidencia fotográfica',
+      evidenceEmpty: 'Aún no hay fotos.',
+      openPhoto: 'Abrir foto',
+      capturedAt: (at: string) => `Tomada el ${at}`,
+      files: 'Archivos',
+      uploadedAt: (at: string) => `Subido el ${at}`,
+      incidentReported: (kind: string, description: string) => `${kind}: ${description}`,
+      receivedBy: (name: string) => `Recibió: ${name}`,
+      estimate: (at: string) => `Fin estimado: ${at}`,
+    },
+    assign: {
+      unit: 'Camión',
+      operator: 'Operador',
+      choose: 'Elige…',
+      managerHint:
+        'Como Gerente puedes asignar camiones y operadores de cualquier unidad de negocio; el viaje pasa a la unidad de negocio del camión.',
+      coordinatorHint: 'Solo aparecen los camiones y operadores de la unidad de negocio del viaje.',
+      submit: 'Asignar operador',
+      resubmit: 'Guardar cambios',
+      confirmTitle: 'Confirmar asignación',
+      confirm: 'Sí, asignar',
+      cancel: 'Cancelar',
+      submitting: 'Asignando…',
+      done: 'Asignación guardada. Avisamos al operador con una notificación.',
+    },
+    cancel: {
+      open: 'Cancelar el viaje',
+      title: '¿Cancelar el viaje?',
+      help: 'Se avisará al cliente y al operador. Un viaje solo se cancela antes de que el operador empiece a cargar.',
+      reason: 'Motivo',
+      confirm: 'Sí, cancelar el viaje',
+      cancelling: 'Cancelando…',
+      done: 'El viaje quedó cancelado.',
+    },
+    documents: {
+      upload: 'Subir un documento',
+      done: 'Documento guardado. El cliente ya lo ve en su viaje.',
+    },
+    incidents: {
+      sent: 'Incidencia enviada. El cliente y el equipo de soporte ya la ven.',
+    },
+    errors: {
+      notFound: 'Este viaje ya no está disponible.',
+      cancelNotAllowed:
+        'El viaje ya no se puede cancelar: el operador ya está cargando o en camino.',
+      cancelReason: 'Escribe el motivo de la cancelación.',
+      generic: 'No pudimos completar la acción. Inténtalo de nuevo.',
+    },
+  },
+  fleet: {
+    title: 'Flota',
+    tabs: {
+      units: 'Camiones',
+      operators: 'Operadores',
+      routes: 'Rutas habituales',
+    },
+    /** A Coordinador only edits; adding and archiving are the Gerente's (G1a, G4). */
+    managerOnly: 'Solo el Gerente da de alta y de baja camiones y operadores.',
+    businessUnitField: 'Unidad de negocio',
+    businessUnitHint: 'A qué unidad de negocio pertenece. Después solo el Gerente puede cambiarla.',
+    units: {
+      title: 'Camiones',
+      description:
+        'Los camiones de tus unidades de negocio, con sus documentos y su disponibilidad.',
+      add: 'Agregar camión',
+      newTitle: 'Nuevo camión',
+      columns: {
+        unit: 'Camión',
+        kind: 'Tipo',
+        businessUnit: 'Unidad de negocio',
+        readiness: 'Estado',
+        availability: 'Disponibilidad',
+        actions: '',
+      },
+      empty: 'No hay camiones en las unidades de negocio seleccionadas.',
+      open: 'Ver',
+      back: 'Volver a camiones',
+      notFound: 'Este camión ya no está disponible.',
+      data: 'Datos del camión',
+      kindLocked: 'El tipo de vehículo no se puede cambiar después del alta.',
+      saved: 'Camión guardado.',
+      created: 'Camión registrado. Ahora sube sus documentos y registra su disponibilidad.',
+      archived: 'El camión quedó dado de baja.',
+      noAvailability: 'Sin disponibilidad',
+      /** Where a unit is free (list column). */
+      availableAt: (city: string, when: string) => `${city} · desde ${when}`,
+    },
+    availability: {
+      dateTimeHint: 'Hora de la Ciudad de México.',
+      clearConfirm: '¿Marcar el camión como no disponible?',
+      cleared: 'El camión quedó como no disponible.',
+    },
+    operators: {
+      title: 'Operadores',
+      description: 'Los operadores de tus unidades de negocio, con sus documentos y su licencia.',
+      add: 'Agregar operador',
+      newTitle: 'Nuevo operador',
+      columns: {
+        name: 'Operador',
+        contact: 'Contacto',
+        license: 'Licencia',
+        businessUnit: 'Unidad de negocio',
+        account: 'Cuenta',
+        actions: '',
+      },
+      empty: 'No hay operadores en las unidades de negocio seleccionadas.',
+      open: 'Ver',
+      back: 'Volver a operadores',
+      notFound: 'Este operador ya no está disponible.',
+      data: 'Datos del operador',
+      licenseTypeNone: 'Sin tipo',
+      /** License type and its expiry date. */
+      license: (type: string, expiresOn: string | null) =>
+        expiresOn ? `Tipo ${type} · vence el ${expiresOn}` : `Tipo ${type}`,
+      noLicense: 'Sin licencia registrada',
+      emailLocked: 'El correo no se puede cambiar: el operador ya entra a la app con él.',
+      saved: 'Operador guardado.',
+      created: 'Operador registrado. Ahora sube sus documentos e invítalo desde la app.',
+      archived: 'El operador quedó dado de baja.',
+      /** Invitations by link arrive with G1b/G4; until then the app issues the code. */
+      invitationHint:
+        'La invitación para que el operador entre a la app se genera desde la app del Gerente o del Coordinador.',
+    },
+    routes: {
+      description: 'Rutas de la empresa; las usamos para recomendarte cargas y viajes de regreso.',
+      columns: { route: 'Ruta', unitTypes: 'Tipos de unidad', actions: '' },
+      anyUnitType: 'Cualquiera',
+      added: 'Ruta guardada.',
+      removed: 'Ruta quitada.',
+      removeConfirm: '¿Quitar esta ruta?',
+    },
+    documents: {
+      title: 'Documentos',
+      description:
+        'Sube cada documento en PDF o imagen (máximo 10 MB). Los revisamos y te avisamos si hay que corregir algo.',
+      file: 'Ver archivo',
+      fileUnavailable: 'El archivo no está disponible.',
+    },
+    archive: {
+      unit: 'Dar de baja el camión',
+      operator: 'Dar de baja al operador',
+      confirm: 'Sí, dar de baja',
+      cancel: 'Cancelar',
+      archiving: 'Dando de baja…',
+    },
+    errors: {
+      notFound: 'No encontramos este registro.',
+      generic: 'No pudimos guardar el cambio. Inténtalo de nuevo.',
+    },
   },
 } as const;

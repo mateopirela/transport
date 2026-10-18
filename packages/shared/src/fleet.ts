@@ -2,6 +2,7 @@
 // picks while there is no Google Places key, and Mexico City date-times.
 // Postgres enforces the same rules (set_vehicle_availability,
 // vehicle_expired_requirements).
+import { fleetErrorCopy } from './copy/fleet';
 import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verification';
 
 /**
@@ -132,4 +133,27 @@ export function mexicoCityParts(value: Date): { date: string; time: string } {
   const shifted = new Date(value.getTime() - 6 * 60 * 60 * 1000);
   const iso = shifted.toISOString();
   return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
+}
+
+/**
+ * Errors raised by the fleet RPCs, triggers and constraints (supabase/
+ * migrations), by a fragment of their fixed English message. Only known ones
+ * are mapped, so database text never reaches the user. Shared by the app and
+ * the web (G10b).
+ */
+const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
+  [/vehicles_company_plate_key/u, fleetErrorCopy.plateTaken],
+  [/vehicle has expired documents/u, fleetErrorCopy.expiredDocuments],
+  [/operator already has an account/u, fleetErrorCopy.operatorHasAccount],
+  [/operator has no email/u, fleetErrorCopy.operatorNoEmail],
+  [/document is already expired/u, fleetErrorCopy.documentExpired],
+  [/cannot archive: it is assigned to a trip in progress/u, fleetErrorCopy.archiveBlocked],
+  [/only the manager can move or archive/u, fleetErrorCopy.managerOnly],
+  [/business_unit_id is required/u, fleetErrorCopy.businessUnitRequired],
+];
+
+/** Spanish text for a known error message of a fleet write, or null when unknown. */
+export function fleetErrorText(message: string): string | null {
+  for (const [pattern, text] of FLEET_ERRORS) if (pattern.test(message)) return text;
+  return null;
 }

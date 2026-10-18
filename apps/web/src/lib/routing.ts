@@ -28,6 +28,13 @@ export const paths = {
   carrierLoads: '/transportista/cargas',
   carrierNegotiations: '/transportista/negociaciones',
   carrierNotifications: '/transportista/notificaciones',
+  carrierTrips: '/transportista/viajes',
+  carrierFleet: '/transportista/flota',
+  carrierUnits: '/transportista/flota/unidades',
+  newCarrierUnit: '/transportista/flota/unidades/nuevo',
+  carrierOperators: '/transportista/flota/operadores',
+  newCarrierOperator: '/transportista/flota/operadores/nuevo',
+  carrierRoutes: '/transportista/rutas',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -55,12 +62,15 @@ export const negotiationPath = (loadId: string, negotiationId: string) =>
 /** Shipper trip tracking (B15). */
 export const tripPath = (tripId: string) => `/cliente/viajes/${tripId}`;
 
-/** Redirect to a short-lived signed URL of a trip's evidence photo or document. */
-export const tripFileHref = (kind: 'evidencia' | 'documentos', path: string) =>
-  `/cliente/viajes/archivo?tipo=${kind}&ruta=${encodeURIComponent(path)}`;
-
-/** Signed-in areas that share screens (chat attachments, notifications inbox). */
+/** Signed-in areas that share screens (chat attachments, notifications inbox, trip files). */
 export type WebArea = 'cliente' | 'transportista';
+
+/** Redirect to a short-lived signed URL of a trip's evidence photo or document. */
+export const tripFileHref = (
+  kind: 'evidencia' | 'documentos',
+  path: string,
+  area: WebArea = 'cliente',
+) => `/${area}/viajes/archivo?tipo=${kind}&ruta=${encodeURIComponent(path)}`;
 
 /** Redirect to a short-lived signed URL of a chat attachment (`{conversation}/{file}`). */
 export const chatAttachmentHref = (path: string, area: WebArea = 'cliente') =>
@@ -79,6 +89,20 @@ export const sharedPath = (token: string) => `${paths.shared}/${encodeURICompone
 /** A load shared with the carrier's team (G7); needs a session of that company. */
 export const carrierSharedPath = (token: string) =>
   `${paths.carrierShared}/${encodeURIComponent(token)}`;
+
+/** Carrier web (G10b): a won trip of the company (assignment, map, documents, chat). */
+export const carrierTripPath = (tripId: string) => `/transportista/viajes/${tripId}`;
+
+/** Carrier web (G10b): a unit (vehicle) of the fleet, with its documents and availability. */
+export const carrierUnitPath = (vehicleId: string) => `/transportista/flota/unidades/${vehicleId}`;
+
+/** Carrier web (G10b): an operator of the fleet, with its documents. */
+export const carrierOperatorPath = (operatorId: string) =>
+  `/transportista/flota/operadores/${operatorId}`;
+
+/** Carrier web (G10b): redirect to a short-lived signed URL of a fleet document's file. */
+export const carrierDocumentFilePath = (documentId: string) =>
+  `/transportista/flota/documentos/${documentId}/archivo`;
 
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;

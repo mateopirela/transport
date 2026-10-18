@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { fleetCopy, vehicleReadinessLabels } from './copy/fleet';
+import { fleetCopy, fleetErrorCopy, vehicleReadinessLabels } from './copy/fleet';
 import { validationMessages as m } from './copy/validation';
 import {
   CITY_PRESETS,
   cityPreset,
   expiredRequirementIds,
   findCityPreset,
+  fleetErrorText,
   mexicoCityDateTime,
   mexicoCityParts,
   toEwktPoint,
@@ -282,5 +283,28 @@ describe('fleet copy', () => {
     expect(text).toContain('AB');
     expect(fleetCopy.onboarding.count(1)).toBe('1 registrada');
     expect(fleetCopy.onboarding.operatorsCount(3)).toBe('3 registrados');
+  });
+});
+
+describe('fleetErrorText', () => {
+  it('maps the fixed messages of the fleet writes', () => {
+    expect(
+      fleetErrorText('duplicate key value violates unique constraint "vehicles_company_plate_key"'),
+    ).toBe(fleetErrorCopy.plateTaken);
+    expect(fleetErrorText('vehicle has expired documents')).toBe(fleetErrorCopy.expiredDocuments);
+    expect(fleetErrorText('cannot archive: it is assigned to a trip in progress')).toBe(
+      fleetErrorCopy.archiveBlocked,
+    );
+    expect(fleetErrorText('only the manager can move or archive units and operators')).toBe(
+      fleetErrorCopy.managerOnly,
+    );
+    expect(fleetErrorText('business_unit_id is required')).toBe(
+      fleetErrorCopy.businessUnitRequired,
+    );
+  });
+
+  it('leaves unknown messages to the caller', () => {
+    expect(fleetErrorText('')).toBeNull();
+    expect(fleetErrorText('permission denied for table vehicles')).toBeNull();
   });
 });

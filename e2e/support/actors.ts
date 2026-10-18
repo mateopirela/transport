@@ -98,6 +98,27 @@ export async function pendingShipperOffer(carrier: Client, loadId: string): Prom
   return offer.id;
 }
 
+/** The carrier's pending offer on a load, as the shipper sees it (null when none). */
+export async function pendingCarrierOffer(shipper: Client, loadId: string): Promise<string | null> {
+  const { data, error } = await shipper
+    .from('offers')
+    .select('id')
+    .eq('load_id', loadId)
+    .eq('side', 'carrier')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
+/** Shipper: accepts a pending carrier offer (accept_offer contracts the load and creates the trip). */
+export async function acceptOffer(shipper: Client, offerId: string): Promise<void> {
+  const { error } = await shipper.rpc('accept_offer', { p_offer_id: offerId });
+  if (error) throw new Error(error.message);
+}
+
 /** Carrier: answers the shipper's counteroffer with a new amount. */
 export async function counterOffer(
   carrier: Client,

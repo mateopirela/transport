@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   canAddTripDocuments,
   canAssignTrip,
+  canCancelTrip,
+  carrierTripErrorText,
   carrierTripGroup,
   checkAssignment,
   defaultAssignment,
@@ -13,12 +15,14 @@ import {
   loadedLegProgress,
   locationFreshness,
   mapPointUrl,
+  operatorLicenseCurrent,
   projectToBox,
   tripDocumentFileIssue,
   tripDocumentStoragePath,
   type AssignableOperator,
   type AssignableUnit,
 } from './carrier-trips';
+import { carrierTripsCopy } from './copy/carrier-trips';
 import { TRIP_STATUSES } from './enums';
 
 describe('tripDocumentStoragePath', () => {
@@ -325,5 +329,82 @@ describe('mapPointUrl', () => {
     expect(mapPointUrl({ lat: 20.5, lng: -103.25 })).toBe(
       'https://www.google.com/maps/search/?api=1&query=20.5,-103.25',
     );
+  });
+});
+
+describe('canCancelTrip', () => {
+  it('mirrors cancel_trip for the carrier staff: until the operator starts loading', () => {
+    const allowed = TRIP_STATUSES.filter(canCancelTrip);
+    expect(allowed).toEqual(['pending_assignment', 'assigned', 'en_route_to_pickup', 'at_pickup']);
+  });
+});
+
+describe('operatorLicenseCurrent', () => {
+  const now = new Date('2026-10-15T18:00:00Z');
+  const license = { id: 'req-1', code: 'federal_driver_license' };
+  const operator = { id: 'op-1', license_expires_on: null };
+  const approved = {
+    requirement_id: 'req-1',
+    owner_type: 'operator' as const,
+    owner_id: 'op-1',
+    status: 'approved' as const,
+    expires_at: '2027-01-01T00:00:00Z',
+    archived_at: null,
+  };
+
+  it('is current with a license date today or later', () => {
+    expect(
+      operatorLicenseCurrent({ ...operator, license_expires_on: '2026-10-15' }, [], [], now),
+    ).toBe(true);
+    expect(
+      operatorLicenseCurrent({ ...operator, license_expires_on: '2026-10-14' }, [], [], now),
+    ).toBe(false);
+  });
+
+  it('is current with an approved unexpired license document of the operator', () => {
+    expect(operatorLicenseCurrent(operator, [license], [approved], now)).toBe(true);
+    expect(
+      operatorLicenseCurrent(operator, [license], [{ ...approved, status: 'pending_review' }], now),
+    ).toBe(false);
+    expect(
+      operatorLicenseCurrent(
+        operator,
+        [license],
+        [{ ...approved, expires_at: '2026-10-01T00:00:00Z' }],
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      operatorLicenseCurrent(operator, [license], [{ ...approved, owner_id: 'op-2' }], now),
+    ).toBe(false);
+    expect(operatorLicenseCurrent(operator, [], [approved], now)).toBe(false);
+  });
+});
+
+describe('carrierTripErrorText', () => {
+  const e = carrierTripsCopy.errors;
+
+  it('maps the fixed messages of assign_trip, cancel_trip and add_trip_document', () => {
+    expect(carrierTripErrorText('trip not found')).toBe(e.notFound);
+    expect(carrierTripErrorText('cannot assign a trip in status in_transit')).toBe(e.notAssignable);
+    expect(carrierTripErrorText('cannot cancel a trip in status loading')).toBe(e.notCancellable);
+    expect(carrierTripErrorText('a reason of at most 1000 characters is required')).toBe(
+      e.cancelReason,
+    );
+    expect(carrierTripErrorText('operator license is missing or expired: Pedro López')).toBe(
+      e.operatorLicenseExpired('Pedro López'),
+    );
+    expect(carrierTripErrorText('operator license is not suitable for this vehicle: Raúl')).toBe(
+      e.operatorLicenseMismatch('Raúl'),
+    );
+    expect(carrierTripErrorText('the shipper side does not upload invoice')).toBe(
+      e.documentSideNotAllowed,
+    );
+    expect(carrierTripErrorText('file was not uploaded')).toBe(e.invalidFile);
+  });
+
+  it('leaves unknown messages to the caller', () => {
+    expect(carrierTripErrorText('')).toBeNull();
+    expect(carrierTripErrorText('something else')).toBeNull();
   });
 });

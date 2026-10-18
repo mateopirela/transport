@@ -149,6 +149,12 @@ export const fleetErrorCopy = {
   operatorNoEmail: 'Agrega el correo del operador para invitarlo.',
   uploadFailed: 'No pudimos subir el archivo. Revisa tu conexión e inténtalo de nuevo.',
   documentExpired: 'El documento ya está vencido.',
+  /** fleet_block_archive_with_trips (B06). */
+  archiveBlocked: 'No se puede dar de baja: está asignado a un viaje en curso.',
+  /** fleet_guard_business_unit (G1a): moving and archiving are the Gerente's. */
+  managerOnly: 'Solo el Gerente puede hacer este cambio.',
+  /** fleet_default_business_unit (G1a): several business units, none chosen. */
+  businessUnitRequired: 'Elige la unidad de negocio.',
 } as const;
 
 export type FleetErrorKey = keyof typeof fleetErrorCopy;

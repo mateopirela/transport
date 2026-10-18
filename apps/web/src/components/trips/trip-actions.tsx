@@ -72,18 +72,22 @@ function useAttemptKey(initialKey: string, state: FormState): string {
 /**
  * Reports an incident on the trip: kind and description. Every submit of the
  * same report carries the same clientEventId, so a double submit or a retry
- * after an error does not report it twice.
+ * after an error does not report it twice. The carrier web (G10b) mounts it
+ * with its own action; the labels are the same for both parties.
  */
 export function ReportIncidentForm({
   tripId,
   clientEventId,
+  reportAction = reportIncident,
 }: {
   tripId: string;
   /** First attempt key (a fresh UUID from the server render). */
   clientEventId: string;
+  /** Server action of the area (the shipper's by default). */
+  reportAction?: (prev: FormState, formData: FormData) => Promise<FormState>;
 }) {
   const c = clientTripsCopy.incidents;
-  const [state, action, pending] = useActionState(reportIncident, {});
+  const [state, action, pending] = useActionState(reportAction, {});
   const attemptKey = useAttemptKey(clientEventId, state);
   const kindError = state.fieldErrors?.kind;
   const descriptionError = state.fieldErrors?.description;

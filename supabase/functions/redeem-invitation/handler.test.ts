@@ -32,8 +32,7 @@ function setup(
     ticket?: Answer;
     redeem?: Answer;
     updatePassword?: Answer;
-    deleteUser?: Answer;
-    linked?: Answer;
+    discard?: Answer;
     revokeSessions?: Answer;
   } = {},
 ) {
@@ -76,14 +75,11 @@ function setup(
           ),
         );
       }
-      if (url.endsWith(`/auth/v1/admin/users/${USER_ID}`) && method === 'DELETE') {
-        return Promise.resolve(answer(options.deleteUser, Response.json({})));
+      if (url.endsWith('/rpc/discard_unredeemed_operator_service')) {
+        return Promise.resolve(answer(options.discard, Response.json(true)));
       }
       if (url.endsWith(`/auth/v1/admin/users/${PROFILE_ID}`) && method === 'PUT') {
         return Promise.resolve(answer(options.updatePassword, Response.json({ id: PROFILE_ID })));
-      }
-      if (url.includes('/rest/v1/operators?') && method === 'GET') {
-        return Promise.resolve(answer(options.linked, Response.json([])));
       }
       if (url.endsWith('/rpc/revoke_user_sessions_service')) {
         return Promise.resolve(answer(options.revokeSessions, Response.json(2)));
@@ -131,21 +127,22 @@ Deno.test('a lost answer of a committed redemption keeps the account', async () 
     redeem: () => {
       throw new TypeError('connection reset');
     },
-    linked: Response.json([{ id: 'op' }]),
+    // The database finds the account linked, so it keeps it.
+    discard: Response.json(false),
   });
   const response = await handleRedeem(post(operatorBody), deps);
   assert.equal(response.status, 200);
-  assert.equal(of('/auth/v1/admin/users/').filter((c) => c.method === 'DELETE').length, 0);
+  assert.deepEqual(of('/rpc/discard_unredeemed_operator_service')[0]?.body, { p_user_id: USER_ID });
 });
 
-Deno.test('the account is kept when the compensation check fails', async () => {
+Deno.test('the account is kept when the compensation fails', async () => {
   const { deps, of } = setup({
     redeem: postgrestError('XX000', 'boom', 500),
-    linked: postgrestError('XX000', 'down', 503),
+    discard: postgrestError('XX000', 'down', 503),
   });
   const response = await handleRedeem(post(operatorBody), deps);
   assert.equal(response.status, 502);
-  assert.equal(of('/auth/v1/admin/users/').filter((c) => c.method === 'DELETE').length, 0);
+  assert.equal(of('DELETE').length, 0);
 });
 
 Deno.test('answers CORS preflight and rejects other methods', async () => {
@@ -262,6 +259,7 @@ Deno.test(
       p_email: 'ivan@example.mx',
     });
     assert.equal(of('DELETE').length, 0);
+    assert.equal(of('/rpc/discard_unredeemed_operator_service').length, 0);
 
     // No PII in the logs: not the phone, the password, the email nor the token.
     const text = lines.join('\n');
@@ -306,20 +304,18 @@ Deno.test(
     });
     const response = await handleRedeem(post(operatorBody), deps);
     assert.equal(response.status, 404);
-    const deleted = of(`/auth/v1/admin/users/${USER_ID}`).find((c) => c.method === 'DELETE');
-    assert.ok(deleted, 'the created user is deleted');
+    const discarded = of('/rpc/discard_unredeemed_operator_service')[0];
+    assert.deepEqual(discarded?.body, { p_user_id: USER_ID }, 'the created user is discarded');
     assert.ok(!lines.join('\n').includes(PASSWORD));
 
     const broken = setup({
       redeem: postgrestError('42501', 'user already belongs to a company', 403),
-      deleteUser: Response.json({ msg: 'boom' }, { status: 500 }),
+      discard: Response.json({ message: 'boom' }, { status: 500 }),
     });
     const failed = await handleRedeem(post(operatorBody), broken.deps);
     assert.equal(failed.status, 502);
     assert.ok(
-      broken.lines.some(
-        (line) => line.includes('orphan operator account') && line.includes(USER_ID),
-      ),
+      broken.lines.some((line) => line.includes('compensation failed') && line.includes(USER_ID)),
       'a failed compensation is logged with the user id',
     );
   },

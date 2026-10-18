@@ -964,3 +964,47 @@ comment on function public.revoke_user_sessions_service(uuid) is
 
 revoke all on function public.revoke_user_sessions_service(uuid) from public, anon, authenticated;
 grant execute on function public.revoke_user_sessions_service(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- RPC (service role only): the compensation of redeem-invitation. Deletes the
+-- account it just created only if the redemption did not take. The profile
+-- is locked first, so a redemption still in flight (its answer lost or timed
+-- out) finishes before the check: a linked account is never deleted.
+-- Returns true when the account was deleted.
+-- ---------------------------------------------------------------------------
+create function public.discard_unredeemed_operator_service(p_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_profile public.profiles%rowtype;
+begin
+  -- Explicit caller check on top of the grant: only the service role key.
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service role required' using errcode = '42501';
+  end if;
+  select * into v_profile from public.profiles where id = p_user_id for update;
+  if not found then
+    return false;
+  end if;
+  if v_profile.role <> 'operator'
+     or v_profile.company_id is not null
+     or exists (select 1 from public.operators o where o.profile_id = p_user_id)
+     or not exists (
+       select 1 from auth.users u
+       where u.id = p_user_id and u.raw_app_meta_data ->> 'provisioned_by' = 'redeem-invitation'
+     ) then
+    return false;
+  end if;
+  delete from auth.users where id = p_user_id;
+  return true;
+end;
+$$;
+
+comment on function public.discard_unredeemed_operator_service(uuid) is
+  'Compensation of redeem-invitation (G2): deletes a just-created operator account only if it was not linked. Service role only.';
+
+revoke all on function public.discard_unredeemed_operator_service(uuid) from public, anon, authenticated;
+grant execute on function public.discard_unredeemed_operator_service(uuid) to service_role;

@@ -2546,6 +2546,7 @@ export interface Database {
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       device_time_ahead: { Args: { p_at: string }; Returns: boolean };
+      discard_unredeemed_operator_service: { Args: { p_user_id: string }; Returns: boolean };
       document_owner_company_id: {
         Args: {
           p_owner_id: string;

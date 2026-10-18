@@ -14,7 +14,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(78);
+select plan(83);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -587,6 +587,40 @@ select tests.login('a3100000-0000-4000-8000-000000000002');
 select throws_ok(
   $$ select public.revoke_user_sessions_service('a3100000-0000-4000-8000-000000000005') $$,
   '42501', null, 'a user cannot end sessions'
+);
+reset role;
+set local role service_role;
+select tests.login_service();
+
+-- ---------------------------------------------------------------------------
+-- discard_unredeemed_operator_service (compensation of redeem-invitation)
+-- ---------------------------------------------------------------------------
+reset role;
+select tests.new_user('a3100000-0000-4000-8000-0000000000f7', 'operator', '8119990007',
+                      '{"provisioned_by": "redeem-invitation"}');
+set local role service_role;
+select is(
+  public.discard_unredeemed_operator_service('a3100000-0000-4000-8000-000000000009'), false,
+  'an operator account already linked by its redemption is kept'
+);
+select is(
+  public.discard_unredeemed_operator_service('a3100000-0000-4000-8000-000000000002'), false,
+  'only operator accounts are discarded'
+);
+select is(
+  public.discard_unredeemed_operator_service('a3100000-0000-4000-8000-0000000000f7'), true,
+  'an operator account that never got linked is discarded'
+);
+reset role;
+select is(
+  (select count(*)::int from auth.users where id in ('a3100000-0000-4000-8000-0000000000f7', 'a3100000-0000-4000-8000-000000000009')),
+  1, 'the unlinked account is gone and the linked one stays'
+);
+set local role authenticated;
+select tests.login('a3100000-0000-4000-8000-000000000002');
+select throws_ok(
+  $$ select public.discard_unredeemed_operator_service('a3100000-0000-4000-8000-000000000009') $$,
+  '42501', null, 'a user cannot discard accounts'
 );
 reset role;
 set local role service_role;

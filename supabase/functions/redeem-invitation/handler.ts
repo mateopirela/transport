@@ -18,8 +18,8 @@
 //    first (service role) and whose nonce goes in user_metadata; the account
 //    is also marked with app_metadata.provisioned_by = 'redeem-invitation'.
 //    Then redeem_operator_invitation_service links it to the company; if that
-//    fails the account is deleted again (compensation), so no orphan operator
-//    account survives.
+//    fails, discard_unredeemed_operator_service deletes the account again
+//    (compensation) unless the redemption did commit.
 // 4. operator_access_reset: redeem_operator_invitation_service marks the link
 //    used and returns the operator's profile id; the password of that account
 //    is replaced and its sessions ended (revoke_user_sessions_service). If
@@ -147,9 +147,6 @@ interface Backend {
     userMetadata: Record<string, unknown>;
   }): Promise<string>;
   updatePassword(userId: string, password: string): Promise<void>;
-  deleteUser(userId: string): Promise<void>;
-  /** True when an operator row is linked to the account (the redemption committed). */
-  isLinkedOperator(userId: string): Promise<boolean>;
 }
 
 function createBackend(supabaseUrl: string, serviceKey: string, fetch: FetchLike): Backend {
@@ -193,17 +190,6 @@ function createBackend(supabaseUrl: string, serviceKey: string, fetch: FetchLike
         { method: 'PUT', body: JSON.stringify({ password }) },
         'updatePassword',
       );
-    },
-    async deleteUser(userId) {
-      await call(`/auth/v1/admin/users/${userId}`, { method: 'DELETE' }, 'deleteUser');
-    },
-    async isLinkedOperator(userId) {
-      const rows = await call(
-        `/rest/v1/operators?select=id&profile_id=eq.${encodeURIComponent(userId)}&limit=1`,
-        { method: 'GET' },
-        'isLinkedOperator',
-      );
-      return Array.isArray(rows) && rows.length > 0;
     },
   };
 }
@@ -340,26 +326,23 @@ async function redeemOperator(body: unknown, backend: Backend, log: Logger): Pro
   } catch (error) {
     // Compensation: the link did not take, so the account must not stay. A
     // lost answer (timeout, dropped connection) may hide a redemption that
-    // did commit: check first, and never delete an account that is linked
-    // (or whose state cannot be read).
-    let linked: boolean | null;
+    // committed or is still running: discard_unredeemed_operator_service
+    // locks the profile (waiting for it), and deletes the account only when
+    // no operator row is linked. If that call fails, the account is kept.
+    let discarded: boolean | null;
     try {
-      linked = await backend.isLinkedOperator(userId);
-    } catch (checkError) {
-      linked = null;
-      log.error('compensation check failed: account kept', { userId, error: checkError });
+      discarded =
+        (await backend.rpc('discard_unredeemed_operator_service', {
+          p_user_id: userId,
+        })) === true;
+    } catch (cleanupError) {
+      discarded = null;
+      log.error('compensation failed: account kept', { userId, error: cleanupError });
     }
-    if (linked) {
+    if (discarded === false) {
       log.warn('redeem answer lost but the redemption committed', { userId });
       log.info('redeemed', { kind: 'operator', userId });
       return json({ kind: 'operator', email: authEmail });
-    }
-    if (linked === false) {
-      try {
-        await backend.deleteUser(userId);
-      } catch (cleanupError) {
-        log.error('compensation failed: orphan operator account', { userId, error: cleanupError });
-      }
     }
     if (isInvalidInvitation(error)) {
       log.info('redeem refused', { kind: 'operator', reason: 'invalid_invitation' });

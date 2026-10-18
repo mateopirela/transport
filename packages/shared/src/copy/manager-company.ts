@@ -7,6 +7,15 @@ export const managerCompanyCopy = {
   description:
     'Organiza tus unidades de negocio, coordinadores, camiones y operadores. Las bajas nunca dejan un viaje activo sin camión u operador.',
   managerOnly: 'Solo el Gerente administra la empresa.',
+  columns: {
+    name: 'Nombre',
+    content: 'Contenido',
+    actions: 'Acciones',
+    kind: 'Tipo',
+    invitee: 'Para',
+    units: 'Unidades de negocio',
+    expires: 'Vigencia',
+  },
   sections: {
     businessUnits: 'Unidades de negocio',
     coordinators: 'Coordinadores',
@@ -58,6 +67,9 @@ export const managerCompanyCopy = {
     moveSubmit: 'Mover',
     moved: 'Movido de unidad de negocio.',
     archive: 'Dar de baja',
+    archivedUnit: 'Camión dado de baja.',
+    archivedOperator: 'Operador dado de baja.',
+    open: 'Abrir',
     unitsEmpty: 'Sin camiones.',
     operatorsEmpty: 'Sin operadores.',
     noBusinessUnit: 'Sin unidad de negocio',

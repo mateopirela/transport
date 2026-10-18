@@ -1,4 +1,9 @@
-import { carrierWebCopy, notificationsInboxCopy, shellCopy } from '@transport/shared';
+import {
+  carrierWebCopy,
+  managerCompanyCopy,
+  notificationsInboxCopy,
+  shellCopy,
+} from '@transport/shared';
 
 import { AppShell } from '@/components/app-shell';
 import { BusinessUnitPicker } from '@/components/carrier/business-unit-picker';
@@ -9,12 +14,12 @@ import { paths } from '@/lib/routing';
 
 /**
  * Carrier area (G10a, D06-E1): the Gerente and the Coordinador of an approved
- * carrier. Loads and negotiations (G10a), trips and the fleet (G10b); "Mi
- * empresa" (G4) joins later. The business unit picker narrows what every
- * screen lists (D19).
+ * carrier. Loads and negotiations (G10a), trips and the fleet (G10b) and,
+ * for the Gerente, "Mi empresa" (G4). The business unit picker narrows what
+ * every screen lists (D19).
  */
 export default async function CarrierLayout({ children }: { children: React.ReactNode }) {
-  const { viewer, units } = await carrierContext(paths.carrier);
+  const { viewer, units, isManager } = await carrierContext(paths.carrier);
   const unread = await unreadNotificationCount(viewer.userId);
   const nav = [
     { href: paths.carrier, label: carrierWebCopy.nav.home },
@@ -22,6 +27,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
     { href: paths.carrierNegotiations, label: carrierWebCopy.nav.negotiations },
     { href: paths.carrierTrips, label: carrierWebCopy.nav.trips },
     { href: paths.carrierUnits, label: carrierWebCopy.nav.fleet },
+    ...(isManager ? [{ href: paths.carrierCompany, label: managerCompanyCopy.title }] : []),
     {
       href: paths.carrierNotifications,
       label: notificationsInboxCopy.nav,

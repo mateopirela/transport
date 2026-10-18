@@ -1,11 +1,13 @@
-import { carrierWebCopy, fleetCopy, formatDate } from '@transport/shared';
+import { carrierWebCopy, fleetCopy, formatDate, managerCompanyCopy } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
+import { MoveForm } from '@/components/carrier/company-forms';
 import { FleetArchiveForm } from '@/components/carrier/fleet-archive-form';
 import { FleetDocuments } from '@/components/carrier/fleet-documents';
+import { InvitationLinkForm } from '@/components/carrier/invitation-link-form';
 import { OperatorForm } from '@/components/carrier/operator-form';
 import { carrierContext } from '@/lib/carrier/context';
 import { getCarrierOperator, loadFleetContext } from '@/lib/carrier/fleet';
@@ -18,16 +20,19 @@ export const metadata: Metadata = { title: fleetCopy.operators.editTitle };
 
 /**
  * One operator of the fleet (G10b; B18 on the app): its data and license
- * (editable by the Gerente and the Coordinador of its business unit), the
- * state of its invitation (issued from the app until G1b/G4), its D16
- * documents and, for the Gerente, the archive.
+ * (editable by the Gerente and the Coordinador of its business unit), its
+ * invitation link or, once it has an account, "Restablecer acceso" (G4), its
+ * D16 documents and, for the Gerente, moving it and the archive.
  */
 export default async function CarrierOperatorPage({
   params,
   searchParams,
 }: PageProps<'/transportista/flota/operadores/[id]'>) {
   const { id } = await params;
-  const { supabase, companyId, isManager } = await carrierContext(carrierOperatorPath(id));
+  const { supabase, viewer, companyId, isManager, units } = await carrierContext(
+    carrierOperatorPath(id),
+  );
+  const companyName = viewer.company?.legalName ?? '';
   const flash = parseFleetFlash((await searchParams).aviso);
   const context = await loadFleetContext(supabase, companyId);
   const operator = await getCarrierOperator(supabase, context, id);
@@ -97,13 +102,46 @@ export default async function CarrierOperatorPage({
         </div>
 
         <aside className="space-y-6">
-          <section className="space-y-2 rounded-xl border bg-card p-4">
+          <section className="space-y-3 rounded-xl border bg-card p-4">
             <h2 className="text-xl">{fleetCopy.invitation.title}</h2>
             <p className="text-sm font-medium">{account}</p>
-            {!operator.profile_id && (
-              <p className="text-sm text-muted-foreground">{c.operators.invitationHint}</p>
-            )}
+            {!operator.profile_id ? (
+              <>
+                <p className="text-sm text-muted-foreground">{fleetCopy.invitation.subtitle}</p>
+                <InvitationLinkForm
+                  kind="operator"
+                  label={fleetCopy.invitation.create}
+                  operatorId={operator.id}
+                  companyName={companyName}
+                />
+              </>
+            ) : operator.profile_id !== viewer.userId ? (
+              // A hombre-camión's own row is a manager account: never reset (G2).
+              <>
+                <h3 className="font-medium">{managerCompanyCopy.operators.resetTitle}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {managerCompanyCopy.operators.resetDescription}
+                </p>
+                <InvitationLinkForm
+                  kind="operator_access_reset"
+                  label={managerCompanyCopy.operators.resetAccess}
+                  operatorId={operator.id}
+                  companyName={companyName}
+                />
+              </>
+            ) : null}
           </section>
+          {isManager && (
+            <section className="space-y-2 rounded-xl border bg-card p-4">
+              <h2 className="text-xl">{carrierWebCopy.fleet.businessUnitField}</h2>
+              <MoveForm
+                kind="operator"
+                id={operator.id}
+                currentUnitId={operator.business_unit_id}
+                units={units.operable}
+              />
+            </section>
+          )}
           {isManager && <FleetArchiveForm kind="operator" id={operator.id} />}
         </aside>
       </div>

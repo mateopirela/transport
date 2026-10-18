@@ -1,4 +1,10 @@
-import { carrierLoadsCopy, carrierWebCopy, unitLabel, vehicleReleaseCopy } from '@transport/shared';
+import {
+  carrierLoadsCopy,
+  carrierWebCopy,
+  managerCompanyCopy,
+  unitLabel,
+  vehicleReleaseCopy,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -6,9 +12,12 @@ import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { RecommendationCard } from '@/components/carrier/recommendation-card';
 import { buttonVariants } from '@/components/ui/button';
+import { loadSupervision, type UnitSupervision } from '@/lib/carrier/company';
 import { carrierContext } from '@/lib/carrier/context';
 import { carrierFeed, listCarrierUnits } from '@/lib/carrier/loads';
 import { listPendingReleases } from '@/lib/carrier/release';
+import { TRIP_FILTER_PARAMS } from '@/lib/carrier/trip-filters';
+import { withParams } from '@/lib/pagination';
 import { carrierUnitPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.home;
@@ -16,17 +25,51 @@ const feedCopy = carrierLoadsCopy.home;
 
 export const metadata: Metadata = { title: c.title };
 
+const s = managerCompanyCopy.supervision;
+
+/** The Gerente's supervision (G4): active and unassigned trips per business unit. */
+function Supervision({ rows }: { rows: UnitSupervision[] }) {
+  return (
+    <section className="mb-8 space-y-3">
+      <h2 className="text-2xl">{s.title}</h2>
+      <p className="text-sm text-muted-foreground">{s.description}</p>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(({ unit, active, toAssign }) => (
+          <li key={unit.id} className="space-y-1 rounded-xl border bg-card p-4">
+            <p className="font-medium">{unit.name}</p>
+            <p className="text-sm">{s.activeTrips(active)}</p>
+            <p className="text-sm text-muted-foreground">{s.toAssign(toAssign)}</p>
+            <Link
+              href={withParams(
+                paths.carrierTrips,
+                {},
+                { [TRIP_FILTER_PARAMS.businessUnit]: unit.id },
+              )}
+              className="text-sm text-accent hover:underline"
+            >
+              {s.viewTrips}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /**
  * Carrier home (G10a): the units waiting for their release first (G5, D20),
  * then the recommendations of every unit of the selected business units
  * (B08), return trips first (B19). Units that are not ready (documents,
- * availability, pending release) simply get none.
+ * availability, pending release) simply get none. The Gerente also sees the
+ * trips of each business unit (G4).
  */
 export default async function CarrierHomePage() {
-  const { supabase, viewer, companyId, units } = await carrierContext(paths.carrier);
-  const [carrierUnits, pendingReleases] = await Promise.all([
+  const { supabase, viewer, companyId, units, isManager } = await carrierContext(paths.carrier);
+  const supervised = units.operable.filter((unit) => units.ids.includes(unit.id));
+  const [carrierUnits, pendingReleases, supervision] = await Promise.all([
     listCarrierUnits(supabase, companyId, units.ids),
     listPendingReleases(supabase, companyId, units.ids),
+    isManager ? loadSupervision(supabase, supervised) : Promise.resolve([]),
   ]);
   const feed = carrierUnits.length > 0 ? await carrierFeed(supabase, carrierUnits) : null;
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
@@ -55,6 +98,7 @@ export default async function CarrierHomePage() {
           </ul>
         </section>
       )}
+      {supervision.length > 0 && <Supervision rows={supervision} />}
       {units.operable.length === 0 ? (
         <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
       ) : !feed ? (

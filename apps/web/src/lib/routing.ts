@@ -96,6 +96,9 @@ export type Viewer = {
   company: { status: VerificationStatus } | null;
 } | null;
 
+/** Query parameter of /solo-app with the token of a team link (G7). */
+export const MOBILE_ONLY_SHARE_PARAM = 'compartido';
+
 /** Screens for signed-out visitors; a signed-in user is sent to their home. */
 const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.checkEmail];
 
@@ -159,6 +162,12 @@ export function resolveRoute(pathname: string, viewer: Viewer): string | null {
 
   const home = homeFor(viewer);
   if (pathname === paths.home) return home;
+  // An operator who opens a team link (G7) on the web gets a way into the
+  // app with the same token: /solo-app shows "Abrir en la app".
+  if (viewer.role === 'operator' && pathname.startsWith(`${paths.carrierShared}/`)) {
+    const token = pathname.slice(paths.carrierShared.length + 1);
+    return `${paths.mobileOnly}?${MOBILE_ONLY_SHARE_PARAM}=${encodeURIComponent(token)}`;
+  }
   if (isUnder(pathname, paths.admin)) return viewer.role === 'admin' ? null : home;
   for (const base of HOME_ONLY) {
     if (isUnder(pathname, base)) return home === base ? null : home;

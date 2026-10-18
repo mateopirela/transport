@@ -21,15 +21,19 @@ const c = shareLinksCopy.dialog;
  * "Compartir" (G7, D23): the shipper creates a public read-only link to a
  * load or to the tracking of a trip, with a validity, copies it, and sees
  * and revokes the active links. The token is shown once: it is not stored.
+ * Once the target can no longer be shared (`canCreate` false) the dialog
+ * still lists the active links so they can be revoked.
  */
 export function ShareDialog({
   kind,
   targetId,
   links,
+  canCreate,
 }: {
   kind: Extract<ShareLinkKind, 'load_public' | 'trip_tracking_public'>;
   targetId: string;
   links: ActiveShareLink[];
+  canCreate: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(createShareLink, {});
@@ -69,35 +73,38 @@ export function ShareDialog({
             {target === 'trip' && <p className="text-sm text-muted-foreground">{c.trackingEnds}</p>}
           </div>
 
-          <form action={action} className="space-y-3" noValidate>
-            <input type="hidden" name="kind" value={kind} />
-            <input type="hidden" name="targetId" value={targetId} />
-            {state.error && <Notice tone="error">{state.error}</Notice>}
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="share-hours">{c.validity}</Label>
-                <select
-                  id="share-hours"
-                  name="hours"
-                  defaultValue={DEFAULT_SHARE_VALIDITY_HOURS[kind]}
-                  aria-invalid={state.fieldErrors?.hours ? true : undefined}
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {SHARE_VALIDITY_HOURS.map((hours) => (
-                    <option key={hours} value={hours}>
-                      {c.validityOptions[hours]}
-                    </option>
-                  ))}
-                </select>
+          {!canCreate && <Notice tone="info">{c.cannotCreate[target]}</Notice>}
+          {canCreate && (
+            <form action={action} className="space-y-3" noValidate>
+              <input type="hidden" name="kind" value={kind} />
+              <input type="hidden" name="targetId" value={targetId} />
+              {state.error && <Notice tone="error">{state.error}</Notice>}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="share-hours">{c.validity}</Label>
+                  <select
+                    id="share-hours"
+                    name="hours"
+                    defaultValue={DEFAULT_SHARE_VALIDITY_HOURS[kind]}
+                    aria-invalid={state.fieldErrors?.hours ? true : undefined}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {SHARE_VALIDITY_HOURS.map((hours) => (
+                      <option key={hours} value={hours}>
+                        {c.validityOptions[hours]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="submit" variant="accent" disabled={pending}>
+                  {pending ? c.creating : c.create}
+                </Button>
               </div>
-              <Button type="submit" variant="accent" disabled={pending}>
-                {pending ? c.creating : c.create}
-              </Button>
-            </div>
-            {state.fieldErrors?.hours && (
-              <p className="text-xs text-destructive">{state.fieldErrors.hours}</p>
-            )}
-          </form>
+              {state.fieldErrors?.hours && (
+                <p className="text-xs text-destructive">{state.fieldErrors.hours}</p>
+              )}
+            </form>
+          )}
 
           {url && (
             <div className="space-y-2 rounded-lg border bg-muted/40 p-3">

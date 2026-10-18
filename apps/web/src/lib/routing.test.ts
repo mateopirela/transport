@@ -97,8 +97,17 @@ describe('resolveRoute', () => {
     expect(resolveRoute(path, null)).toBe(`/login?next=${encodeURIComponent(path)}`);
     expect(resolveRoute(path, manager)).toBeNull();
     expect(resolveRoute(path, coordinator)).toBeNull();
-    expect(resolveRoute(path, operator)).toBe(paths.mobileOnly);
     expect(resolveRoute(path, approvedShipper)).toBe(paths.shipper);
+  });
+
+  it('hands an operator who opens a team link on the web over to the app (G7)', () => {
+    const token = 'Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+    expect(resolveRoute(`/transportista/compartido/${token}`, operator)).toBe(
+      `${paths.mobileOnly}?compartido=${token}`,
+    );
+    // The handoff page itself is the operator's home: no loop.
+    expect(resolveRoute(paths.mobileOnly, operator)).toBeNull();
+    expect(resolveRoute('/transportista/cargas', operator)).toBe(paths.mobileOnly);
   });
 
   it('sends signed-in users away from the guest screens', () => {

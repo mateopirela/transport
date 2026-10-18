@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { redirectFor, resolveArea, type ProfileSnapshot } from './routing';
+import { redirectFor, resolveArea, resolveRedirect, type ProfileSnapshot } from './routing';
 
 const profile = (overrides: Partial<ProfileSnapshot>): ProfileSnapshot => ({
   role: 'manager',
@@ -111,5 +111,57 @@ describe('redirectFor: shared loads (G7)', () => {
     expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invite');
     expect(redirectFor('company_setup', ['shared', 'abc'])).toBe('/company');
     expect(redirectFor('unsupported', ['shared', 'abc'])).toBe('/unsupported');
+  });
+});
+
+describe('resolveRedirect: a shared load survives sign-in (G7)', () => {
+  const token = 'Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+  const shared = `/shared/${token}`;
+
+  it('remembers the shared load while signed out and goes back to it after sign-in', () => {
+    const opened = resolveRedirect('auth', ['shared', '[token]'], shared, null);
+    expect(opened).toEqual({ target: '/sign-in', pending: shared });
+    // On the sign-in screen it stays remembered.
+    expect(resolveRedirect('auth', ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
+      target: null,
+      pending: shared,
+    });
+    // Still loading the profile: wait.
+    expect(resolveRedirect('loading', ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
+      target: null,
+      pending: shared,
+    });
+    // Signed in as carrier staff or operator: back to the shared load.
+    for (const area of ['carrier', 'operator'] as const) {
+      expect(resolveRedirect(area, ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
+        target: shared,
+        pending: shared,
+      });
+    }
+    // Arrived: forgotten.
+    expect(resolveRedirect('carrier', ['shared', '[token]'], shared, shared)).toEqual({
+      target: null,
+      pending: null,
+    });
+  });
+
+  it('keeps the deep link form too', () => {
+    const deep = `/compartido/${token}`;
+    expect(resolveRedirect('auth', ['compartido', '[token]'], deep, null).pending).toBe(deep);
+  });
+
+  it('waits while the user cannot open it yet and ignores malformed paths', () => {
+    expect(resolveRedirect('join', ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
+      target: '/invite',
+      pending: shared,
+    });
+    expect(resolveRedirect('auth', ['shared', '[token]'], '/shared/nope', null)).toEqual({
+      target: '/sign-in',
+      pending: null,
+    });
+    expect(resolveRedirect('carrier', ['(carrier)', 'home'], '/home', null)).toEqual({
+      target: null,
+      pending: null,
+    });
   });
 });

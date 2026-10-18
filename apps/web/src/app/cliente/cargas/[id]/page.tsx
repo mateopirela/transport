@@ -46,9 +46,10 @@ export default async function LoadDetailPage({
   const actions = shipperLoadActions(load.status);
   // accept_offer creates the trip together with the acceptance (B06).
   const tripId = load.accepted_offer_id ? await findLoadTripId(supabase, companyId, load.id) : null;
-  // A published load can be shared with anyone, read-only (G7, D23).
+  // A published load can be shared with anyone, read-only (G7, D23). Its
+  // active links stay listed (and revocable) after it leaves the market.
   const shareable = load.status === 'published' || load.status === 'negotiating';
-  const shareLinks = shareable ? await listActiveShareLinks(supabase, { loadId: load.id }) : [];
+  const shareLinks = await listActiveShareLinks(supabase, { loadId: load.id });
   const range = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
 
@@ -119,7 +120,14 @@ export default async function LoadDetailPage({
                 {clientTripsCopy.loadLink}
               </Link>
             )}
-            {shareable && <ShareDialog kind="load_public" targetId={load.id} links={shareLinks} />}
+            {(shareable || shareLinks.length > 0) && (
+              <ShareDialog
+                kind="load_public"
+                targetId={load.id}
+                links={shareLinks}
+                canCreate={shareable}
+              />
+            )}
             {actions.publish && <PublishLoadButton loadId={load.id} />}
             {actions.edit && (
               <Link href={editLoadPath(load.id)} className={buttonVariants({ variant: 'outline' })}>

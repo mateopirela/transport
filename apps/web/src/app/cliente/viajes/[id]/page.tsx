@@ -62,9 +62,10 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
   const load = trip.load;
   const chat = data.conversationId ? await getChat(supabase, data.conversationId, companyId) : null;
-  // The tracking can be shared with anyone, read-only, unless the trip is cancelled (G7, D23).
+  // The tracking can be shared with anyone, read-only, unless the trip is
+  // cancelled (G7, D23); active links stay listed (and revocable) anyway.
   const shareable = trip.status !== 'cancelled';
-  const shareLinks = shareable ? await listActiveShareLinks(supabase, { tripId: trip.id }) : [];
+  const shareLinks = await listActiveShareLinks(supabase, { tripId: trip.id });
 
   const now = new Date();
   const last = locations.at(-1);
@@ -95,8 +96,13 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
           <Link href={loadPath(trip.load_id)} className="text-accent hover:underline">
             {d.load}
           </Link>
-          {shareable && (
-            <ShareDialog kind="trip_tracking_public" targetId={trip.id} links={shareLinks} />
+          {(shareable || shareLinks.length > 0) && (
+            <ShareDialog
+              kind="trip_tracking_public"
+              targetId={trip.id}
+              links={shareLinks}
+              canCreate={shareable}
+            />
           )}
         </div>
       </div>

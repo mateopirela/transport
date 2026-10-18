@@ -116,3 +116,27 @@ test('a visitor sees a shared load without its price', async ({ browser }) => {
   await luisContext.close();
   await visitorContext.close();
 });
+
+test('an operator who opens a team link on the web is handed over to the app', async ({
+  browser,
+}) => {
+  // Jorge shares the load with his team from the app (same RPC, his JWT).
+  const jorge = await signInAs('jorge');
+  const { data, error } = await jorge.rpc('create_share_link', {
+    p_kind: 'load_internal',
+    p_load_id: ids.reeferLoad,
+  });
+  const token = data?.[0]?.token;
+  if (error || !token) throw new Error(error?.message ?? 'no link');
+
+  const context = await browser.newContext();
+  const pedro = await context.newPage();
+  await signInOnWeb(pedro, 'pedro');
+  await pedro.goto(`/transportista/compartido/${token}`);
+  await expect(pedro).toHaveURL(new RegExp(`/solo-app\\?compartido=${token}$`, 'u'));
+  await expect(pedro.getByRole('link', { name: c.internal.openInApp })).toHaveAttribute(
+    'href',
+    `transport://compartido/${token}`,
+  );
+  await context.close();
+});

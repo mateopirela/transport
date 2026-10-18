@@ -38,6 +38,11 @@ export const shareLinksCopy = {
     revoking: 'Revocando…',
     revoked: 'Enlace revocado. Ya no funciona.',
     close: 'Cerrar',
+    /** Shown instead of "Crear enlace" when the target can no longer be shared. */
+    cannotCreate: {
+      load: 'La carga ya no está publicada: no se pueden crear enlaces nuevos. Revoca los que sigan activos si ya no quieres compartirla.',
+      trip: 'El viaje se canceló: no se pueden crear enlaces nuevos. Revoca los que sigan activos si ya no quieres compartirlo.',
+    },
   },
   public: {
     title: { load: 'Carga compartida', trip: 'Seguimiento del viaje' },
@@ -78,6 +83,9 @@ export const shareLinksCopy = {
     unavailableBody: 'El enlace venció, fue revocado o es de otra empresa.',
     openLoad: 'Ver la carga y ofertar',
     readOnly: 'Vista de solo lectura.',
+    /** /solo-app when an operator opens a team link on the web. */
+    operatorHandoff: 'Te compartieron una carga. Ábrela en la app con tu cuenta.',
+    openInApp: 'Abrir en la app',
     details: 'Datos de la carga',
     route: 'Ruta',
     labels: {

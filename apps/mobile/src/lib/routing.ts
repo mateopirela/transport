@@ -76,3 +76,32 @@ export function redirectFor(area: Area, segments: readonly string[]): string | n
   const { home, segments: allowed } = AREA_ROUTES[area];
   return first !== undefined && allowed.includes(first) ? null : home;
 }
+
+/** Paths of a load shared with the team (G7): `/shared/<token>` or its deep link `/compartido/<token>`. */
+const SHARED_PATH = /^\/(?:shared|compartido)\/[A-Za-z0-9_-]{43}$/u;
+
+/**
+ * Like `redirectFor`, but a shared-load link opened while signed out (or
+ * before the profile loads) survives the trip through sign-in: the guard
+ * remembers its path in `pending` and, once the user is in an area that may
+ * open it, goes there instead of the area's home; it forgets it on arrival. Returns the route to
+ * replace the current one with (or null) and the path to keep remembering.
+ */
+export function resolveRedirect(
+  area: Area,
+  segments: readonly string[],
+  pathname: string,
+  pending: string | null,
+): { target: string | null; pending: string | null } {
+  const target = redirectFor(area, segments);
+  if (SHARED_PATH.test(pathname)) {
+    // Already on it and allowed: nothing to remember. Otherwise keep it.
+    return target === null ? { target, pending: null } : { target, pending: pathname };
+  }
+  if (area === 'loading') return { target, pending };
+  // Kept until the shared screen is reached (the first branch clears it).
+  if (pending !== null && redirectFor(area, ['shared']) === null) {
+    return { target: pending, pending };
+  }
+  return { target, pending };
+}

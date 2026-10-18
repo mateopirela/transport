@@ -150,6 +150,21 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         body: `Se agregó ${label} al viaje${route(data)}.`,
       };
     }
+    case 'vehicle_release_pending': {
+      const unit = text(data, 'vehicleLabel');
+      return {
+        title: 'Unidad pendiente de liberar',
+        body: `Se canceló el viaje${route(data)} después de salir. Confirma dónde está ${unit ?? 'la unidad'} para liberarla.`,
+      };
+    }
+    case 'vehicle_released': {
+      const unit = text(data, 'vehicleLabel');
+      const city = text(data, 'city');
+      return {
+        title: 'Unidad liberada',
+        body: `${unit ?? 'La unidad'} ya está disponible${city ? ` en ${city}` : ''} y vuelve a recibir recomendaciones.`,
+      };
+    }
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');
       const since =

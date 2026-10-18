@@ -112,5 +112,8 @@ export const clientTripsCopy = {
     fileUnavailable: 'El archivo no está disponible.',
     uploadFailed: 'No pudimos subir el archivo. Inténtalo de nuevo.',
     documentSideNotAllowed: 'Ese tipo de documento lo sube el transportista.',
+    /** cancel_trip (G5): the operator already started loading. */
+    notCancellable: 'El viaje ya no se puede cancelar: el operador ya empezó a cargar.',
+    cancelReason: 'Elige un motivo y, si es "Otro", escribe las notas (máximo 1000 caracteres).',
   },
 } as const;

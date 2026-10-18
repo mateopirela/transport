@@ -27,6 +27,7 @@ export * from './state-machines';
 export * from './tracking';
 export * from './trip-checklist';
 export * from './trips';
+export * from './vehicle-release';
 export * from './verification';
 
 export type { Database, Enums, Json, Tables, TablesInsert, TablesUpdate } from './db';

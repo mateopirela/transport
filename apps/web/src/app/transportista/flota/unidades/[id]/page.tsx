@@ -4,6 +4,7 @@ import {
   unitLabel,
   vehicleKindLabels,
   vehicleReadinessLabels,
+  vehicleReleaseCopy,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -13,9 +14,13 @@ import { Notice } from '@/components/auth-forms';
 import { AvailabilityForm } from '@/components/carrier/availability-form';
 import { FleetArchiveForm } from '@/components/carrier/fleet-archive-form';
 import { FleetDocuments } from '@/components/carrier/fleet-documents';
+import { RecommendationCard } from '@/components/carrier/recommendation-card';
+import { ReleaseForm } from '@/components/carrier/release-form';
 import { VehicleForm } from '@/components/carrier/vehicle-form';
 import { carrierContext } from '@/lib/carrier/context';
 import { getCarrierVehicle, loadFleetContext } from '@/lib/carrier/fleet';
+import { unitRecommendations } from '@/lib/carrier/loads';
+import { getPendingRelease } from '@/lib/carrier/release';
 import { parseFleetFlash, vehicleFormValues } from '@/lib/carrier/fleet-forms';
 import { carrierUnitPath, paths } from '@/lib/routing';
 
@@ -27,7 +32,9 @@ export const metadata: Metadata = { title: fleetCopy.units.editTitle };
  * One unit of the fleet (G10b; B18 on the app): its data (editable by the
  * Gerente and the Coordinador of its business unit), its availability
  * (set_vehicle_availability), its D16 documents and, for the Gerente, the
- * archive.
+ * archive. A unit whose trip was cancelled after it set off shows the release
+ * form instead of the availability (G5, D20); once released, its
+ * recommendations from where it is.
  */
 export default async function CarrierUnitPage({
   params,
@@ -38,6 +45,11 @@ export default async function CarrierUnitPage({
   const flash = parseFleetFlash((await searchParams).aviso);
   const context = await loadFleetContext(supabase, companyId);
   const vehicle = await getCarrierVehicle(supabase, context, id);
+  const release =
+    vehicle?.readiness === 'pending_release' ? await getPendingRelease(supabase, id) : null;
+  const released =
+    flash === 'liberada' && vehicle !== null && vehicle.readiness !== 'pending_release';
+  const recommendations = released ? await unitRecommendations(supabase, id) : null;
   const back = (
     <Link href={paths.carrierUnits} className="text-sm text-accent hover:underline">
       {c.units.back}
@@ -76,9 +88,42 @@ export default async function CarrierUnitPage({
           <Notice tone="success">{c.units.created}</Notice>
         </div>
       )}
+      {released && (
+        <div className="mb-6">
+          <Notice tone="success">
+            {vehicleReleaseCopy.screen.done(vehicle.availability?.city ?? vehicle.plate)}
+          </Notice>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
         <div className="space-y-8">
+          {release && (
+            <section className="space-y-3 rounded-xl border border-destructive/40 bg-card p-6">
+              <h2 className="text-2xl">{vehicleReleaseCopy.screen.title}</h2>
+              <ReleaseForm
+                vehicleId={vehicle.id}
+                route={`${release.origin.city} → ${release.destination.city}`}
+                context={release}
+              />
+            </section>
+          )}
+          {recommendations && (
+            <section className="space-y-3">
+              <h2 className="text-2xl">{vehicleReleaseCopy.screen.recommendations}</h2>
+              {recommendations.recommendations.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {vehicleReleaseCopy.screen.noRecommendations}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {recommendations.recommendations.map((r, i) => (
+                    <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
           <section className="space-y-3 rounded-xl border bg-card p-6">
             <h2 className="text-2xl">{c.units.data}</h2>
             <VehicleForm
@@ -104,11 +149,15 @@ export default async function CarrierUnitPage({
         <aside className="space-y-6">
           <section className="space-y-3 rounded-xl border bg-card p-4">
             <h2 className="text-xl">{fleetCopy.availability.title}</h2>
-            <AvailabilityForm
-              vehicleId={vehicle.id}
-              current={vehicle.availability}
-              blocked={vehicle.readiness === 'expired_documents'}
-            />
+            {vehicle.readiness === 'pending_release' ? (
+              <Notice tone="error">{vehicleReleaseCopy.errors.pendingRelease}</Notice>
+            ) : (
+              <AvailabilityForm
+                vehicleId={vehicle.id}
+                current={vehicle.availability}
+                blocked={vehicle.readiness === 'expired_documents'}
+              />
+            )}
           </section>
           {isManager && <FleetArchiveForm kind="vehicle" id={vehicle.id} />}
         </aside>

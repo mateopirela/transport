@@ -102,6 +102,17 @@ describe('notificationHref', () => {
     expect(notificationHref('documents_shared', { tripId: LOAD }, 'transportista')).toBeNull();
   });
 
+  it('sends the carrier staff to the unit to release, and nobody else (G5)', () => {
+    for (const type of ['vehicle_release_pending', 'vehicle_released'] as const) {
+      const data = { taskId: NEGOTIATION, tripId: NEGOTIATION, vehicleId: LOAD };
+      expect(notificationHref(type, data, 'transportista')).toBe(
+        `/transportista/flota/unidades/${LOAD}`,
+      );
+      expect(notificationHref(type, { vehicleId: 'x' }, 'transportista')).toBeNull();
+      expect(notificationHref(type, data)).toBeNull();
+    }
+  });
+
   it('handles every notification type in both areas', () => {
     for (const type of NOTIFICATION_TYPES) {
       expect(() => notificationHref(type, {})).not.toThrow();

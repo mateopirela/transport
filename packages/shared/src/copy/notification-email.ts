@@ -39,6 +39,9 @@ export function notificationWebPath(role: UserRole | null, data: unknown): strin
   if (role === 'manager' || role === 'coordinator') {
     const negotiationId = uuid(data, 'negotiationId');
     if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;
+    // A unit to release, or released (G5): its screen, where it is released.
+    const vehicleId = uuid(data, 'vehicleId');
+    if (uuid(data, 'taskId') && vehicleId) return `/transportista/flota/unidades/${vehicleId}`;
     // Trips of the carrier web (G10b); the fleet's documents go to the inbox,
     // which links each one to its unit or operator.
     if (tripId) return `/transportista/viajes/${tripId}`;

@@ -32,6 +32,22 @@ describe('vehicleReadiness', () => {
     ).toBe('expired_documents');
   });
 
+  it('marks a unit waiting for its release first, even with expired documents (G5)', () => {
+    expect(
+      vehicleReadiness({ expiredDocuments: true, availableFrom: null, pendingRelease: true }, NOW),
+    ).toBe('pending_release');
+    expect(
+      vehicleReadiness(
+        {
+          expiredDocuments: false,
+          availableFrom: '2026-10-15T08:00:00-06:00',
+          pendingRelease: false,
+        },
+        NOW,
+      ),
+    ).toBe('available');
+  });
+
   it('distinguishes no availability, future availability and available now', () => {
     expect(vehicleReadiness({ expiredDocuments: false, availableFrom: null }, NOW)).toBe('unset');
     expect(

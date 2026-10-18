@@ -70,6 +70,7 @@ export function summarizeVehicles(
   context: FleetContext,
   vehicles: VehicleRead[],
   availability: Availability[],
+  pendingRelease: ReadonlySet<string>,
   now: Date = new Date(),
 ): VehicleSummary[] {
   const byVehicle = new Map(availability.map((a) => [a.vehicle_id, a]));
@@ -90,6 +91,7 @@ export function summarizeVehicles(
               now,
             ).length > 0,
           availableFrom: current?.available_from ?? null,
+          pendingRelease: pendingRelease.has(vehicle.id),
         },
         now,
       ),

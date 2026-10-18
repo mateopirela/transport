@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
-import { EVIDENCE_STAGES, INCIDENT_KINDS, TRIP_DOCUMENT_KINDS } from '../enums';
+import {
+  EVIDENCE_STAGES,
+  INCIDENT_KINDS,
+  TRIP_CANCELLATION_REASONS,
+  TRIP_DOCUMENT_KINDS,
+} from '../enums';
 import { mexicoCityDateTime } from '../fleet';
 import { MAX_LOCATION_BATCH } from '../trips';
 import {
@@ -9,6 +14,7 @@ import {
   enumField,
   formError,
   onlyWhenValid,
+  optionalText,
   requiredText,
   uuidField,
 } from './common';
@@ -88,9 +94,24 @@ export type TripDocumentValues = z.output<typeof tripDocumentSchema>;
 export const receiverFormSchema = z.object({ receivedBy: requiredText(200) }, formError);
 export type ReceiverFormValues = z.output<typeof receiverFormSchema>;
 
-/** Admin resolution of an incident, or cancellation of a trip: a reason is required. */
+/** Admin resolution of an incident: a reason is required. */
 export const incidentResolutionSchema = z.object({ resolution: requiredText(2000) }, formError);
-export const cancelTripSchema = z.object({ reason: requiredText(1000) }, formError);
+
+/**
+ * Cancellation of a trip (input of cancel_trip, G5): a reason from the list,
+ * and notes, required when the reason is "Otro".
+ */
+export const cancelTripSchema = z
+  .object(
+    { reasonCode: enumField(TRIP_CANCELLATION_REASONS), notes: optionalText(1000) },
+    formError,
+  )
+  .superRefine((value, ctx) => {
+    if (value.reasonCode === 'other' && !value.notes) {
+      ctx.addIssue({ code: 'custom', message: m.reasonRequired, path: ['notes'] });
+    }
+  });
+export type CancelTripValues = z.output<typeof cancelTripSchema>;
 
 /** Metadata of an evidence photo (input of `add_trip_evidence`). */
 export const evidenceMetadataSchema = z

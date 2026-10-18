@@ -4,7 +4,7 @@ type PostgrestLikeError = { code?: string | null; message?: string | null } | nu
 
 /**
  * Spanish message for an error of the shipper's trip RPCs (confirm_delivery,
- * report_incident). They raise SQLSTATE codes with fixed English messages;
+ * report_incident, cancel_trip). They raise SQLSTATE codes with fixed English messages;
  * only known ones are mapped, so database text never reaches the user.
  */
 export function tripErrorMessage(error: PostgrestLikeError): string {
@@ -19,8 +19,15 @@ export function tripErrorMessage(error: PostgrestLikeError): string {
     case '55000':
       if (message.startsWith('cannot confirm delivery')) return e.notDelivered;
       if (message.startsWith('trip is cancelled')) return e.cancelled;
+      if (message.startsWith('cannot cancel a trip in status')) return e.notCancellable;
       return e.generic;
     case '22023':
+      if (
+        message.startsWith('a cancellation reason is required') ||
+        message.startsWith('a reason of at most')
+      ) {
+        return e.cancelReason;
+      }
       if (
         message.startsWith('invalid storage path') ||
         message.startsWith('file was not uploaded')

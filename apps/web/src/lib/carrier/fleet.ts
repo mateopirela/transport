@@ -75,6 +75,24 @@ const VEHICLE_COLUMNS =
   'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_unit_id, current_operator_id, business_unit:business_units!vehicles_business_unit_fkey(name)';
 
 /**
+ * Units waiting for their release (G5, D20), of one unit or of every unit
+ * the viewer runs (RLS of vehicle_release_tasks: the Gerente, or the
+ * Coordinador of the unit's business unit). At most one per unit.
+ */
+async function pendingReleaseIds(supabase: Supabase, vehicleId?: string): Promise<Set<string>> {
+  const rows = await selectAll<{ vehicle_id: string }>((from, to) => {
+    const query = supabase
+      .from('vehicle_release_tasks')
+      .select('vehicle_id')
+      .eq('status', 'pending')
+      .order('id')
+      .range(from, to);
+    return vehicleId ? query.eq('vehicle_id', vehicleId) : query;
+  });
+  return new Set(rows.map((r) => r.vehicle_id));
+}
+
+/**
  * Active units of the given business units, oldest first, with their current
  * availability and readiness. RLS already limits a Coordinador to their
  * units; the filter applies the picker's selection. Paged past the 1,000-row
@@ -108,7 +126,7 @@ export async function listCarrierVehicles(
         .range(from, to),
     ),
   ]);
-  return summarizeVehicles(context, vehicles, availability);
+  return summarizeVehicles(context, vehicles, availability, await pendingReleaseIds(supabase));
 }
 
 /** One active unit of the company with its documents, or null (not found, archived or not visible). */
@@ -134,7 +152,12 @@ export async function getCarrierVehicle(
   ]);
   if (vehicle.error) throw new Error(`Vehicle query failed: ${vehicle.error.message}`);
   if (!vehicle.data) return null;
-  const [summary] = summarizeVehicles(context, [vehicle.data], check(availability));
+  const [summary] = summarizeVehicles(
+    context,
+    [vehicle.data],
+    check(availability),
+    await pendingReleaseIds(supabase, vehicleId),
+  );
   if (!summary) return null;
   return { ...summary, progress: ownerProgress(context, { type: 'vehicle', id: summary.id }) };
 }

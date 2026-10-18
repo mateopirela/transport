@@ -1,4 +1,7 @@
 import {
+  cancelLeavesUnitPending,
+  canCancelTrip,
+  cancellationText,
   canShareTripTracking,
   clientTripsCopy,
   evidenceStageLabels,
@@ -22,6 +25,7 @@ import { VerificationBadge } from '@/components/offers/offer-board';
 import { ShareDialog } from '@/components/share/share-dialog';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
+import { TripCancelForm } from '@/components/trips/trip-cancel-form';
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
@@ -34,6 +38,7 @@ import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
 import { listActiveShareLinks } from '@/lib/share-links/queries';
 import { getProviderDecisions, getSharedDocuments } from '@/lib/shared-documents/queries';
+import { cancelShipperTrip } from '@/lib/trips/actions';
 import { getCompanyTrip } from '@/lib/trips/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 
@@ -89,6 +94,10 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const refreshMs = tripRefreshMs(state);
   const incidentsById = new Map(incidents.map((incident) => [incident.id, incident]));
   const d = c.detail;
+  const cancellation =
+    trip.status === 'cancelled'
+      ? cancellationText(trip.cancellation_reason_code, trip.cancellation_reason)
+      : null;
 
   return (
     <>
@@ -120,9 +129,9 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
           )}
         </div>
       </div>
-      {trip.cancellation_reason && (
+      {cancellation && (
         <div className="mb-6">
-          <Notice tone="info">{d.cancelled(trip.cancellation_reason)}</Notice>
+          <Notice tone="info">{d.cancelled(cancellation)}</Notice>
         </div>
       )}
 
@@ -319,6 +328,13 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
 
           {trip.status === 'delivered' && (
             <ConfirmDeliveryForm tripId={trip.id} clientEventId={randomUUID()} />
+          )}
+          {canCancelTrip(trip.status) && (
+            <TripCancelForm
+              tripId={trip.id}
+              action={cancelShipperTrip}
+              onTheWay={cancelLeavesUnitPending(trip.status, trip.vehicle_id !== null)}
+            />
           )}
 
           <section className="space-y-3">

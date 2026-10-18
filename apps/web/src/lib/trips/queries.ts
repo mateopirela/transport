@@ -95,8 +95,8 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
   const { data: trip, error } = await supabase
     .from('trips')
     .select(
-      `id, load_id, status, estimated_unload_end_at, started_at, delivered_at, closed_at,
-       cancelled_at, cancellation_reason, created_at,
+      `id, load_id, carrier_company_id, status, estimated_unload_end_at, started_at, delivered_at,
+       closed_at, cancelled_at, cancellation_reason, created_at,
        load:loads!trips_load_id_fkey(${LOAD_SUMMARY}, origin_lat, origin_lng,
          destination_lat, destination_lng, agreed_price_cents)`,
     )

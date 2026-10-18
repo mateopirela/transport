@@ -23,6 +23,7 @@ function offer(over: Partial<BoardOffer> & Pick<BoardOffer, 'id' | 'negotiation_
 const carrier = (negotiation_id: string, name: string) => ({
   negotiation_id,
   conversation_id: null,
+  carrier_company_id: `company-${negotiation_id}`,
   carrier_legal_name: name,
   carrier_status: 'approved' as const,
   unread_messages: 0,

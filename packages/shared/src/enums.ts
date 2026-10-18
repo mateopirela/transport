@@ -70,6 +70,18 @@ export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
 export const NOTIFICATION_TYPES = DB_ENUMS.notification_type;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+/** A shipper's decision about a carrier as its provider (provider_approvals, G6). No row = pending. */
+export const PROVIDER_STATUSES = DB_ENUMS.provider_status;
+export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];
+
+/** Why a document was shared with the shipper of a trip (document_shares, G6). */
+export const DOCUMENT_SHARE_REASONS = DB_ENUMS.document_share_reason;
+export type DocumentShareReason = (typeof DOCUMENT_SHARE_REASONS)[number];
+
+/** Why a shared document stopped being shared (document_shares, G6). */
+export const DOCUMENT_SHARE_REVOKE_REASONS = DB_ENUMS.document_share_revoke_reason;
+export type DocumentShareRevokeReason = (typeof DOCUMENT_SHARE_REVOKE_REASONS)[number];
+
 export const PUSH_PLATFORMS = DB_ENUMS.push_platform;
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
 

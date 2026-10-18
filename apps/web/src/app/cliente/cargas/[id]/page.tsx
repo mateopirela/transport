@@ -26,6 +26,7 @@ import { shipperLoadActions } from '@/lib/loads/status';
 import { getOfferBoard } from '@/lib/offers/queries';
 import { editLoadPath, loadPath, paths, tripPath } from '@/lib/routing';
 import { listActiveShareLinks } from '@/lib/share-links/queries';
+import { getProviderDecisions } from '@/lib/shared-documents/queries';
 import { findLoadTripId } from '@/lib/trips/queries';
 
 const c = loadsCopy.detail;
@@ -43,6 +44,13 @@ export default async function LoadDetailPage({
   if (!load) notFound();
   const { aviso } = await searchParams;
   const offers = load.status === 'draft' ? [] : await getOfferBoard(supabase, load);
+  const decisions = await getProviderDecisions(supabase, {
+    shipperCompanyId: companyId,
+    carrierCompanyIds: offers.map((row) => row.carrierCompanyId),
+  });
+  const providerStates = Object.fromEntries(
+    [...decisions].map(([carrierId, decision]) => [carrierId, decision.status]),
+  );
   const actions = shipperLoadActions(load.status);
   // accept_offer creates the trip together with the acceptance (B06).
   const tripId = load.accepted_offer_id ? await findLoadTripId(supabase, companyId, load.id) : null;
@@ -146,7 +154,7 @@ export default async function LoadDetailPage({
             </p>
           </div>
           {offers.length > 0 ? (
-            <OfferBoard loadId={load.id} rows={offers} />
+            <OfferBoard loadId={load.id} rows={offers} providerStates={providerStates} />
           ) : (
             <p className="text-sm text-muted-foreground">
               {load.status === 'draft' ? o.emptyDraft : o.empty}

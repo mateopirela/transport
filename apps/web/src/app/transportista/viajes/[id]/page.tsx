@@ -4,6 +4,7 @@ import {
   carrierTripsCopy,
   carrierWebCopy,
   chatCopy,
+  sharedDocumentsCopy,
   clientTripsCopy,
   evidenceStageLabels,
   fleetCopy,
@@ -24,6 +25,8 @@ import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { TripAssignForm } from '@/components/carrier/trip-assign-form';
 import { TripCancelForm } from '@/components/carrier/trip-cancel-form';
 import { ChatPanel } from '@/components/chat/chat-panel';
+import { ProviderBadge } from '@/components/shared-documents/provider-status';
+import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripChecklist } from '@/components/trips/trip-checklist';
@@ -35,6 +38,7 @@ import { registerCarrierTripDocument, reportCarrierIncident } from '@/lib/carrie
 import { getCarrierTrip } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
 import { carrierLoadPath, carrierTripPath, paths, tripFileHref } from '@/lib/routing';
+import { getProviderDecisionForCarrier, getSharedDocuments } from '@/lib/shared-documents/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 
 const c = carrierWebCopy.trips;
@@ -87,7 +91,14 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
     );
   }
   const { trip, load, events, incidents, evidence, documents, locations } = data;
-  const chat = data.conversationId ? await getChat(supabase, data.conversationId, companyId) : null;
+  const [chat, sharedDocuments, decision] = await Promise.all([
+    data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
+    getSharedDocuments(supabase, trip.id),
+    getProviderDecisionForCarrier(supabase, {
+      shipperCompanyId: trip.shipper_company_id,
+      carrierCompanyId: companyId,
+    }),
+  ]);
 
   const now = new Date();
   const last = locations.at(-1);
@@ -277,6 +288,8 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
             )}
           </section>
 
+          <SharedDocumentsList rows={sharedDocuments} mode="carrier" canRevoke={isManager} />
+
           <section className="space-y-3">
             <h2 className="text-2xl">{d.chat}</h2>
             {chat && data.conversationId ? (
@@ -320,6 +333,11 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
 
           <section className="space-y-3">
             <h2 className="text-xl">{c.detail.data}</h2>
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{sharedDocumentsCopy.provider.status}: </span>
+              <ProviderBadge state={decision?.status ?? 'pending'} />
+            </p>
+            {decision?.notes && <p className="text-xs text-muted-foreground">{decision.notes}</p>}
             {trip.estimated_unload_end_at && (
               <p className="text-sm">
                 <span className="text-muted-foreground">{d.unloadEstimate}: </span>

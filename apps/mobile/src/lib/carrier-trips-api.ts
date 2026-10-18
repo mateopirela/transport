@@ -7,6 +7,8 @@ import {
   type AssignableOperator,
   type AssignableUnit,
   type LicensePairs,
+  type ProviderStatus,
+  type SharedDocumentRow,
   type Tables,
   type TripChecklistRow,
   type TripDocumentKind,
@@ -33,7 +35,7 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
 }
 
 const TRIP_COLUMNS =
-  'id, status, load_id, offer_id, vehicle_id, operator_id, business_unit_id, estimated_unload_end_at, cancellation_reason, created_at, updated_at';
+  'id, status, load_id, offer_id, shipper_company_id, vehicle_id, operator_id, business_unit_id, estimated_unload_end_at, cancellation_reason, created_at, updated_at';
 
 type TripRow = Pick<
   Tables<'trips'>,
@@ -41,6 +43,7 @@ type TripRow = Pick<
   | 'status'
   | 'load_id'
   | 'offer_id'
+  | 'shipper_company_id'
   | 'vehicle_id'
   | 'operator_id'
   | 'business_unit_id'
@@ -309,6 +312,10 @@ export interface CarrierTripDetail {
   checklist: TripChecklistRow[];
   /** Kinds the carrier side may upload, in catalog order. */
   uploadableKinds: TripDocumentKind[];
+  /** Documents shared with the shipper on this trip, in force and revoked (G6). */
+  sharedDocuments: SharedDocumentRow[];
+  /** The shipper's provider decision about the company (G6); null = pending. */
+  provider: { status: ProviderStatus; notes: string | null } | null;
 }
 
 export type TripDocument = Pick<
@@ -427,6 +434,8 @@ export async function loadCarrierTrip(
     documents,
     checklist,
     requirements,
+    shared,
+    provider,
   ] = await Promise.all([
     client.from('loads').select(LOAD_COLUMNS).eq('id', trip.load_id).single(),
     namesOf(client, companyId),
@@ -457,7 +466,15 @@ export async function loadCarrierTrip(
       .order('created_at'),
     client.rpc('trip_checklist', { p_trip_id: trip.id }),
     client.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
+    client.rpc('trip_shared_documents', { p_trip_id: trip.id }),
+    client
+      .from('provider_approvals')
+      .select('status, notes')
+      .eq('shipper_company_id', trip.shipper_company_id)
+      .eq('carrier_company_id', companyId)
+      .maybeSingle(),
   ]);
+  if (provider.error) throw provider.error;
   if (conversation.error) throw conversation.error;
   const points = check(trail);
   const latest = points[0];
@@ -484,7 +501,15 @@ export async function loadCarrierTrip(
     documents: check(documents),
     checklist: check(checklist),
     uploadableKinds: uploadableTripDocumentKinds(check(requirements), 'carrier'),
+    sharedDocuments: check(shared),
+    provider: provider.data,
   };
+}
+
+/** The manager stops sharing a document with the trip's shipper (G6, revoke_document_share). */
+export async function revokeDocumentShare(client: Supabase, shareId: string): Promise<void> {
+  const { error } = await client.rpc('revoke_document_share', { p_share_id: shareId });
+  if (error) throw error;
 }
 
 /** Assigns (or reassigns) the unit and the operator; the operator gets a push. */

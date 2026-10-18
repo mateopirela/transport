@@ -4,6 +4,7 @@ import {
   carrierWebCopy,
   clientTripsCopy,
   fleetCopy,
+  tripCancelCopy,
   tripDocumentKindLabels,
   tripStatusLabels,
 } from '@transport/shared';
@@ -175,9 +176,11 @@ test('the carrier staff assign, document and cancel trips and run the fleet on t
 
   await test.step('Andrea cancels the trip with a reason', async () => {
     await andrea.goto(`/transportista/viajes/${tripId}`);
-    await andrea.getByText(c.cancel.open, { exact: true }).click();
-    await andrea.getByLabel(c.cancel.reason).fill(CANCEL_REASON);
-    await andrea.getByRole('button', { name: c.cancel.confirm }).click();
+    // G5: a reason from the list; "Otro" with the text as its notes.
+    await andrea.getByText(tripCancelCopy.open, { exact: true }).click();
+    await andrea.getByLabel(tripCancelCopy.reason).selectOption('other');
+    await andrea.getByLabel(tripCancelCopy.notes).fill(CANCEL_REASON);
+    await andrea.getByRole('button', { name: tripCancelCopy.confirm }).click();
     // The page revalidates at once: the form gives way to the cancelled notice.
     await expect(andrea.getByText(carrierTripsCopy.detail.cancelled(CANCEL_REASON))).toBeVisible();
     await expect(andrea.getByText(tripStatusLabels.cancelled).first()).toBeVisible();

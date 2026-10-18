@@ -1,0 +1,43 @@
+# Coordinator (G5, D20): releases a unit whose trip was cancelled after it
+# set off. Precondition (`pnpm e2e:mobile` does it through the API, step
+# trip-cancelled-on-the-way): Sofía's MTY → Apodaca trip of TT-01 with Raúl
+# Méndez set off and Sofía cancelled it, so TT-01 is "Pendiente de liberar".
+# Héctor ("Regional Monterrey") sees it on his home, releases it where it was
+# last seen (Monterrey)
+# and gets its recommendations from there (Saltillo → Guadalajara).
+appId: ${APP_ID}
+name: Coordinador · liberar una unidad
+tags: [carrier, coordinator]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: hector.ibarra@demo.test
+- extendedWaitUntil:
+    visible: 'Unidades por liberar \(1\)'
+    timeout: 30000
+- takeScreenshot: 10-1-coordinator-home-release
+- tapOn: 'TT-01 · viaje Monterrey → Apodaca.*'
+- extendedWaitUntil:
+    visible: 'Liberar unidad'
+    timeout: 15000
+- takeScreenshot: 10-2-coordinator-release-form
+# The last known point is the departure in Monterrey: released there.
+- assertVisible: 'Cerca de Monterrey, Nuevo León'
+- scrollUntilVisible:
+    element: 'Notas \(opcional\)'
+    centerElement: true
+- tapOn:
+    text: 'Liberar unidad'
+    below: 'Notas \(opcional\)'
+# The notice and the recommendations are on top of the screen, which keeps
+# its scroll after the release.
+- scrollUntilVisible:
+    element: 'Unidad liberada en Monterrey.*'
+    direction: UP
+    timeout: 15000
+- takeScreenshot: 10-3-coordinator-released
+- scrollUntilVisible:
+    element: 'Cargas recomendadas desde aquí'
+    centerElement: true
+- takeScreenshot: 10-4-coordinator-recommendations

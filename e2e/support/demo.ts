@@ -21,6 +21,10 @@ export const users = {
   pedro: 'pedro.lopez@demo.test',
   /** Operator of Transportes Regios without an active trip. */
   raul: 'raul.mendez@demo.test',
+  /** Gerente of Fletes Tapatíos ("Principal"): runs RB-01. */
+  carmen: 'carmen.navarro@demo.test',
+  /** Operator of Fletes Tapatíos: has the Apodaca → GDL trip assigned with RB-01. */
+  miguel: 'miguel.hernandez@demo.test',
 } as const;
 
 export type DemoUser = keyof typeof users;
@@ -47,10 +51,15 @@ export const ids = {
   raulOperator: '5eed0003-0000-4000-8000-000000000002',
   /** "Regional Monterrey", the second business unit of Transportes Regios (G1a). */
   regionalUnit: '5eed0009-0000-4000-8000-000000000002',
+  /** Trip Apodaca → GDL of Fletes Tapatíos, assigned (RB-01, Miguel Hernández); shipper Sofía. */
+  assignedTrip: '5eed0008-0000-4000-8000-000000000002',
+  /** Rabón RB-01 of Fletes Tapatíos. */
+  rabon: '5eed0004-0000-4000-8000-000000000007',
 } as const;
 
 /** Points used for the operator's events (D11: every event has a location). */
 export const places = {
   monterrey: { lat: 25.7016, lng: -100.3392 },
+  apodaca: { lat: 25.7817, lng: -100.1886 },
   guadalajaraDelivery: { lat: 20.628, lng: -103.356 },
 } as const;

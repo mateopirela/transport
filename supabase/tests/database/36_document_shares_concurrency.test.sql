@@ -3,7 +3,9 @@
 -- is being accepted. Whichever runs first, the other waits (for the trip lock
 -- or the carrier's share lock, never for a share the first one holds, so
 -- there is no deadlock), both succeed and the approved document ends up
--- shared with the trip that has its owner.
+-- shared with the trip that has its owner. Also three sessions: an approval
+-- waiting for a trip whose assignment needs the unit of an offer being
+-- accepted, which must wait for the carrier's lock without holding that unit.
 --
 -- Two real sessions (dblink) with committed fixtures, as in
 -- 10_trip_concurrency.test.sql.
@@ -11,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(19);
+select plan(26);
 
 create schema tests;
 
@@ -155,11 +157,12 @@ $$;
 select tests.connect('setup');
 select tests.connect('s1');
 select tests.connect('s2');
+select tests.connect('s3');
 select tests.cleanup();
 
 -- Fixtures: shipper S (...01), carrier with manager M (...02), admin A
--- (...03), operator O (...04), units V1 and V2 with every document approved,
--- and three loads with a carrier offer each.
+-- (...03), operator O (...04), units V1, V2 and V3 with every document
+-- approved, and four loads with a carrier offer each (the fourth with V3).
 select extensions.dblink_exec('setup', $sql$
   insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
   select id, 'authenticated', 'authenticated', id::text || '@g6c.test', now(),
@@ -184,7 +187,8 @@ select extensions.dblink_exec('setup', $sql$
   insert into public.vehicles (id, company_id, business_unit_id, kind, plate, unit_type, capacity_kg)
   select v.id::uuid, b.company_id, b.id, 'rigid', v.plate, 'dry_van', 30000
   from (values ('e3600000-0000-4000-8000-000000000001', 'GGA3601'),
-               ('e3600000-0000-4000-8000-000000000002', 'GGA3602')) as v(id, plate)
+               ('e3600000-0000-4000-8000-000000000002', 'GGA3602'),
+               ('e3600000-0000-4000-8000-000000000003', 'GGA3603')) as v(id, plate)
   cross join public.business_units b where b.company_id = 'c3600000-0000-4000-8000-000000000002';
   insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
   select 'c3600000-0000-4000-8000-000000000002', r.id, r.owner_type, o.id,
@@ -194,6 +198,7 @@ select extensions.dblink_exec('setup', $sql$
   join (values
     ('company'::public.document_owner_type, 'c3600000-0000-4000-8000-000000000002'::uuid),
     ('vehicle', 'e3600000-0000-4000-8000-000000000001'), ('vehicle', 'e3600000-0000-4000-8000-000000000002'),
+    ('vehicle', 'e3600000-0000-4000-8000-000000000003'),
     ('operator', 'd3600000-0000-4000-8000-000000000004')
   ) as o(owner_type, id) on o.owner_type = r.owner_type
   where r.archived_at is null and (r.company_type is null or r.company_type = 'carrier');
@@ -207,17 +212,19 @@ select extensions.dblink_exec('setup', $sql$
     'Centro', 'Guadalajara', 'Jalisco', 20.6597, -103.3496,
     now() + interval '1 day', now() + interval '2 days', now() + interval '2 days', now() + interval '3 days',
     'general', 'Carga de prueba', 1000, 'dry_van', 3000000, now()
-  from generate_series(1, 3) as n;
+  from generate_series(1, 4) as n;
   insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id, business_unit_id)
   select ('f3610000-0000-4000-8000-00000000000' || n)::uuid, ('f3600000-0000-4000-8000-00000000000' || n)::uuid,
          'c3600000-0000-4000-8000-000000000001', b.company_id, b.id
-  from generate_series(1, 3) as n
+  from generate_series(1, 4) as n
   cross join public.business_units b where b.company_id = 'c3600000-0000-4000-8000-000000000002';
-  insert into public.offers (id, negotiation_id, load_id, shipper_company_id, carrier_company_id, side, amount_cents)
+  insert into public.offers (id, negotiation_id, load_id, shipper_company_id, carrier_company_id, side, amount_cents,
+                             vehicle_id)
   select ('f3620000-0000-4000-8000-00000000000' || n)::uuid, ('f3610000-0000-4000-8000-00000000000' || n)::uuid,
          ('f3600000-0000-4000-8000-00000000000' || n)::uuid, 'c3600000-0000-4000-8000-000000000001',
-         'c3600000-0000-4000-8000-000000000002', 'carrier', 2900000
-  from generate_series(1, 3) as n;
+         'c3600000-0000-4000-8000-000000000002', 'carrier', 2900000,
+         case when n = 4 then 'e3600000-0000-4000-8000-000000000003'::uuid end
+  from generate_series(1, 4) as n;
 $sql$);
 
 -- The shipper accepts the first offer and the manager assigns V1 and O.
@@ -348,8 +355,49 @@ select is(
   $sql$, tests.val('tax_0'), tests.val('tax_1'))),
   '0', 'and the documents it replaced are shared with no trip');
 
+-- ---------------------------------------------------------------------------
+-- 4. Three sessions: the manager holds the trip (assigned to V2), an approval
+--    waits for it holding the carrier's lock, and an offer naming V3 is
+--    accepted. The acceptance waits for the carrier's lock before it locks
+--    V3, so the manager can still assign V3 and everything goes through
+-- ---------------------------------------------------------------------------
+select tests.pending('v1_insurance', 'vehicle_insurance_policy', 'vehicle', 'e3600000-0000-4000-8000-000000000001');
+
+select tests.begin_as('s1', 'a3600000-0000-4000-8000-000000000002');
+select * from extensions.dblink('s1', format('select public.assign_trip(%L, %L, %L)', tests.val('trip'),
+  'e3600000-0000-4000-8000-000000000002', 'd3600000-0000-4000-8000-000000000004')) as t(r text);
+select tests.begin_as('s2', 'a3600000-0000-4000-8000-000000000003');
+select extensions.dblink_send_query('s2', format('select public.review_document(%L, %L)::text',
+  tests.val('v1_insurance'), 'approve'));
+select ok(tests.wait_until_blocked('s2'), 'the approval waits for the trip the manager holds');
+select tests.begin_as('s3', 'a3600000-0000-4000-8000-000000000001');
+select extensions.dblink_send_query('s3', $sql$
+  select public.accept_offer('f3620000-0000-4000-8000-000000000004')::text
+$sql$);
+select ok(tests.wait_until_blocked('s3'), 'the acceptance of the offer with V3 waits for the carrier''s lock');
+select lives_ok(
+  format($$ select * from extensions.dblink('s1', %L) as t(r text) $$,
+         format('select public.assign_trip(%L, %L, %L)', tests.val('trip'),
+                'e3600000-0000-4000-8000-000000000003', 'd3600000-0000-4000-8000-000000000004')),
+  'the manager assigns V3 meanwhile: the acceptance does not hold it (no deadlock)');
+select extensions.dblink_exec('s1', 'commit');
+select lives_ok($$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  'the approval goes through once the assignment commits');
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+insert into tests.vals select 'trip_4', trip_id::uuid from extensions.dblink_get_result('s3') as t(trip_id text);
+select * from extensions.dblink_get_result('s3', false) as t(r text);
+select extensions.dblink_exec('s3', 'commit');
+
+select ok(tests.val('trip_4') is not null, 'and the acceptance goes through once the approval commits');
+select is(tests.shared(tests.val('trip'), tests.current_doc('vehicle_permit', 'e3600000-0000-4000-8000-000000000003')),
+  'true', 'the trip shares V3''s documents');
+select is(tests.shared(tests.val('trip_4'), tests.val('tax_2')), 'true',
+  'and the new trip the carrier''s company documents');
+
 select tests.cleanup();
 select extensions.dblink_disconnect('s1');
+select extensions.dblink_disconnect('s3');
 select extensions.dblink_disconnect('s2');
 select extensions.dblink_disconnect('setup');
 

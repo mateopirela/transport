@@ -35,8 +35,10 @@
 --     waits re-reads the other's committed state (the share lock returns the
 --     trip's latest version; the assignment's next statement sees the
 --     approval);
---   * a new trip (accept_offer) takes the same advisory lock before reading
---     the documents, so a company document approved meanwhile is shared too.
+--   * a new trip (accept_offer) takes the same advisory lock in a BEFORE
+--     INSERT trigger, before any other trigger locks a vehicle, so it never
+--     waits for it holding a lock an assignment needs; and it reads the
+--     documents after, so a company document approved meanwhile is shared too.
 -- Open trips that existed before this migration are filled at the end.
 
 create type public.document_share_reason as enum ('offer_accepted', 'trip_assigned');
@@ -306,11 +308,7 @@ begin
      and new.operator_id is not distinct from old.operator_id then
     return null;
   end if;
-  -- A new trip is invisible to a document review running meanwhile: take the
-  -- carrier's lock first, so the next statement sees an approval it waited for.
-  if tg_op = 'INSERT' then
-    perform public.document_shares_lock(new.carrier_company_id);
-  end if;
+  -- On insert the carrier's lock is already held (trips_lock_document_shares).
   perform public.notify_documents_shared(new, public.sync_trip_document_shares(new));
   return null;
 end;
@@ -321,6 +319,29 @@ revoke all on function public.trips_sync_document_shares() from public, anon, au
 create trigger trips_sync_document_shares
 after insert or update of status, vehicle_id, operator_id on public.trips
 for each row execute function public.trips_sync_document_shares();
+
+-- A new trip is invisible to a document review running meanwhile: the insert
+-- takes the carrier's lock before any other trigger, so it never holds a
+-- vehicle (trips_end_vehicle_estimate) while it waits for a review that waits
+-- for a trip whose assignment waits for that vehicle; and the shares written
+-- after the insert see an approval it waited for.
+create function public.trips_lock_document_shares()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.document_shares_lock(new.carrier_company_id);
+  return new;
+end;
+$$;
+
+revoke all on function public.trips_lock_document_shares() from public, anon, authenticated;
+
+create trigger trips_lock_document_shares
+before insert on public.trips
+for each row execute function public.trips_lock_document_shares();
 
 -- A document reviewed, superseded or with a new expiry: revoke it when it is
 -- no longer shareable; share it with the open trips of its owner when it is.

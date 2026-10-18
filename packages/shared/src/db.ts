@@ -2627,6 +2627,7 @@ export interface Database {
         Args: { p_share_id: string; p_user_id: string };
         Returns: string;
       };
+      backfill_document_shares: { Args: Record<PropertyKey, never>; Returns: number };
       can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
       cancel_trip: { Args: { p_reason: string; p_trip_id: string }; Returns: undefined };
@@ -2740,6 +2741,7 @@ export interface Database {
         Returns: string;
       };
       document_share_active: { Args: { p_share_id: string }; Returns: boolean };
+      document_shares_lock: { Args: { p_carrier_company_id: string }; Returns: undefined };
       expire_stale_loads: { Args: Record<PropertyKey, never>; Returns: number };
       get_route_distances: {
         Args: { p_legs: Json };

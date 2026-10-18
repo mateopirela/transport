@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(55);
+select plan(58);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -429,6 +429,17 @@ select is(
   (select data ->> 'documentKind' from public.notifications
    where user_id = 'a3400000-0000-4000-8000-000000000001' and type = 'trip_document_added'),
   'carta_porte', 'with the kind of document');
+
+-- ---------------------------------------------------------------------------
+-- Upgrade: trips that predate the migration get their shares from the backfill
+-- (simulated by deleting the active shares of the open trip)
+-- ---------------------------------------------------------------------------
+create table tests.before_backfill as select tests.active(tests.val('trip')) as codes;
+delete from public.document_shares where trip_id = tests.val('trip') and revoked_at is null;
+select is(tests.active(tests.val('trip')), '{}'::text[], 'without shares, as an open trip before the migration');
+select ok(public.backfill_document_shares() >= 4, 'the backfill shares the documents of the open trips');
+select is(tests.active(tests.val('trip')), (select codes from tests.before_backfill),
+  'the trip gets back exactly the shares it had (the backfill is the same rule)');
 
 -- ---------------------------------------------------------------------------
 -- Closing or cancelling revokes everything

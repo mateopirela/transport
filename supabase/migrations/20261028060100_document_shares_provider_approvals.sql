@@ -26,9 +26,18 @@
 --     carrier staff of the pair's most recent trip or negotiation) and
 --     trip_document_added (the other side of the trip).
 --
--- Lock order: trip, then its shares (the trip RPCs lock the trip and the
--- trigger writes the shares); a document's trigger takes a share lock on the
--- open trips of its owner, in id order, before writing their shares.
+-- Lock order: trip, then its shares. The trip RPCs lock the trip and the
+-- trigger writes its shares. A document's trigger first takes the carrier's
+-- share advisory lock (document_shares_lock), then a share lock on every open
+-- trip of the carrier in id order, and only then reads or writes shares, so:
+--   * it never holds a share a trip RPC waits for (no deadlock);
+--   * an approval and an assignment never both miss each other: whichever
+--     waits re-reads the other's committed state (the share lock returns the
+--     trip's latest version; the assignment's next statement sees the
+--     approval);
+--   * a new trip (accept_offer) takes the same advisory lock before reading
+--     the documents, so a company document approved meanwhile is shared too.
+-- Open trips that existed before this migration are filled at the end.
 
 create type public.document_share_reason as enum ('offer_accepted', 'trip_assigned');
 create type public.document_share_revoke_reason as enum (
@@ -262,6 +271,17 @@ as $$
   where p_count > 0;
 $$;
 
+-- Serializes the share writes of one carrier between a document's review and
+-- the creation of a trip (both read what the other writes).
+create function public.document_shares_lock(p_carrier_company_id uuid)
+returns void
+language sql
+set search_path = ''
+as $$
+  select pg_advisory_xact_lock(hashtextextended('document_shares:' || p_carrier_company_id::text, 0));
+$$;
+
+revoke all on function public.document_shares_lock(uuid) from public, anon, authenticated;
 revoke all on function public.document_is_shareable(uuid) from public, anon, authenticated;
 revoke all on function public.trip_shareable_documents(public.trips) from public, anon, authenticated;
 revoke all on function public.document_share_active(uuid) from public, anon, authenticated;
@@ -286,6 +306,11 @@ begin
      and new.operator_id is not distinct from old.operator_id then
     return null;
   end if;
+  -- A new trip is invisible to a document review running meanwhile: take the
+  -- carrier's lock first, so the next statement sees an approval it waited for.
+  if tg_op = 'INSERT' then
+    perform public.document_shares_lock(new.carrier_company_id);
+  end if;
   perform public.notify_documents_shared(new, public.sync_trip_document_shares(new));
   return null;
 end;
@@ -299,6 +324,8 @@ for each row execute function public.trips_sync_document_shares();
 
 -- A document reviewed, superseded or with a new expiry: revoke it when it is
 -- no longer shareable; share it with the open trips of its owner when it is.
+-- Locks (see the header): the carrier's advisory lock, then every open trip of
+-- the carrier in id order, then the shares.
 create function public.documents_sync_shares()
 returns trigger
 language plpgsql
@@ -306,38 +333,46 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_shareable boolean := public.document_is_shareable(new.id);
   v_trip public.trips;
   v_granted integer;
 begin
-  if not public.document_is_shareable(new.id) then
-    update public.document_shares s
-    set revoked_at = now(), revoked_reason = 'document_replaced'
-    where s.document_id = new.id and s.revoked_at is null;
+  -- A document that is not shareable and was not approved and current before
+  -- (a new submission, or a rejection) has no shares to revoke, and no trip
+  -- RPC can be sharing it: they read the committed row, which this one locks.
+  if not v_shareable
+     and (tg_op = 'INSERT' or old.status <> 'approved' or old.archived_at is not null) then
     return null;
   end if;
 
-  -- Trip first (the trip RPCs' order): the share lock waits for an
-  -- assignment in progress and re-reads the trip once it commits.
+  perform public.document_shares_lock(new.company_id);
+  -- Every open trip, not only those of the owner: the share lock waits for an
+  -- assignment in progress and returns the trip as it committed, so a trip
+  -- that just got this unit or operator is not missed.
   for v_trip in
     select t.*
     from public.trips t
     where t.carrier_company_id = new.company_id
       and t.status not in ('closed', 'cancelled')
-      and case new.owner_type
-            when 'company' then new.owner_id = t.carrier_company_id
-            when 'vehicle' then new.owner_id = t.vehicle_id
-            else new.owner_id = t.operator_id
-          end
     order by t.id
     for share of t
   loop
-    insert into public.document_shares
-      (trip_id, document_id, shipper_company_id, carrier_company_id, owner_type, owner_id, granted_reason)
-    values (v_trip.id, new.id, v_trip.shipper_company_id, v_trip.carrier_company_id, new.owner_type, new.owner_id,
-            case new.owner_type when 'company' then 'offer_accepted' else 'trip_assigned' end::public.document_share_reason)
-    on conflict (trip_id, document_id) do nothing;
-    get diagnostics v_granted = row_count;
-    perform public.notify_documents_shared(v_trip, v_granted);
+    if not v_shareable then
+      update public.document_shares s
+      set revoked_at = now(), revoked_reason = 'document_replaced'
+      where s.trip_id = v_trip.id and s.document_id = new.id and s.revoked_at is null;
+    elsif v_trip.status not in ('closed', 'cancelled')
+          and (new.owner_type = 'company' and new.owner_id = v_trip.carrier_company_id
+               or new.owner_type = 'vehicle' and new.owner_id is not distinct from v_trip.vehicle_id
+               or new.owner_type = 'operator' and new.owner_id is not distinct from v_trip.operator_id) then
+      insert into public.document_shares
+        (trip_id, document_id, shipper_company_id, carrier_company_id, owner_type, owner_id, granted_reason)
+      values (v_trip.id, new.id, v_trip.shipper_company_id, v_trip.carrier_company_id, new.owner_type, new.owner_id,
+              case new.owner_type when 'company' then 'offer_accepted' else 'trip_assigned' end::public.document_share_reason)
+      on conflict (trip_id, document_id) do nothing;
+      get diagnostics v_granted = row_count;
+      perform public.notify_documents_shared(v_trip, v_granted);
+    end if;
   end loop;
   return null;
 end;
@@ -348,6 +383,34 @@ revoke all on function public.documents_sync_shares() from public, anon, authent
 create trigger documents_sync_shares
 after insert or update of status, archived_at, expires_at on public.documents
 for each row execute function public.documents_sync_shares();
+
+-- The shares of the open trips, without notifying (the trips existed before
+-- the shares did). Run once below for the trips that predate this migration;
+-- idempotent. Returns how many were granted.
+create function public.backfill_document_shares()
+returns integer
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_trip public.trips;
+  v_total integer := 0;
+begin
+  for v_trip in
+    select t.* from public.trips t
+    where t.status not in ('closed', 'cancelled')
+    order by t.id
+    for share of t
+  loop
+    v_total := v_total + public.sync_trip_document_shares(v_trip);
+  end loop;
+  return v_total;
+end;
+$$;
+
+revoke all on function public.backfill_document_shares() from public, anon, authenticated;
+
+select public.backfill_document_shares();
 
 -- ---------------------------------------------------------------------------
 -- RPC: the documents shared on a trip, without storage paths. The shipper of

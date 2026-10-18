@@ -14,7 +14,8 @@ tags: [carrier, manager]
     visible: 'Más, tab.*'
     timeout: 30000
 - tapOn: 'Más, tab.*'
-- tapOn: 'Mi empresa'
+# Menu rows read "<label>, <description>".
+- tapOn: 'Mi empresa,.*'
 - extendedWaitUntil:
     visible: 'Regional Monterrey'
     timeout: 15000
@@ -24,9 +25,15 @@ tags: [carrier, manager]
     env:
       LABEL: 'Nombre'
       TEXT: 'Bajío'
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: 'Crear unidad de negocio'
+    centerElement: true
 - tapOn: 'Crear unidad de negocio'
-- extendedWaitUntil:
-    visible: 'Unidad de negocio creada.'
+# The notice is at the top of the section, above the form.
+- scrollUntilVisible:
+    element: 'Unidad de negocio creada.'
+    direction: UP
     timeout: 15000
 - takeScreenshot: 09-2-business-unit-created
 # Coordinators: Héctor gets "Bajío" too (the chips of his card; the first
@@ -47,12 +54,12 @@ tags: [carrier, manager]
 - takeScreenshot: 09-3-coordinator-units
 # Units: open TT-01 and move it to "Bajío".
 - scrollUntilVisible:
-    element: '.*TT-01'
+    element: '.*TT-01.*'
     centerElement: true
-- tapOn: '.*TT-01'
+- tapOn: '.*TT-01.*'
+# "Mover a…" and its chips sit at the end of the screen.
 - scrollUntilVisible:
-    element: 'Mover a…'
-    centerElement: true
+    element: 'Bajío'
 - tapOn:
     text: 'Bajío'
     below: 'Mover a…'

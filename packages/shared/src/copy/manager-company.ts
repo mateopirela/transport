@@ -96,8 +96,12 @@ export const managerCompanyCopy = {
     copy: 'Copiar enlace',
     copied: 'Enlace copiado.',
     validUntil: (date: string) => `Vence el ${date}`,
-    onlyOnce:
+    // A link for an existing operator replaces their previous one (create_invitation
+    // revokes it); a coordinator or new-operator link does not.
+    onlyOnceReplaces:
       'Por seguridad el enlace solo se muestra ahora. Si lo pierdes, genera otro: el anterior deja de servir.',
+    onlyOnce:
+      'Por seguridad el enlace solo se muestra ahora. Si lo pierdes, genera otro; el anterior sigue sirviendo hasta que venza o se cancele en "Invitaciones pendientes".',
     coordinatorShareMessage: (companyName: string, link: string) =>
       `${companyName} te invita a unirte como coordinador en Transport. Abre este enlace para crear tu cuenta: ${link}`,
     operatorShareMessage: (companyName: string, link: string) =>

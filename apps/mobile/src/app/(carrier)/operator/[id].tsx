@@ -113,6 +113,7 @@ function ExistingOperator({ id }: { id: string }) {
                     <Body>{managerCompanyCopy.operators.resetDescription}</Body>
                     <InvitationLinkIssuer
                       label={managerCompanyCopy.operators.resetAccess}
+                      replacesPrevious
                       issue={() =>
                         issueInvitation(carrier.client, {
                           kind: 'operator_access_reset',

@@ -122,7 +122,8 @@ export function InvitationLinkForm({
             onFocus={(event) => event.currentTarget.select()}
           />
           <p className="text-xs text-muted-foreground">
-            {c.validUntil(formatDateTime(state.expiresAt))}. {c.onlyOnce}
+            {c.validUntil(formatDateTime(state.expiresAt))}.{' '}
+            {kind === 'operator_access_reset' || operatorId ? c.onlyOnceReplaces : c.onlyOnce}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

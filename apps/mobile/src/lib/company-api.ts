@@ -73,11 +73,31 @@ export interface ManagerCompany {
 const INVITATION_COLUMNS =
   'id, kind, business_unit_ids, operator_id, invitee_name, expires_at, accepted_at, revoked_at';
 
+/** PostgREST caps each response (1,000 rows by default); long lists are paged. */
+const PAGE_SIZE = 1000;
+
+/** Every row of a query ordered by a unique key, page by page until a short page. */
+async function selectAll<T>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
+
 /** Everything "Mi empresa" lists, for the Gerente (RLS gives them the whole company). */
 export async function loadManagerCompany(
   client: Supabase,
   companyId: string,
 ): Promise<ManagerCompany> {
+  const now = new Date();
   const [units, coordinators, assignments, vehicles, operators, invitations] = await Promise.all([
     client
       .from('business_units')
@@ -95,25 +115,39 @@ export async function loadManagerCompany(
       .from('business_unit_coordinators')
       .select('profile_id, business_unit_id')
       .eq('company_id', companyId),
-    client
-      .from('vehicles')
-      .select('id, plate, fleet_number, kind, business_unit_id')
-      .eq('company_id', companyId)
-      .is('archived_at', null)
-      .order('plate'),
-    client
-      .from('operators')
-      .select('id, full_name, phone, profile_id, business_unit_id')
-      .eq('company_id', companyId)
-      .is('archived_at', null)
-      .order('full_name'),
-    client
-      .from('invitations')
-      .select(INVITATION_COLUMNS)
-      .eq('company_id', companyId)
-      .is('accepted_at', null)
-      .is('revoked_at', null)
-      .order('expires_at'),
+    selectAll((from, to) =>
+      client
+        .from('vehicles')
+        .select('id, plate, fleet_number, kind, business_unit_id')
+        .eq('company_id', companyId)
+        .is('archived_at', null)
+        .order('plate')
+        .order('id')
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      client
+        .from('operators')
+        .select('id, full_name, phone, profile_id, business_unit_id')
+        .eq('company_id', companyId)
+        .is('archived_at', null)
+        .order('full_name')
+        .order('id')
+        .range(from, to),
+    ),
+    // Only usable links, filtered by the server before it pages them.
+    selectAll((from, to) =>
+      client
+        .from('invitations')
+        .select(INVITATION_COLUMNS)
+        .eq('company_id', companyId)
+        .is('accepted_at', null)
+        .is('revoked_at', null)
+        .gt('expires_at', now.toISOString())
+        .order('expires_at')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const unitsOf = new Map<string, string[]>();
   for (const a of check(assignments)) {
@@ -127,9 +161,9 @@ export async function loadManagerCompany(
       phone: p.phone,
       unitIds: unitsOf.get(p.id) ?? [],
     })),
-    vehicles: check(vehicles),
-    operators: check(operators),
-    invitations: pendingInvitations(check(invitations), new Date()),
+    vehicles,
+    operators,
+    invitations: pendingInvitations(invitations, now),
   };
 }
 

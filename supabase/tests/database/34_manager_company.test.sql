@@ -11,7 +11,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(56);
+select plan(59);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -399,6 +399,27 @@ select is(
   (select count(*)::int from public.invitations
    where created_by = 'a3400000-0000-4000-8000-000000000003' and revoked_at is null and accepted_at is null),
   0, 'the links A issued are revoked'
+);
+select throws_ok(
+  $$ insert into public.invitations (company_id, kind, business_unit_ids, token_hash, expires_at, created_by)
+     values ('c3400000-0000-4000-8000-000000000002', 'operator', array[tests.val('bu_a')],
+             public.invitation_token_hash(repeat('r', 43)), now() + interval '1 day',
+             'a3400000-0000-4000-8000-000000000003') $$,
+  '42501', 'only the staff of a carrier company can invite',
+  'an invitation issued in the middle of the removal does not survive it (its creator is checked under lock)'
+);
+select lives_ok(
+  $$ insert into public.invitations (company_id, kind, business_unit_ids, token_hash, expires_at, created_by)
+     values ('c3400000-0000-4000-8000-000000000002', 'operator', array[tests.val('bu_a')],
+             public.invitation_token_hash(repeat('m', 43)), now() + interval '1 day',
+             'a3400000-0000-4000-8000-000000000002') $$,
+  'a current member of the company still issues invitations'
+);
+
+-- An offer and a move of its unit serialize on the unit row (FOR SHARE).
+select is(
+  (select provolatile::text from pg_proc where oid = 'public.assert_vehicle_in_unit(uuid, uuid)'::regprocedure),
+  'v', 'assert_vehicle_in_unit locks the unit, so it is volatile'
 );
 
 select * from finish();

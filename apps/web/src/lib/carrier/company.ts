@@ -70,6 +70,7 @@ export async function loadManagerCompany(
   supabase: Supabase,
   companyId: string,
 ): Promise<ManagerCompany> {
+  const now = new Date();
   const [units, coordinators, assignments, vehicles, operators, invitations] = await Promise.all([
     supabase
       .from('business_units')
@@ -107,15 +108,18 @@ export async function loadManagerCompany(
         .order('id')
         .range(from, to),
     ),
-    supabase
-      .from('invitations')
-      .select(INVITATION_COLUMNS)
-      .eq('company_id', companyId)
-      .is('accepted_at', null)
-      .is('revoked_at', null)
-      .gt('expires_at', new Date().toISOString())
-      .order('expires_at')
-      .limit(200),
+    selectAll((from, to) =>
+      supabase
+        .from('invitations')
+        .select(INVITATION_COLUMNS)
+        .eq('company_id', companyId)
+        .is('accepted_at', null)
+        .is('revoked_at', null)
+        .gt('expires_at', now.toISOString())
+        .order('expires_at')
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   const unitsOf = new Map<string, string[]>();
   for (const a of check(assignments)) {
@@ -131,7 +135,7 @@ export async function loadManagerCompany(
     })),
     vehicles,
     operators,
-    invitations: pendingInvitations(check(invitations), new Date()),
+    invitations: pendingInvitations(invitations, now),
   };
 }
 

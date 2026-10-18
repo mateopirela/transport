@@ -12,7 +12,10 @@
 --     * an operator, then its invitations (create_invitation, redeem);
 --     * invitations, then business units (redeem and accept insert rows that
 --       reference a business unit after locking their invitation);
---     * a profile, then business units (accept_coordinator_invitation).
+--     * a profile, then business units (accept_coordinator_invitation);
+--     * a profile, then its invitations (create_invitation through
+--       invitations_require_member_creator, and remove_company_member);
+--     * a load, then the unit it proposes (make_offer, assert_vehicle_in_unit).
 
 -- ---------------------------------------------------------------------------
 -- Nothing is added to or moved into an archived business unit.
@@ -58,6 +61,74 @@ for each row execute function public.require_active_business_unit();
 create trigger negotiations_require_active_business_unit
 before insert or update of business_unit_id on public.negotiations
 for each row execute function public.require_active_business_unit();
+
+-- ---------------------------------------------------------------------------
+-- An offer and a move of its unit serialize on the unit's row.
+-- ---------------------------------------------------------------------------
+
+-- Same as 20261026020200_business_unit_rpcs.sql, but the unit is read FOR
+-- SHARE (so the function is volatile now): it conflicts with the FOR UPDATE
+-- of move_vehicle_to_unit. An offer that proposes a unit being moved waits
+-- for the move and then sees its new business unit (and fails); a move that
+-- comes second waits for the offer and then sees it pending (and fails).
+-- make_offer and the counter-offers already lock the load first: load, then
+-- unit, as everywhere else.
+create or replace function public.assert_vehicle_in_unit(p_vehicle_id uuid, p_business_unit_id uuid)
+returns void
+language plpgsql
+volatile
+set search_path = ''
+as $$
+begin
+  if p_vehicle_id is not null then
+    perform 1 from public.vehicles v
+    where v.id = p_vehicle_id and v.business_unit_id = p_business_unit_id
+    for share;
+    if not found then
+      raise exception 'invalid offer: vehicle not found' using errcode = '22023';
+    end if;
+  end if;
+end;
+$$;
+
+revoke all on function public.assert_vehicle_in_unit(uuid, uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- An invitation is issued only by a current member of its company.
+-- ---------------------------------------------------------------------------
+
+-- create_invitation reads the caller's company without a lock. This trigger
+-- locks the creator's profile FOR SHARE and checks it again, against the FOR
+-- UPDATE of remove_company_member: an invitation issued while its coordinator
+-- is removed either waits and fails, or commits first and is then revoked by
+-- the removal. Lock order: (operator,) profile, then the new invitation;
+-- remove_company_member takes the profile, then the invitations.
+-- Invoker rights: invitations are only inserted by create_invitation (as its
+-- owner) and the service role.
+create function public.invitations_require_member_creator()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.created_by is null then
+    return new;
+  end if;
+  perform 1 from public.profiles p
+  where p.id = new.created_by and p.company_id = new.company_id
+  for share;
+  if not found then
+    raise exception 'only the staff of a carrier company can invite' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.invitations_require_member_creator() from public, anon, authenticated;
+
+create trigger invitations_require_member_creator
+before insert on public.invitations
+for each row execute function public.invitations_require_member_creator();
 
 -- ---------------------------------------------------------------------------
 -- The caller's company, only for its Gerente. Called by the RPCs below (as

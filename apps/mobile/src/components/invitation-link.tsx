@@ -21,9 +21,12 @@ export function InvitationLinkIssuer({
   issue,
   shareMessage,
   disabled = false,
+  replacesPrevious = false,
   onIssued,
 }: {
   label: string;
+  /** The link replaces the previous one (an existing operator's), which stops working. */
+  replacesPrevious?: boolean;
   issue: () => Promise<IssuedInvitation>;
   shareMessage: (link: string) => string;
   disabled?: boolean;
@@ -59,7 +62,7 @@ export function InvitationLinkIssuer({
             </Text>
             <Text style={styles.caption}>{copy.validUntil(formatDateTime(issued.expiresAt))}</Text>
           </View>
-          <Body>{copy.onlyOnce}</Body>
+          <Body>{replacesPrevious ? copy.onlyOnceReplaces : copy.onlyOnce}</Body>
           <Button
             label={copy.share}
             onPress={() => void Share.share({ message: shareMessage(link) })}

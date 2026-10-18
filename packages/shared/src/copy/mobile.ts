@@ -121,7 +121,7 @@ export const mobileNavCopy = {
   noAssignedTrip: 'No tienes un viaje asignado por ahora.',
   wrongPlatformTitle: 'Usa la versión web',
   wrongPlatformBody:
-    'La app móvil es para transportistas y operadores. Los clientes y administradores entran desde la web.',
+    'La app móvil es para Gerentes, Coordinadores y operadores. Los clientes y administradores entran desde la web.',
   account: 'Cuenta',
   role: 'Perfil',
   /** The hombre-camión's own trip, next to the carrier tabs (D13). */

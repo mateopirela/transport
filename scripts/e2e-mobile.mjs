@@ -5,6 +5,8 @@
 //   - the shipper accepts the carrier's offer (the web does it with the same RPC),
 //   - a trip of TT-01 sets off and the shipper cancels it (G5), so the
 //     coordinator has a unit to release,
+//   - G9: Héctor assigns Iván Garza (phone only) a trip of RF53-01; Sofía
+//     publishes a load for the hombre-camión and accepts his offer,
 //   - the API goes down and up again around the offline flow (the iOS
 //     simulator shares the Mac's network, so the app is cut off from the
 //     server by stopping the local API gateway, the Kong container).
@@ -47,6 +49,11 @@ const RELEASE_COORDINATOR = 'hector.ibarra@demo.test';
 const RELEASE_OPERATOR = 'raul.mendez@demo.test';
 const TORTON = '5eed0004-0000-4000-8000-000000000004';
 const RAUL = '5eed0003-0000-4000-8000-000000000002';
+// G9: Iván Garza (phone only, "Regional Monterrey") gets a trip of RF53-01, and
+// the hombre-camión José Sánchez (JSM-01) offers on a load of his own.
+const REEFER = '5eed0004-0000-4000-8000-000000000003';
+const IVAN = '5eed0003-0000-4000-8000-000000000007';
+const OWNER_OPERATOR_LOAD = 'Rollos de cartón (E2E G9, hombre-camión)';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -104,8 +111,20 @@ function gatewayContainer() {
   return `supabase_kong_${projectId}`;
 }
 
+/** fetch, retried a few times when the connection itself fails (not on HTTP errors). */
+async function fetchWithRetry(url, init) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      if (attempt >= 5) throw error;
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+}
+
 async function api(status, path, { token, body } = {}) {
-  const response = await fetch(`${status.apiUrl}${path}`, {
+  const response = await fetchWithRetry(`${status.apiUrl}${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
       apikey: status.anonKey,
@@ -215,6 +234,104 @@ async function tripCancelledOnTheWay(status) {
   );
 }
 
+/** A published load of Sofía (Empaques Plásticos Regios), Monterrey → Saltillo. */
+async function sofiaPublishes(status, shipper, { unitType, description, startsIn }) {
+  const at = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
+  const loadId = await api(status, '/rest/v1/rpc/create_load', {
+    token: shipper,
+    body: {
+      p_load: {
+        origin: {
+          address: 'Av. Constitución 100',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          lat: 25.6866,
+          lng: -100.3161,
+        },
+        destination: {
+          address: 'Blvd. Venustiano Carranza 2000',
+          city: 'Saltillo',
+          state: 'Coahuila',
+          lat: 25.4383,
+          lng: -100.9737,
+        },
+        pickupWindow: { start: at(startsIn), end: at(startsIn + 4) },
+        deliveryWindow: { start: at(startsIn + 6), end: at(startsIn + 10) },
+        cargoType: 'palletized',
+        description,
+        weightKg: 8000,
+        unitType,
+        specialRequirements: [],
+        proposedPriceCents: 900_000,
+      },
+    },
+  });
+  await api(status, '/rest/v1/rpc/publish_load', { token: shipper, body: { p_load_id: loadId } });
+  return loadId;
+}
+
+/**
+ * G9: Sofía publishes a refrigerated Monterrey → Saltillo load, Héctor offers
+ * RF53-01, she accepts and he assigns Iván Garza, the operator who signs in
+ * with his phone (12-operator-phone.yaml).
+ */
+async function tripForIvan(status) {
+  const [shipper, coordinator] = await Promise.all(
+    [RELEASE_SHIPPER, RELEASE_COORDINATOR].map((email) => signIn(status, email)),
+  );
+  const loadId = await sofiaPublishes(status, shipper, {
+    unitType: 'refrigerated',
+    description: 'Lácteos refrigerados (E2E G9)',
+    startsIn: 8,
+  });
+  const offerId = await api(status, '/rest/v1/rpc/make_offer', {
+    token: coordinator,
+    body: { p_load_id: loadId, p_amount_cents: 900_000, p_vehicle_id: REEFER },
+  });
+  const tripId = await api(status, '/rest/v1/rpc/accept_offer', {
+    token: shipper,
+    body: { p_offer_id: offerId },
+  });
+  await api(status, '/rest/v1/rpc/assign_trip', {
+    token: coordinator,
+    body: { p_trip_id: tripId, p_vehicle_id: REEFER, p_operator_id: IVAN },
+  });
+  console.log(`${RELEASE_COORDINATOR} assigned RF53-01 and Iván Garza to Sofía's trip.`);
+}
+
+/** G9: a torton load for the hombre-camión's JSM-01 (available in 12 hours). */
+async function ownerOperatorLoad(status) {
+  const shipper = await signIn(status, RELEASE_SHIPPER);
+  await sofiaPublishes(status, shipper, {
+    unitType: 'torton',
+    description: OWNER_OPERATOR_LOAD,
+    startsIn: 14,
+  });
+  console.log(`${RELEASE_SHIPPER} published the Monterrey → Saltillo load for JSM-01.`);
+}
+
+/** G9: Sofía accepts José's offer on that load (13-owner-operator-offer.yaml). */
+async function shipperAcceptsOwnerOperator(status) {
+  const shipper = await signIn(status, RELEASE_SHIPPER);
+  const loads = await api(
+    status,
+    `/rest/v1/loads?select=id&description=eq.${encodeURIComponent(OWNER_OPERATOR_LOAD)}`,
+    { token: shipper },
+  );
+  if (loads.length !== 1) throw new Error(`expected 1 hombre-camión load, got ${loads.length}`);
+  const offers = await api(
+    status,
+    `/rest/v1/offers?select=id&load_id=eq.${loads[0].id}&side=eq.carrier&status=eq.pending`,
+    { token: shipper },
+  );
+  if (offers.length !== 1) throw new Error(`expected 1 pending offer, got ${offers.length}`);
+  await api(status, '/rest/v1/rpc/accept_offer', {
+    token: shipper,
+    body: { p_offer_id: offers[0].id },
+  });
+  console.log(`${RELEASE_SHIPPER} accepted the hombre-camión's offer.`);
+}
+
 function apiDown() {
   run('docker', ['stop', gatewayContainer()]);
   console.log('API gateway stopped: the app is offline.');
@@ -289,6 +406,8 @@ const steps = [
   { name: 'api-up', run: (status) => apiUp(status) },
   { name: '07-operator-delivery', run: () => flow('07-operator-delivery') },
   { name: '08-operator-invite', run: () => flow('08-operator-invite') },
+  // G5 before G4: Héctor's TT-01 trip (and Raúl) are in "Regional Monterrey";
+  // 09 moves TT-01 to "Bajío" once it is released.
   { name: 'trip-cancelled-on-the-way', run: (status) => tripCancelledOnTheWay(status) },
   {
     name: '10-coordinator-release',
@@ -296,6 +415,21 @@ const steps = [
     run: () => flow('10-coordinator-release'),
   },
   { name: '09-manager-company', run: () => flow('09-manager-company') },
+  { name: '11-coordinator-isolation', run: () => flow('11-coordinator-isolation') },
+  { name: 'trip-for-ivan', run: (status) => tripForIvan(status) },
+  { name: '12-operator-phone', needs: 'trip-for-ivan', run: () => flow('12-operator-phone') },
+  { name: 'owner-operator-load', run: (status) => ownerOperatorLoad(status) },
+  {
+    name: '13-owner-operator-offer',
+    needs: 'owner-operator-load',
+    run: () => flow('13-owner-operator-offer'),
+  },
+  { name: 'owner-operator-accepted', run: (status) => shipperAcceptsOwnerOperator(status) },
+  {
+    name: '14-owner-operator-trip',
+    needs: 'owner-operator-accepted',
+    run: () => flow('14-owner-operator-trip'),
+  },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

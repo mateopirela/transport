@@ -3,7 +3,6 @@
 import {
   authErrors,
   cancelTripSchema,
-  tripCancelCopy,
   carrierTripErrorText,
   carrierWebCopy,
   incidentFormSchema,
@@ -101,7 +100,10 @@ export async function cancelCarrierTrip(_prev: FormState, formData: FormData): P
     p_notes: parsed.data.notes ?? '',
   });
   if (error) return { error: tripError(error), values: refillValues(entries) };
-  return done(tripCancelCopy.done);
+  // The page reloads with the trip cancelled and its reason: that is the
+  // confirmation (the form is gone), so there is no message of its own.
+  revalidatePath(paths.carrier, 'layout');
+  return {};
 }
 
 /**

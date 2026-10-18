@@ -42,6 +42,7 @@ import {
   TimelineSection,
   type TimelineEntry,
 } from '../../components/trip-sections';
+import { PreciseLocationBanner } from '../../components/precise-location-banner';
 import { TrackingBanner } from '../../components/tracking-banner';
 import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
 import { capturePhoto, photoUri } from '../../lib/evidence-api';
@@ -499,6 +500,10 @@ function TripView({
       {notice}
 
       <TrackingBanner tracking={tracking} />
+      {/* D17; the tracking banner already asks for the consent or "Always". */}
+      <PreciseLocationBanner
+        hidden={tracking.decision === 'needs_consent' || tracking.decision === 'needs_permission'}
+      />
 
       {pendingCount > 0 ? (
         <Notice tone="warning" title={copy.pendingTitle}>

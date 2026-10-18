@@ -1,0 +1,42 @@
+# Hombre-camión (D13, G2): José Sánchez is the Gerente and the operator of
+# his own company. Precondition (`pnpm e2e:mobile`, step owner-operator-load):
+# Sofía published a torton Monterrey → Saltillo load. José finds it in
+# "Cargas" and offers the proposed price with JSM-01.
+appId: ${APP_ID}
+name: Hombre-camión · ofertar
+tags: [carrier, owner-operator]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jose.sanchez@demo.test
+# Tab buttons read "<label>, tab, n of 6": he also has "Mi viaje".
+- extendedWaitUntil:
+    visible: 'Mi viaje, tab.*'
+    timeout: 30000
+- takeScreenshot: 13-1-owner-operator-home
+- tapOn: 'Cargas, tab.*'
+- scrollUntilVisible:
+    element: 'Monterrey → Saltillo.*'
+    centerElement: true
+    timeout: 30000
+- takeScreenshot: 13-2-owner-operator-loads
+- tapOn: 'Monterrey → Saltillo.*'
+- extendedWaitUntil:
+    visible: 'Detalle de la carga'
+    timeout: 15000
+# G7: the load can be shared with the team (internal link).
+- scrollUntilVisible:
+    element: 'Compartir con mi equipo'
+    centerElement: true
+- takeScreenshot: 13-3-owner-operator-share-with-team
+- scrollUntilVisible:
+    element: 'Aceptar el precio propuesto'
+    centerElement: true
+- tapOn: 'Aceptar el precio propuesto'
+# Native confirmation dialog.
+- tapOn: 'Confirmar'
+- extendedWaitUntil:
+    visible: 'Oferta enviada.'
+    timeout: 15000
+- takeScreenshot: 13-4-owner-operator-offer-sent

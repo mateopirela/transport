@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(37);
+select plan(38);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -57,6 +57,15 @@ select ok(
   'units of several body types'
 );
 select is((select count(*)::int from public.operators where id::text like '5eed0003-%'), 7, 'seven operators (Iván Garza signs in with his phone, G2)');
+select ok(
+  public.operator_license_current('5eed0003-0000-4000-8000-000000000007')
+  and exists (select 1 from public.documents d join public.document_requirements r on r.id = d.requirement_id
+              where d.owner_id = '5eed0003-0000-4000-8000-000000000007' and r.code = 'federal_driver_license'
+                and d.status = 'approved' and d.expires_at > now())
+  and not exists (select 1 from public.documents d
+                  where d.owner_id = '5eed0003-0000-4000-8000-000000000007' and d.status <> 'approved'),
+  'Iván Garza has his licence approved, so the demo can assign him (G9)'
+);
 select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 15, 'fifteen loads');
 select is(
   (select array_agg(distinct status::text order by status::text) from public.loads where id::text like '5eed0005-%'),

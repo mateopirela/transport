@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { locationConsentCopy } from './copy/tracking';
+import { locationConsentCopy, trackingCopy } from './copy/tracking';
 import { TRIP_STATUSES } from './enums';
 import {
   DEFAULT_TRACKING_CONFIG as config,
@@ -10,6 +10,7 @@ import {
   toTrackPoint,
   trackingConfigFromEnv,
   trackingDecision,
+  locationAdvice,
   type RawFix,
   type TrackPoint,
 } from './tracking';
@@ -153,6 +154,34 @@ describe('trackingDecision', () => {
     expect(
       trackingDecision({ status: 'in_transit', consented: true, backgroundPermission: false }),
     ).toBe('needs_permission');
+  });
+});
+
+describe('locationAdvice (D17)', () => {
+  const precise = { foreground: true, background: true, accuracy: 'precise' } as const;
+
+  it('is ok only with the precise location and "Always"', () => {
+    expect(locationAdvice(precise)).toBe('ok');
+    // The OS does not report the precision (iOS before 14): not approximate.
+    expect(locationAdvice({ ...precise, accuracy: null })).toBe('ok');
+  });
+
+  it('asks for the location first, then "Always", then the precise location', () => {
+    expect(locationAdvice({ foreground: false, background: false, accuracy: null })).toBe('denied');
+    expect(locationAdvice({ ...precise, foreground: false })).toBe('denied');
+    expect(locationAdvice({ ...precise, background: false })).toBe('enable_always');
+    expect(locationAdvice({ ...precise, background: false, accuracy: 'approximate' })).toBe(
+      'enable_always',
+    );
+    expect(locationAdvice({ ...precise, accuracy: 'approximate' })).toBe('enable_precise');
+  });
+
+  it('has a reason for every advice but ok', () => {
+    for (const advice of ['denied', 'enable_always', 'enable_precise'] as const) {
+      expect(trackingCopy.preciseMissing[advice]).toBeTruthy();
+    }
+    expect(trackingCopy.preciseBody).toContain('precisa');
+    expect(trackingCopy.preciseBody).toContain('Siempre');
   });
 });
 

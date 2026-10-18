@@ -179,7 +179,9 @@ export const authCopy = {
 export const shellCopy = {
   signOut: 'Cerrar sesión',
   shipperArea: 'Cliente',
-  carrierArea: 'Transportista',
+  /** Carrier area (G9): the role, not the company type (D19). */
+  managerArea: 'Gerente',
+  coordinatorArea: 'Coordinador',
   adminArea: 'Administración',
   shipperHome: {
     title: 'Inicio',

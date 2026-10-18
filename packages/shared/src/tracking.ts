@@ -176,3 +176,25 @@ export function trackingDecision(input: {
   if (!input.backgroundPermission) return 'needs_permission';
   return 'track';
 }
+
+/** How precise the location permission is: iOS `full`/`reduced`, Android `fine`/`coarse`. */
+export type LocationPrecision = 'precise' | 'approximate';
+
+export type LocationAdvice = 'ok' | 'enable_always' | 'enable_precise' | 'denied';
+
+/**
+ * What the operator still has to turn on so the coordinator and the shipper
+ * see the trip (D17): the location at all, then "Always", then the precise
+ * location. `accuracy` is null when the OS does not say (iOS before 14),
+ * which is not treated as approximate.
+ */
+export function locationAdvice(input: {
+  foreground: boolean;
+  background: boolean;
+  accuracy: LocationPrecision | null;
+}): LocationAdvice {
+  if (!input.foreground) return 'denied';
+  if (!input.background) return 'enable_always';
+  if (input.accuracy === 'approximate') return 'enable_precise';
+  return 'ok';
+}

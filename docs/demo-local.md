@@ -18,11 +18,11 @@ Contraseña de todos: **`Demo1234`**
 | `andrea.cavazos@demo.test`   | Coordinadora              | TRN · "Corredor MTY–GDL"                   | `TRN-01`, `CS53-01`, Pedro López, el viaje en descarga y su chat (app y web)   |
 | `hector.ibarra@demo.test`    | Coordinador               | TRN · "Regional Monterrey"                 | `RF53-01`, `TT-01`, Raúl y Arturo; no ve nada del corredor (app y web)          |
 | `carmen.navarro@demo.test`   | Gerente                   | Fletes Tapatíos (Guadalajara)              | Contraoferta por responder; plataforma con póliza en revisión      |
-| `jose.sanchez@demo.test`     | Gerente y operador        | José Sánchez Medina (hombre-camión, D13)   | Oferta pendiente; viaje cerrado que manejó él mismo                |
+| `jose.sanchez@demo.test`     | Gerente y operador        | José Sánchez Medina (hombre-camión, D13)   | Oferta pendiente; viaje cerrado que manejó él mismo; en la app, "Mi viaje" |
 | `pedro.lopez@demo.test`      | Operador                  | Transportes Regios del Norte               | Viaje en descarga: actualizar el fin estimado y terminar           |
 | `raul.mendez@demo.test`      | Operador                  | Transportes Regios del Norte               | Operador sin viaje activo                                          |
 | `miguel.hernandez@demo.test` | Operador                  | Fletes Tapatíos                            | Viaje asignado Apodaca → GDL: registrar la salida                  |
-| `81 1000 0013` (teléfono)    | Operador sin correo (G2)  | TRN · "Regional Monterrey"                 | Iván Garza: entra con su teléfono y `Demo1234` ("Correo o teléfono") |
+| `81 1000 0013` (teléfono)    | Operador sin correo (G2)  | TRN · "Regional Monterrey"                 | Iván Garza: entra con su teléfono y `Demo1234` ("Correo o teléfono"); licencia aprobada, se le puede asignar `RF53-01` |
 
 Arturo Cantú y Daniel Ortiz son operadores **sin cuenta** (para probar la invitación, D15).
 
@@ -34,9 +34,24 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 ## Qué hay
 
 - **6 empresas aprobadas** (3 clientes y 3 transportistas) con todos sus documentos aprobados, salvo la póliza de la plataforma de Fletes Tapatíos, que espera revisión: esa unidad no está lista para matching hasta que el admin la apruebe.
-- **8 unidades** (tractocamiones, cajas secas, refrigerada, plataforma, tortons y rabón) y **6 operadores**, con disponibilidad en Monterrey, Saltillo y Guadalajara, y rutas habituales MTY ↔ GDL.
+- **8 unidades** (tractocamiones, cajas secas, refrigerada, plataforma, tortons y rabón) y **7 operadores** (Iván Garza, solo con teléfono), con disponibilidad en Monterrey, Saltillo y Guadalajara, y rutas habituales MTY ↔ GDL.
 - **15 cargas** en ambos sentidos y en todos los estados: 6 publicadas, 2 en negociación, 1 borrador, 1 contratada, 1 en curso, 2 completadas, 1 cancelada y 1 expirada.
 - **4 viajes**: uno MTY → GDL **en descarga** con fin estimado en 2 horas (con línea de tiempo, puntos GPS del corredor y chat), uno asignado y dos cerrados.
+
+### Recorrido por perfil (G9)
+
+Con la seed recién cargada, cada perfil tiene algo que ver en la web y en la app (las pruebas de punta a punta recorren lo mismo: `e2e/tests/profiles.spec.ts` y los flujos de Maestro de la tabla de abajo):
+
+| Perfil | Usuario | Web | App |
+| --- | --- | --- | --- |
+| Cliente | `ana.garza@demo.test` | Su viaje MTY → GDL en descarga: mapa, documentos del transportista (G6), alta de proveedor y "Compartir" seguimiento (G7) | — (los clientes usan la web) |
+| Gerente | `jorge.villarreal@demo.test` | "Supervisión" por unidad de negocio en el inicio, toda la flota y "Mi empresa" (G4) | Viaje de regreso, asignar y "Más → Mi empresa" |
+| Coordinador | `andrea.cavazos@demo.test`, `hector.ibarra@demo.test` | Solo su unidad de negocio: Andrea no ve `RF53-01` ni a Raúl; Héctor no abre el viaje del corredor | Andrea: solo `TRN-01` y `CS53-01`, sin "Mi empresa"; Héctor: liberar una unidad (G5) |
+| Operador | `pedro.lopez@demo.test`, `miguel.hernandez@demo.test`, `81 1000 0013` | — (los operadores usan la app) | Estados, fotos, incidencia sin conexión; Iván entra con su teléfono y ve el aviso de ubicación precisa (D17) |
+| Hombre-camión | `jose.sanchez@demo.test` | Su empresa, `JSM-01` y él mismo como operador | Oferta con `JSM-01`, se asigna y opera su viaje en "Mi viaje" |
+| Anónimo | (sin cuenta) | Un enlace público de seguimiento sin precio ni direcciones; revocado, "ya no está disponible" | — |
+
+**Ubicación precisa (D17):** la app del operador (y "Mi viaje" del hombre-camión) muestra el aviso «Ubicación precisa y "Siempre"» con el botón "Abrir ajustes" mientras el permiso no sea "Siempre" o la ubicación sea aproximada. Para verlo en el simulador, da solo "Mientras se usa la app" (el flujo `12-operator-phone.yaml` lo hace).
 
 ### Escenario del viaje de regreso (B08)
 
@@ -94,4 +109,5 @@ El script solo imprime `export` de variables: `SUPABASE_*_PORT` (que Supabase CL
 
 - `supabase test db supabase/seed-tests` verifica el seed (corre justo después de `supabase db reset`).
 - La suite pgTAP (`supabase test db`) crea sus propios datos y acota sus comprobaciones a ellos: pasa tanto sobre la base con seed como sobre una vacía (`supabase db reset --no-seed`). CI corre las tres cosas.
-- App móvil de punta a punta: `pnpm e2e:mobile` recorre en el simulador, sobre esta seed, al transportista (Jorge: viaje de regreso y oferta; Carmen: contraoferta) y a los operadores (Miguel: recolección, incidencia con foto sin conexión y entrega; Pedro: fin estimado y fin de descarga). Requisitos y cómo correrlo: [apps/mobile/.maestro/README.md](../apps/mobile/.maestro/README.md). No corre en CI.
+- Web de punta a punta: Playwright (`e2e/`) recorre los cinco perfiles y los escenarios de §G ([e2e/README.md](../e2e/README.md)).
+- App móvil de punta a punta: `pnpm e2e:mobile` recorre en el simulador, sobre esta seed, al Gerente (Jorge: viaje de regreso, oferta, asignación y "Mi empresa"; Carmen: contraoferta), a los Coordinadores (Héctor libera una unidad; Andrea solo ve su unidad de negocio), a los operadores (Miguel: recolección, incidencia con foto sin conexión y entrega; Pedro: fin estimado y fin de descarga; un operador nuevo se da de alta por enlace con su teléfono; Iván entra con su teléfono) y al hombre-camión (José oferta, se asigna y sale en "Mi viaje"). Requisitos y cómo correrlo: [apps/mobile/.maestro/README.md](../apps/mobile/.maestro/README.md). No corre en CI.

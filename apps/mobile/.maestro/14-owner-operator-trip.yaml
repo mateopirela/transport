@@ -1,0 +1,74 @@
+# Hombre-camión (D13): the shipper accepted José's offer (`pnpm e2e:mobile`,
+# step owner-operator-accepted). He assigns JSM-01 and himself to the trip,
+# opens "Mi viaje" (the operator's trip screen inside the carrier tabs),
+# accepts sharing his location and sets off.
+appId: ${APP_ID}
+name: Hombre-camión · opera su propio viaje
+tags: [carrier, owner-operator, operator]
+---
+- setLocation:
+    latitude: 25.6866
+    longitude: -100.3161
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jose.sanchez@demo.test
+- extendedWaitUntil:
+    visible: 'Viajes, tab.*'
+    timeout: 30000
+- tapOn: 'Viajes, tab.*'
+- extendedWaitUntil:
+    visible: 'Monterrey → Saltillo.*'
+    timeout: 15000
+- tapOn: 'Monterrey → Saltillo.*'
+- extendedWaitUntil:
+    visible: 'Asignación'
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'JSM-01.*'
+    centerElement: true
+- tapOn: 'JSM-01.*'
+- scrollUntilVisible:
+    element: 'José Sánchez Medina.*'
+    centerElement: true
+- tapOn: 'José Sánchez Medina.*'
+- scrollUntilVisible:
+    element: 'Asignar operador'
+    centerElement: true
+- tapOn: 'Asignar operador'
+- tapOn: 'Sí, asignar'
+- extendedWaitUntil:
+    visible: 'Listo. Avisamos a .*'
+    timeout: 15000
+- takeScreenshot: 14-1-owner-operator-assigned
+# G6: what the trip shares with the shipper (company, unit and operator).
+- scrollUntilVisible:
+    element: 'Documentos compartidos con el cliente'
+    centerElement: true
+- takeScreenshot: 14-2-owner-operator-shared-documents
+# Back to the tabs (the trip is a stack screen with a back button).
+- tapOn:
+    point: '9%,8%'
+- tapOn: 'Mi viaje, tab.*'
+- extendedWaitUntil:
+    visible: 'Avance del viaje'
+    timeout: 30000
+- takeScreenshot: 14-3-owner-operator-my-trip
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Salir a recolección'
+# Once the trip is active, tracking asks for the consent first (B22).
+- scrollUntilVisible:
+    element: 'Revisar y aceptar'
+    direction: UP
+    timeout: 15000
+- runFlow:
+    file: subflows/location-consent.yaml
+    env:
+      SHOT: 14-4-owner-operator-consent
+- scrollUntilVisible:
+    element: 'Compartiendo ubicación'
+    direction: UP
+    timeout: 30000
+- takeScreenshot: 14-5-owner-operator-on-the-way

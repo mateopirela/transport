@@ -102,7 +102,8 @@ describe('cancelShipperTrip (G5)', () => {
       {},
       form({ tripId: TRIP, reasonCode: 'shipper_request', notes: '  ' }),
     );
-    expect(state.message).toBeTruthy();
+    // No message: the page reloads with the trip cancelled and its reason.
+    expect(state).toEqual({});
     expect(rpc).toHaveBeenCalledWith('cancel_trip', {
       p_trip_id: TRIP,
       p_reason_code: 'shipper_request',

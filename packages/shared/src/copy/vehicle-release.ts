@@ -27,7 +27,6 @@ export const tripCancelCopy = {
   confirm: 'Sí, cancelar el viaje',
   keep: 'No cancelar',
   cancelling: 'Cancelando…',
-  done: 'El viaje quedó cancelado.',
 } as const;
 
 export const vehicleReleaseCopy = {

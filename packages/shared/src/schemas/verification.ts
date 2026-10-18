@@ -6,9 +6,12 @@ import {
   emailField,
   enumField,
   formError,
+  mxPhoneField,
+  mxStateField,
   onlyWhenValid,
   optionalText,
   phoneField,
+  postalCodeField,
   requiredText,
   uuidField,
 } from './common';
@@ -81,3 +84,27 @@ export const companyContactSchema = z.object(
   formError,
 );
 export type CompanyContactValues = z.output<typeof companyContactSchema>;
+
+/**
+ * Name, contact and fiscal data the company's staff may complete while it
+ * is in review (G2). The RFC never changes here; whether the legal
+ * representative is required depends on it, so the caller checks that.
+ */
+export const companyDataSchema = z.object(
+  {
+    legalName: requiredText(300),
+    contactName: requiredText(120),
+    contactEmail: emailField,
+    contactPhone: mxPhoneField,
+    fiscalStreet: requiredText(200),
+    fiscalExteriorNumber: requiredText(20),
+    fiscalInteriorNumber: optionalText(20),
+    fiscalNeighborhood: requiredText(120),
+    fiscalPostalCode: postalCodeField,
+    fiscalMunicipality: requiredText(120),
+    fiscalState: mxStateField,
+    legalRepresentativeName: optionalText(200),
+  },
+  formError,
+);
+export type CompanyDataValues = z.output<typeof companyDataSchema>;

@@ -46,6 +46,14 @@ describe('confirmationPath', () => {
     expect(confirmationPath(html)).toBe('/auth/confirm?token_hash=pkce_ab-12_CD&type=email');
   });
 
+  it('keeps the redirect of the sign-up (back to an invitation link)', () => {
+    const html =
+      '<a href="http://127.0.0.1:3000/auth/confirm?token_hash=abc&amp;type=email&amp;redirect_to=http%3a%2f%2f127.0.0.1%3a3000%2fauth%2fconfirm%3fnext%3d%252Finvitacion%252Fxyz">x</a>';
+    expect(confirmationPath(html)).toBe(
+      '/auth/confirm?token_hash=abc&type=email&redirect_to=http%3a%2f%2f127.0.0.1%3a3000%2fauth%2fconfirm%3fnext%3d%252Finvitacion%252Fxyz',
+    );
+  });
+
   it('finds the link in the text version', () => {
     expect(
       confirmationPath('Abre http://localhost:3000/auth/confirm?token_hash=abc123&type=signup'),

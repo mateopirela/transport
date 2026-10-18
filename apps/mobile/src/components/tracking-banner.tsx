@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { trackingCopy as copy } from '@transport/shared';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { TripTracking } from '../lib/use-trip-tracking';
@@ -10,6 +10,8 @@ import { Body, Button, Notice } from './ui';
 /** "Compartiendo ubicación" indicator of the trip screen, or what is missing (B22). */
 export function TrackingBanner({ tracking }: { tracking: TripTracking }) {
   const router = useRouter();
+  // The hombre-camión sees the trip inside the carrier area (D13).
+  const inCarrierArea = useSegments()[0] === '(carrier)';
   const { decision, unavailable, queuedPoints } = tracking;
 
   if (decision === 'needs_consent' || decision === 'needs_permission') {
@@ -20,7 +22,7 @@ export function TrackingBanner({ tracking }: { tracking: TripTracking }) {
         <Button
           label={consent ? copy.needsConsentAction : copy.needsPermissionAction}
           variant="secondary"
-          onPress={() => router.push('/location-consent')}
+          onPress={() => router.push(inCarrierArea ? '/my-trip-consent' : '/location-consent')}
         />
       </Notice>
     );

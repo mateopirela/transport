@@ -22,8 +22,8 @@ create function tests.new_user(p_id uuid, p_email text, p_role text)
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
-  values (p_id, 'authenticated', 'authenticated', p_email, now(), jsonb_build_object('role', p_role), now(), now());
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values (p_id, 'authenticated', 'authenticated', p_email, now(), case when p_role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, jsonb_build_object('role', p_role, 'phone', '+525500000000'), now(), now());
 $$;
 
 create function tests.login(p_id uuid)

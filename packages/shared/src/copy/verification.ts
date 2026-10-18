@@ -40,9 +40,14 @@ export const onboardingCopy = {
     contactName: 'Nombre de contacto',
     contactEmail: 'Correo de contacto',
     contactPhone: 'Teléfono de contacto',
+    fiscalAddress: 'Domicilio fiscal',
     submit: 'Guardar datos',
     pending: 'Guardando…',
     saved: 'Datos guardados.',
+    /** Fiscal data still missing (G2): the admin cannot approve without it. */
+    missingFiscalTitle: 'Faltan datos fiscales',
+    missingFiscal: (fields: string) =>
+      `Para aprobar tu empresa necesitamos: ${fields}. Complétalos aquí abajo.`,
   },
   documents: {
     title: 'Documentos',
@@ -79,6 +84,17 @@ export const onboardingCopy = {
     expiryRequired: 'Este documento necesita fecha de vencimiento.',
     expired: 'El documento ya está vencido.',
   },
+} as const;
+
+/** Names of the fiscal columns of `companies` (G2), for the missing-data notices. */
+export const companyFiscalFieldLabels = {
+  fiscal_street: 'calle',
+  fiscal_exterior_number: 'número exterior',
+  fiscal_neighborhood: 'colonia',
+  fiscal_postal_code: 'código postal',
+  fiscal_municipality: 'municipio',
+  fiscal_state: 'estado',
+  legal_representative_name: 'representante legal',
 } as const;
 
 export const adminCopy = {
@@ -138,6 +154,10 @@ export const adminCopy = {
     notFound: 'No encontramos esa empresa.',
     data: 'Datos de la empresa',
     contact: 'Contacto',
+    fiscalAddress: 'Domicilio fiscal',
+    legalRepresentative: 'Representante legal',
+    ownerOperator: 'Hombre camión',
+    missingFiscal: (fields: string) => `Faltan datos fiscales: ${fields}.`,
     createdAt: 'Registrada',
     statusReason: 'Motivo',
     members: 'Usuarios',
@@ -248,6 +268,8 @@ export const adminCopy = {
     forbidden: 'No tienes permiso para esta acción.',
     notPending: 'Ya no está pendiente: alguien más lo revisó. Recarga la página.',
     missingDocuments: 'La empresa aún tiene documentos obligatorios sin aprobar o vencidos.',
+    missingFiscalData:
+      'La empresa aún no completa sus datos fiscales (domicilio y representante legal).',
     invalidTransition: 'Esa acción no aplica al estado actual de la empresa.',
     expiryRequired: 'Este documento necesita fecha de vencimiento.',
     expired: 'La fecha de vencimiento ya pasó.',

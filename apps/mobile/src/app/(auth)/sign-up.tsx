@@ -1,18 +1,33 @@
-import { carrierSignUpSchema, mobileAuthCopy as copy, mobileErrorCopy } from '@transport/shared';
+import {
+  carrierSignUpSchema,
+  mobileAuthCopy as copy,
+  mobileErrorCopy,
+  type CarrierSignUpKind,
+} from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
 import { LegalLinks } from '../../components/legal-links';
+import { OptionGroup } from '../../components/option-group';
 import { Button, Field, Notice, Screen, Title } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
 
-/** Carrier self sign-up. The company is registered next (app/company.tsx). */
+const KINDS: { value: CarrierSignUpKind; label: string }[] = [
+  { value: 'carrier', label: copy.signUpKindCarrier },
+  { value: 'owner_operator', label: copy.signUpKindOwnerOperator },
+];
+
+/**
+ * Carrier self sign-up: a company or a hombre-camión (D13). The company and
+ * its fiscal data are registered next (app/company.tsx).
+ */
 export default function SignUp() {
   const { actions } = useSession();
   const router = useRouter();
   const [values, setValues] = useState({
+    kind: 'carrier' as CarrierSignUpKind,
     fullName: '',
     email: '',
     phone: '',
@@ -24,7 +39,7 @@ export default function SignUp() {
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const set = (field: keyof typeof values) => (text: string) =>
+  const set = (field: Exclude<keyof typeof values, 'kind'>) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
 
   async function submit() {
@@ -45,6 +60,14 @@ export default function SignUp() {
     <Screen>
       <Title subtitle={copy.signUpSubtitle}>{copy.signUpTitle}</Title>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
+      <OptionGroup
+        label={copy.signUpKindLabel}
+        options={KINDS}
+        value={values.kind}
+        onChange={(kind) => setValues((current) => ({ ...current, kind }))}
+        hint={values.kind === 'owner_operator' ? copy.signUpKindOwnerOperatorHint : undefined}
+        error={errors.kind}
+      />
       <Field
         label={copy.fullNameLabel}
         value={values.fullName}

@@ -7,6 +7,8 @@ export interface ProfileDetails extends ProfileSnapshot {
   phone: string | null;
   companyName: string | null;
   companyStatusReason: string | null;
+  /** A hombre-camión (D13): the Gerente also drives, so the app adds "Mi viaje". */
+  isOwnerOperator: boolean;
 }
 
 /** Row returned by `profiles` with its company embedded (see PROFILE_SELECT). */
@@ -19,11 +21,12 @@ export interface ProfileRow {
     legal_name: string;
     status: VerificationStatus;
     status_reason: string | null;
+    is_owner_operator: boolean;
   } | null;
 }
 
 export const PROFILE_SELECT =
-  'role, company_id, full_name, phone, companies(legal_name, status, status_reason)' as const;
+  'role, company_id, full_name, phone, companies(legal_name, status, status_reason, is_owner_operator)' as const;
 
 export function toProfileDetails(row: ProfileRow): ProfileDetails {
   // The company is null when it is not readable (RLS) even if company_id is set.
@@ -36,5 +39,6 @@ export function toProfileDetails(row: ProfileRow): ProfileDetails {
     phone: row.phone,
     companyName: company?.legal_name ?? null,
     companyStatusReason: company?.status_reason ?? null,
+    isOwnerOperator: row.role === 'manager' && company?.is_owner_operator === true,
   };
 }

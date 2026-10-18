@@ -13,6 +13,7 @@ Se corren en orden con `pnpm e2e:mobile` ([scripts/e2e-mobile.mjs](../../../scri
 | `05-operator-pickup.yaml`           | `miguel.hernandez@demo.test` |                                                    | Acepta compartir ubicación, registra salida, llegada e inicio de carga, toma las fotos de recolección y sale con la carga                 |
 | `06-operator-incident-offline.yaml` | (sigue la sesión de 05)      | **Se cae la API** (para el contenedor de Kong)     | Reporta una incidencia y le toma una foto **sin conexión**: quedan en el teléfono como "Pendiente de enviar" / "1 foto espera…"           |
 | `07-operator-delivery.yaml`         | (sigue la sesión de 06)      | Vuelve la API                                      | "Enviar ahora": la incidencia llega como "Abierta" con su foto; después llegada a destino, inicio de descarga, fotos de entrega y entrega |
+| `08-operator-invite.yaml`           | (cuenta nueva: Mario Garza)  |                                                    | Abre el enlace demo `transport://invitacion/demo-operador-trn-…`, crea la cuenta con teléfono y contraseña y entra: "Sin viaje asignado"  |
 
 Las capturas de cada paso (`takeScreenshot`) quedan en `e2e/mobile-results/screenshots/` (ignorada por git) y los registros de Maestro en `e2e/mobile-results/maestro/`.
 

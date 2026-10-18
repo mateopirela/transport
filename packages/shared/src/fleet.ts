@@ -168,7 +168,6 @@ const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
   [/vehicles_company_plate_key/u, fleetErrorCopy.plateTaken],
   [/vehicle has expired documents/u, fleetErrorCopy.expiredDocuments],
   [/operator already has an account/u, fleetErrorCopy.operatorHasAccount],
-  [/operator has no email/u, fleetErrorCopy.operatorNoEmail],
   [/document is already expired/u, fleetErrorCopy.documentExpired],
   [/cannot archive: it is assigned to a trip in progress/u, fleetErrorCopy.archiveBlocked],
   [/only the manager can move or archive/u, fleetErrorCopy.managerOnly],

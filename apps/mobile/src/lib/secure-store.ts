@@ -25,15 +25,15 @@ export const sessionStorage = createChunkedStorage(backend);
  */
 export const tripQueueStorage = createChunkedStorage(backend);
 
-const PENDING_INVITATION_KEY = toStoreKey('transport.pending_invitation_code');
+const PENDING_INVITATION_KEY = toStoreKey('transport.pending_invitation_token');
 
 /**
- * The invitation code an operator used to sign up, kept until their e-mail is
- * confirmed and the invitation is accepted (D15). Single-use and bound to the
- * invited e-mail server-side, but still treated as a secret.
+ * The invitation token a coordinator used to sign up (G1b, G2), kept until
+ * their e-mail is confirmed and the invitation is accepted. Single-use
+ * server-side, but still treated as a secret: the link is the credential.
  */
 export const pendingInvitation = {
   get: () => SecureStore.getItemAsync(PENDING_INVITATION_KEY, OPTIONS),
-  set: (code: string) => SecureStore.setItemAsync(PENDING_INVITATION_KEY, code, OPTIONS),
+  set: (token: string) => SecureStore.setItemAsync(PENDING_INVITATION_KEY, token, OPTIONS),
   clear: () => SecureStore.deleteItemAsync(PENDING_INVITATION_KEY, OPTIONS),
 };

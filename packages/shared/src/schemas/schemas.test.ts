@@ -3,7 +3,7 @@ import type { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
 import { emailField, phoneField, placeSchema, timeWindowSchema } from './common';
-import { companyFormSchema, rfcField } from './company';
+import { companyFiscalSchema, companyRegistrationSchema, rfcField } from './company';
 import { loadFormSchema, type LoadFormInput } from './load';
 import { adminContractSchema, offerFormSchema } from './offer';
 import { operatorFormSchema, todayInMexicoCity } from './operator';
@@ -43,7 +43,8 @@ describe('Spanish messages (D02)', () => {
     ['offer', offerFormSchema],
     ['admin contract', adminContractSchema],
     ['vehicle', vehicleFormSchema],
-    ['company', companyFormSchema],
+    ['company', companyRegistrationSchema],
+    ['company fiscal data', companyFiscalSchema],
     ['operator', operatorFormSchema],
   ] as const)(
     '%s form reports only copy/ messages for incomplete or malformed input',
@@ -239,38 +240,69 @@ describe('vehicleFormSchema', () => {
   });
 });
 
-describe('companyFormSchema (RFC)', () => {
+describe('companyRegistrationSchema (RFC and fiscal data)', () => {
   const base = {
-    type: 'carrier',
+    kind: 'carrier',
     personType: 'moral',
     legalName: 'Transportes del Norte, S.A. de C.V.',
     rfc: 'tno 970701 nn3',
+    fiscalStreet: 'Av. Constitución',
+    fiscalExteriorNumber: '400',
+    fiscalNeighborhood: 'Centro',
+    fiscalPostalCode: '64000',
+    fiscalMunicipality: 'Monterrey',
+    fiscalState: 'Nuevo León',
+    legalRepresentativeName: 'Juan Pérez',
     contactName: 'Juan Pérez',
     contactEmail: 'juan@tnorte.mx',
     contactPhone: '81 1234 5678',
   };
 
-  it('accepts a persona moral with a 12-character RFC and normalizes it', () => {
-    expect(companyFormSchema.parse(base).rfc).toBe('TNO970701NN3');
+  it('accepts a persona moral with a 12-character RFC and normalizes it and the phone', () => {
+    const values = companyRegistrationSchema.parse(base);
+    expect(values.rfc).toBe('TNO970701NN3');
+    expect(values.contactPhone).toBe('+528112345678');
+    expect(values.fiscalInteriorNumber).toBeUndefined();
   });
 
-  it('accepts a persona física (owner-operator) with a 13-character RFC', () => {
+  it('accepts a persona física (owner-operator) with a 13-character RFC and no representative', () => {
     expect(
-      companyFormSchema.safeParse({ ...base, personType: 'fisica', rfc: 'GODE561231GR8' }).success,
+      companyRegistrationSchema.safeParse({
+        ...base,
+        kind: 'owner_operator',
+        personType: 'fisica',
+        rfc: 'GODE561231GR8',
+        legalRepresentativeName: undefined,
+      }).success,
     ).toBe(true);
+    expect(issues(companyRegistrationSchema, { ...base, legalRepresentativeName: '' })).toEqual({
+      legalRepresentativeName: m.required,
+    });
   });
 
   it('rejects an RFC whose length does not match the person type', () => {
-    expect(issues(companyFormSchema, { ...base, rfc: 'GODE561231GR8' })).toEqual({
+    expect(issues(companyRegistrationSchema, { ...base, rfc: 'GODE561231GR8' })).toEqual({
       rfc: m.rfcMoral,
     });
-    expect(issues(companyFormSchema, { ...base, personType: 'fisica' })).toEqual({
+    expect(issues(companyRegistrationSchema, { ...base, personType: 'fisica' })).toEqual({
       rfc: m.rfcFisica,
     });
   });
 
   it('reports only the RFC error when the RFC itself is malformed', () => {
-    expect(issues(companyFormSchema, { ...base, rfc: 'nope' })).toEqual({ rfc: m.rfcFormat });
+    expect(issues(companyRegistrationSchema, { ...base, rfc: 'nope' })).toEqual({
+      rfc: m.rfcFormat,
+    });
+  });
+
+  it('validates the postal code and the state', () => {
+    expect(
+      issues(companyRegistrationSchema, {
+        ...base,
+        fiscalPostalCode: 'abcde',
+        fiscalState: 'Texas',
+      }),
+    ).toEqual({ fiscalPostalCode: m.postalCode, fiscalState: m.mxState });
   });
 
   it.each([

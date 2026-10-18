@@ -91,6 +91,14 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await page.getByLabel(f.personTypeMoral).check();
     await page.getByLabel(f.legalName).fill(shipper.legalName);
     await page.getByLabel(f.rfc).fill(shipper.rfc);
+    // Fiscal data (D16, G2): the admin cannot approve a company without it.
+    await page.getByLabel(f.legalRepresentativeName).fill(shipper.fullName);
+    await page.getByLabel(f.fiscalStreet).fill('Av. Constitución');
+    await page.getByLabel(f.fiscalExteriorNumber).fill('400');
+    await page.getByLabel(f.fiscalNeighborhood).fill('Centro');
+    await page.getByLabel(f.fiscalPostalCode).fill('64000');
+    await page.getByLabel(f.fiscalMunicipality).fill('Monterrey');
+    await page.getByLabel(f.fiscalState).selectOption('Nuevo León');
     await page.getByRole('button', { name: authCopy.signUp.submit }).click();
     await expect(page.getByText(authCopy.checkEmail.title)).toBeVisible();
 

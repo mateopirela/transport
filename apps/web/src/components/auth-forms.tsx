@@ -1,6 +1,11 @@
 'use client';
 
-import { authCopy } from '@transport/shared';
+import {
+  authCopy,
+  COMPANY_REGISTRATION_KINDS,
+  MX_STATES,
+  type CompanyRegistrationKind,
+} from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -8,15 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   completeCompany,
+  joinCompany,
   requestPasswordReset,
   signIn,
-  signUpShipper,
+  signUp,
+  signUpCoordinator,
   updatePassword,
 } from '@/lib/auth/actions';
 import type { FormState } from '@/lib/forms';
 import { cn } from '@/lib/utils';
 
 const f = authCopy.fields;
+const kinds = authCopy.registrationKinds;
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -107,6 +115,52 @@ export function Field({
   );
 }
 
+/** Radio group; the options are rendered as labelled cards. */
+function RadioCards({
+  name,
+  label,
+  options,
+  state,
+  defaultValue,
+}: {
+  name: string;
+  label: string;
+  options: { value: string; label: string; hint?: string }[];
+  state: FormState;
+  defaultValue: string;
+}) {
+  const error = state.fieldErrors?.[name];
+  const current = state.values?.[name] ?? defaultValue;
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">{label}</legend>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm has-checked:border-accent has-checked:bg-accent/5"
+          >
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              defaultChecked={current === option.value}
+              className="mt-0.5 accent-accent"
+            />
+            <span>
+              <span className="block font-medium">{option.label}</span>
+              {option.hint && (
+                <span className="block text-xs text-muted-foreground">{option.hint}</span>
+              )}
+            </span>
+          </label>
+        ))}
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </fieldset>
+  );
+}
+
 function PersonTypeField({ state }: { state: FormState }) {
   const error = state.fieldErrors?.personType;
   const current = state.values?.personType ?? 'moral';
@@ -132,6 +186,85 @@ function PersonTypeField({ state }: { state: FormState }) {
   );
 }
 
+const selectClass =
+  'h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive';
+
+function StateField({ state }: { state: FormState }) {
+  const error = state.fieldErrors?.fiscalState;
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="field-fiscalState">{f.fiscalState}</Label>
+      <select
+        id="field-fiscalState"
+        name="fiscalState"
+        defaultValue={state.values?.fiscalState ?? ''}
+        aria-invalid={error ? true : undefined}
+        className={selectClass}
+      >
+        <option value="">{f.fiscalStatePlaceholder}</option>
+        {MX_STATES.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** The fiscal data of a company (D16): razón social, RFC, domicilio fiscal and representante. */
+export function CompanyFiscalFields({
+  state,
+  withRfc = true,
+}: {
+  state: FormState;
+  /** The RFC cannot change once the company exists (/cuenta-en-revision). */
+  withRfc?: boolean;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {withRfc && <PersonTypeField state={state} />}
+      <Field
+        name="legalName"
+        autoComplete="organization"
+        label={f.legalName}
+        state={state}
+        className="sm:col-span-2"
+      />
+      {withRfc && <Field name="rfc" label={f.rfc} state={state} maxLength={20} />}
+      <Field
+        name="legalRepresentativeName"
+        label={f.legalRepresentativeName}
+        hint={f.legalRepresentativeHint}
+        state={state}
+        className={withRfc ? undefined : 'sm:col-span-2'}
+      />
+      <h4 className="pt-2 text-base font-medium sm:col-span-2">{f.fiscalAddress}</h4>
+      <Field
+        name="fiscalStreet"
+        autoComplete="address-line1"
+        label={f.fiscalStreet}
+        state={state}
+        className="sm:col-span-2"
+      />
+      <Field name="fiscalExteriorNumber" label={f.fiscalExteriorNumber} state={state} />
+      <Field name="fiscalInteriorNumber" label={f.fiscalInteriorNumber} state={state} />
+      <Field name="fiscalNeighborhood" label={f.fiscalNeighborhood} state={state} />
+      <Field
+        name="fiscalPostalCode"
+        inputMode="numeric"
+        autoComplete="postal-code"
+        label={f.fiscalPostalCode}
+        state={state}
+        maxLength={5}
+      />
+      <Field name="fiscalMunicipality" label={f.fiscalMunicipality} state={state} />
+      <StateField state={state} />
+    </div>
+  );
+}
+
 export function SignInForm({ next }: { next?: string }) {
   const c = authCopy.signIn;
   return (
@@ -139,7 +272,13 @@ export function SignInForm({ next }: { next?: string }) {
       {(state) => (
         <>
           {next && <input type="hidden" name="next" value={next} />}
-          <Field name="email" type="email" autoComplete="email" label={f.email} state={state} />
+          <Field
+            name="identifier"
+            type="text"
+            autoComplete="username"
+            label={f.identifier}
+            state={state}
+          />
           <Field
             name="password"
             type="password"
@@ -153,61 +292,67 @@ export function SignInForm({ next }: { next?: string }) {
   );
 }
 
-export function SignUpForm() {
-  const c = authCopy.signUp;
-  return (
-    <ActionForm action={signUpShipper} submit={c.submit} pending={c.pending}>
-      {(state) => (
-        <>
-          <h3 className="text-lg">{c.accountSection}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="fullName" autoComplete="name" label={f.fullName} state={state} />
-            <Field name="phone" type="tel" autoComplete="tel" label={f.phone} state={state} />
-            <Field
-              name="email"
-              type="email"
-              autoComplete="email"
-              label={f.email}
-              state={state}
-              className="sm:col-span-2"
-            />
-            <Field
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              label={f.password}
-              hint={f.passwordHint}
-              state={state}
-            />
-            <Field
-              name="passwordConfirmation"
-              type="password"
-              autoComplete="new-password"
-              label={f.passwordConfirmation}
-              state={state}
-            />
-          </div>
-          <h3 className="pt-2 text-lg">{c.companySection}</h3>
-          <CompanyFields state={state} />
-        </>
-      )}
-    </ActionForm>
-  );
-}
+const KIND_OPTIONS: { value: CompanyRegistrationKind; label: string; hint: string }[] = [
+  { value: 'shipper', label: kinds.shipper, hint: kinds.shipperHint },
+  { value: 'carrier', label: kinds.carrier, hint: kinds.carrierHint },
+  { value: 'owner_operator', label: kinds.owner_operator, hint: kinds.ownerOperatorHint },
+];
 
-function CompanyFields({ state }: { state: FormState }) {
+/** Account fields of a sign-up: name, phone, email and password. */
+function AccountFields({ state }: { state: FormState }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <PersonTypeField state={state} />
+      <Field name="fullName" autoComplete="name" label={f.fullName} state={state} />
+      <Field name="phone" type="tel" autoComplete="tel" label={f.phone} state={state} />
       <Field
-        name="legalName"
-        autoComplete="organization"
-        label={f.legalName}
+        name="email"
+        type="email"
+        autoComplete="email"
+        label={f.email}
         state={state}
         className="sm:col-span-2"
       />
-      <Field name="rfc" label={f.rfc} state={state} maxLength={20} />
+      <Field
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        label={f.password}
+        hint={f.passwordHint}
+        state={state}
+      />
+      <Field
+        name="passwordConfirmation"
+        type="password"
+        autoComplete="new-password"
+        label={f.passwordConfirmation}
+        state={state}
+      />
     </div>
+  );
+}
+
+/** /registro (G2): the kind, the person and the company's fiscal data. */
+export function SignUpForm() {
+  const c = authCopy.signUp;
+  return (
+    <ActionForm action={signUp} submit={c.submit} pending={c.pending}>
+      {(state) => (
+        <>
+          <RadioCards
+            name="kind"
+            label={kinds.label}
+            options={KIND_OPTIONS}
+            state={state}
+            defaultValue="shipper"
+          />
+          <h3 className="text-lg">{c.accountSection}</h3>
+          <AccountFields state={state} />
+          <h3 className="pt-2 text-lg">{c.companySection}</h3>
+          <p className="-mt-3 text-sm text-muted-foreground">{c.companyHint}</p>
+          <CompanyFiscalFields state={state} />
+        </>
+      )}
+    </ActionForm>
   );
 }
 
@@ -249,13 +394,36 @@ export function ResetPasswordForm() {
   );
 }
 
-export function CompleteCompanyForm({ initial }: { initial: FormState }) {
+/**
+ * /completar-registro: a shipper registers a shipper company; a Gerente
+ * chooses between a carrier company and hombre-camión.
+ */
+export function CompleteCompanyForm({
+  initial,
+  kinds: allowed,
+}: {
+  initial: FormState;
+  kinds: readonly CompanyRegistrationKind[];
+}) {
   const c = authCopy.completeCompany;
+  const options = KIND_OPTIONS.filter((option) => allowed.includes(option.value));
+  const defaultKind = initial.values?.kind ?? allowed[0] ?? COMPANY_REGISTRATION_KINDS[0];
   return (
     <ActionForm action={completeCompany} initial={initial} submit={c.submit} pending={c.pending}>
       {(state) => (
         <>
-          <CompanyFields state={state} />
+          {options.length > 1 ? (
+            <RadioCards
+              name="kind"
+              label={kinds.label}
+              options={options}
+              state={state}
+              defaultValue={defaultKind}
+            />
+          ) : (
+            <input type="hidden" name="kind" value={defaultKind} />
+          )}
+          <CompanyFiscalFields state={state} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field name="contactName" label={f.fullName} state={state} />
             <Field name="contactPhone" type="tel" label={f.phone} state={state} />
@@ -269,6 +437,36 @@ export function CompleteCompanyForm({ initial }: { initial: FormState }) {
           </div>
         </>
       )}
+    </ActionForm>
+  );
+}
+
+/** /invitacion/[token]: a new Coordinador creates their account (G1b, G2). */
+export function CoordinatorSignUpForm({ token, name }: { token: string; name?: string | null }) {
+  const c = authCopy.invitation.coordinator;
+  return (
+    <ActionForm
+      action={signUpCoordinator}
+      initial={name ? { values: { fullName: name } } : {}}
+      submit={c.submit}
+      pending={c.pending}
+    >
+      {(state) => (
+        <>
+          <input type="hidden" name="token" value={token} />
+          <AccountFields state={state} />
+        </>
+      )}
+    </ActionForm>
+  );
+}
+
+/** /invitacion/[token]: a signed-in Coordinador without a company joins. */
+export function JoinCompanyForm({ token }: { token: string }) {
+  const c = authCopy.invitation.coordinator;
+  return (
+    <ActionForm action={joinCompany} submit={c.join} pending={c.joinPending}>
+      {() => <input type="hidden" name="token" value={token} />}
     </ActionForm>
   );
 }

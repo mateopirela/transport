@@ -192,7 +192,7 @@ export async function clearAvailability(client: Supabase, vehicleId: string): Pr
 }
 
 // ---------------------------------------------------------------------------
-// Operators and invitations (D15)
+// Operators and invitation links (G1b, G2)
 // ---------------------------------------------------------------------------
 
 export type OperatorRow = Pick<
@@ -207,10 +207,7 @@ export type OperatorRow = Pick<
   | 'profile_id'
 >;
 
-export type InvitationRow = Pick<
-  Tables<'operator_invitations'>,
-  'id' | 'operator_id' | 'expires_at'
->;
+export type InvitationRow = Pick<Tables<'invitations'>, 'id' | 'operator_id' | 'expires_at'>;
 
 export interface OperatorSummary
   extends OperatorRow, Pick<Tables<'operators'>, 'business_unit_id'> {
@@ -234,14 +231,16 @@ export async function listOperators(
       .is('archived_at', null)
       .order('created_at'),
     client
-      .from('operator_invitations')
+      .from('invitations')
       .select('id, operator_id, expires_at')
       .eq('company_id', companyId)
+      .eq('kind', 'operator')
+      .not('operator_id', 'is', null)
       .is('accepted_at', null)
       .is('revoked_at', null)
       .gt('expires_at', new Date().toISOString()),
   ]);
-  const pending = new Map(check(invitations).map((i) => [i.operator_id, i]));
+  const pending = new Map(check(invitations).map((i) => [i.operator_id ?? '', i]));
   return check(operators).map(({ business_units: unit, ...o }) => ({
     ...o,
     businessUnitName: unit?.name ?? null,
@@ -285,19 +284,29 @@ export async function archiveOperator(client: Supabase, id: string): Promise<voi
   ok(await client.from('operators').update({ archived_at: new Date().toISOString() }).eq('id', id));
 }
 
-/** Issues a new code (revoking the previous one). The plain code is only returned here. */
+/**
+ * Issues an invitation link for an operator row without an account (G2),
+ * revoking the previous one. The plain token is only returned here; the
+ * database keeps its SHA-256.
+ */
 export async function createInvitation(
   client: Supabase,
   operatorId: string,
-): Promise<{ invitationId: string; code: string; expiresAt: string }> {
-  const rows = check(await client.rpc('create_operator_invitation', { p_operator_id: operatorId }));
+): Promise<{ invitationId: string; token: string; expiresAt: string }> {
+  const rows = check(
+    await client.rpc('create_invitation', {
+      p_kind: 'operator',
+      p_business_unit_ids: [],
+      p_operator_id: operatorId,
+    }),
+  );
   const row = rows[0];
-  if (!row) throw new Error('create_operator_invitation returned no row');
-  return { invitationId: row.invitation_id, code: row.code, expiresAt: row.expires_at };
+  if (!row) throw new Error('create_invitation returned no row');
+  return { invitationId: row.invitation_id, token: row.token, expiresAt: row.expires_at };
 }
 
 export async function revokeInvitation(client: Supabase, invitationId: string): Promise<void> {
-  ok(await client.rpc('revoke_operator_invitation', { p_invitation_id: invitationId }));
+  ok(await client.rpc('revoke_invitation', { p_invitation_id: invitationId }));
 }
 
 // ---------------------------------------------------------------------------

@@ -80,7 +80,8 @@ select throws_ok(
   '42501', 'operator not found', 'Héctor cannot reset the access of an operator of the corredor'
 );
 select is(
-  (select count(*)::int from public.invitations), 0, 'Héctor sees no invitation of the corredor'
+  (select count(*)::int from public.invitations), 1,
+  'Héctor sees no invitation of the corredor: only the demo operator link of his unit (G2)'
 );
 select tests.login('5eed0001-0000-4000-8000-000000000011');
 select is(
@@ -89,7 +90,8 @@ select is(
 );
 select tests.login('5eed0001-0000-4000-8000-000000000005');
 select is(
-  (select count(*)::int from public.invitations), 3, 'Jorge sees the three invitations'
+  (select count(*)::int from public.invitations), 5,
+  'Jorge sees the three invitations and the two demo links of the seed (G2)'
 );
 reset role;
 

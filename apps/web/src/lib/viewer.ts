@@ -11,6 +11,7 @@ export interface ViewerDetails {
   company: {
     id: string;
     legalName: string;
+    rfc: string;
     status: VerificationStatus;
     statusReason: string | null;
   } | null;
@@ -27,7 +28,7 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name, company:companies(id, legal_name, status, status_reason)')
+    .select('role, full_name, company:companies(id, legal_name, rfc, status, status_reason)')
     .eq('id', userId)
     .maybeSingle();
   if (!profile) return null;
@@ -40,6 +41,7 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
     company: company && {
       id: company.id,
       legalName: company.legal_name,
+      rfc: company.rfc,
       status: company.status,
       statusReason: company.status_reason,
     },

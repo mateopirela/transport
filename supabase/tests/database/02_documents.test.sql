@@ -16,8 +16,8 @@ create function tests.new_user(p_id uuid, p_meta jsonb)
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, raw_user_meta_data, created_at, updated_at)
-  values (p_id, 'authenticated', 'authenticated', p_id || '@test.local', p_meta, now(), now());
+  insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values (p_id, 'authenticated', 'authenticated', p_id || '@test.local', case when p_meta ->> 'role' = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, p_meta || '{"phone": "+525500000000"}', now(), now());
 $$;
 
 create function tests.login(p_id uuid)
@@ -93,6 +93,14 @@ insert into public.companies (id, type, legal_name, rfc) values
   ('c0000000-0000-4000-8000-00000000000a', 'shipper', 'Acme Envíos SA de CV', 'ACE010101AB1'),
   ('c0000000-0000-4000-8000-00000000000b', 'carrier', 'Transportes Beta SA de CV', 'TBE020202CD2'),
   ('c0000000-0000-4000-8000-00000000000c', 'shipper', 'María Gómez', 'GOMA800101AB1');
+
+-- Fiscal data (G2): review_company also needs it; this file tests documents.
+update public.companies
+set fiscal_street = 'Av. Constitución', fiscal_exterior_number = '400', fiscal_neighborhood = 'Centro',
+    fiscal_postal_code = '64000', fiscal_municipality = 'Monterrey', fiscal_state = 'Nuevo León',
+    legal_representative_name = 'Ana Pérez'
+where id in ('c0000000-0000-4000-8000-00000000000a', 'c0000000-0000-4000-8000-00000000000b',
+             'c0000000-0000-4000-8000-00000000000c');
 
 update public.profiles set company_id = 'c0000000-0000-4000-8000-00000000000a'
 where id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002');

@@ -10,6 +10,21 @@ import { createClient } from '@/lib/supabase/server';
 const OTP_TYPES = new Set<EmailOtpType>(['signup', 'email', 'recovery']);
 
 /**
+ * The `next` of the sign-up's `emailRedirectTo` (`<site>/auth/confirm?next=…`),
+ * which the confirmation template passes along as `redirect_to` (G2: a
+ * Coordinador returns to their invitation link). Only a relative path is
+ * kept (safeNextPath), so the redirect never leaves the site.
+ */
+function nextFromRedirect(redirectTo: string | null): string | null {
+  if (!redirectTo) return null;
+  try {
+    return new URL(redirectTo).searchParams.get('next');
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Landing of the links in auth emails. Supports the token-hash links of the
  * templates in supabase/templates (work from any browser) and the default
  * PKCE `code` links. On success the user has a session.
@@ -19,7 +34,8 @@ export async function GET(request: NextRequest) {
   const tokenHash = params.get('token_hash');
   const type = params.get('type') as EmailOtpType | null;
   const code = params.get('code');
-  const next = safeNextPath(params.get('next')) ?? paths.home;
+  const next =
+    safeNextPath(params.get('next') ?? nextFromRedirect(params.get('redirect_to'))) ?? paths.home;
 
   const supabase = await createClient();
   let ok = false;

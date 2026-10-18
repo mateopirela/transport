@@ -202,6 +202,7 @@ const steps = [
   },
   { name: 'api-up', run: (status) => apiUp(status) },
   { name: '07-operator-delivery', run: () => flow('07-operator-delivery') },
+  { name: '08-operator-invite', run: () => flow('08-operator-invite') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

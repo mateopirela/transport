@@ -1,0 +1,65 @@
+# Operator by phone (G2, D15-E1): opens the demo invitation link of
+# Transportes Regios ("Regional Monterrey"), creates the account with a phone
+# and a password (Edge Function redeem-invitation) and lands on the operator
+# area, signed in with that phone, without a trip yet.
+# Seed: the operator link with the fixed local token demo-operador-trn-… (it
+# is single-use: run `supabase db reset` before repeating the flow).
+appId: ${APP_ID}
+name: Operador · alta por enlace con teléfono
+tags: [operator, invitation]
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+    permissions:
+      location: always
+      camera: allow
+      notifications: deny
+- openLink: ${DEV_CLIENT_URL}
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd
+- openLink: transport://invitacion/demo-operador-trn-0000000000000000000000000
+- extendedWaitUntil:
+    visible: 'Transportes Regios del Norte te invita como Operador.*'
+    timeout: 30000
+- takeScreenshot: 08-1-operator-invite
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Nombre completo'
+      TEXT: 'Mario Garza'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Teléfono'
+      TEXT: '8110000099'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Contraseña'
+      TEXT: 'Demo1234'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Confirma tu contraseña'
+      TEXT: 'Demo1234'
+- tapOn: 'Unirme con invitación'
+- tapOn: 'Crear mi cuenta'
+- extendedWaitUntil:
+    visible: 'Not Now'
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: 'Not Now'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Sin viaje asignado'
+    timeout: 30000
+- takeScreenshot: 08-2-operator-no-trip

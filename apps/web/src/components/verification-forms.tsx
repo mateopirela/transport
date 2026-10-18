@@ -3,7 +3,7 @@
 import { adminCopy, onboardingCopy } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { ActionForm, Field, Notice } from '@/components/auth-forms';
+import { ActionForm, CompanyFiscalFields, Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { FormState } from '@/lib/forms';
@@ -14,7 +14,7 @@ import {
   updateCompanyContact,
 } from '@/lib/verification/actions';
 
-/** Shipper: company name and contact, editable while in review. */
+/** Shipper or Gerente: company name, fiscal data (G2) and contact, editable while in review. */
 export function CompanyContactForm({ values }: { values: Record<string, string> }) {
   const c = onboardingCopy.company;
   return (
@@ -25,31 +25,27 @@ export function CompanyContactForm({ values }: { values: Record<string, string> 
       pending={c.pending}
     >
       {(state) => (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="legalName"
-            label={c.legalName}
-            autoComplete="organization"
-            state={state}
-            className="sm:col-span-2"
-          />
-          <Field name="contactName" label={c.contactName} autoComplete="name" state={state} />
-          <Field
-            name="contactPhone"
-            type="tel"
-            label={c.contactPhone}
-            autoComplete="tel"
-            state={state}
-          />
-          <Field
-            name="contactEmail"
-            type="email"
-            label={c.contactEmail}
-            autoComplete="email"
-            state={state}
-            className="sm:col-span-2"
-          />
-        </div>
+        <>
+          <CompanyFiscalFields state={state} withRfc={false} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field name="contactName" label={c.contactName} autoComplete="name" state={state} />
+            <Field
+              name="contactPhone"
+              type="tel"
+              label={c.contactPhone}
+              autoComplete="tel"
+              state={state}
+            />
+            <Field
+              name="contactEmail"
+              type="email"
+              label={c.contactEmail}
+              autoComplete="email"
+              state={state}
+              className="sm:col-span-2"
+            />
+          </div>
+        </>
       )}
     </ActionForm>
   );

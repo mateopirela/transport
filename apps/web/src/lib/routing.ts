@@ -18,6 +18,8 @@ export const paths = {
   checkEmail: '/verificar-correo',
   resetPassword: '/restablecer',
   completeCompany: '/completar-registro',
+  /** Invitation links (G1b, G2): /invitacion/<token>, open with or without a session. */
+  invitation: '/invitacion',
   review: '/cuenta-en-revision',
   shipper: '/cliente',
   shipperLoads: '/cliente/cargas',
@@ -50,6 +52,9 @@ export const paths = {
   /** Internal share links (G7): a load shared with the carrier's team. */
   carrierShared: SHARE_PATHS.internal,
 } as const;
+
+/** The web page of an invitation link (G2). */
+export const invitationPath = (token: string) => `${paths.invitation}/${token}`;
 
 /** Shipper load detail and edit screens (B13). */
 export const loadPath = (loadId: string) => `/cliente/cargas/${loadId}`;
@@ -128,10 +133,12 @@ const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.chec
 
 /**
  * Open to everyone: auth callbacks must work with or without a session, the
- * legal pages (B27) are linked from the stores and the mobile app, and the
- * public share links (G7) are read by anyone who has the token.
+ * legal pages (B27) are linked from the stores and the mobile app, the
+ * public share links (G7) are read by anyone who has the token, and an
+ * invitation link (G2) is opened by a new person or by a signed-in
+ * Coordinador who joins the company.
  */
-const PUBLIC = ['/auth', paths.privacy, paths.terms, paths.shared];
+const PUBLIC = ['/auth', paths.privacy, paths.terms, paths.shared, paths.invitation];
 
 /** Areas that only one kind of user may open: their home. */
 const HOME_ONLY = [
@@ -157,9 +164,9 @@ export function homeFor(viewer: NonNullable<Viewer>): string {
     case 'manager':
     case 'coordinator':
       // The Gerente and the Coordinador work on the web too (D06-E1, G10a).
-      // A Gerente without a company fills the current company form (G2
-      // replaces it with the fiscal data); a Coordinador joins a company
-      // through an invitation (G1b), so this is only a fallback for them.
+      // A Gerente without a company registers it with its fiscal data (G2);
+      // a Coordinador joins a company through an invitation link (G1b), so
+      // for them this is only a fallback that points to the link.
       if (!viewer.company) return paths.completeCompany;
       return viewer.company.status === 'approved' ? paths.carrier : paths.review;
     case 'operator':

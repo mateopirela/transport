@@ -1,0 +1,17 @@
+{
+  "imports": {
+    "zod": "npm:zod@4.6.7",
+    "../../../packages/shared/src/copy/auth": "../../../packages/shared/src/copy/auth.ts",
+    "../../../packages/shared/src/copy/validation": "../../../packages/shared/src/copy/validation.ts",
+    "../../../packages/shared/src/invitation-link": "../../../packages/shared/src/invitation-link.ts",
+    "../../../packages/shared/src/money": "../../../packages/shared/src/money.ts",
+    "../../../packages/shared/src/mx-states": "../../../packages/shared/src/mx-states.ts",
+    "../../../packages/shared/src/phone": "../../../packages/shared/src/phone.ts",
+    "../../../packages/shared/src/schemas/common": "../../../packages/shared/src/schemas/common.ts",
+    "../../../packages/shared/src/schemas/password": "../../../packages/shared/src/schemas/password.ts",
+    "../../../packages/shared/src/schemas/redeem": "../../../packages/shared/src/schemas/redeem.ts",
+    "../../../packages/shared/src/observability/logger": "../../../packages/shared/src/observability/logger.ts",
+    "../../../packages/shared/src/observability/redact": "../../../packages/shared/src/observability/redact.ts",
+    "../../../packages/shared/src/observability/sentry": "../../../packages/shared/src/observability/sentry.ts"
+  }
+}

@@ -3,12 +3,13 @@
 import {
   adminCopy,
   authErrors,
-  companyContactSchema,
+  companyDataSchema,
   companyReviewSchema,
   documentReviewSchema,
   endOfDayInMexicoCity,
   onboardingCopy,
   submitDocumentSchema,
+  validationMessages,
 } from '@transport/shared';
 import { revalidatePath } from 'next/cache';
 
@@ -26,34 +27,54 @@ const toExpiresAt = (date: string | undefined) => (date ? endOfDayInMexicoCity(d
 const EDITABLE = new Set(['pending_review', 'rejected']);
 
 /**
- * Shipper or Gerente: corrects the company's name and contact while it is in
- * review. A Coordinador only reads it (RLS refuses the update too).
+ * Shipper or Gerente: corrects the company's name, contact and fiscal data
+ * (G2) while it is in review. A persona moral (12-character RFC) must name
+ * its legal representative. A Coordinador only reads it (RLS refuses the
+ * update too).
  */
 export async function updateCompanyContact(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const entries = formEntries(formData);
-  const parsed = companyContactSchema.safeParse(entries);
+  const parsed = companyDataSchema.safeParse(entries);
   if (!parsed.success) return invalidForm(parsed.error, entries);
   const supabase = await createClient();
   const viewer = await getViewer();
   if (!supabase || !viewer) return notConfigured;
   const company = viewer.company;
-  const canEdit = viewer.role === 'shipper' || viewer.role === 'manager';
-  if (!canEdit || !company || !EDITABLE.has(company.status)) {
+  if (
+    (viewer.role !== 'shipper' && viewer.role !== 'manager') ||
+    !company ||
+    !EDITABLE.has(company.status)
+  ) {
     return { error: onboardingCopy.errors.notEditable, values: refillValues(entries) };
   }
+  if (company.rfc.length === 12 && !parsed.data.legalRepresentativeName) {
+    return {
+      fieldErrors: { legalRepresentativeName: validationMessages.required },
+      values: refillValues(entries),
+    };
+  }
 
-  // Only these columns are granted to clients (B01); RLS limits the row to
-  // the caller's own company. Status never changes here.
+  // Only these columns are granted to clients (B01, G2); RLS limits the row
+  // to the caller's own company. Status and RFC never change here.
+  const v = parsed.data;
   const { error } = await supabase
     .from('companies')
     .update({
-      legal_name: parsed.data.legalName,
-      contact_name: parsed.data.contactName,
-      contact_email: parsed.data.contactEmail,
-      contact_phone: parsed.data.contactPhone,
+      legal_name: v.legalName,
+      contact_name: v.contactName,
+      contact_email: v.contactEmail,
+      contact_phone: v.contactPhone,
+      fiscal_street: v.fiscalStreet,
+      fiscal_exterior_number: v.fiscalExteriorNumber,
+      fiscal_interior_number: v.fiscalInteriorNumber ?? null,
+      fiscal_neighborhood: v.fiscalNeighborhood,
+      fiscal_postal_code: v.fiscalPostalCode,
+      fiscal_municipality: v.fiscalMunicipality,
+      fiscal_state: v.fiscalState,
+      legal_representative_name: v.legalRepresentativeName ?? null,
     })
     .eq('id', company.id);
   if (error) return { error: onboardingCopy.errors.generic, values: refillValues(entries) };

@@ -433,3 +433,9 @@ enabled = true
 # not with a user JWT. The handler fails closed without a valid secret.
 [functions.dispatch-notifications]
 verify_jwt = false
+
+# G2: redeems an operator invitation link (D15-E1). The caller has no account
+# yet: the token is the credential and the database validates it; the handler
+# fails closed without the service role and rate limits by address and token.
+[functions.redeem-invitation]
+verify_jwt = false

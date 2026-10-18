@@ -26,9 +26,9 @@ create function tests.new_user(p_id uuid, p_role text, p_confirmed boolean defau
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   values (p_id, 'authenticated', 'authenticated', p_id::text || '@g1b.test',
-          case when p_confirmed then now() end, jsonb_build_object('role', p_role), now(), now());
+          case when p_confirmed then now() end, case when p_role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, jsonb_build_object('role', p_role, 'phone', '+525500000000'), now(), now());
 $$;
 
 create function tests.login(p_id uuid)
@@ -251,8 +251,9 @@ select throws_ok(
   '22023', 'exactly one business unit is required', 'an operator invitation has one business unit'
 );
 select throws_ok(
-  $$ select public.create_invitation('operator', array[tests.val('bu_a')], 'd2900000-0000-4000-8000-00000000000a') $$,
-  '22023', 'p_operator_id is set when the invitation is redeemed', 'an operator invitation names no operator yet'
+  $$ select public.create_invitation('operator', array[tests.val('bu_b')], 'd2900000-0000-4000-8000-00000000000a') $$,
+  '22023', 'the business unit must be the operator''s',
+  'an operator invitation that names a row (G2) is for that row''s business unit'
 );
 select throws_ok(
   $$ select public.create_invitation('operator', array[tests.val('bu_c')]) $$,
@@ -362,7 +363,9 @@ reset role;
 -- op_a_noname, op_a_a, reset_o_m (revoked), reset_o_m2 (revoked), reset_o_a
 -- (unit A); op_b_b (unit B).
 -- ---------------------------------------------------------------------------
-select is((select count(*) from public.invitations), 9::bigint, 'nine invitations exist');
+-- The demo links of the seed (G2) are left out, so the file passes with and without it.
+select is((select count(*) from public.invitations where company_id::text not like '5eed%'), 9::bigint,
+          'nine invitations exist');
 select is(tests.sees('a2900000-0000-4000-8000-000000000002'), 9::bigint, 'the manager sees every invitation of the company');
 select is(tests.sees('a2900000-0000-4000-8000-000000000003'), 6::bigint,
   'coordinator A sees the operator invitations and resets of unit A, not the coordinator ones');
@@ -372,7 +375,8 @@ select is(tests.sees('a2900000-0000-4000-8000-000000000005'), 0::bigint, 'an ope
 select is(tests.sees('a2900000-0000-4000-8000-000000000006'), 0::bigint, 'another carrier sees none');
 select is(tests.sees('a2900000-0000-4000-8000-000000000001'), 0::bigint, 'a shipper sees none');
 select is(tests.sees('a2900000-0000-4000-8000-000000000007'), 0::bigint, 'a coordinator without a company sees none');
-select is(tests.sees('a2900000-0000-4000-8000-000000000011'), 9::bigint, 'the admin sees all');
+select is(tests.sees('a2900000-0000-4000-8000-000000000011'),
+          (select count(*) from public.invitations), 'the admin sees all');
 
 -- ---------------------------------------------------------------------------
 -- revoke_invitation
@@ -647,8 +651,8 @@ select results_eq(
   $$ select o.business_unit_id, o.full_name, o.phone, o.email, p.company_id, p.full_name, p.phone
      from public.operators o join public.profiles p on p.id = o.profile_id
      where o.profile_id = 'a2900000-0000-4000-8000-000000000009' $$,
-  $$ select tests.val('bu_a'), 'Dani Nuevo', '+52 81 1234 5678', 'dani@example.com',
-            'c2900000-0000-4000-8000-000000000002'::uuid, 'Dani Nuevo', '+52 81 1234 5678' $$,
+  $$ select tests.val('bu_a'), 'Dani Nuevo', '+528112345678', 'dani@example.com',
+            'c2900000-0000-4000-8000-000000000002'::uuid, 'Dani Nuevo', '+525500000000' $$,
   'the operator row is created in the business unit, linked to the account, and the profile joins the company'
 );
 select is(

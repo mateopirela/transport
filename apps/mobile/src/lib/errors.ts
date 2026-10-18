@@ -18,6 +18,17 @@ const AUTH_CODES: Record<string, MobileErrorKey> = {
   over_email_send_rate_limit: 'rateLimited',
 };
 
+/** JSON error codes of the Edge Function redeem-invitation (G2). */
+const EDGE_FUNCTION_CODES: Record<string, MobileErrorKey> = {
+  invalid_invitation: 'invitationInvalid',
+  phone_taken: 'phoneTaken',
+  rate_limited: 'rateLimited',
+  password_not_saved: 'passwordNotSaved',
+  invalid_body: 'unknown',
+  not_configured: 'unknown',
+  upstream_error: 'unknown',
+};
+
 function asErrorLike(error: unknown): ErrorLike {
   if (typeof error !== 'object' || error === null) return {};
   const e = error as Record<string, unknown>;
@@ -30,13 +41,18 @@ function asErrorLike(error: unknown): ErrorLike {
 }
 
 /**
- * Maps an error from Supabase (Auth, PostgREST or our RPCs) to a key of
- * `mobileErrorCopy`. Raw server messages are never shown to the user.
+ * Maps an error from Supabase (Auth, PostgREST, our RPCs or the Edge
+ * Function) to a key of `mobileErrorCopy`. Raw server messages are never
+ * shown to the user.
  */
 export function toErrorKey(error: unknown): MobileErrorKey {
   const { name, code, message = '', status } = asErrorLike(error);
   const text = message.toLowerCase();
 
+  if (name === 'EdgeFunctionError') {
+    if (code && code in EDGE_FUNCTION_CODES) return EDGE_FUNCTION_CODES[code] ?? 'unknown';
+    return status === null || status === undefined ? 'network' : 'unknown';
+  }
   if (code && code in AUTH_CODES) return AUTH_CODES[code] ?? 'unknown';
   // HTTP 429, or the rate limit of our RPCs (SQLSTATE PT429, F12).
   if (status === 429 || code === 'PT429') return 'rateLimited';
@@ -50,21 +66,21 @@ export function toErrorKey(error: unknown): MobileErrorKey {
 
   // Errors raised by the RPCs (see supabase/migrations).
   if (text.includes('invalid or expired invitation')) return 'invitationInvalid';
-  if (text.includes('invitation was sent to another email')) return 'invitationOtherEmail';
-  if (text.includes('only operator accounts can accept invitations'))
-    return 'invitationWrongAccount';
+  if (text.includes('only coordinator accounts can accept')) return 'invitationWrongAccount';
+  if (text.includes('email not confirmed')) return 'emailNotConfirmedForInvitation';
   if (text.includes('already belongs to a company')) return 'alreadyInCompany';
+  if (text.includes('invalid phone') || text.includes('phone is required')) return 'phoneInvalid';
   if (code === '23505' && text.includes('companies_rfc_key')) return 'rfcTaken';
+  if (text.includes('fiscal') || text.includes('legalrepresentativename') || code === '23514') {
+    return 'missingFiscalData';
+  }
 
   return 'unknown';
 }
 
-/** Invitation errors after which the stored code is useless and must be dropped. */
+/** Invitation errors after which the stored token is useless and must be dropped. */
 export function isFinalInvitationError(key: MobileErrorKey): boolean {
   return (
-    key === 'invitationInvalid' ||
-    key === 'invitationOtherEmail' ||
-    key === 'invitationWrongAccount' ||
-    key === 'alreadyInCompany'
+    key === 'invitationInvalid' || key === 'invitationWrongAccount' || key === 'alreadyInCompany'
   );
 }

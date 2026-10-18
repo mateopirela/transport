@@ -65,7 +65,7 @@ describe('redirectFor', () => {
   it('lets signed-out users use sign-in, sign-up and the invitation screen', () => {
     expect(redirectFor('auth', ['(auth)', 'sign-in'])).toBeNull();
     expect(redirectFor('auth', ['(auth)', 'sign-up'])).toBeNull();
-    expect(redirectFor('auth', ['invite'])).toBeNull();
+    expect(redirectFor('auth', ['invitacion'])).toBeNull();
     expect(redirectFor('auth', [])).toBe('/sign-in');
   });
 
@@ -88,8 +88,8 @@ describe('redirectFor', () => {
   it('sends users that must finish onboarding to the right step', () => {
     expect(redirectFor('company_setup', ['(carrier)', 'home'])).toBe('/company');
     expect(redirectFor('company_setup', ['company'])).toBeNull();
-    expect(redirectFor('join', ['(operator)', 'trip'])).toBe('/invite');
-    expect(redirectFor('join', ['invite'])).toBeNull();
+    expect(redirectFor('join', ['(operator)', 'trip'])).toBe('/invitacion');
+    expect(redirectFor('join', ['invitacion'])).toBeNull();
   });
 
   it('always allows the e-mail confirmation callback', () => {

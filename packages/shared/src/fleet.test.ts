@@ -302,15 +302,13 @@ describe('documentExpirySchema', () => {
 });
 
 describe('fleet copy', () => {
-  it('builds the invitation message with the link and the code', () => {
+  it('builds the invitation message with the link', () => {
     const text = fleetCopy.invitation.shareMessage(
       'Fletes Alfa',
-      'transport://invite?code=X',
-      'AB',
+      'https://transport.test/invitacion/X',
     );
     expect(text).toContain('Fletes Alfa');
-    expect(text).toContain('transport://invite?code=X');
-    expect(text).toContain('AB');
+    expect(text).toContain('https://transport.test/invitacion/X');
     expect(fleetCopy.onboarding.count(1)).toBe('1 registrada');
     expect(fleetCopy.onboarding.operatorsCount(3)).toBe('3 registrados');
   });

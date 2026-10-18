@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -17,9 +17,9 @@ create function tests.new_user(p_id uuid, p_role text)
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   values (p_id, 'authenticated', 'authenticated', p_id || '@test.local', now(),
-          jsonb_build_object('role', p_role), now(), now());
+          case when p_role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, jsonb_build_object('role', p_role, 'phone', '+525500000000'), now(), now());
 $$;
 
 create function tests.login(p_id uuid)
@@ -241,42 +241,6 @@ select throws_ok(
   '55000',
   'vehicle has expired documents: vehicle_insurance_policy',
   'a document with status expired blocks availability'
-);
-
--- ---------------------------------------------------------------------------
--- Changing an operator's email revokes its pending invitations
--- ---------------------------------------------------------------------------
-insert into public.operators (id, company_id, full_name, email) values
-  ('d1000000-0000-4000-8000-0000000000a1', 'c1000000-0000-4000-8000-00000000000a', 'Omar', 'omar@a.test');
-select ok(
-  (select count(*) = 1 from public.create_operator_invitation('d1000000-0000-4000-8000-0000000000a1')),
-  'the carrier invites its operator'
-);
-
-update public.operators set phone = '8112345678' where id = 'd1000000-0000-4000-8000-0000000000a1';
-select is(
-  (select count(*)::int from public.operator_invitations
-   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
-  1,
-  'other changes keep the pending invitation'
-);
-
-update public.operators set email = 'omar.diaz@a.test' where id = 'd1000000-0000-4000-8000-0000000000a1';
-select is(
-  (select count(*)::int from public.operator_invitations
-   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
-  0,
-  'changing the email revokes the pending invitation'
-);
-select ok(
-  (select count(*) = 1 from public.create_operator_invitation('d1000000-0000-4000-8000-0000000000a1')),
-  'the carrier issues a new invitation'
-);
-select is(
-  (select email from public.operator_invitations
-   where operator_id = 'd1000000-0000-4000-8000-0000000000a1' and revoked_at is null),
-  'omar.diaz@a.test',
-  'the new invitation goes to the corrected email'
 );
 
 select * from finish();

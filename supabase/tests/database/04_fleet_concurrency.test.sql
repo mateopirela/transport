@@ -1,6 +1,6 @@
--- Fleet (B04) concurrency: two real sessions (dblink) interleave
---   1. archiving an operator and assigning it to a unit, in both orders;
---   2. re-issuing an invitation and accepting it, in both orders (no deadlock).
+-- Fleet (B04) concurrency: two real sessions (dblink) interleave archiving
+-- an operator and assigning it to a unit, in both orders. (The invitation
+-- codes of B04 were retired by G2; the links are in 30_invitations_concurrency.)
 --
 -- The sessions need committed fixtures, so this file creates them through its
 -- own connection and deletes them at the end. It connects to the local
@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(12);
+select plan(5);
 
 create schema tests;
 
@@ -82,7 +82,6 @@ returns void
 language sql
 as $$
   select extensions.dblink_exec('setup', $sql$
-    delete from public.operator_invitations where company_id = 'c0000000-0000-4000-8000-0000000000cc';
     delete from public.vehicles where company_id = 'c0000000-0000-4000-8000-0000000000cc';
     delete from public.operators where company_id = 'c0000000-0000-4000-8000-0000000000cc';
     delete from auth.users where id in ('f0000000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000002');
@@ -99,11 +98,11 @@ select tests.cleanup();
 -- Fixtures: carrier ...01 of company cc, operator account ...02 (zoe@cc.test);
 -- operators o1 and o3 (to archive), o2 (to invite); vehicle v1.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('f0000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'carla@cc.test', now(),
-     '{"role":"manager"}', now(), now()),
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
     ('f0000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'zoe@cc.test', now(),
-     '{"role":"operator"}', now(), now());
+     '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc)
   values ('c0000000-0000-4000-8000-0000000000cc', 'carrier', 'Concurrencia SA de CV', 'CON040404AA4');
   update public.profiles set company_id = 'c0000000-0000-4000-8000-0000000000cc'
@@ -173,90 +172,6 @@ select is(
    $sql$) as t(current_operator_id uuid)),
   null,
   'no unit stays assigned to an archived operator'
-);
-
--- ---------------------------------------------------------------------------
--- 2a. Re-issue first: the concurrent acceptance of the old code waits and
---     then fails cleanly (revoked), without a deadlock.
--- ---------------------------------------------------------------------------
-create temporary table codes (name text primary key, code text not null);
-
-select extensions.dblink_exec('s1', 'begin');
-select tests.as_user('s1', 'f0000000-0000-4000-8000-000000000001');
-insert into codes
-select 'first', code from extensions.dblink('s1', $sql$
-  select code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000c2')
-$sql$) as t(code text);
-select extensions.dblink_exec('s1', 'commit');
-
-select extensions.dblink_exec('s1', 'begin');
-select tests.as_user('s1', 'f0000000-0000-4000-8000-000000000001');
-insert into codes
-select 'second', code from extensions.dblink('s1', $sql$
-  select code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000c2')
-$sql$) as t(code text);
-
-select extensions.dblink_exec('s2', 'begin');
-select tests.as_user('s2', 'f0000000-0000-4000-8000-000000000002');
-select extensions.dblink_send_query(
-  's2',
-  format('select public.accept_operator_invitation(%L)', (select code from codes where name = 'first'))
-);
-
-select ok(tests.wait_until_blocked(tests.pid('s2')), 'accepting waits for a concurrent re-issue');
-select extensions.dblink_exec('s1', 'commit');
-select throws_ok(
-  $$ select * from extensions.dblink_get_result('s2') as t(operator_id uuid) $$,
-  '22023', null,
-  'the superseded code then fails as invalid, not with a deadlock'
-);
-select * from extensions.dblink_get_result('s2', false) as t(operator_id uuid);
-select extensions.dblink_exec('s2', 'rollback');
-
--- ---------------------------------------------------------------------------
--- 2b. Acceptance first: the concurrent re-issue waits and then fails because
---     the operator already has an account.
--- ---------------------------------------------------------------------------
-select extensions.dblink_exec('s2', 'begin');
-select tests.as_user('s2', 'f0000000-0000-4000-8000-000000000002');
-select is(
-  (select operator_id from extensions.dblink(
-     's2', format('select public.accept_operator_invitation(%L)', (select code from codes where name = 'second'))
-   ) as t(operator_id uuid)),
-  'd0000000-0000-4000-8000-0000000000c2'::uuid,
-  'the current code is accepted'
-);
-
-select extensions.dblink_exec('s1', 'begin');
-select tests.as_user('s1', 'f0000000-0000-4000-8000-000000000001');
-select extensions.dblink_send_query('s1', $sql$
-  select code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000c2')
-$sql$);
-
-select ok(tests.wait_until_blocked(tests.pid('s1')), 're-issuing waits for a concurrent acceptance');
-select extensions.dblink_exec('s2', 'commit');
-select throws_ok(
-  $$ select * from extensions.dblink_get_result('s1') as t(code text) $$,
-  '22023', null,
-  'the re-issue then fails because the operator already has an account'
-);
-select * from extensions.dblink_get_result('s1', false) as t(code text);
-select extensions.dblink_exec('s1', 'rollback');
-
-select results_eq(
-  $$ select accepted, revoked from extensions.dblink('setup', $sql$
-       select count(*) filter (where accepted_at is not null), count(*) filter (where revoked_at is not null)
-       from public.operator_invitations where operator_id = 'd0000000-0000-4000-8000-0000000000c2'
-     $sql$) as t(accepted bigint, revoked bigint) $$,
-  $$ values (1::bigint, 1::bigint) $$,
-  'one invitation was accepted and the superseded one stays revoked'
-);
-select is(
-  (select profile_id from extensions.dblink('setup', $sql$
-     select profile_id from public.operators where id = 'd0000000-0000-4000-8000-0000000000c2'
-   $sql$) as t(profile_id uuid)),
-  'f0000000-0000-4000-8000-000000000002'::uuid,
-  'the operator is linked to the account that accepted'
 );
 
 select tests.cleanup();

@@ -101,15 +101,15 @@ select tests.cleanup();
 -- Fixtures: manager ...01 of company cc; coordinators ...02 and ...03 without a
 -- company; operator account ...04 linked to operator o1.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('f3000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'gaby@cc30.test', now(),
-     '{"role":"manager"}', now(), now()),
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
     ('f3000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'coco@cc30.test', now(),
-     '{"role":"coordinator"}', now(), now()),
+     null, '{"role":"coordinator","phone":"+525500000000"}', now(), now()),
     ('f3000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'cris@cc30.test', now(),
-     '{"role":"coordinator"}', now(), now()),
+     null, '{"role":"coordinator","phone":"+525500000000"}', now(), now()),
     ('f3000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'omar@cc30.test', now(),
-     '{"role":"operator"}', now(), now());
+     '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc)
   values ('c3000000-0000-4000-8000-0000000000cc', 'carrier', 'Concurrencia Enlaces SA de CV', 'CEN040404AA4');
   update public.profiles set company_id = 'c3000000-0000-4000-8000-0000000000cc'

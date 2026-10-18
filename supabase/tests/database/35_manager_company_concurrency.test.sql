@@ -6,12 +6,14 @@
 --      (the offer is pending);
 --   3. an invitation issued by a coordinator while the manager removes them
 --      waits for the removal and is then refused;
---   4. a removal that waits for an invitation being issued revokes it.
+--   4. a removal that waits for an invitation being issued revokes it;
+--   5. a coordinator replacing their own link while being removed waits for
+--      the removal (links, then profile, in both) and is refused, no deadlock.
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(10);
+select plan(13);
 
 create schema tests;
 
@@ -84,6 +86,7 @@ as $$
     delete from public.loads where shipper_company_id = 'c3500000-0000-4000-8000-000000000001';
     delete from public.invitations where company_id = 'c3500000-0000-4000-8000-000000000002';
     delete from public.vehicles where company_id = 'c3500000-0000-4000-8000-000000000002';
+    delete from public.operators where company_id = 'c3500000-0000-4000-8000-000000000002';
     delete from public.business_unit_coordinators where company_id = 'c3500000-0000-4000-8000-000000000002';
     delete from public.notifications where user_id::text like 'a3500000-%';
     delete from auth.users where id::text like 'a3500000-%';
@@ -109,7 +112,8 @@ select extensions.dblink_exec('setup', $sql$
     ('a3500000-0000-4000-8000-000000000001'::uuid, 'shipper'),
     ('a3500000-0000-4000-8000-000000000002', 'manager'),
     ('a3500000-0000-4000-8000-000000000003', 'coordinator'),
-    ('a3500000-0000-4000-8000-000000000004', 'coordinator')) as u(id, role);
+    ('a3500000-0000-4000-8000-000000000004', 'coordinator'),
+    ('a3500000-0000-4000-8000-000000000005', 'coordinator')) as u(id, role);
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c3500000-0000-4000-8000-000000000001', 'shipper', 'Envíos Sigma SA de CV', 'ESI080808AA8', 'approved'),
     ('c3500000-0000-4000-8000-000000000002', 'carrier', 'Fletes Omega SA de CV', 'FOM080808AA8', 'approved');
@@ -122,13 +126,18 @@ select extensions.dblink_exec('setup', $sql$
   values ('b3500000-0000-4000-8000-00000000000b', 'c3500000-0000-4000-8000-000000000002', 'Unidad B');
   insert into public.business_unit_coordinators (business_unit_id, company_id, profile_id)
   select b.id, b.company_id, c.profile_id
-  from (values ('a3500000-0000-4000-8000-000000000003'::uuid), ('a3500000-0000-4000-8000-000000000004')) as c(profile_id)
+  from (values ('a3500000-0000-4000-8000-000000000003'::uuid), ('a3500000-0000-4000-8000-000000000004'),
+               ('a3500000-0000-4000-8000-000000000005')) as c(profile_id)
   join public.business_units b on b.company_id = 'c3500000-0000-4000-8000-000000000002' and b.name = 'Unidad A';
   insert into public.vehicles (id, company_id, business_unit_id, kind, plate, unit_type, capacity_kg)
   select v.id, 'c3500000-0000-4000-8000-000000000002', b.id, 'rigid', v.plate, 'dry_van', 30000
   from (values ('e3500000-0000-4000-8000-000000000001'::uuid, 'GGA3501'),
                ('e3500000-0000-4000-8000-000000000002', 'GGA3502')) as v(id, plate)
   join public.business_units b on b.company_id = 'c3500000-0000-4000-8000-000000000002' and b.name = 'Unidad A';
+  insert into public.operators (id, company_id, business_unit_id, full_name)
+  select 'd3500000-0000-4000-8000-000000000001', b.company_id, b.id, 'Óscar Sin Cuenta'
+  from public.business_units b
+  where b.company_id = 'c3500000-0000-4000-8000-000000000002' and b.name = 'Unidad A';
   insert into public.loads (id, shipper_company_id, status,
     origin_address, origin_city, origin_state, origin_lat, origin_lng,
     destination_address, destination_city, destination_state, destination_lat, destination_lng,
@@ -243,6 +252,40 @@ select is(
                    where created_by = 'a3500000-0000-4000-8000-000000000004'
                      and revoked_at is null and accepted_at is null $sql$),
   '0', 'the removal revokes the invitation B issued meanwhile'
+);
+
+-- ---------------------------------------------------------------------------
+-- 5. C replaces their link for an operator while the manager removes C
+-- ---------------------------------------------------------------------------
+select tests.begin_as('s2', 'a3500000-0000-4000-8000-000000000005');
+select * from extensions.dblink('s2', $sql$
+  select invitation_id::text
+  from public.create_invitation('operator', '{}', 'd3500000-0000-4000-8000-000000000001')
+$sql$) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+select tests.begin_as('s1', 'a3500000-0000-4000-8000-000000000002');
+select * from extensions.dblink('s1', $sql$
+  select public.remove_company_member('a3500000-0000-4000-8000-000000000005')::text
+$sql$) as t(r text);
+select tests.begin_as('s2', 'a3500000-0000-4000-8000-000000000005');
+select extensions.dblink_send_query('s2', $sql$
+  select invitation_id::text
+  from public.create_invitation('operator', '{}', 'd3500000-0000-4000-8000-000000000001')
+$sql$);
+select ok(tests.wait_until_blocked('s2'), 'the replacement link waits for the removal, which holds C''s links');
+select extensions.dblink_exec('s1', 'commit');
+select throws_ok(
+  $$ select * from extensions.dblink_get_result('s2') as t(r text) $$,
+  '42501', 'only the staff of a carrier company can invite',
+  'once C is removed, the replacement is refused (no deadlock)'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'rollback');
+select is(
+  tests.peek($sql$ select count(*)::text from public.invitations
+                   where created_by = 'a3500000-0000-4000-8000-000000000005'
+                     and revoked_at is null and accepted_at is null $sql$),
+  '0', 'C leaves no usable link'
 );
 
 select tests.cleanup();

@@ -13,8 +13,10 @@
 --     * invitations, then business units (redeem and accept insert rows that
 --       reference a business unit after locking their invitation);
 --     * a profile, then business units (accept_coordinator_invitation);
---     * a profile, then its invitations (create_invitation through
---       invitations_require_member_creator, and remove_company_member);
+--     * invitations, then the profile of their creator (create_invitation
+--       revokes the previous link and then invitations_require_member_creator
+--       locks the creator; remove_company_member locks the coordinator's
+--       links and then their profile);
 --     * a load, then the unit it proposes (make_offer, assert_vehicle_in_unit).
 
 -- ---------------------------------------------------------------------------
@@ -101,8 +103,8 @@ revoke all on function public.assert_vehicle_in_unit(uuid, uuid) from public, an
 -- locks the creator's profile FOR SHARE and checks it again, against the FOR
 -- UPDATE of remove_company_member: an invitation issued while its coordinator
 -- is removed either waits and fails, or commits first and is then revoked by
--- the removal. Lock order: (operator,) profile, then the new invitation;
--- remove_company_member takes the profile, then the invitations.
+-- the removal. Lock order: (operator, its previous links,) then the creator's
+-- profile; remove_company_member also takes the links before the profile.
 -- Invoker rights: invitations are only inserted by create_invitation (as its
 -- owner) and the service role.
 create function public.invitations_require_member_creator()
@@ -350,6 +352,15 @@ begin
   if p_profile_id = (select auth.uid()) then
     raise exception 'cannot remove yourself' using errcode = '42501';
   end if;
+  -- Their pending invitations, then their profile: the order of
+  -- create_invitation, which revokes a previous link before its insert locks
+  -- the creator's profile (invitations_require_member_creator). A link
+  -- inserted after this scan waits for the profile lock and is then refused.
+  perform 1 from public.invitations i
+  where i.company_id = v_company_id and i.created_by = p_profile_id
+    and i.accepted_at is null and i.revoked_at is null
+  order by i.id
+  for update;
   select p.role into v_role
   from public.profiles p
   where p.id = p_profile_id and p.company_id = v_company_id

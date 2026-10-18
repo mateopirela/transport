@@ -10,7 +10,7 @@ import {
   type LatLng,
   type ReleasePlace,
 } from '@transport/shared';
-import { useActionState, useCallback, useId, useState } from 'react';
+import { useActionState, useCallback, useId, useMemo, useState } from 'react';
 
 import { Field, Notice } from '@/components/auth-forms';
 import { ReleaseMap } from '@/components/carrier/release-map';
@@ -53,6 +53,12 @@ export function ReleaseForm({
     setPicked(point);
     setPlace('map');
   }, []);
+  // Stable, so a pick does not restart the route effect of the map (its fitBounds).
+  const origin = useMemo(() => ({ ...context.origin, label: m.origin }), [context.origin]);
+  const destination = useMemo(
+    () => ({ ...context.destination, label: m.destination }),
+    [context.destination],
+  );
   const values = state.values ?? {};
   const point = place === 'last' ? context.last : place === 'map' ? picked : null;
   const near = context.last ? nearestCityPreset(context.last) : null;
@@ -73,8 +79,8 @@ export function ReleaseForm({
       <input type="hidden" name="longitude" value={point?.lng ?? ''} />
 
       <ReleaseMap
-        origin={{ ...context.origin, label: m.origin }}
-        destination={{ ...context.destination, label: m.destination }}
+        origin={origin}
+        destination={destination}
         last={context.last}
         picked={picked}
         onPick={onPick}

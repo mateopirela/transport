@@ -2,6 +2,7 @@ import 'server-only';
 
 import { unitLabel, uuidField } from '@transport/shared';
 
+import { selectAll } from '../verification/paging';
 import type { Supabase } from '../viewer';
 
 // Reads of the release of a unit whose trip was cancelled after it set off
@@ -38,20 +39,27 @@ export async function listPendingReleases(
   businessUnitIds: readonly string[],
 ): Promise<PendingRelease[]> {
   if (businessUnitIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from('vehicle_release_tasks')
-    .select(
-      `id, vehicle_id, created_at,
-       vehicle:vehicles!vehicle_release_tasks_vehicle_fkey(plate, fleet_number, business_unit_id, archived_at),
+  // Filtered in the query (inner joins), then read page by page: at most one
+  // pending task per unit, so this is every unit waiting, never a prefix.
+  const rows = await selectAll<PendingRow>((from, to) =>
+    supabase
+      .from('vehicle_release_tasks')
+      .select(
+        `id, vehicle_id, created_at,
+       vehicle:vehicles!vehicle_release_tasks_vehicle_fkey!inner(plate, fleet_number, business_unit_id, archived_at),
        trip:trips!vehicle_release_tasks_trip_id_fkey(load:loads!trips_load_id_fkey(origin_city, destination_city))`,
-    )
-    .eq('company_id', companyId)
-    .eq('status', 'pending')
-    .order('created_at')
-    .limit(100);
-  if (error) throw new Error(`Release tasks query failed: ${error.message}`);
+      )
+      .eq('company_id', companyId)
+      .eq('status', 'pending')
+      .in('vehicle.business_unit_id', [...businessUnitIds])
+      .is('vehicle.archived_at', null)
+      .order('created_at')
+      .order('id')
+      .range(from, to)
+      .overrideTypes<PendingRow[], { merge: false }>(),
+  );
   const selected = new Set(businessUnitIds);
-  return ((data ?? []) as unknown as PendingRow[]).flatMap((row) =>
+  return rows.flatMap((row) =>
     row.vehicle && !row.vehicle.archived_at && selected.has(row.vehicle.business_unit_id)
       ? [
           {

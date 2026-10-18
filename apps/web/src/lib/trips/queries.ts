@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  cancellationText,
   uploadableTripDocumentKinds,
   uuidField,
   type UnitType,
@@ -182,13 +183,18 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
 }
 
 /** The trip of a contracted load of the company, if any (link from the load screen). */
-export async function findLoadTripId(supabase: Supabase, companyId: string, loadId: string) {
+export async function findLoadTrip(supabase: Supabase, companyId: string, loadId: string) {
   const { data, error } = await supabase
     .from('trips')
-    .select('id')
+    .select('id, cancellation_reason, cancellation_reason_code')
     .eq('load_id', loadId)
     .eq('shipper_company_id', companyId)
     .maybeSingle();
   if (error) throw new Error(`Load trip query failed: ${error.message}`);
-  return data?.id ?? null;
+  if (!data) return null;
+  // G5: the trip keeps the structured reason; the load only its notes.
+  return {
+    id: data.id,
+    cancellation: cancellationText(data.cancellation_reason_code, data.cancellation_reason),
+  };
 }

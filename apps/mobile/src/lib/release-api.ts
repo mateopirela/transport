@@ -21,6 +21,9 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
   return data;
 }
 
+/** PostgREST caps each response (1,000 rows by default). */
+const PAGE_SIZE = 1000;
+
 /** A unit waiting for its release, as the home card lists it. */
 export interface PendingRelease {
   taskId: string;
@@ -41,19 +44,28 @@ export async function listPendingReleases(
   client: Supabase,
   companyId: string,
 ): Promise<PendingRelease[]> {
-  const rows = check(
-    await client
-      .from('vehicle_release_tasks')
-      .select(
-        `id, vehicle_id,
-         vehicle:vehicles!vehicle_release_tasks_vehicle_fkey(plate, fleet_number, archived_at),
-         trip:trips!vehicle_release_tasks_trip_id_fkey(load:loads!trips_load_id_fkey(origin_city, destination_city))`,
-      )
-      .eq('company_id', companyId)
-      .eq('status', 'pending')
-      .order('created_at')
-      .limit(100),
-  ) as unknown as PendingRow[];
+  // Filtered in the query (inner join), then read page by page: at most one
+  // pending task per unit, so this is every unit waiting, never a prefix.
+  const rows: PendingRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const page = check(
+      await client
+        .from('vehicle_release_tasks')
+        .select(
+          `id, vehicle_id,
+           vehicle:vehicles!vehicle_release_tasks_vehicle_fkey!inner(plate, fleet_number, archived_at),
+           trip:trips!vehicle_release_tasks_trip_id_fkey(load:loads!trips_load_id_fkey(origin_city, destination_city))`,
+        )
+        .eq('company_id', companyId)
+        .eq('status', 'pending')
+        .is('vehicle.archived_at', null)
+        .order('created_at')
+        .order('id')
+        .range(from, from + PAGE_SIZE - 1),
+    ) as unknown as PendingRow[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
   return rows.flatMap((row) =>
     row.vehicle && !row.vehicle.archived_at
       ? [

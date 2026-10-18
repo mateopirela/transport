@@ -108,7 +108,7 @@ export async function listVehicles(
   client: Supabase,
   context: CompanyContext,
 ): Promise<VehicleSummary[]> {
-  const [vehicles, availability] = await Promise.all([
+  const [vehicles, availability, pending] = await Promise.all([
     client
       .from('vehicles')
       .select(VEHICLE_COLUMNS)
@@ -120,8 +120,15 @@ export async function listVehicles(
       .select('vehicle_id, available_from, city, state')
       .eq('company_id', context.company.id)
       .is('archived_at', null),
+    // Units waiting for their release (G5); RLS: the units the user runs.
+    client
+      .from('vehicle_release_tasks')
+      .select('vehicle_id')
+      .eq('company_id', context.company.id)
+      .eq('status', 'pending'),
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
+  const pendingRelease = new Set(check(pending).map((t) => t.vehicle_id));
   return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     const owner = { type: 'vehicle', id: vehicle.id } as const;
@@ -133,6 +140,7 @@ export async function listVehicles(
       readiness: vehicleReadiness({
         expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
         availableFrom: current?.available_from ?? null,
+        pendingRelease: pendingRelease.has(vehicle.id),
       }),
     };
   });

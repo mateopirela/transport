@@ -19,6 +19,19 @@ describe('pushTarget', () => {
     });
   });
 
+  it('opens the unit to release for the carrier staff (G5), the trip for the operator', () => {
+    const release = { taskId: tripId, tripId, vehicleId: '5eed0004-0000-4000-8000-000000000007' };
+    expect(pushTarget(release, 'carrier')).toEqual({
+      pathname: '/vehicle/[id]',
+      params: { id: release.vehicleId },
+    });
+    expect(pushTarget(release, 'operator')).toEqual({ pathname: '/trip' });
+    expect(pushTarget({ ...release, vehicleId: '../x' }, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId },
+    });
+  });
+
   it('ignores other areas, other payloads and malformed ids', () => {
     expect(pushTarget({ tripId }, 'auth')).toBeNull();
     expect(pushTarget({ tripId: '../x' }, 'carrier')).toBeNull();

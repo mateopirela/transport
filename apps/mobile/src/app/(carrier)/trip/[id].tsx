@@ -1,4 +1,5 @@
 import {
+  canCancelTrip,
   cargoTypeLabels,
   carrierTripsCopy,
   formatDateTime,
@@ -13,6 +14,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ChatPanel } from '../../../components/chat-panel';
 import { Badge, Loaded, SectionTitle } from '../../../components/fleet-ui';
 import { TripAssignForm } from '../../../components/trip-assign-form';
+import { TripCancelSection } from '../../../components/trip-cancel-section';
 import { TripDocumentsSection } from '../../../components/trip-documents-section';
 import { TripMap } from '../../../components/trip-map';
 import { SharedDocumentsSection } from '../../../components/shared-documents-section';
@@ -30,7 +32,7 @@ const copy = carrierTripsCopy.detail;
  * A won trip for the carrier (B20): status, route and the map while it is on
  * the road, "Asignar operador" until the operator departs, the documents, what
  * is shared with the shipper and its provider status (G6), the timeline,
- * incidents, evidence and the trip chat.
+ * incidents, evidence, the trip chat and the cancellation with a reason (G5).
  */
 export default function CarrierTripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -167,6 +169,16 @@ export default function CarrierTripDetail() {
               ) : (
                 <Body>{copy.chatUnavailable}</Body>
               )}
+
+              {canCancelTrip(trip.status) ? (
+                <TripCancelSection
+                  client={carrier.client}
+                  tripId={trip.id}
+                  status={trip.status}
+                  hasUnit={trip.vehicleId !== null}
+                  onCancelled={reload}
+                />
+              ) : null}
             </>
           );
         }}

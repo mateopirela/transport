@@ -21,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(32);
+select plan(34);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -145,6 +145,16 @@ values (tests.val('trip'), 'delivery', tests.val('trip') || '/delivery/a2400000-
 insert into public.trip_documents (trip_id, kind, storage_path, file_name, uploaded_by)
 values (tests.val('trip'), 'carta_porte', tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf',
         'carta-porte.pdf', '5eed0001-0000-4000-8000-000000000005');
+-- G6: a provider decision of the seed's pair and a view of a shared document
+-- (the seed's open trips already share the carrier's documents).
+insert into public.provider_approvals (shipper_company_id, carrier_company_id, status, decided_by)
+values (tests.val('shipper_company'), tests.val('carrier_company'), 'approved', '5eed0001-0000-4000-8000-000000000002');
+insert into public.provider_approval_events (shipper_company_id, carrier_company_id, status, decided_by)
+values (tests.val('shipper_company'), tests.val('carrier_company'), 'approved', '5eed0001-0000-4000-8000-000000000002');
+insert into tests.vals
+select 'share', id from public.document_shares where trip_id = tests.val('trip') and revoked_at is null order by id limit 1;
+insert into public.document_share_views (share_id, viewer_id)
+values (tests.val('share'), '5eed0001-0000-4000-8000-000000000002');
 insert into public.rate_limit_counters (bucket, subject, window_start, hits)
 values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
 insert into public.product_events (name, user_id, user_role, company_id, properties)
@@ -207,6 +217,12 @@ insert into tests.ownership values
   ('public.trip_events', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
   ('public.trip_evidence', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
   ('public.trip_documents', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
+  -- G6: the shares of a trip are its parties'; the log of views, the carrier's
+  -- (only its manager reads it); the provider decision, the pair's.
+  ('public.document_shares', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
+  ('public.document_share_views', 'exists (select 1 from public.document_shares x where x.id = t.share_id and x.carrier_company_id = $1)'),
+  ('public.provider_approvals', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
+  ('public.provider_approval_events', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
   ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
   -- The shipper sees the GPS track only while the trip is active.
   ('public.trip_locations', $$
@@ -267,6 +283,7 @@ insert into tests.unit_ownership values
   ('public.trip_events', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_evidence', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_documents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.document_shares', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_locations', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.messages', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
@@ -527,6 +544,9 @@ insert into tests.rpc_calls values
   ('add_trip_document', $$ public.add_trip_document(tests.val('trip'), 'carta_porte',
        tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf', 'carta.pdf') $$),
   ('shipper_trip_parties', $$ (select count(*) from public.shipper_trip_parties(array[tests.val('trip')])) $$),
+  ('trip_shared_documents', $$ (select count(*) from public.trip_shared_documents(tests.val('trip'))) $$),
+  ('revoke_document_share', $$ public.revoke_document_share(tests.val('share')) $$),
+  ('set_provider_status', $$ public.set_provider_status(tests.val('carrier_company'), 'revoked', null) $$),
   ('send_message', $$ public.send_message(tests.val('trip_conversation'), 'hola', '[]', null) $$),
   ('send_message', $$ public.send_message(tests.val('negotiation_conversation'), 'hola', '[]', null) $$),
   ('mark_conversation_read', $$ public.mark_conversation_read(tests.val('trip_conversation'), null) $$),
@@ -670,7 +690,8 @@ select is_empty(
        'set_vehicle_availability', 'clear_vehicle_availability', 'assign_trip', 'cancel_trip', 'report_incident',
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
-       'create_invitation', 'revoke_invitation', 'create_share_link']) $$,
+       'create_invitation', 'revoke_invitation', 'create_share_link',
+       'trip_shared_documents', 'revoke_document_share']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
 );
 
@@ -717,6 +738,14 @@ select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000011',
                      (select call from tests.rpc_calls where fn = 'create_invitation' and call like '%''operator'', array%')),
   'harness: the coordinator of the business unit can invite the operator Héctor could not'
+);
+select ok(
+  tests.changes_data('5eed0001-0000-4000-8000-000000000005', (select call from tests.rpc_calls where fn = 'revoke_document_share')),
+  'harness: the manager can revoke the share the outsiders could not'
+);
+select ok(
+  tests.changes_data('5eed0001-0000-4000-8000-000000000002', (select call from tests.rpc_calls where fn = 'set_provider_status')),
+  'harness: the shipper of the pair can revoke the provider approval'
 );
 
 select * from finish();

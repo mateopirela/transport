@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(36);
+select plan(37);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -253,6 +253,17 @@ select tests.login('5eed0001-0000-4000-8000-000000000003');
 select is(
   (select side::text from public.offers where load_id = '5eed0005-0000-4000-8000-000000000007' and status = 'pending'),
   'shipper', 'the shipper countered and waits for the carrier'
+);
+
+-- G6 acceptance: Ana's trip shares the Constancia of Transportes Regios (and
+-- the unit's and the operator's documents, never an id).
+select tests.login('5eed0001-0000-4000-8000-000000000002');
+select is(
+  (select array_agg(requirement_code order by requirement_code)
+   from public.trip_shared_documents('5eed0008-0000-4000-8000-000000000001')),
+  array['federal_driver_license', 'tax_status_certificate', 'vehicle_insurance_policy', 'vehicle_permit',
+        'vehicle_registration_card'],
+  'Ana sees the documents shared on her trip, never an id'
 );
 
 -- Admin

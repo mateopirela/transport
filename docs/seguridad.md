@@ -54,6 +54,7 @@ Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita 
 | --- | --- | --- | --- |
 | `recommendations` | 30 llamadas por minuto | Usuario (`auth.uid()` del JWT) | `429` con `Retry-After`. La app ordena los candidatos con distancias estimadas, sin gastar Routes |
 | `dispatch-notifications` | 10 ejecuciones por minuto | Global | `429`. pg_cron vuelve a intentar al minuto siguiente |
+| `shared-document-url` (G6) | 30 llamadas por minuto | Usuario (`auth.uid()` del JWT) | `429` con `Retry-After`. Cada llamada firma un documento del transportista y escribe la bitácora de consultas |
 
 Las RPC de cliente más costosas o abusables también tienen límite propio (F12), por usuario y por minuto:
 

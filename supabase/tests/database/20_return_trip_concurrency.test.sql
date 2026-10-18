@@ -253,7 +253,8 @@ select is(tests.active_estimates(), 0, 'the estimate written meanwhile is archiv
 
 -- Trip 2 is called off, so V is free again for the second race.
 select extensions.dblink_exec('setup', $sql$
-  update public.trips set status = 'cancelled', cancelled_at = now()
+  update public.trips set status = 'cancelled', cancelled_at = now(), cancellation_reason = 'Prueba',
+         cancellation_reason_code = 'other', cancelled_by_side = 'shipper'
   where offer_id = 'f2f20000-0000-4000-8000-000000000002';
 $sql$);
 

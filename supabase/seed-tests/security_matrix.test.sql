@@ -155,6 +155,16 @@ insert into tests.vals
 select 'share', id from public.document_shares where trip_id = tests.val('trip') and revoked_at is null order by id limit 1;
 insert into public.document_share_views (share_id, viewer_id)
 values (tests.val('share'), '5eed0001-0000-4000-8000-000000000002');
+-- G5: a released unit of T1 (released, so it blocks nothing the matrix calls).
+insert into public.vehicle_release_tasks (
+  id, company_id, vehicle_id, business_unit_id, trip_id, status, released_at, released_location, released_city,
+  released_state, released_available_from
+)
+select 'e2400000-0000-4000-8000-000000000002', v.company_id, v.id, v.business_unit_id, tests.val('trip'), 'released',
+       now(), extensions.st_setsrid(extensions.st_makepoint(-103.35, 20.66), 4326)::extensions.geography,
+       'Guadalajara', 'Jalisco', now()
+from public.vehicles v where v.id = tests.val('vehicle');
+insert into tests.vals values ('release_task', 'e2400000-0000-4000-8000-000000000002');
 insert into public.rate_limit_counters (bucket, subject, window_start, hits)
 values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
 insert into public.product_events (name, user_id, user_role, company_id, properties)
@@ -199,6 +209,7 @@ insert into tests.ownership values
   ('public.vehicle_availability', 't.company_id = $1'),
   -- Share links (G7): the company that created them.
   ('public.share_links', 't.company_id = $1'),
+  ('public.vehicle_release_tasks', 't.company_id = $1'),
   -- Marketplace: open loads are visible to approved carriers. A carrier that
   -- negotiated keeps seeing the load unless another carrier won it.
   ('public.loads', $$
@@ -261,6 +272,7 @@ insert into tests.unit_ownership values
   ('public.operator_invitations', 'exists (select 1 from public.operators o where o.id = t.operator_id and o.business_unit_id = any ($3))'),
   ('public.invitations', 't.kind <> ''coordinator'' and t.business_unit_ids <@ $3'),
   ('public.vehicle_availability', 'exists (select 1 from public.vehicles v where v.id = t.vehicle_id and v.business_unit_id = any ($3))'),
+  ('public.vehicle_release_tasks', 'exists (select 1 from public.vehicles v where v.id = t.vehicle_id and v.business_unit_id = any ($3))'),
   ('public.documents', $$
      t.company_id = $1 and (
        t.owner_type = 'company'
@@ -538,6 +550,10 @@ insert into tests.rpc_calls values
        tests.val('trip') || '/delivery/a2400000-0000-4000-8000-000000000002.jpg', repeat('cd', 32), now(), null, null, null) $$),
   ('confirm_delivery', $$ public.confirm_delivery(tests.val('trip'), 'Recibió Juan') $$),
   ('cancel_trip', $$ public.cancel_trip(tests.val('trip'), 'x') $$),
+  ('cancel_trip', $$ public.cancel_trip(tests.val('trip'), 'mechanical_failure', null) $$),
+  ('vehicle_release_context', $$ (select count(*) from public.vehicle_release_context(tests.val('release_task'))) $$),
+  ('release_vehicle', $$ public.release_vehicle(tests.val('release_task'), now(), 20.66, -103.35, 'Guadalajara',
+       'Jalisco', null) $$),
   ('report_incident', $$ public.report_incident(tests.val('trip'), 'delay', 'x', now(), null, null) $$),
   ('resolve_incident', $$ public.resolve_incident(tests.val('incident'), 'x') $$),
   ('trip_point_locations', $$ (select count(*) from public.trip_point_locations(tests.val('trip'))) $$),
@@ -691,7 +707,8 @@ select is_empty(
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link',
-       'trip_shared_documents', 'revoke_document_share']) $$,
+       'trip_shared_documents', 'revoke_document_share',
+       'vehicle_release_context', 'release_vehicle']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
 );
 

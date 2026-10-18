@@ -11,7 +11,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(32);
+select plan(33);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -393,6 +393,12 @@ select is_empty(
   $$ select * from tests.availability('ef500000-0000-4000-8000-000000000001') $$,
   'cancelling a trip on its way leaves V without availability'
 );
+-- G5: V now waits for its release (33_vehicle_release); released where the
+-- trip was called off, so the next sections can book it again.
+select public.release_vehicle(
+  (select t.id from public.vehicle_release_tasks t where t.trip_id = tests.val('trip_f')),
+  now(), 20.6597, -103.3496, 'Guadalajara', 'Jalisco', null
+);
 
 -- ---------------------------------------------------------------------------
 -- Clearing while booked: nothing comes back
@@ -428,6 +434,19 @@ select public.cancel_trip(tests.val('trip_k'), 'Sin unidad');
 select is_empty(
   $$ select * from tests.availability('ef500000-0000-4000-8000-000000000002') $$,
   'a unit that set off since its availability was held back does not get it back'
+);
+-- G5: J was cancelled after W set off, so W waits for its release; once
+-- released (in Monterrey) it can be booked again.
+select tests.login('af500000-0000-4000-8000-000000000002');
+insert into tests.vals
+select 'release_w', public.release_vehicle(
+  (select t.id from public.vehicle_release_tasks t where t.trip_id = tests.val('trip_j')),
+  now(), 25.6866, -100.3161, 'Monterrey', 'Nuevo León', null
+);
+select is(
+  (select source::text from public.vehicle_availability where id = tests.val('release_w')),
+  'release',
+  'G5: the unit of a trip cancelled after it set off is released before its next booking'
 );
 
 -- ---------------------------------------------------------------------------

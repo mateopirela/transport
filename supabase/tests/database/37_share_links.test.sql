@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(80);
+select plan(82);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -470,6 +470,32 @@ select is(
   (select view_count from public.share_links where id = tests.val('int2_m')), 4,
   'every opening of an internal link is counted'
 );
+
+-- Load 4: X shares it with their team while it is published; once another
+-- carrier contracts it, X's link stops opening.
+set local role authenticated;
+select tests.login('a3700000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load4', public.create_load(tests.payload(4));
+select public.publish_load(tests.val('load4'));
+reset role;
+select tests.share('int4_x', 'a3700000-0000-4000-8000-000000000007', 'load_internal', 'load4', null);
+set local role authenticated;
+select tests.login('a3700000-0000-4000-8000-000000000007');
+select is(
+  (public.open_internal_share(tests.token('int4_x'))) ->> 'loadId', tests.val('load4')::text,
+  'an internal link opens while the load is published'
+);
+select tests.login('a3700000-0000-4000-8000-000000000004');
+insert into tests.vals
+select 'offer4', public.make_offer(tests.val('load4'), 3000000, null, 'e3700000-0000-4000-8000-00000000000a');
+select tests.login('a3700000-0000-4000-8000-000000000001');
+select public.accept_offer(tests.val('offer4'));
+select tests.login('a3700000-0000-4000-8000-000000000007');
+select throws_ok(
+  $$ select public.open_internal_share(tests.token('int4_x')) $$,
+  '42501', 'share link not found', 'an internal link stops opening once another carrier contracts the load'
+);
+reset role;
 
 -- ---------------------------------------------------------------------------
 -- public_shared_load (anon)

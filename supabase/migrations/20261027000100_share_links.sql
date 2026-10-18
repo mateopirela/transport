@@ -330,8 +330,9 @@ grant execute on function public.revoke_share_link(uuid) to authenticated;
 -- RPC: open_internal_share (authenticated)
 -- ---------------------------------------------------------------------------
 -- Opens an internal link: the caller must belong to the company that shared
--- it (manager, coordinator or operator). Returns the load as the carrier sees
--- it (with the proposed price: it is the same company) and whether the caller
+-- it (manager, coordinator or operator), and the load must not be contracted
+-- by another carrier. Returns the load as the carrier sees it (with the
+-- proposed price: it is the same company) and whether the caller
 -- may offer on it: carrier staff, company approved and the load still open.
 create function public.open_internal_share(p_token text)
 returns jsonb
@@ -355,7 +356,12 @@ begin
     raise exception 'share link not found' using errcode = '42501';
   end if;
 
-  select * into v_load from public.loads l where l.id = v_link.load_id and l.archived_at is null;
+  -- A load another carrier took is no longer theirs to see (loads_select):
+  -- the link stops opening once it is contracted by someone else.
+  select * into v_load from public.loads l
+  where l.id = v_link.load_id
+    and l.archived_at is null
+    and (l.carrier_company_id is null or l.carrier_company_id = v_link.company_id);
   if not found then
     raise exception 'share link not found' using errcode = '42501';
   end if;

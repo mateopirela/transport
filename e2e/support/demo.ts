@@ -30,6 +30,8 @@ export const ids = {
   unloadingTrip: '5eed0008-0000-4000-8000-000000000001',
   /** Load GDL -> MTY, published: the return trip of CS53-01 (B08). */
   returnLoad: '5eed0005-0000-4000-8000-000000000002',
+  /** Load Tlaquepaque -> San Nicolás, published, refrigerated: only read (share-links.spec.ts). */
+  reeferLoad: '5eed0005-0000-4000-8000-000000000003',
   /** Load León -> Apodaca, published, dry van: nobody has offered on it. */
   leonLoad: '5eed0005-0000-4000-8000-000000000004',
   /** Load MTY -> Tlaquepaque, published, flatbed: nobody has offered on it. */

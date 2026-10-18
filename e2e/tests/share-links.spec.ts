@@ -11,7 +11,8 @@ import { signInOnWeb } from '../support/web';
 // price, the addresses or the operator; the page is sent with no-referrer and
 // noindex; once the shipper revokes the link, the visitor sees "ya no está
 // disponible". Demo data: the MTY → GDL trip of Aceros del Norte (Ana) and the
-// GDL → MTY load of Alimentos de Occidente (Luis), which is only read here.
+// refrigerated Tlaquepaque → San Nicolás load of Alimentos de Occidente (Luis),
+// which no other spec touches (return-trip.spec.ts contracts the GDL → MTY one).
 
 const c = shareLinksCopy;
 const TOKEN = /\/compartido\/[A-Za-z0-9_-]{43}$/u;
@@ -96,12 +97,14 @@ test('a visitor sees a shared load without its price', async ({ browser }) => {
   const visitor = await visitorContext.newPage();
 
   await signInOnWeb(luis, 'luis');
-  await luis.goto(`/cliente/cargas/${ids.returnLoad}`);
+  await luis.goto(`/cliente/cargas/${ids.reeferLoad}`);
   const url = await createLink(luis);
 
   await visitor.goto(url);
-  await expect(visitor.getByRole('heading', { name: 'Guadalajara → Monterrey' })).toBeVisible();
-  await expect(visitor.getByText(unitTypeLabels.dry_van).first()).toBeVisible();
+  await expect(
+    visitor.getByRole('heading', { name: 'Tlaquepaque → San Nicolás de los Garza' }),
+  ).toBeVisible();
+  await expect(visitor.getByText(unitTypeLabels.refrigerated).first()).toBeVisible();
   const body = await visitor.locator('body').innerText();
   expect(body).not.toMatch(/\$|MXN|[Pp]recio/u);
   expect(body).not.toContain('Alimentos de Occidente');

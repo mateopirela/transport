@@ -52,6 +52,9 @@ export function VehicleForm({
     values: initial,
   });
   const values = state.values ?? initial;
+  // After a successful save the state carries only the message: the fields
+  // keep showing the saved values (the page's, refreshed by revalidation).
+  const fieldState: FormState = { ...state, values };
   const [kind, setKind] = useState(values.kind ?? 'trailer');
   const tractor = kind === 'tractor';
   const errors = state.fieldErrors ?? {};
@@ -113,9 +116,9 @@ export function VehicleForm({
             </p>
           </div>
         )}
-        <Field name="plate" label={c.plateLabel} state={state} autoCapitalize="characters" />
-        <Field name="fleetNumber" label={c.fleetNumberLabel} state={state} />
-        <Field name="modelYear" label={c.modelYearLabel} state={state} inputMode="numeric" />
+        <Field name="plate" label={c.plateLabel} state={fieldState} autoCapitalize="characters" />
+        <Field name="fleetNumber" label={c.fleetNumberLabel} state={fieldState} />
+        <Field name="modelYear" label={c.modelYearLabel} state={fieldState} inputMode="numeric" />
         {!tractor && (
           <>
             <div className="space-y-2">
@@ -136,8 +139,18 @@ export function VehicleForm({
               </select>
               {errors.unitType && <p className="text-xs text-destructive">{errors.unitType}</p>}
             </div>
-            <Field name="capacityKg" label={c.capacityKgLabel} state={state} inputMode="numeric" />
-            <Field name="capacityM3" label={c.capacityM3Label} state={state} inputMode="decimal" />
+            <Field
+              name="capacityKg"
+              label={c.capacityKgLabel}
+              state={fieldState}
+              inputMode="numeric"
+            />
+            <Field
+              name="capacityM3"
+              label={c.capacityM3Label}
+              state={fieldState}
+              inputMode="decimal"
+            />
             <fieldset className="space-y-2 sm:col-span-2">
               <legend className="text-sm font-medium">{c.featuresLabel}</legend>
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">

@@ -42,6 +42,9 @@ export function OperatorForm({
     values: initial,
   });
   const values = state.values ?? initial;
+  // After a successful save the state carries only the message: the fields
+  // keep showing the saved values (the page's, refreshed by revalidation).
+  const fieldState: FormState = { ...state, values };
   const errors = state.fieldErrors ?? {};
 
   return (
@@ -53,7 +56,7 @@ export function OperatorForm({
         <Field
           name="fullName"
           label={c.fullNameLabel}
-          state={state}
+          state={fieldState}
           autoComplete="name"
           className="sm:col-span-2"
         />
@@ -61,11 +64,11 @@ export function OperatorForm({
           name="email"
           type="email"
           label={c.emailLabel}
-          state={state}
+          state={fieldState}
           readOnly={emailLocked}
           hint={emailLocked ? w.operators.emailLocked : undefined}
         />
-        <Field name="phone" type="tel" label={c.phoneLabel} state={state} />
+        <Field name="phone" type="tel" label={c.phoneLabel} state={fieldState} />
         {!operatorId && (
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor={`${id}-business-unit`}>{w.businessUnitField}</Label>
@@ -95,7 +98,7 @@ export function OperatorForm({
         <Field
           name="licenseNumber"
           label={c.licenseNumberLabel}
-          state={state}
+          state={fieldState}
           autoCapitalize="characters"
         />
         <div className="space-y-2">
@@ -116,7 +119,12 @@ export function OperatorForm({
           </select>
           {errors.licenseType && <p className="text-xs text-destructive">{errors.licenseType}</p>}
         </div>
-        <Field name="licenseExpiresOn" type="date" label={c.licenseExpiresOnLabel} state={state} />
+        <Field
+          name="licenseExpiresOn"
+          type="date"
+          label={c.licenseExpiresOnLabel}
+          state={fieldState}
+        />
       </div>
       <Button type="submit" variant="accent" disabled={pending}>
         {c.save}

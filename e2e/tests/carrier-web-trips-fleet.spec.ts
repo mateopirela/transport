@@ -146,6 +146,17 @@ test('the carrier staff assign, document and cancel trips and run the fleet on t
     return jorge.url();
   });
 
+  await test.step('Jorge edits the unit and the form keeps the saved values', async () => {
+    const form = jorge
+      .locator('form')
+      .filter({ has: jorge.getByRole('button', { name: fleetCopy.units.save }) });
+    await form.getByLabel(fleetCopy.units.fleetNumberLabel).fill('PRB-01');
+    await form.getByRole('button', { name: fleetCopy.units.save }).click();
+    await expect(jorge.getByText(f.units.saved)).toBeVisible();
+    await expect(form.getByLabel(fleetCopy.units.plateLabel)).toHaveValue(TEST_PLATE);
+    await expect(form.getByLabel(fleetCopy.units.fleetNumberLabel)).toHaveValue('PRB-01');
+  });
+
   await test.step('only Héctor sees the new unit', async () => {
     await hector.goto('/transportista/flota/unidades');
     await expect(hector.getByText(TEST_PLATE).first()).toBeVisible();

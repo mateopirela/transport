@@ -47,6 +47,9 @@ export function AvailabilityForm({
   const [state, action, pending] = useActionState(setCarrierAvailability, initial);
   const [clearState, clearAction, clearing] = useActionState(clearCarrierAvailability, {});
   const values = state.values ?? initial.values ?? {};
+  // After a successful save the state carries only the message: the fields
+  // keep showing the saved values (the page's, refreshed by revalidation).
+  const fieldState: FormState = { ...state, values };
 
   return (
     <div className="space-y-3">
@@ -84,12 +87,12 @@ export function AvailabilityForm({
                 <p className="text-xs text-destructive">{state.fieldErrors.cityId}</p>
               )}
             </div>
-            <Field name="date" type="date" label={c.dateLabel} state={state} />
+            <Field name="date" type="date" label={c.dateLabel} state={fieldState} />
             <Field
               name="time"
               type="time"
               label={c.timeLabel}
-              state={state}
+              state={fieldState}
               hint={w.dateTimeHint}
             />
           </div>

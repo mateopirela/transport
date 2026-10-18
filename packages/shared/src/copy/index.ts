@@ -11,6 +11,7 @@ export * from './errors';
 export * from './fleet';
 export * from './legal';
 export * from './loads';
+export * from './manager-company';
 export * from './matching';
 export * from './mobile';
 export * from './negotiation';

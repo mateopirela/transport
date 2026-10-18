@@ -31,14 +31,21 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
 }
 
 /**
- * A new unit or operator without a business unit: the default_business_unit
- * trigger gives it the only one of the user (or of the company) until the
- * manager can choose it (G4). The generated types cannot know that.
+ * A new unit or operator, in the business unit chosen on the form (G4) or,
+ * when the user operates only one, without it: the default_business_unit
+ * trigger gives it that one. The generated types cannot know that.
  */
-function withDefaultBusinessUnit<T extends { business_unit_id: string }>(
+function withBusinessUnit<T extends { business_unit_id: string }>(
   row: Omit<T, 'business_unit_id'>,
+  businessUnitId: string | undefined,
 ): T {
-  return row as T;
+  return (businessUnitId ? { ...row, business_unit_id: businessUnitId } : row) as T;
+}
+
+/** Where a new unit or operator goes: the company and, if chosen, its business unit. */
+export interface NewFleetRow {
+  companyId: string;
+  businessUnitId?: string | undefined;
 }
 
 /** Throws the error of a write that returns no data. */
@@ -99,6 +106,7 @@ export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'bu
   readiness: VehicleReadiness;
   /** Name of the business unit that runs it (G1a.2). */
   businessUnitName: string | null;
+  businessUnitId: string;
 }
 
 const VEHICLE_COLUMNS =
@@ -129,13 +137,14 @@ export async function listVehicles(
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const pendingRelease = new Set(check(pending).map((t) => t.vehicle_id));
-  return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
+  return check(vehicles).map(({ business_units: unit, business_unit_id, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     const owner = { type: 'vehicle', id: vehicle.id } as const;
     const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
+      businessUnitId: business_unit_id,
       availability: current,
       readiness: vehicleReadiness({
         expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
@@ -149,7 +158,7 @@ export async function listVehicles(
 export async function saveVehicle(
   client: Supabase,
   values: VehicleFormValues,
-  target: { id: string } | { companyId: string },
+  target: { id: string } | NewFleetRow,
 ): Promise<string> {
   const columns = vehicleColumns(values);
   if ('id' in target) {
@@ -160,11 +169,10 @@ export async function saveVehicle(
     await client
       .from('vehicles')
       .insert(
-        withDefaultBusinessUnit<TablesInsert<'vehicles'>>({
-          ...columns,
-          kind: values.kind,
-          company_id: target.companyId,
-        }),
+        withBusinessUnit<TablesInsert<'vehicles'>>(
+          { ...columns, kind: values.kind, company_id: target.companyId },
+          target.businessUnitId,
+        ),
       )
       .select('id')
       .single(),
@@ -223,6 +231,7 @@ export interface OperatorSummary
   invitation: InvitationRow | null;
   /** Name of the business unit the operator drives for (G1a.2). */
   businessUnitName: string | null;
+  businessUnitId: string;
 }
 
 export async function listOperators(
@@ -249,9 +258,10 @@ export async function listOperators(
       .gt('expires_at', new Date().toISOString()),
   ]);
   const pending = new Map(check(invitations).map((i) => [i.operator_id ?? '', i]));
-  return check(operators).map(({ business_units: unit, ...o }) => ({
+  return check(operators).map(({ business_units: unit, business_unit_id, ...o }) => ({
     ...o,
     businessUnitName: unit?.name ?? null,
+    businessUnitId: business_unit_id,
     invitation: pending.get(o.id) ?? null,
   }));
 }
@@ -259,11 +269,11 @@ export async function listOperators(
 export async function saveOperator(
   client: Supabase,
   values: OperatorDraftValues,
-  target: { id: string } | { companyId: string },
+  target: { id: string } | NewFleetRow,
 ): Promise<string> {
   const columns = {
     full_name: values.fullName,
-    email: values.email,
+    email: values.email ?? null,
     phone: values.phone ?? null,
     license_number: values.licenseNumber ?? null,
     license_type: values.licenseType ?? null,
@@ -277,10 +287,10 @@ export async function saveOperator(
     await client
       .from('operators')
       .insert(
-        withDefaultBusinessUnit<TablesInsert<'operators'>>({
-          ...columns,
-          company_id: target.companyId,
-        }),
+        withBusinessUnit<TablesInsert<'operators'>>(
+          { ...columns, company_id: target.companyId },
+          target.businessUnitId,
+        ),
       )
       .select('id')
       .single(),

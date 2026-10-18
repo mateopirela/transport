@@ -1,9 +1,11 @@
 import {
   fleetCopy,
+  fleetErrorCopy,
   LICENSE_TYPES,
   licenseTypeLabels,
   operatorDraftSchema,
   toOptions,
+  type BusinessUnitRef,
   type LicenseType,
 } from '@transport/shared';
 import { useState } from 'react';
@@ -12,6 +14,7 @@ import { saveOperator, type OperatorRow } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
+import { BusinessUnitChoice } from './business-unit-fields';
 import { ChoiceChips } from './fleet-ui';
 import { Button, Field, Notice } from './ui';
 
@@ -38,19 +41,26 @@ function initialState(row: OperatorRow | null): OperatorFormState {
   };
 }
 
-/** Registers an operator to invite it, or edits it. Calls `onSaved` with its id. */
+/**
+ * Registers an operator to invite it, or edits it. Calls `onSaved` with its
+ * id. A new operator goes to the business unit chosen among `businessUnits`
+ * (those the user operates, G4); the email is optional (G2).
+ */
 export function OperatorForm({
   client,
   companyId,
   operator,
+  businessUnits = [],
   onSaved,
 }: {
   client: Supabase;
   companyId: string;
   operator: OperatorRow | null;
+  businessUnits?: readonly BusinessUnitRef[];
   onSaved: (id: string) => void;
 }) {
   const [form, setForm] = useState(() => initialState(operator));
+  const [businessUnitId, setBusinessUnitId] = useState<string | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -63,14 +73,18 @@ export function OperatorForm({
   async function save() {
     setMessage(null);
     const parsed = validateForm(operatorDraftSchema, form);
-    setErrors(parsed.ok ? {} : parsed.errors);
-    if (!parsed.ok) return;
+    const unitMissing = !operator && businessUnits.length > 1 && !businessUnitId;
+    setErrors({
+      ...(parsed.ok ? {} : parsed.errors),
+      ...(unitMissing ? { businessUnitId: fleetErrorCopy.businessUnitRequired } : {}),
+    });
+    if (!parsed.ok || unitMissing) return;
     setSaving(true);
     try {
       const id = await saveOperator(
         client,
         parsed.data,
-        operator ? { id: operator.id } : { companyId },
+        operator ? { id: operator.id } : { companyId, businessUnitId },
       );
       setMessage({ tone: 'info', text: copy.saved });
       onSaved(id);
@@ -90,6 +104,14 @@ export function OperatorForm({
         error={errors.fullName}
         autoComplete="name"
       />
+      {operator ? null : (
+        <BusinessUnitChoice
+          units={businessUnits}
+          value={businessUnitId}
+          onChange={setBusinessUnitId}
+          error={errors.businessUnitId}
+        />
+      )}
       <Field
         label={copy.emailLabel}
         value={form.email}

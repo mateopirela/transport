@@ -31,7 +31,8 @@ export function operatorDraftSchemaFor(keptLicenseExpiresOn?: string | null) {
   return z.object(
     {
       fullName: requiredText(160),
-      email: emailField,
+      // Optional since G2: operators sign in with their phone (D15-E1).
+      email: z.preprocess(blankToUndefined, emailField.optional()),
       phone: z.preprocess(blankToUndefined, phoneField.optional()),
       licenseNumber: z.preprocess(
         blankToUndefined,
@@ -57,8 +58,9 @@ export function operatorDraftSchemaFor(keptLicenseExpiresOn?: string | null) {
 }
 
 /**
- * Operator registered by the carrier to invite it (B18). Only name and email
- * are needed to send the invitation; the license can be completed later.
+ * Operator registered by the carrier to invite it (B18). Only the name is
+ * needed to send the invitation link (G2: the operator brings their phone);
+ * the email and the license can be completed later.
  */
 export const operatorDraftSchema = operatorDraftSchemaFor();
 

@@ -1,33 +1,16 @@
-import { fleetCopy, formatDateTime, invitationUrl } from '@transport/shared';
-import * as Linking from 'expo-linking';
+import { fleetCopy, formatDateTime } from '@transport/shared';
 import { useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 
 import { createInvitation, revokeInvitation, type OperatorSummary } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
+import { shareableLink } from '../lib/invitation-share';
 import type { Supabase } from '../lib/supabase';
 import { colors, spacing } from '../theme';
 import { SectionTitle } from './fleet-ui';
 import { Body, Button, Notice } from './ui';
 
 const copy = fleetCopy.invitation;
-const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL?.trim();
-
-/**
- * The link to share: the web page `/invitacion/<token>` when the site URL is
- * configured (it opens the app or explains how to get it), otherwise the
- * deep link `transport://invitacion/<token>`.
- */
-function shareableLink(token: string): string {
-  if (SITE_URL) {
-    try {
-      return invitationUrl(SITE_URL, token);
-    } catch {
-      // Fall back to the deep link.
-    }
-  }
-  return Linking.createURL(`/invitacion/${token}`);
-}
 
 /**
  * Invites the operator of this row (G2): issues a single-use link

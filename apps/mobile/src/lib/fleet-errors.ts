@@ -1,4 +1,4 @@
-import { fleetErrorText, mobileErrorCopy } from '@transport/shared';
+import { fleetErrorText, managerCompanyErrorText, mobileErrorCopy } from '@transport/shared';
 
 import { toErrorKey } from './errors';
 
@@ -18,4 +18,16 @@ export function fleetErrorMessage(error: unknown, fallback?: string): string {
   if (known) return known;
   const key = toErrorKey(error);
   return key === 'unknown' && fallback ? fallback : mobileErrorCopy[key];
+}
+
+/**
+ * Spanish message for an error of "Mi empresa" or of an invitation link (G4):
+ * the manager RPCs first, then the fleet errors and the generic copy.
+ */
+export function companyErrorMessage(error: unknown, fallback?: string): string {
+  const message =
+    typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : '';
+  return managerCompanyErrorText(message) ?? fleetErrorMessage(error, fallback);
 }

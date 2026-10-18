@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   operatorFormValues,
   operatorSchemaInput,
+  parseFleetFlash,
   parseNumberInput,
   vehicleFormValues,
   vehicleSchemaInput,
@@ -114,5 +115,25 @@ describe('operator form', () => {
       expect(parsed.success).toBe(true);
       expect(parsed.data?.licenseType).toBeUndefined();
     }
+  });
+});
+
+describe('parseFleetFlash', () => {
+  it('reads the add and archive flashes', () => {
+    expect(parseFleetFlash('alta')).toBe('alta');
+    expect(parseFleetFlash('baja')).toBe('baja');
+  });
+
+  it('takes the first value of a repeated parameter', () => {
+    expect(parseFleetFlash(['baja', 'alta'])).toBe('baja');
+    expect(parseFleetFlash(['otro', 'alta'])).toBeNull();
+  });
+
+  it('ignores missing and unsupported values', () => {
+    expect(parseFleetFlash(undefined)).toBeNull();
+    expect(parseFleetFlash([])).toBeNull();
+    expect(parseFleetFlash('')).toBeNull();
+    expect(parseFleetFlash('ALTA')).toBeNull();
+    expect(parseFleetFlash('<script>')).toBeNull();
   });
 });

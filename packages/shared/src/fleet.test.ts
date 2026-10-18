@@ -19,6 +19,7 @@ import {
   carrierRouteFormSchema,
   documentExpirySchema,
   operatorDraftSchema,
+  operatorDraftSchemaFor,
 } from './schemas/fleet';
 
 const NOW = new Date('2026-10-15T18:00:00Z');
@@ -221,6 +222,34 @@ describe('operatorDraftSchema', () => {
 
   it('rejects a missing email', () => {
     expect(operatorDraftSchema.safeParse({ fullName: 'Omar', email: '' }).success).toBe(false);
+  });
+});
+
+describe('operatorDraftSchemaFor (editing)', () => {
+  const base = { fullName: 'Omar', email: 'omar@fletes.mx' };
+
+  it('keeps the saved expired license date so other fields can change', () => {
+    const schema = operatorDraftSchemaFor('2020-01-01');
+    const result = schema.parse({ ...base, phone: '8112345678', licenseExpiresOn: '2020-01-01' });
+    expect(result.licenseExpiresOn).toBe('2020-01-01');
+  });
+
+  it('still rejects a different expired date', () => {
+    const result = operatorDraftSchemaFor('2020-01-01').safeParse({
+      ...base,
+      licenseExpiresOn: '2021-06-30',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe(m.licenseExpired);
+  });
+
+  it('without a saved date behaves like the registration schema', () => {
+    expect(
+      operatorDraftSchemaFor(null).safeParse({ ...base, licenseExpiresOn: '2020-01-01' }).success,
+    ).toBe(false);
+    expect(
+      operatorDraftSchemaFor(null).safeParse({ ...base, licenseExpiresOn: '2099-01-31' }).success,
+    ).toBe(true);
   });
 });
 

@@ -22,33 +22,45 @@ const blankToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 /**
+ * Operator form schema. A new license date must not be expired; when editing,
+ * `keptLicenseExpiresOn` (the date already saved) is accepted as is, so an
+ * expired license does not block editing other fields (assign_trip still
+ * refuses an operator with an expired license, D16).
+ */
+export function operatorDraftSchemaFor(keptLicenseExpiresOn?: string | null) {
+  return z.object(
+    {
+      fullName: requiredText(160),
+      email: emailField,
+      phone: z.preprocess(blankToUndefined, phoneField.optional()),
+      licenseNumber: z.preprocess(
+        blankToUndefined,
+        z
+          .string({ error: m.invalidText })
+          .transform((value) => value.toUpperCase().replace(/\s/gu, ''))
+          .pipe(z.string().max(30, { error: m.tooLong(30) }))
+          .optional(),
+      ),
+      licenseType: enumField(LICENSE_TYPES).optional(),
+      licenseExpiresOn: z.preprocess(
+        blankToUndefined,
+        z.iso
+          .date({ error: m.date })
+          .refine((date) => date === keptLicenseExpiresOn || date >= todayInMexicoCity(), {
+            error: m.licenseExpired,
+          })
+          .optional(),
+      ),
+    },
+    formError,
+  );
+}
+
+/**
  * Operator registered by the carrier to invite it (B18). Only name and email
  * are needed to send the invitation; the license can be completed later.
  */
-export const operatorDraftSchema = z.object(
-  {
-    fullName: requiredText(160),
-    email: emailField,
-    phone: z.preprocess(blankToUndefined, phoneField.optional()),
-    licenseNumber: z.preprocess(
-      blankToUndefined,
-      z
-        .string({ error: m.invalidText })
-        .transform((value) => value.toUpperCase().replace(/\s/gu, ''))
-        .pipe(z.string().max(30, { error: m.tooLong(30) }))
-        .optional(),
-    ),
-    licenseType: enumField(LICENSE_TYPES).optional(),
-    licenseExpiresOn: z.preprocess(
-      blankToUndefined,
-      z.iso
-        .date({ error: m.date })
-        .refine((date) => date >= todayInMexicoCity(), { error: m.licenseExpired })
-        .optional(),
-    ),
-  },
-  formError,
-);
+export const operatorDraftSchema = operatorDraftSchemaFor();
 
 export type OperatorDraftInput = z.input<typeof operatorDraftSchema>;
 export type OperatorDraftValues = z.output<typeof operatorDraftSchema>;

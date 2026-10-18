@@ -11,7 +11,7 @@ import {
   fleetErrorCopy,
   fleetErrorText,
   isManager,
-  operatorDraftSchema,
+  operatorDraftSchemaFor,
   submitDocumentSchema,
   toEwktPoint,
   uuidField,
@@ -205,10 +205,28 @@ export async function saveCarrierOperator(
   formData: FormData,
 ): Promise<FormState> {
   const entries = formEntries(formData);
-  const parsed = operatorDraftSchema.safeParse(operatorSchemaInput(entries));
-  if (!parsed.success) return invalidForm(parsed.error, entries);
   const supabase = await createClient();
   if (!supabase) return notConfigured;
+  const operatorId = uuidOf(formData, 'operatorId');
+  // Editing: the license date already saved is kept even if it has expired,
+  // so an expired license does not block changing other fields (assign_trip
+  // still refuses that operator, D16).
+  let keptLicenseExpiresOn: string | null = null;
+  if (operatorId) {
+    const { data: saved, error } = await supabase
+      .from('operators')
+      .select('license_expires_on')
+      .eq('id', operatorId)
+      .is('archived_at', null)
+      .maybeSingle();
+    if (error) return { error: fleetError(error), values: refillValues(entries) };
+    if (!saved) return { error: c.operators.notFound, values: refillValues(entries) };
+    keptLicenseExpiresOn = saved.license_expires_on;
+  }
+  const parsed = operatorDraftSchemaFor(keptLicenseExpiresOn).safeParse(
+    operatorSchemaInput(entries),
+  );
+  if (!parsed.success) return invalidForm(parsed.error, entries);
   const v = parsed.data;
   const columns = {
     full_name: v.fullName,
@@ -218,7 +236,6 @@ export async function saveCarrierOperator(
     license_type: v.licenseType ?? null,
     license_expires_on: v.licenseExpiresOn ?? null,
   };
-  const operatorId = uuidOf(formData, 'operatorId');
   if (operatorId) {
     const { data, error } = await supabase
       .from('operators')

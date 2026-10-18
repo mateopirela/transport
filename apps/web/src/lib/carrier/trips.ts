@@ -15,6 +15,7 @@ import {
 
 import { MAP_POINTS_LIMIT } from '../trips/queries';
 import type { Supabase } from '../viewer';
+import { selectAll } from '../verification/paging';
 import { listCarrierOperators, listCarrierVehicles, loadFleetContext } from './fleet';
 import { getCarrierLoad } from './loads';
 import { tripsViewStatuses, type CarrierTripsView } from './trip-filters';
@@ -153,17 +154,21 @@ async function assignmentOptions(
   const [vehicles, operators, busy, offer, pairs] = await Promise.all([
     listCarrierVehicles(supabase, context, businessUnitIds),
     listCarrierOperators(supabase, companyId, businessUnitIds),
-    supabase
-      .from('trips')
-      .select('id, vehicle_id, operator_id')
-      .eq('carrier_company_id', companyId)
-      .in('status', [...BUSY_STATUSES])
-      .neq('id', trip.id),
+    selectAll<{ id: string; vehicle_id: string | null; operator_id: string | null }>((from, to) =>
+      supabase
+        .from('trips')
+        .select('id, vehicle_id, operator_id')
+        .eq('carrier_company_id', companyId)
+        .in('status', [...BUSY_STATUSES])
+        .neq('id', trip.id)
+        .order('id')
+        .range(from, to),
+    ),
     supabase.from('offers').select('vehicle_id').eq('id', trip.offer_id).maybeSingle(),
     supabase.from('license_unit_compatibility').select('license_type, vehicle_kind, allowed'),
   ]);
   if (offer.error) throw new Error(`Offer query failed: ${offer.error.message}`);
-  const others = check(busy);
+  const others = busy;
   const now = new Date();
   return {
     units: vehicles

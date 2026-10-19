@@ -94,7 +94,7 @@ export const fleetCopy = {
     newTitle: 'Nuevo operador',
     editTitle: 'Operador',
     fullNameLabel: 'Nombre completo',
-    emailLabel: 'Correo electrónico',
+    emailLabel: 'Correo electrónico (opcional)',
     phoneLabel: 'Teléfono (opcional)',
     licenseNumberLabel: 'Número de licencia (opcional)',
     licenseTypeLabel: 'Tipo de licencia',

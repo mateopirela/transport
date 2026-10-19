@@ -202,6 +202,9 @@ select set_eq(
     -- Invitations by link (G1b). invitation_preview is also granted to anon:
     -- it answers only to a valid token and returns no id.
     'create_invitation', 'revoke_invitation', 'invitation_preview', 'accept_coordinator_invitation',
+    -- The manager's company (G4): only the Gerente, on their own company.
+    'create_business_unit', 'rename_business_unit', 'archive_business_unit', 'set_coordinator_units',
+    'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit',
     -- Loads and negotiation (B05, B14, B16, B19).
     'create_load', 'update_load', 'publish_load', 'cancel_load', 'make_offer', 'counter_offer',
     'reject_offer', 'withdraw_offer', 'accept_offer', 'admin_create_offer', 'admin_accept_offer',
@@ -247,7 +250,7 @@ select set_eq(
     'handle_new_user', 'audit_admin_action',
     'fleet_block_archive_with_trips', 'open_conversation', 'notify_offer', 'notify_trip_event',
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
-    'companies_create_default_business_unit', 'default_business_unit',
+    'companies_create_default_business_unit', 'default_business_unit', 'require_active_business_unit',
     'operators_revoke_invitations_on_unit_change',
     'trips_sync_document_shares', 'trips_lock_document_shares', 'documents_sync_shares',
     'notify_trip_document_added',

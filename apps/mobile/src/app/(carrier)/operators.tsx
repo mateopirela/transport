@@ -1,4 +1,4 @@
-import { fleetCopy, formatDate } from '@transport/shared';
+import { fleetCopy, formatDate, managerCompanyCopy } from '@transport/shared';
 import { Stack, useRouter } from 'expo-router';
 
 import { Badge, Card, Loaded } from '../../components/fleet-ui';
@@ -18,14 +18,22 @@ function OperatorBadge({ operator }: { operator: OperatorSummary }) {
   return <Badge label={copy.notInvited} tone="neutral" />;
 }
 
-/** The carrier's operators and whether they already use the app (B18, D15). */
+/**
+ * The carrier's operators and whether they already use the app (B18, D15).
+ * The Gerente and the Coordinador invite new operators by link (G4) or
+ * register a row first and invite it from its screen.
+ */
 export default function Operators() {
   const router = useRouter();
   const { state, reload } = useCarrierData(loadOperators);
   return (
     <Screen belowHeader>
       <Stack.Screen options={{ title: copy.title }} />
-      <Button label={copy.add} onPress={() => router.push('/operator/new')} />
+      <Button
+        label={managerCompanyCopy.operators.invite}
+        onPress={() => router.push('/invite-operator')}
+      />
+      <Button label={copy.add} variant="secondary" onPress={() => router.push('/operator/new')} />
       <Loaded state={state} onRetry={() => void reload()}>
         {(operators) =>
           operators.length === 0 ? (
@@ -36,7 +44,7 @@ export default function Operators() {
                 key={operator.id}
                 title={operator.full_name}
                 subtitle={[
-                  operator.email,
+                  operator.phone ?? operator.email,
                   operator.businessUnitName
                     ? fleetCopy.businessUnit(operator.businessUnitName)
                     : null,

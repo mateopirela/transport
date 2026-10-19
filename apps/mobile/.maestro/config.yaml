@@ -15,3 +15,4 @@ executionOrder:
     - 06-operator-incident-offline
     - 07-operator-delivery
     - 08-operator-invite
+    - 09-manager-company

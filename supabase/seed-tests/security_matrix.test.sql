@@ -522,6 +522,14 @@ insert into tests.rpc_calls values
   ('create_invitation', $$ (select count(*) from public.create_invitation('operator_access_reset', '{}', tests.val('operator'))) $$),
   ('revoke_invitation', $$ public.revoke_invitation(tests.val('link_invitation')) $$),
   ('accept_coordinator_invitation', $$ public.accept_coordinator_invitation(rpad('b24coordinatorlink', 43, '0')) $$),
+  ('rename_business_unit', $$ public.rename_business_unit(tests.val('corredor_unit'), 'Ajena') $$),
+  ('archive_business_unit', $$ public.archive_business_unit(tests.val('regional_unit')) $$),
+  ('set_coordinator_units', $$ public.set_coordinator_units('5eed0001-0000-4000-8000-000000000011',
+       array[tests.val('regional_unit')]) $$),
+  ('remove_company_member', $$ public.remove_company_member('5eed0001-0000-4000-8000-000000000011') $$),
+  ('move_vehicle_to_unit', $$ public.move_vehicle_to_unit(tests.val('vehicle'), tests.val('regional_unit')) $$),
+  ('move_operator_to_unit', $$ public.move_operator_to_unit(tests.val('operator_without_account'),
+       tests.val('regional_unit')) $$),
   ('set_vehicle_availability', $$ public.set_vehicle_availability(tests.val('vehicle'), now() + interval '1 hour',
        25.69, -100.32, 'Monterrey', 'Nuevo León') $$),
   ('clear_vehicle_availability', $$ public.clear_vehicle_availability(tests.val('vehicle')) $$),
@@ -602,7 +610,9 @@ insert into tests.self_scoped values
   ('auth_carrier_company_id'), ('auth_is_manager'), ('auth_business_unit_ids'), ('can_operate_unit'),
   ('coordinator_runs_document_owner'), ('conversation_business_unit_id'),
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
-  ('consume_rate_limit'), ('track_product_event'), ('invitation_preview');
+  ('consume_rate_limit'), ('track_product_event'), ('invitation_preview'),
+  -- G4: creates a business unit in the caller's own company (the Gerente's).
+  ('create_business_unit');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,
@@ -708,7 +718,8 @@ select is_empty(
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link',
        'trip_shared_documents', 'revoke_document_share',
-       'vehicle_release_context', 'release_vehicle']) $$,
+       'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
+       'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
 );
 

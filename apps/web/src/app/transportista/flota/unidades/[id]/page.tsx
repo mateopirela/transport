@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { AvailabilityForm } from '@/components/carrier/availability-form';
+import { MoveForm } from '@/components/carrier/company-forms';
 import { FleetArchiveForm } from '@/components/carrier/fleet-archive-form';
 import { FleetDocuments } from '@/components/carrier/fleet-documents';
 import { RecommendationCard } from '@/components/carrier/recommendation-card';
@@ -41,7 +42,7 @@ export default async function CarrierUnitPage({
   searchParams,
 }: PageProps<'/transportista/flota/unidades/[id]'>) {
   const { id } = await params;
-  const { supabase, companyId, isManager } = await carrierContext(carrierUnitPath(id));
+  const { supabase, companyId, isManager, units } = await carrierContext(carrierUnitPath(id));
   const flash = parseFleetFlash((await searchParams).aviso);
   const context = await loadFleetContext(supabase, companyId);
   const vehicle = await getCarrierVehicle(supabase, context, id);
@@ -159,6 +160,17 @@ export default async function CarrierUnitPage({
               />
             )}
           </section>
+          {isManager && (
+            <section className="space-y-2 rounded-xl border bg-card p-4">
+              <h2 className="text-xl">{c.businessUnitField}</h2>
+              <MoveForm
+                kind="vehicle"
+                id={vehicle.id}
+                currentUnitId={vehicle.business_unit_id}
+                units={units.operable}
+              />
+            </section>
+          )}
           {isManager && <FleetArchiveForm kind="vehicle" id={vehicle.id} />}
         </aside>
       </div>

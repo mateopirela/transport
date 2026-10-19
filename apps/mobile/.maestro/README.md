@@ -15,6 +15,7 @@ Se corren en orden con `pnpm e2e:mobile` ([scripts/e2e-mobile.mjs](../../../scri
 | `07-operator-delivery.yaml`         | (sigue la sesión de 06)      | Vuelve la API                                      | "Enviar ahora": la incidencia llega como "Abierta" con su foto; después llegada a destino, inicio de descarga, fotos de entrega y entrega         |
 | `08-operator-invite.yaml`           | (cuenta nueva: Mario Garza)  |                                                    | Abre el enlace demo `transport://invitacion/demo-operador-trn-…`, crea la cuenta con teléfono y contraseña y entra: "Sin viaje asignado"          |
 | `10-coordinator-release.yaml`       | `hector.ibarra@demo.test`    | Un viaje de `TT-01` sale y Sofía lo cancela (RPC)  | G5: ve "Unidades por liberar (1)" en el inicio, abre `TT-01`, la libera en su última ubicación (Monterrey) y ve sus cargas recomendadas desde ahí |
+| `09-manager-company.yaml`           | `jorge.villarreal@demo.test` |                                                    | "Más → Mi empresa": crea la unidad de negocio "Bajío", se la asigna a Héctor Ibarra y mueve `TT-01` a ella desde su ficha                         |
 
 Las capturas de cada paso (`takeScreenshot`) quedan en `e2e/mobile-results/screenshots/` (ignorada por git) y los registros de Maestro en `e2e/mobile-results/maestro/`.
 

@@ -295,13 +295,13 @@ export const carrierWebCopy = {
       license: (type: string, expiresOn: string | null) =>
         expiresOn ? `Tipo ${type} · vence el ${expiresOn}` : `Tipo ${type}`,
       noLicense: 'Sin licencia registrada',
-      emailLocked: 'El correo no se puede cambiar: el operador ya entra a la app con él.',
+      emailLocked: 'El correo no se puede cambiar: el operador ya tiene cuenta en la app.',
       saved: 'Operador guardado.',
-      created: 'Operador registrado. Ahora sube sus documentos e invítalo desde la app.',
+      created: 'Operador registrado. Ahora sube sus documentos y genera su enlace de invitación.',
       archived: 'El operador quedó dado de baja.',
       /** Invitations by link arrive with G1b/G4; until then the app issues the code. */
       invitationHint:
-        'La invitación para que el operador entre a la app se genera desde la app del Gerente o del Coordinador.',
+        'Después de registrarlo, genera desde su ficha el enlace para que entre a la app con su teléfono.',
     },
     routes: {
       description: 'Rutas de la empresa; las usamos para recomendarte cargas y viajes de regreso.',

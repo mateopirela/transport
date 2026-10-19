@@ -2895,6 +2895,7 @@ export interface Database {
         };
         Returns: string;
       };
+      archive_business_unit: { Args: { p_id: string }; Returns: undefined };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       assert_trip_event_order: {
@@ -2942,6 +2943,7 @@ export interface Database {
         Returns: string;
       };
       backfill_document_shares: { Args: Record<PropertyKey, never>; Returns: number };
+      business_unit_name: { Args: { p_name: string }; Returns: string };
       can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
       cancel_trip:
@@ -3034,6 +3036,7 @@ export interface Database {
         };
         Returns: string;
       };
+      create_business_unit: { Args: { p_name: string }; Returns: string };
       create_company: {
         Args: {
           p_contact_email?: string;
@@ -3252,6 +3255,14 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      move_operator_to_unit: {
+        Args: { p_operator_id: string; p_unit_id: string };
+        Returns: undefined;
+      };
+      move_vehicle_to_unit: {
+        Args: { p_unit_id: string; p_vehicle_id: string };
+        Returns: undefined;
+      };
       normalize_mx_phone: { Args: { p_phone: string }; Returns: string };
       notify_business_unit_coordinators: {
         Args: {
@@ -3366,6 +3377,8 @@ export interface Database {
         Returns: string;
       };
       remind_stale_trip_locations: { Args: { p_stale_after?: string }; Returns: number };
+      remove_company_member: { Args: { p_profile_id: string }; Returns: undefined };
+      rename_business_unit: { Args: { p_id: string; p_name: string }; Returns: undefined };
       report_incident: {
         Args: {
           p_client_event_id?: string;
@@ -3382,6 +3395,7 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['verification_status'];
       };
+      require_manager_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       resolve_incident: {
         Args: { p_incident_id: string; p_resolution: string };
         Returns: undefined;
@@ -3416,6 +3430,10 @@ export interface Database {
           p_conversation_id: string;
         };
         Returns: string;
+      };
+      set_coordinator_units: {
+        Args: { p_profile_id: string; p_unit_ids: string[] };
+        Returns: undefined;
       };
       set_estimated_unload_end: {
         Args: {

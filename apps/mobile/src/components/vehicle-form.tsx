@@ -1,5 +1,6 @@
 import {
   fleetCopy,
+  fleetErrorCopy,
   SPECIAL_REQUIREMENTS,
   specialRequirementLabels,
   toOptions,
@@ -8,6 +9,7 @@ import {
   VEHICLE_KINDS,
   vehicleFormSchema,
   vehicleKindLabels,
+  type BusinessUnitRef,
 } from '@transport/shared';
 import { useState } from 'react';
 
@@ -16,6 +18,7 @@ import { saveVehicle } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
+import { BusinessUnitChoice } from './business-unit-fields';
 import { ChoiceChips, MultiChips } from './fleet-ui';
 import { Body, Button, Field, Notice } from './ui';
 
@@ -26,22 +29,26 @@ const FEATURE_OPTIONS = toOptions(SPECIAL_REQUIREMENTS, specialRequirementLabels
 
 /**
  * Registers a unit or edits it (`vehicleId`). The kind cannot change after
- * registration. Calls `onSaved` with the unit id.
+ * registration. A new unit goes to the business unit chosen among
+ * `businessUnits` (G4). Calls `onSaved` with the unit id.
  */
 export function VehicleForm({
   client,
   companyId,
   vehicleId,
   initial,
+  businessUnits = [],
   onSaved,
 }: {
   client: Supabase;
   companyId: string;
   vehicleId: string | null;
   initial: VehicleFormState;
+  businessUnits?: readonly BusinessUnitRef[];
   onSaved: (id: string) => void;
 }) {
   const [form, setForm] = useState(initial);
+  const [businessUnitId, setBusinessUnitId] = useState<string | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -53,14 +60,18 @@ export function VehicleForm({
   async function save() {
     setMessage(null);
     const parsed = validateForm(vehicleFormSchema, vehicleSchemaInput(form));
-    setErrors(parsed.ok ? {} : parsed.errors);
-    if (!parsed.ok) return;
+    const unitMissing = !vehicleId && businessUnits.length > 1 && !businessUnitId;
+    setErrors({
+      ...(parsed.ok ? {} : parsed.errors),
+      ...(unitMissing ? { businessUnitId: fleetErrorCopy.businessUnitRequired } : {}),
+    });
+    if (!parsed.ok || unitMissing) return;
     setSaving(true);
     try {
       const id = await saveVehicle(
         client,
         parsed.data,
-        vehicleId ? { id: vehicleId } : { companyId },
+        vehicleId ? { id: vehicleId } : { companyId, businessUnitId },
       );
       setMessage({ tone: 'info', text: copy.saved });
       onSaved(id);
@@ -82,6 +93,14 @@ export function VehicleForm({
           value={form.kind}
           onChange={(kind) => set('kind', kind)}
           error={errors.kind}
+        />
+      )}
+      {vehicleId ? null : (
+        <BusinessUnitChoice
+          units={businessUnits}
+          value={businessUnitId}
+          onChange={setBusinessUnitId}
+          error={errors.businessUnitId}
         />
       )}
       <Field

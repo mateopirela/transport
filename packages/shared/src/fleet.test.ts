@@ -203,7 +203,7 @@ describe('Mexico City date-times', () => {
 });
 
 describe('operatorDraftSchema', () => {
-  it('needs only name and email; blank optional fields are dropped', () => {
+  it('needs only the name; blank optional fields are dropped', () => {
     const result = operatorDraftSchema.parse({
       fullName: ' Omar Díaz ',
       email: 'Omar@Fletes.MX',
@@ -237,8 +237,12 @@ describe('operatorDraftSchema', () => {
     expect(expired.error?.issues[0]?.message).toBe(m.licenseExpired);
   });
 
-  it('rejects a missing email', () => {
-    expect(operatorDraftSchema.safeParse({ fullName: 'Omar', email: '' }).success).toBe(false);
+  it('takes the email as optional (operators sign in with their phone, G2)', () => {
+    expect(operatorDraftSchema.parse({ fullName: 'Omar', email: '' })).toEqual({
+      fullName: 'Omar',
+    });
+    expect(operatorDraftSchema.parse({ fullName: 'Omar' })).toEqual({ fullName: 'Omar' });
+    expect(operatorDraftSchema.safeParse({ fullName: 'Omar', email: 'omar' }).success).toBe(false);
   });
 });
 

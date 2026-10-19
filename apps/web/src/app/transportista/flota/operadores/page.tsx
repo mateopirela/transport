@@ -1,4 +1,10 @@
-import { carrierWebCopy, fleetCopy, formatCalendarDate, formatDate } from '@transport/shared';
+import {
+  carrierWebCopy,
+  fleetCopy,
+  formatCalendarDate,
+  formatDate,
+  managerCompanyCopy,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -44,13 +50,27 @@ export default async function CarrierOperatorsPage({
       )}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl">{c.operators.title}</h2>
-        {isManager ? (
-          <Link href={paths.newCarrierOperator} className={buttonVariants({ variant: 'accent' })}>
-            {c.operators.add}
-          </Link>
-        ) : (
-          <p className="text-xs text-muted-foreground">{c.managerOnly}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* G4: the Gerente and the Coordinador invite operators by link. */}
+          {units.operable.length > 0 && (
+            <Link
+              href={paths.inviteCarrierOperator}
+              className={buttonVariants({ variant: 'accent' })}
+            >
+              {managerCompanyCopy.operators.invite}
+            </Link>
+          )}
+          {isManager ? (
+            <Link
+              href={paths.newCarrierOperator}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {c.operators.add}
+            </Link>
+          ) : (
+            <p className="text-xs text-muted-foreground">{c.managerOnly}</p>
+          )}
+        </div>
       </div>
       {operators.length === 0 ? (
         <p className="text-sm text-muted-foreground">{c.operators.empty}</p>
@@ -69,9 +89,9 @@ export default async function CarrierOperatorsPage({
             <tr key={operator.id}>
               <td className="font-medium">{operator.full_name}</td>
               <td className="text-sm">
-                {operator.email}
-                {operator.phone && (
-                  <p className="text-xs text-muted-foreground">{operator.phone}</p>
+                {operator.phone}
+                {operator.email && (
+                  <p className="text-xs text-muted-foreground">{operator.email}</p>
                 )}
               </td>
               <td className="text-sm whitespace-nowrap">

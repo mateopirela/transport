@@ -13,6 +13,7 @@ export * from './geo';
 export * from './invitation-link';
 export * from './kpis';
 export * from './legal';
+export * from './manager-company';
 export * from './matching';
 export * from './money';
 export * from './mx-states';

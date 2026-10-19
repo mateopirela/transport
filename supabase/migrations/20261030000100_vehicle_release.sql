@@ -530,6 +530,37 @@ begin
 end;
 $$;
 
+-- Same as F5 (20261021000000_unit_availability_restore.sql), except that a
+-- trip contracted with a unit pending release is refused (G5): an offer made
+-- before the cancellation must not book the unit when it is accepted
+-- (accept_offer and admin_accept_offer both create the trip here). Checked
+-- under the unit lock F5 already takes, so release_vehicle (which locks the
+-- unit for update) and the acceptance serialize.
+create or replace function public.trips_end_vehicle_estimate()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_vehicle_id uuid := new.vehicle_id;
+begin
+  if v_vehicle_id is null and tg_op = 'INSERT' then
+    select o.vehicle_id into v_vehicle_id from public.offers o where o.id = new.offer_id;
+  end if;
+  if v_vehicle_id is null or new.status in ('delivered', 'closed', 'cancelled') then
+    return null;
+  end if;
+  perform 1 from public.vehicles v where v.id = v_vehicle_id for share;
+  if tg_op = 'INSERT' and public.vehicle_pending_release(v_vehicle_id) then
+    raise exception 'vehicle is pending release' using errcode = '55000';
+  end if;
+  update public.vehicle_availability
+  set archived_at = now(), ended_by_trip_id = new.id
+  where vehicle_id = v_vehicle_id and archived_at is null;
+  return null;
+end;
+$$;
+
 -- Same as F5 (20261021000000_unit_availability_restore.sql), except a unit
 -- pending release has no starting point (G5).
 create or replace function public.match_pairs(

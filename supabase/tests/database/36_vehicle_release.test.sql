@@ -15,7 +15,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(50);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -282,7 +282,15 @@ values ('c3300000-0000-4000-8000-000000000002', 'e3300000-0000-4000-8000-0000000
         extensions.st_setsrid(extensions.st_makepoint(-103.3496, 20.6597), 4326)::extensions.geography,
         'Guadalajara', 'Jalisco', 'trip_estimate');
 
+-- An offer naming the unit, made before the cancellation (accepted in 3).
 set local role authenticated;
+select tests.login('a3300000-0000-4000-8000-000000000001');
+insert into tests.vals select 'load_pre', public.create_load(tests.payload(3));
+select public.publish_load(tests.val('load_pre'));
+select tests.login('a3300000-0000-4000-8000-000000000003');
+insert into tests.vals
+select 'offer_pre', public.make_offer(tests.val('load_pre'), 3000000, null, 'e3300000-0000-4000-8000-00000000000a');
+
 select tests.login('a3300000-0000-4000-8000-000000000001');
 select lives_ok(
   $$ select public.cancel_trip(tests.val('trip2'), 'shipper_request', 'Se pospuso el pedido') $$,
@@ -333,6 +341,16 @@ select throws_ok(
   $$ select public.make_offer(tests.val('load3'), 3000000, null, 'e3300000-0000-4000-8000-00000000000a') $$,
   '55000', 'vehicle is pending release', 'a pending unit cannot be offered'
 );
+select tests.login('a3300000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$ select public.accept_offer(tests.val('offer_pre')) $$,
+  '55000', 'vehicle is pending release', 'an offer made before the cancellation cannot book the pending unit'
+);
+select is(
+  (select status::text from public.loads where id = tests.val('load_pre')), 'negotiating',
+  'and the load stays in negotiation (nothing is contracted)'
+);
+select tests.login('a3300000-0000-4000-8000-000000000003');
 insert into tests.vals
 select 'offer3', public.make_offer(tests.val('load3'), 3000000, null, 'e3300000-0000-4000-8000-00000000000b');
 select tests.login('a3300000-0000-4000-8000-000000000001');

@@ -24,6 +24,9 @@ describe('offerErrorMessage', () => {
     expect(
       offerErrorMessage({ code: '55000', message: 'both companies must be approved to contract' }),
     ).toBe(e.bothApproved);
+    expect(offerErrorMessage({ code: '55000', message: 'vehicle is pending release' })).toBe(
+      e.unitPendingRelease,
+    );
     expect(
       offerErrorMessage({ code: '22023', message: 'invalid offer: amount out of range' }),
     ).toBe(e.invalidAmount);

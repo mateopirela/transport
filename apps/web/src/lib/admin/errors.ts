@@ -26,6 +26,7 @@ export function adminOpsErrorMessage(error: PostgrestLikeError): string {
       if (message.startsWith('pickup window already ended')) return e.pickupEnded;
       if (message.startsWith('offer is no longer pending')) return e.notPending;
       if (message.startsWith('incident is already resolved')) return e.incidentResolved;
+      if (message.startsWith('vehicle is pending release')) return e.unitPendingRelease;
       return e.generic;
     case '23502':
       return message.startsWith('business_unit_id is required')

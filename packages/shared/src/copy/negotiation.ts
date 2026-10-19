@@ -79,6 +79,9 @@ export const offersCopy = {
     notPending: 'La oferta ya fue respondida. Actualizamos la lista.',
     loadClosed: 'La carga ya no admite cambios en sus ofertas.',
     pickupEnded: 'La ventana de recolección ya terminó. Edita las fechas de la carga.',
+    /** G5: the offer's unit is pending release. */
+    unitPendingRelease:
+      'La unidad de esta oferta espera ser liberada (su viaje anterior se canceló en camino). Pide al transportista una oferta nueva.',
     notApproved: 'Tu empresa debe estar aprobada para negociar.',
     bothApproved: 'El transportista ya no está aprobado; no se puede contratar.',
     invalidAmount: 'Escribe un monto válido.',

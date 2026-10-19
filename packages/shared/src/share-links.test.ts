@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   appShareLink,
+  canShareTripTracking,
   DEFAULT_SHARE_VALIDITY_HOURS,
   FORBIDDEN_PUBLIC_KEYS,
   internalSharedLoadSchema,
@@ -195,5 +196,23 @@ describe('jsonKeys', () => {
     expect(jsonKeys({ a: 1, b: { c: [{ d: 2 }] } })).toEqual(['a', 'b', 'c', 'd']);
     expect(jsonKeys(null)).toEqual([]);
     expect(jsonKeys('x')).toEqual([]);
+  });
+});
+
+describe('canShareTripTracking', () => {
+  const now = new Date('2026-11-02T12:00:00Z');
+
+  it('allows an open trip and one closed less than 24 hours ago', () => {
+    expect(canShareTripTracking({ status: 'in_transit', closed_at: null }, now)).toBe(true);
+    expect(canShareTripTracking({ status: 'closed', closed_at: '2026-11-01T12:00:01Z' }, now)).toBe(
+      true,
+    );
+  });
+
+  it('refuses a cancelled trip and one past the 24-hour window', () => {
+    expect(canShareTripTracking({ status: 'cancelled', closed_at: null }, now)).toBe(false);
+    expect(canShareTripTracking({ status: 'closed', closed_at: '2026-11-01T12:00:00Z' }, now)).toBe(
+      false,
+    );
   });
 });

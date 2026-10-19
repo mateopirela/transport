@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(82);
+select plan(83);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -688,6 +688,16 @@ select throws_ok(
 select throws_ok(
   $$ select public.public_shared_trip(tests.token('pub2')) $$,
   '42501', 'share link not found', 'a load token does not open a tracking'
+);
+reset role;
+
+-- Nor can a new link be created then: it would never open.
+set local role authenticated;
+select tests.login('a3700000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$ select * from public.create_share_link('trip_tracking_public', null, tests.val('trip1'), null) $$,
+  '22023', 'the tracking of this trip has ended',
+  'no tracking link is created more than 24 hours after the trip closed'
 );
 reset role;
 

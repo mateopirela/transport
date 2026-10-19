@@ -277,6 +277,14 @@ begin
     if exists (select 1 from public.trips t where t.id = p_trip_id and t.status = 'cancelled') then
       raise exception 'a cancelled trip cannot be shared' using errcode = '22023';
     end if;
+    -- share_link_by_token stops a trip's links 24 hours after it closes: a
+    -- new one would never open.
+    if exists (
+      select 1 from public.trips t
+      where t.id = p_trip_id and t.closed_at + interval '24 hours' <= now()
+    ) then
+      raise exception 'the tracking of this trip has ended' using errcode = '22023';
+    end if;
     v_hours := coalesce(p_valid_for_hours, 24 * 30);
   end if;
 

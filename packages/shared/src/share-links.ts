@@ -84,6 +84,22 @@ export function appShareLink(token: string): string {
 /** How often the public tracking page reloads while the trip can still change. */
 export const SHARE_TRACKING_REFRESH_MS = 60_000;
 
+/** Hours after a trip closes during which its tracking links still open (share_link_by_token). */
+export const SHARE_TRACKING_AFTER_CLOSE_HOURS = 24;
+
+/**
+ * Whether a new tracking link can be created for a trip (create_share_link):
+ * not cancelled, and not past the window in which its links still open.
+ */
+export function canShareTripTracking(
+  trip: { status: string; closed_at: string | null },
+  now: Date,
+): boolean {
+  if (trip.status === 'cancelled') return false;
+  if (trip.closed_at === null) return true;
+  return Date.parse(trip.closed_at) + SHARE_TRACKING_AFTER_CLOSE_HOURS * 3_600_000 > now.getTime();
+}
+
 /** Statuses after which the shared tracking no longer changes on its own. */
 const FINAL_TRIP_STATUSES: readonly string[] = ['closed', 'cancelled'];
 

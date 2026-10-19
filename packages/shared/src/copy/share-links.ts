@@ -119,7 +119,8 @@ export const shareLinksCopy = {
   errors: {
     notFound: 'No encontramos esta carga o viaje.',
     invalidValidity: 'Elige una vigencia válida.',
-    notShareable: 'Solo se pueden compartir cargas publicadas y viajes que no estén cancelados.',
+    notShareable:
+      'Solo se pueden compartir cargas publicadas y viajes que no estén cancelados ni cerrados hace más de 24 horas.',
     rateLimited: 'Creaste muchos enlaces en poco tiempo. Espera un minuto e inténtalo de nuevo.',
     generic: 'No pudimos completar la acción. Inténtalo de nuevo.',
   },

@@ -1,4 +1,5 @@
 import {
+  canShareTripTracking,
   clientTripsCopy,
   evidenceStageLabels,
   formatDateTime,
@@ -62,12 +63,13 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
   const load = trip.load;
   const chat = data.conversationId ? await getChat(supabase, data.conversationId, companyId) : null;
+  const now = new Date();
   // The tracking can be shared with anyone, read-only, unless the trip is
-  // cancelled (G7, D23); active links stay listed (and revocable) anyway.
-  const shareable = trip.status !== 'cancelled';
+  // cancelled or closed more than 24 hours ago (G7, D23); active links stay
+  // listed (and revocable) anyway.
+  const shareable = canShareTripTracking(trip, now);
   const shareLinks = await listActiveShareLinks(supabase, { tripId: trip.id });
 
-  const now = new Date();
   const last = locations.at(-1);
   const state = mapState(trip, last?.recorded_at ?? null, now);
   const live = state.kind === 'live' || state.kind === 'waiting' || state.kind === 'noSignal';

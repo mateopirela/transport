@@ -9,7 +9,9 @@ import {
   locationBatchSchema,
   locationPointSchema,
   optionalCoordinatesSchema,
+  tripDocumentSchema,
 } from './trip';
+import { TRIP_DOCUMENT_KINDS } from '../enums';
 
 const POINT = { recordedAt: '2026-11-02T10:00:00-06:00', lat: 25.67, lng: -100.31 };
 const HASH = 'ab'.repeat(32);
@@ -102,5 +104,41 @@ describe('evidence metadata', () => {
     expect(evidenceMetadataSchema.safeParse({ ...base, stage: 'pickup', incidentId }).success).toBe(
       false,
     );
+  });
+});
+
+describe('trip document', () => {
+  const DOC = {
+    tripId: '5eed0008-0000-4000-8000-000000000002',
+    kind: TRIP_DOCUMENT_KINDS[0],
+    storagePath: 'trips/5eed0008-0000-4000-8000-000000000002/carta-porte.pdf',
+    fileName: ' carta-porte.pdf ',
+  };
+
+  it('accepts a registered upload and trims the file name', () => {
+    expect(tripDocumentSchema.parse(DOC)).toEqual({ ...DOC, fileName: 'carta-porte.pdf' });
+  });
+
+  it('refuses an invalid trip id or document kind', () => {
+    expect(tripDocumentSchema.safeParse({ ...DOC, tripId: 'abc' }).success).toBe(false);
+    expect(tripDocumentSchema.safeParse({ ...DOC, kind: 'selfie' }).success).toBe(false);
+  });
+
+  it('needs a path and a file name within their limits', () => {
+    expect(
+      tripDocumentSchema.safeParse({ ...DOC, storagePath: '' }).error?.issues[0]?.message,
+    ).toBe(m.required);
+    expect(tripDocumentSchema.safeParse({ ...DOC, storagePath: 'x'.repeat(301) }).success).toBe(
+      false,
+    );
+    expect(tripDocumentSchema.safeParse({ ...DOC, storagePath: 'x'.repeat(300) }).success).toBe(
+      true,
+    );
+    expect(tripDocumentSchema.safeParse({ ...DOC, fileName: '  ' }).error?.issues[0]?.message).toBe(
+      m.required,
+    );
+    expect(
+      tripDocumentSchema.safeParse({ ...DOC, fileName: 'x'.repeat(256) }).error?.issues[0]?.message,
+    ).toBe(m.tooLong(255));
   });
 });

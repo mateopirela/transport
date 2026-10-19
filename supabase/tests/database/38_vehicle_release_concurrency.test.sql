@@ -146,6 +146,7 @@ as $$
     delete from public.trip_locations
     where trip_id in (select id from public.trips where shipper_company_id = 'c3400000-0000-4000-8000-000000000001');
     delete from public.conversations where shipper_company_id = 'c3400000-0000-4000-8000-000000000001';
+    delete from public.document_shares where shipper_company_id = 'c3400000-0000-4000-8000-000000000001';
     delete from public.trips where shipper_company_id = 'c3400000-0000-4000-8000-000000000001';
     update public.loads
     set status = 'draft', accepted_offer_id = null, carrier_company_id = null, agreed_price_cents = null,

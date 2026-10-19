@@ -784,9 +784,9 @@ after insert on public.trip_documents
 for each row execute function public.notify_trip_document_added();
 
 -- ---------------------------------------------------------------------------
--- Rate limits: same as 20261025120000_incident_photos_clock_rate_limits.sql,
--- plus the 'shared_document_url' bucket (G6): each call signs a URL of a
--- carrier's document and writes a view to the log.
+-- Rate limits: same as 20261028000000_registration.sql (G2, which keeps the
+-- G1b and G7 buckets), plus the 'shared_document_url' bucket (G6): each call
+-- signs a URL of a carrier's document and writes a view to the log.
 -- ---------------------------------------------------------------------------
 create or replace function public.rate_limit_policy(
   p_bucket text,
@@ -811,6 +811,14 @@ as $$
     ('create_load', 'rpc', 30, 60),
     ('offers', 'rpc', 60, 60),
     ('record_trip_locations', 'rpc', 120, 60),
+    -- G1b: invitation links. Inviting is manual; this stops a script from
+    -- minting links in bulk.
+    ('create_invitation', 'rpc', 20, 60),
+    -- G7: a person shares a handful of links; this only stops scripts.
+    ('create_share_link', 'rpc', 30, 60),
+    -- G2: redeeming a link (Edge Function), per IP and per token, 10 minutes.
+    ('redeem-invitation-ip', 'service', 20, 600),
+    ('redeem-invitation-token', 'service', 5, 600),
     -- G6: Edge Function shared-document-url, per user and minute.
     ('shared_document_url', 'user', 30, 60)
   ) as v(bucket, scope, max_hits, window_seconds)

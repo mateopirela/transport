@@ -35,7 +35,14 @@ export default function Operators() {
               <Card
                 key={operator.id}
                 title={operator.full_name}
-                subtitle={operator.email}
+                subtitle={[
+                  operator.email,
+                  operator.businessUnitName
+                    ? fleetCopy.businessUnit(operator.businessUnitName)
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
                 onPress={() =>
                   router.push({ pathname: '/operator/[id]', params: { id: operator.id } })
                 }

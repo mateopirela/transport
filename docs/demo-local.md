@@ -14,9 +14,11 @@ Contraseña de todos: **`Demo1234`**
 | `ana.garza@demo.test`        | Cliente                   | Aceros del Norte (Monterrey)               | Viaje en descarga en GDL con mapa y chat; oferta pendiente         |
 | `luis.ramirez@demo.test`     | Cliente                   | Alimentos de Occidente (Guadalajara)       | Carga GDL → MTY publicada; contraoferta esperando al transportista |
 | `sofia.trevino@demo.test`    | Cliente                   | Empaques Plásticos Regios (Monterrey)      | Borrador, carga contratada con viaje asignado, carga expirada      |
-| `jorge.villarreal@demo.test` | Transportista             | Transportes Regios del Norte (Monterrey)   | Flota de 4 unidades; su caja seca termina de descargar en GDL      |
-| `carmen.navarro@demo.test`   | Transportista             | Fletes Tapatíos (Guadalajara)              | Contraoferta por responder; plataforma con póliza en revisión      |
-| `jose.sanchez@demo.test`     | Transportista y operador  | José Sánchez Medina (hombre-camión, D13)   | Oferta pendiente; viaje cerrado que manejó él mismo                |
+| `jorge.villarreal@demo.test` | Gerente                   | Transportes Regios del Norte (Monterrey)   | Ve y opera las 2 unidades de negocio; su caja seca descarga en GDL |
+| `andrea.cavazos@demo.test`   | Coordinadora              | TRN · "Corredor MTY–GDL"                   | `TRN-01`, `CS53-01`, Pedro López, el viaje en descarga y su chat   |
+| `hector.ibarra@demo.test`    | Coordinador               | TRN · "Regional Monterrey"                 | `RF53-01`, `TT-01`, Raúl y Arturo; no ve nada del corredor         |
+| `carmen.navarro@demo.test`   | Gerente                   | Fletes Tapatíos (Guadalajara)              | Contraoferta por responder; plataforma con póliza en revisión      |
+| `jose.sanchez@demo.test`     | Gerente y operador        | José Sánchez Medina (hombre-camión, D13)   | Oferta pendiente; viaje cerrado que manejó él mismo                |
 | `pedro.lopez@demo.test`      | Operador                  | Transportes Regios del Norte               | Viaje en descarga: actualizar el fin estimado y terminar           |
 | `raul.mendez@demo.test`      | Operador                  | Transportes Regios del Norte               | Operador sin viaje activo                                          |
 | `miguel.hernandez@demo.test` | Operador                  | Fletes Tapatíos                            | Viaje asignado Apodaca → GDL: registrar la salida                  |

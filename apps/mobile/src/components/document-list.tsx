@@ -40,11 +40,14 @@ export function DocumentList({
   context,
   owner,
   onChanged,
+  readOnly = false,
 }: {
   client: Supabase;
   context: CompanyContext;
   owner: { type: DocumentOwnerType; id: string };
   onChanged: () => Promise<void>;
+  /** Shows the state only, without the upload actions. */
+  readOnly?: boolean;
 }) {
   const progress = ownerProgress(context, owner);
   if (progress.length === 0) return <Body>{copy.empty}</Body>;
@@ -63,7 +66,7 @@ export function DocumentList({
           {state === 'approved' && document?.expires_at ? (
             <Body>{copy.validUntil(formatDate(document.expires_at))}</Body>
           ) : null}
-          {state !== 'pending_review' ? (
+          {!readOnly && state !== 'pending_review' ? (
             <UploadActions
               client={client}
               companyId={context.company.id}

@@ -79,11 +79,11 @@ select is(
      and email like '%@demo.test'
      and email_confirmed_at is not null
      and encrypted_password = extensions.crypt('Demo1234', encrypted_password)),
-  10, 'ten confirmed demo users with the documented password'
+  12, 'twelve confirmed demo users with the documented password'
 );
 select is(
   (select count(*)::int from auth.identities where user_id::text like '5eed0001-%' and provider = 'email'),
-  10, 'every demo user has an email identity (needed to sign in)'
+  12, 'every demo user has an email identity (needed to sign in)'
 );
 
 -- ---------------------------------------------------------------------------

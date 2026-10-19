@@ -11,6 +11,9 @@
 --   accept direct updates. Clients cannot delete (18_security_audit).
 -- * RPCs: the outsiders call every client RPC on the seed's rows. Each call
 --   must fail, or change nothing and return nothing.
+-- * Business units (G1a.2): a coordinator reads only the rows of their
+--   business units (tests.unit_ownership), and the coordinator of another
+--   business unit of the same company cannot act on them.
 --
 -- The catalog checks force the matrix to grow with the schema: every table
 -- needs an ownership rule and at least one row, and every client RPC needs a
@@ -18,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(25);
+select plan(30);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -146,6 +149,8 @@ insert into tests.ownership values
   ('public.operators', 't.company_id = $1'),
   ('public.operator_invitations', 't.company_id = $1'),
   ('public.carrier_routes', 't.company_id = $1'),
+  ('public.business_units', 't.company_id = $1'),
+  ('public.business_unit_coordinators', 't.company_id = $1'),
   ('public.vehicle_availability', 't.company_id = $1'),
   -- Marketplace: open loads are visible to approved carriers. A carrier that
   -- negotiated keeps seeing the load unless another carrier won it.
@@ -190,6 +195,72 @@ insert into tests.ownership values
        else false
      end
   $$);
+
+-- A coordinator (G1a.2): stricter rules over $3, the business units assigned
+-- to them. Tables without a rule here keep the company rule (business units,
+-- the usual routes, the company's documents and the published loads are
+-- shared by the company's staff).
+create table tests.unit_ownership (tbl text primary key, owned text not null);
+insert into tests.unit_ownership values
+  ('public.business_unit_coordinators', 't.profile_id = $2'),
+  ('public.vehicles', 't.business_unit_id = any ($3)'),
+  ('public.operators', 't.business_unit_id = any ($3)'),
+  ('public.operator_invitations', 'exists (select 1 from public.operators o where o.id = t.operator_id and o.business_unit_id = any ($3))'),
+  ('public.vehicle_availability', 'exists (select 1 from public.vehicles v where v.id = t.vehicle_id and v.business_unit_id = any ($3))'),
+  ('public.documents', $$
+     t.company_id = $1 and (
+       t.owner_type = 'company'
+       or exists (select 1 from public.vehicles v where t.owner_type = 'vehicle' and v.id = t.owner_id and v.business_unit_id = any ($3))
+       or exists (select 1 from public.operators o where t.owner_type = 'operator' and o.id = t.owner_id and o.business_unit_id = any ($3)))
+  $$),
+  ('public.loads', $$
+     exists (select 1 from public.negotiations n where n.load_id = t.id and n.business_unit_id = any ($3)
+             and (t.carrier_company_id is null or t.carrier_company_id = $1))
+     or (t.carrier_company_id = $1
+         and exists (select 1 from public.trips x where x.load_id = t.id and x.business_unit_id = any ($3)))
+     or (t.status in ('published', 'negotiating') and t.archived_at is null
+         and exists (select 1 from public.companies c
+                     where c.id = $1 and c.type = 'carrier' and c.status = 'approved' and c.archived_at is null))
+  $$),
+  ('public.negotiations', 't.business_unit_id = any ($3)'),
+  ('public.offers', 'exists (select 1 from public.negotiations n where n.id = t.negotiation_id and n.business_unit_id = any ($3))'),
+  ('public.trips', 't.business_unit_id = any ($3)'),
+  ('public.conversations', 'public.conversation_business_unit_id_as_owner(t.id) = any ($3)'),
+  ('public.trip_events', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.trip_evidence', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.trip_documents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.trip_locations', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.messages', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
+  ('public.message_reads', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
+  ('storage.objects', $$
+     case t.bucket_id
+       when 'documents' then split_part(t.name, '/', 1) = $1::text and (
+         split_part(t.name, '/', 2) = 'company'
+         or exists (select 1 from public.vehicles v where v.id::text = split_part(t.name, '/', 3) and v.business_unit_id = any ($3))
+         or exists (select 1 from public.operators o where o.id::text = split_part(t.name, '/', 3) and o.business_unit_id = any ($3)))
+       when 'evidence' then exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
+                                    and x.business_unit_id = any ($3))
+       when 'trip-documents' then exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
+                                          and x.business_unit_id = any ($3))
+       when 'chat' then public.conversation_business_unit_id_as_owner(split_part(t.name, '/', 1)::uuid) = any ($3)
+       else false
+     end
+  $$);
+
+-- The business unit of a conversation, read as the database owner (the
+-- client helper answers only to the conversation's carrier staff).
+create function public.conversation_business_unit_id_as_owner(p_conversation_id uuid)
+returns uuid
+language sql
+stable
+as $$
+  select coalesce(n.business_unit_id, x.business_unit_id)
+  from public.conversations c
+  left join public.negotiations n on n.id = c.negotiation_id
+  left join public.trips x on x.id = c.trip_id
+  where c.id = p_conversation_id;
+$$;
 
 select set_eq(
   $$ select tbl from tests.ownership where tbl like 'public.%' $$,
@@ -259,13 +330,23 @@ returns text
 language plpgsql
 as $$
 declare
-  v_owned text := (select owned from tests.ownership where tbl = p_tbl);
+  v_coordinator boolean := exists (select 1 from public.profiles where id = p_uid and role = 'coordinator');
+  v_owned text := coalesce(
+    (select owned from tests.unit_ownership where tbl = p_tbl and v_coordinator),
+    (select owned from tests.ownership where tbl = p_tbl)
+  );
   v_company uuid := (select company_id from public.profiles where id = p_uid);
+  v_units uuid[] := (
+    select coalesce(array_agg(bc.business_unit_id), '{}')
+    from public.business_unit_coordinators bc
+    join public.business_units b on b.id = bc.business_unit_id and b.archived_at is null
+    where bc.profile_id = p_uid
+  );
   v_count bigint;
 begin
-  execute format('select count(*) from %s t where %s = any ($3) and not coalesce((%s), false)',
+  execute format('select count(*) from %s t where %s = any ($4) and not coalesce((%s), false)',
                  p_tbl, tests.row_key(p_tbl), v_owned)
-  into v_count using v_company, p_uid, p_keys;
+  into v_count using v_company, p_uid, v_units, p_keys;
   return case when v_count > 0 then format('%s: %s rows', p_tbl, v_count) end;
 end;
 $$;
@@ -344,7 +425,7 @@ where p.role <> 'admin';
 
 select is_empty(
   format($$ select * from tests.read_leaks(%L) $$, uid),
-  'read: ' || label || ' only sees rows of their company'
+  'read: ' || label || ' only sees rows of their company (a coordinator, of their business units)'
 )
 from tests.personas order by uid;
 
@@ -428,6 +509,8 @@ create table tests.self_scoped (fn text);
 insert into tests.self_scoped values
   ('auth_role'), ('auth_company_id'), ('auth_shipper_company_id'), ('auth_fleet_company_id'), ('auth_operator_id'),
   ('is_admin'), ('is_company_approved'), ('has_location_consent'), ('create_company'), ('request_company_review'),
+  ('auth_carrier_company_id'), ('auth_is_manager'), ('auth_business_unit_ids'), ('can_operate_unit'),
+  ('coordinator_runs_document_owner'), ('conversation_business_unit_id'),
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
   ('consume_rate_limit'), ('track_product_event');
 
@@ -511,6 +594,31 @@ select is_empty($$ select * from tests.rpc_breaches('b2400000-0000-4000-8000-000
 select is_empty($$ select * from tests.rpc_breaches('b2400000-0000-4000-8000-000000000004') $$,
   'RPCs: an operator without a company cannot act on or read the seed''s rows (nor take someone else''s invitation)');
 
+-- The coordinator of another business unit of the same company (Héctor,
+-- "Regional Monterrey") on the rows of "Corredor MTY–GDL": unit CS53-01, trip T1
+-- with Pedro López, their conversations and offers.
+create function tests.rpc_breaches_of(p_uid uuid, p_fns text[])
+returns setof text
+language plpgsql
+as $$
+declare
+  v_saved tests.rpc_calls[] := array(select r from tests.rpc_calls r);
+begin
+  delete from tests.rpc_calls where not (fn = any (p_fns));
+  return query select * from tests.rpc_breaches(p_uid);
+  delete from tests.rpc_calls;
+  insert into tests.rpc_calls select * from unnest(v_saved);
+end;
+$$;
+
+select is_empty(
+  $$ select * from tests.rpc_breaches_of('5eed0001-0000-4000-8000-000000000012', array[
+       'set_vehicle_availability', 'clear_vehicle_availability', 'assign_trip', 'cancel_trip', 'report_incident',
+       'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
+       'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer']) $$,
+  'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
+);
+
 -- Sanity check of the harness: the same call by the right party does change
 -- data, so a refusal above is not an artifact of the fixtures.
 create function tests.changes_data(p_uid uuid, p_call text)
@@ -540,6 +648,15 @@ $$;
 select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000008', (select call from tests.rpc_calls where fn = 'report_incident')),
   'harness: the trip''s operator can report the incident the outsiders could not'
+);
+
+select ok(
+  tests.changes_data('5eed0001-0000-4000-8000-000000000011', (select call from tests.rpc_calls where fn = 'set_vehicle_availability')),
+  'harness: the coordinator of the unit''s business unit can set the availability Héctor could not'
+);
+select ok(
+  tests.changes_data('5eed0001-0000-4000-8000-000000000005', (select call from tests.rpc_calls where fn = 'set_vehicle_availability')),
+  'harness: the manager can set it too'
 );
 
 select * from finish();

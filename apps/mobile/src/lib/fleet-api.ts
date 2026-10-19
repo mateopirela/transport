@@ -11,6 +11,7 @@ import {
   type Requirement,
   type SubmittedDocument,
   type Tables,
+  type TablesInsert,
   type VehicleFormValues,
   type VehicleReadiness,
 } from '@transport/shared';
@@ -27,6 +28,17 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
   if (error) throw error;
   if (data === null || data === undefined) throw new Error('empty response');
   return data;
+}
+
+/**
+ * A new unit or operator without a business unit: the default_business_unit
+ * trigger gives it the only one of the user (or of the company) until the
+ * manager can choose it (G4). The generated types cannot know that.
+ */
+function withDefaultBusinessUnit<T extends { business_unit_id: string }>(
+  row: Omit<T, 'business_unit_id'>,
+): T {
+  return row as T;
 }
 
 /** Throws the error of a write that returns no data. */
@@ -82,13 +94,15 @@ export type Availability = Pick<
   'vehicle_id' | 'available_from' | 'city' | 'state'
 >;
 
-export interface VehicleSummary extends VehicleRow {
+export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'business_unit_id'> {
   availability: Availability | null;
   readiness: VehicleReadiness;
+  /** Name of the business unit that runs it (G1a.2). */
+  businessUnitName: string | null;
 }
 
 const VEHICLE_COLUMNS =
-  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features';
+  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_unit_id, business_units(name)';
 
 export async function listVehicles(
   client: Supabase,
@@ -108,12 +122,13 @@ export async function listVehicles(
       .is('archived_at', null),
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
-  return check(vehicles).map((vehicle) => {
+  return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     const owner = { type: 'vehicle', id: vehicle.id } as const;
     const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
     return {
       ...vehicle,
+      businessUnitName: unit?.name ?? null,
       availability: current,
       readiness: vehicleReadiness({
         expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
@@ -136,7 +151,13 @@ export async function saveVehicle(
   const row = check(
     await client
       .from('vehicles')
-      .insert({ ...columns, kind: values.kind, company_id: target.companyId })
+      .insert(
+        withDefaultBusinessUnit<TablesInsert<'vehicles'>>({
+          ...columns,
+          kind: values.kind,
+          company_id: target.companyId,
+        }),
+      )
       .select('id')
       .single(),
   );
@@ -191,9 +212,12 @@ export type InvitationRow = Pick<
   'id' | 'operator_id' | 'expires_at'
 >;
 
-export interface OperatorSummary extends OperatorRow {
+export interface OperatorSummary
+  extends OperatorRow, Pick<Tables<'operators'>, 'business_unit_id'> {
   /** Pending (not accepted, revoked or expired) invitation, if any. */
   invitation: InvitationRow | null;
+  /** Name of the business unit the operator drives for (G1a.2). */
+  businessUnitName: string | null;
 }
 
 export async function listOperators(
@@ -204,7 +228,7 @@ export async function listOperators(
     client
       .from('operators')
       .select(
-        'id, full_name, email, phone, license_number, license_type, license_expires_on, profile_id',
+        'id, full_name, email, phone, license_number, license_type, license_expires_on, profile_id, business_unit_id, business_units(name)',
       )
       .eq('company_id', companyId)
       .is('archived_at', null)
@@ -218,7 +242,11 @@ export async function listOperators(
       .gt('expires_at', new Date().toISOString()),
   ]);
   const pending = new Map(check(invitations).map((i) => [i.operator_id, i]));
-  return check(operators).map((o) => ({ ...o, invitation: pending.get(o.id) ?? null }));
+  return check(operators).map(({ business_units: unit, ...o }) => ({
+    ...o,
+    businessUnitName: unit?.name ?? null,
+    invitation: pending.get(o.id) ?? null,
+  }));
 }
 
 export async function saveOperator(
@@ -241,7 +269,12 @@ export async function saveOperator(
   const row = check(
     await client
       .from('operators')
-      .insert({ ...columns, company_id: target.companyId })
+      .insert(
+        withDefaultBusinessUnit<TablesInsert<'operators'>>({
+          ...columns,
+          company_id: target.companyId,
+        }),
+      )
       .select('id')
       .single(),
   );

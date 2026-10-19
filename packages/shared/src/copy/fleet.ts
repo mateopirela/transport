@@ -29,6 +29,8 @@ export const fleetCopy = {
     title: 'Documentos',
     companyTitle: 'Documentos de la empresa',
     subtitle: 'Toma una foto o elige un PDF. Los revisamos y te avisamos si hay que corregir algo.',
+    /** A coordinator sees the company's documents but only the manager sends them (G1a.2). */
+    readOnlySubtitle: 'Solo el gerente sube los documentos de la empresa. Aquí ves su estado.',
     required: 'Obligatorio',
     optional: 'Opcional',
     rejectionReason: (reason: string) => `Motivo del rechazo: ${reason}`,
@@ -44,6 +46,8 @@ export const fleetCopy = {
     expiryRequired: 'Escribe la fecha de vencimiento antes de subir el documento.',
     empty: 'No hay documentos que subir.',
   },
+  /** Business unit of a unit or an operator (G1a.2). */
+  businessUnit: (name: string) => `Unidad de negocio: ${name}`,
   units: {
     title: 'Unidades',
     add: 'Agregar unidad',

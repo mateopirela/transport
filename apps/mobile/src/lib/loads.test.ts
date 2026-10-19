@@ -20,6 +20,9 @@ describe('offerErrorMessage', () => {
       ['offer is no longer pending (status countered)', e.notPending],
       ['invalid offer: amount out of range', e.invalidAmount],
       ['invalid offer: vehicle not found', e.invalidUnit],
+      ['business unit not found', e.invalidUnit],
+      ['another business unit of the company already negotiates this load', e.otherBusinessUnit],
+      ['business_unit_id is required', e.businessUnitRequired],
       ['both companies must be approved to contract', e.bothApproved],
     ];
     for (const [message, text] of cases) expect(offerErrorMessage({ message })).toBe(text);

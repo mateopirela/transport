@@ -116,6 +116,8 @@ export const adminOpsCopy = {
     generic: 'No pudimos completar la acción. Inténtalo de nuevo.',
     notAdmin: 'Solo un administrador puede hacer esto.',
     carrierNotFound: 'Elige un transportista válido.',
+    businessUnitRequired:
+      'Ese transportista tiene varias unidades de negocio: elige el camión con el que oferta.',
     notApproved: 'El transportista no está aprobado.',
     bothApproved: 'Las dos empresas deben estar aprobadas para contratar.',
     pendingExists:

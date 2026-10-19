@@ -18,7 +18,9 @@ const OFFER_ERRORS: [RegExp, string][] = [
   [/^negotiation already has a pending offer/u, e.pending],
   [/^offer is no longer pending|^offer cannot be answered by this side/u, e.notPending],
   [/^invalid offer: amount|^invalid offer: conditions/u, e.invalidAmount],
-  [/^invalid offer: vehicle not found/u, e.invalidUnit],
+  [/^invalid offer: vehicle not found|^business unit not found/u, e.invalidUnit],
+  [/^another business unit of the company already negotiates this load/u, e.otherBusinessUnit],
+  [/^business_unit_id is required/u, e.businessUnitRequired],
   [/^both companies must be approved/u, e.bothApproved],
 ];
 

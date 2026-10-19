@@ -110,6 +110,9 @@ export const carrierLoadsCopy = {
     invalidAmount: 'Escribe un monto válido.',
     invalidUnit: 'La unidad ya no está disponible. Elige otra.',
     bothApproved: 'El cliente ya no está aprobado; no se puede contratar.',
+    otherBusinessUnit: 'Otra unidad de negocio de tu empresa ya negocia esta carga.',
+    businessUnitRequired:
+      'Elige con qué camión ofertas: tu empresa tiene varias unidades de negocio.',
     recommendations: 'No pudimos cargar las recomendaciones.',
   },
 } as const;

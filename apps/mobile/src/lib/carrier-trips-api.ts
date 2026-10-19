@@ -28,7 +28,7 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
 }
 
 const TRIP_COLUMNS =
-  'id, status, load_id, offer_id, vehicle_id, operator_id, estimated_unload_end_at, cancellation_reason, created_at, updated_at';
+  'id, status, load_id, offer_id, vehicle_id, operator_id, business_unit_id, estimated_unload_end_at, cancellation_reason, created_at, updated_at';
 
 type TripRow = Pick<
   Tables<'trips'>,
@@ -38,6 +38,7 @@ type TripRow = Pick<
   | 'offer_id'
   | 'vehicle_id'
   | 'operator_id'
+  | 'business_unit_id'
   | 'estimated_unload_end_at'
   | 'cancellation_reason'
   | 'created_at'
@@ -303,11 +304,16 @@ export type TripDocument = Pick<
   'id' | 'kind' | 'storage_path' | 'file_name' | 'created_at'
 >;
 
-/** Units and operators the carrier can assign, with what else they are busy with. */
+/**
+ * Units and operators the carrier can assign, with what else they are busy
+ * with. A Coordinador may only assign those of the trip's business unit
+ * (`assign_trip` refuses the rest); the Gerente may use any of the company.
+ */
 async function assignmentOptions(
   client: Supabase,
   companyId: string,
   trip: TripRow,
+  isManager: boolean,
 ): Promise<AssignmentOptions> {
   const context = await loadCompanyContext(client, companyId);
   const [vehicles, operators, busy, offer, usual] = await Promise.all([
@@ -328,10 +334,12 @@ async function assignmentOptions(
   ]);
   if (offer.error) throw offer.error;
   const others = check(busy);
+  const inScope = (row: { business_unit_id: string }) =>
+    isManager || row.business_unit_id === trip.business_unit_id;
   const usualOperator = new Map(check(usual).map((v) => [v.id, v.current_operator_id]));
   return {
     units: vehicles
-      .filter((v) => v.unit_type !== null)
+      .filter((v) => v.unit_type !== null && inScope(v))
       .map((v) => ({
         id: v.id,
         name: unitLabel(v),
@@ -340,7 +348,7 @@ async function assignmentOptions(
         currentOperatorId: usualOperator.get(v.id) ?? null,
         otherTrips: others.filter((t) => t.vehicle_id === v.id).length,
       })),
-    operators: operators.map((o) => ({
+    operators: operators.filter(inScope).map((o) => ({
       id: o.id,
       name: o.full_name,
       hasAccount: o.profile_id !== null,
@@ -355,6 +363,7 @@ export async function loadCarrierTrip(
   client: Supabase,
   companyId: string,
   tripId: string,
+  isManager: boolean,
 ): Promise<CarrierTripDetail | null> {
   const found = await client
     .from('trips')
@@ -389,7 +398,7 @@ export async function loadCarrierTrip(
         .order('recorded_at', { ascending: false })
         .limit(300),
       client.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
-      assignmentOptions(client, companyId, trip),
+      assignmentOptions(client, companyId, trip, isManager),
       client
         .from('trip_documents')
         .select('id, kind, storage_path, file_name, created_at')

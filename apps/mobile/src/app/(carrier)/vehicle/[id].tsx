@@ -103,7 +103,9 @@ function ExistingVehicle({ id }: { id: string }) {
               onChanged={reload}
             />
             {archiveError ? <Notice tone="danger">{archiveError}</Notice> : null}
-            <Button label={copy.archive} variant="link" onPress={confirmArchive} />
+            {carrier.isManager ? (
+              <Button label={copy.archive} variant="link" onPress={confirmArchive} />
+            ) : null}
           </>
         ) : null
       }

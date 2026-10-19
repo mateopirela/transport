@@ -16,7 +16,11 @@ export default function CompanyDocuments() {
   return (
     <Screen belowHeader>
       <Stack.Screen options={{ title: fleetCopy.documents.companyTitle }} />
-      <Body>{fleetCopy.documents.subtitle}</Body>
+      <Body>
+        {carrier && !carrier.isManager
+          ? fleetCopy.documents.readOnlySubtitle
+          : fleetCopy.documents.subtitle}
+      </Body>
       <Loaded state={state} onRetry={() => void reload()}>
         {(context) =>
           carrier ? (
@@ -25,6 +29,7 @@ export default function CompanyDocuments() {
               context={context}
               owner={{ type: 'company', id: carrier.companyId }}
               onChanged={reload}
+              readOnly={!carrier.isManager}
             />
           ) : null
         }

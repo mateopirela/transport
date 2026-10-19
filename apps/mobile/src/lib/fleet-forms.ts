@@ -83,7 +83,7 @@ export function vehicleSchemaInput(form: VehicleFormState) {
 /** Columns written on insert and update (company_id is added on insert only). */
 export function vehicleColumns(
   values: VehicleFormValues,
-): Omit<TablesInsert<'vehicles'>, 'company_id' | 'kind'> {
+): Omit<TablesInsert<'vehicles'>, 'company_id' | 'kind' | 'business_unit_id'> {
   return {
     plate: values.plate,
     fleet_number: values.fleetNumber ?? null,

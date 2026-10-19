@@ -5,6 +5,20 @@ const nextConfig: NextConfig = {
   // The shared package ships TypeScript sources.
   transpilePackages: ['@transport/shared'],
   poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        // Public share links (G7): the token travels in the URL, so it must
+        // not leak through the referrer, search engines or shared caches.
+        source: '/compartido/:path*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+    ];
+  },
 };
 
 // Sentry (B25). The runtime only reports when NEXT_PUBLIC_SENTRY_DSN is set

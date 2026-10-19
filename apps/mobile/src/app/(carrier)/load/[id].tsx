@@ -14,6 +14,7 @@ import { ChatPanel } from '../../../components/chat-panel';
 import { Loaded, SectionTitle } from '../../../components/fleet-ui';
 import { NegotiationPanel } from '../../../components/negotiation-panel';
 import { RoutePreview } from '../../../components/route-preview';
+import { ShareWithTeamButton } from '../../../components/share-button';
 import { Body, Notice, Screen } from '../../../components/ui';
 import {
   emptyLegs,
@@ -107,6 +108,11 @@ export default function LoadDetail() {
                 />
               ) : null}
               {l.notes ? <Row label={copy.notes} value={l.notes} /> : null}
+              <ShareWithTeamButton
+                client={carrier.client}
+                loadId={l.id}
+                route={`${l.origin_city} → ${l.destination_city}`}
+              />
 
               <NegotiationPanel
                 client={carrier.client}

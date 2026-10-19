@@ -19,11 +19,13 @@ import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
 import { OfferBoard } from '@/components/offers/offer-board';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
+import { ShareDialog } from '@/components/share/share-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
 import { shipperLoadActions } from '@/lib/loads/status';
 import { getOfferBoard } from '@/lib/offers/queries';
 import { editLoadPath, loadPath, paths, tripPath } from '@/lib/routing';
+import { listActiveShareLinks } from '@/lib/share-links/queries';
 import { findLoadTripId } from '@/lib/trips/queries';
 
 const c = loadsCopy.detail;
@@ -44,6 +46,10 @@ export default async function LoadDetailPage({
   const actions = shipperLoadActions(load.status);
   // accept_offer creates the trip together with the acceptance (B06).
   const tripId = load.accepted_offer_id ? await findLoadTripId(supabase, companyId, load.id) : null;
+  // A published load can be shared with anyone, read-only (G7, D23). Its
+  // active links stay listed (and revocable) after it leaves the market.
+  const shareable = load.status === 'published' || load.status === 'negotiating';
+  const shareLinks = await listActiveShareLinks(supabase, { loadId: load.id });
   const range = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
 
@@ -113,6 +119,14 @@ export default async function LoadDetailPage({
               <Link href={tripPath(tripId)} className={buttonVariants({ variant: 'accent' })}>
                 {clientTripsCopy.loadLink}
               </Link>
+            )}
+            {(shareable || shareLinks.length > 0) && (
+              <ShareDialog
+                kind="load_public"
+                targetId={load.id}
+                links={shareLinks}
+                canCreate={shareable}
+              />
             )}
             {actions.publish && <PublishLoadButton loadId={load.id} />}
             {actions.edit && (

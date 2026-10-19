@@ -1,4 +1,5 @@
 import {
+  canShareTripTracking,
   clientTripsCopy,
   evidenceStageLabels,
   formatDateTime,
@@ -18,6 +19,7 @@ import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { VerificationBadge } from '@/components/offers/offer-board';
+import { ShareDialog } from '@/components/share/share-dialog';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripChecklist } from '@/components/trips/trip-checklist';
@@ -28,6 +30,7 @@ import { getChat } from '@/lib/chat/queries';
 import { shipperContext } from '@/lib/loads/queries';
 import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
+import { listActiveShareLinks } from '@/lib/share-links/queries';
 import { getCompanyTrip } from '@/lib/trips/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 
@@ -60,8 +63,13 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
   const load = trip.load;
   const chat = data.conversationId ? await getChat(supabase, data.conversationId, companyId) : null;
-
   const now = new Date();
+  // The tracking can be shared with anyone, read-only, unless the trip is
+  // cancelled or closed more than 24 hours ago (G7, D23); active links stay
+  // listed (and revocable) anyway.
+  const shareable = canShareTripTracking(trip, now);
+  const shareLinks = await listActiveShareLinks(supabase, { tripId: trip.id });
+
   const last = locations.at(-1);
   const state = mapState(trip, last?.recorded_at ?? null, now);
   const live = state.kind === 'live' || state.kind === 'waiting' || state.kind === 'noSignal';
@@ -85,11 +93,19 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
               : d.agreedPrice(formatMxn(load.agreed_price_cents))
           }
         />
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
           <TripStatusBadge status={trip.status} />
           <Link href={loadPath(trip.load_id)} className="text-accent hover:underline">
             {d.load}
           </Link>
+          {(shareable || shareLinks.length > 0) && (
+            <ShareDialog
+              kind="trip_tracking_public"
+              targetId={trip.id}
+              links={shareLinks}
+              canCreate={shareable}
+            />
+          )}
         </div>
       </div>
       {trip.cancellation_reason && (

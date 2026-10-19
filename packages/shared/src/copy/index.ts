@@ -17,6 +17,7 @@ export * from './negotiation';
 export * from './notification-email';
 export * from './notifications';
 export * from './permissions';
+export * from './share-links';
 export * from './tracking';
 export * from './trip-documents';
 export * from './trips';

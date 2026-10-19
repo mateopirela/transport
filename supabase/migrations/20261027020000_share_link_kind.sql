@@ -1,0 +1,11 @@
+-- G7 · Share links (D23): the kinds of link. Enum changes go in their own
+-- migration (plan §G.0): the next one creates the table that uses them.
+--
+--   load_internal         a coordinator or the manager shares a load with the
+--                         staff and operators of their own company; opened
+--                         with a session (open_internal_share)
+--   load_public           the shipper shares a published load with anyone,
+--                         read-only and sanitized (public_shared_load)
+--   trip_tracking_public  the shipper shares the tracking of a trip with
+--                         anyone, read-only and sanitized (public_shared_trip)
+create type public.share_link_kind as enum ('load_internal', 'load_public', 'trip_tracking_public');

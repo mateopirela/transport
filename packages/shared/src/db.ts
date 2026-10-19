@@ -747,8 +747,9 @@ export interface Database {
           updated_at: string;
           volume_m3: number | null;
           weight_kg: number;
+          share_link_public_load: Json | null;
         };
-        ComputedFields: never;
+        ComputedFields: 'share_link_public_load';
         Insert: {
           accepted_offer_id?: string | null;
           agreed_price_cents?: number | null;
@@ -1515,6 +1516,102 @@ export interface Database {
           origin_lng?: number;
         };
         Relationships: [];
+      };
+      share_links: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at: string | null;
+          load_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+          trip_id: string | null;
+          view_count: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at?: string | null;
+          load_id?: string | null;
+          revoked_at?: string | null;
+          token_hash: string;
+          trip_id?: string | null;
+          view_count?: number;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          kind?: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at?: string | null;
+          load_id?: string | null;
+          revoked_at?: string | null;
+          token_hash?: string;
+          trip_id?: string | null;
+          view_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'share_links_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'share_links_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'share_links_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
+            foreignKeyName: 'share_links_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       trip_document_requirements: {
         Row: {
@@ -2572,6 +2669,19 @@ export interface Database {
           invitation_id: string;
         }[];
       };
+      create_share_link: {
+        Args: {
+          p_kind: Database['public']['Enums']['share_link_kind'];
+          p_load_id?: string;
+          p_trip_id?: string;
+          p_valid_for_hours?: number;
+        };
+        Returns: {
+          expires_at: string;
+          id: string;
+          token: string;
+        }[];
+      };
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       device_time_ahead: { Args: { p_at: string }; Returns: boolean };
@@ -2764,12 +2874,15 @@ export interface Database {
         };
         Returns: undefined;
       };
+      open_internal_share: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       product_event_properties_valid: {
         Args: { p_name: Database['public']['Enums']['product_event_name']; p_properties: Json };
         Returns: boolean;
       };
+      public_shared_load: { Args: { p_token: string }; Returns: Json };
+      public_shared_trip: { Args: { p_token: string }; Returns: Json };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       rate_limit_hit: {
@@ -2864,6 +2977,7 @@ export interface Database {
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
       revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
+      revoke_share_link: { Args: { p_id: string }; Returns: undefined };
       send_message: {
         Args: {
           p_attachments?: Json;
@@ -2903,6 +3017,39 @@ export interface Database {
         };
         Returns: string;
       };
+      share_link_by_token: {
+        Args: { p_kind: Database['public']['Enums']['share_link_kind']; p_token: string };
+        Returns: {
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at: string | null;
+          load_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+          trip_id: string | null;
+          view_count: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'share_links';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      share_link_public_load: {
+        Args: {
+          p_load: Omit<
+            Database['public']['Tables']['loads']['Row'],
+            Database['public']['Tables']['loads']['ComputedFields']
+          >;
+        };
+        Returns: Json;
+      };
+      share_link_record_view: { Args: { p_id: string }; Returns: undefined };
       shipper_trip_parties: {
         Args: { p_trip_ids: string[] };
         Returns: {
@@ -3104,6 +3251,7 @@ export interface Database {
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
       push_platform: 'ios' | 'android';
+      share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public';
       special_requirement:
         | 'temperature_control'
         | 'hazmat_permit'
@@ -3356,6 +3504,7 @@ export const Constants = {
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
       product_event_name: ['recommendations_viewed', 'recommendation_opened', 'offer_submitted'],
       push_platform: ['ios', 'android'],
+      share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public'],
       special_requirement: [
         'temperature_control',
         'hazmat_permit',

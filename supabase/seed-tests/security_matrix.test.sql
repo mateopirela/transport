@@ -142,6 +142,12 @@ values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
 insert into public.product_events (name, user_id, user_role, company_id, properties)
 values ('recommendations_viewed', '5eed0001-0000-4000-8000-000000000005', 'manager', tests.val('carrier_company'),
         '{"recommendations": 3}');
+-- A tracking link of Aceros del Norte on T1 (G7). Only the hash of the token is
+-- stored; the outsiders below try to revoke it and to open links by token.
+insert into public.share_links (id, kind, company_id, trip_id, token_hash, created_by, expires_at)
+values ('f2400000-0000-4000-8000-000000000002', 'trip_tracking_public', tests.val('shipper_company'), tests.val('trip'),
+        sha256(convert_to('B24SHARETOKEN', 'UTF8')), '5eed0001-0000-4000-8000-000000000002', now() + interval '1 day');
+insert into tests.vals values ('share_link', 'f2400000-0000-4000-8000-000000000002');
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -172,6 +178,8 @@ insert into tests.ownership values
   ('public.business_units', 't.company_id = $1'),
   ('public.business_unit_coordinators', 't.company_id = $1'),
   ('public.vehicle_availability', 't.company_id = $1'),
+  -- Share links (G7): the company that created them.
+  ('public.share_links', 't.company_id = $1'),
   -- Marketplace: open loads are visible to approved carriers. A carrier that
   -- negotiated keeps seeing the load unless another carrier won it.
   ('public.loads', $$
@@ -517,7 +525,16 @@ insert into tests.rpc_calls values
   ('mark_conversation_read', $$ public.mark_conversation_read(tests.val('trip_conversation'), null) $$),
   ('is_conversation_participant', $$ public.is_conversation_participant(tests.val('trip_conversation')) $$),
   ('unregister_push_token', $$ public.unregister_push_token('ExponentPushToken[b24SeedDeviceToken]') $$),
-  ('mark_notifications_read', $$ public.mark_notifications_read(array(select id from tests.foreign_notifications)) $$);
+  ('mark_notifications_read', $$ public.mark_notifications_read(array(select id from tests.foreign_notifications)) $$),
+  -- Share links (G7): a load the outsiders do not see (contracted), the
+  -- seed's trip, the fixture link and tokens that match nothing.
+  ('create_share_link', $$ (select count(*) from public.create_share_link('load_internal', tests.val('contracted_load'), null, null)) $$),
+  ('create_share_link', $$ (select count(*) from public.create_share_link('load_public', tests.val('open_load'), null, null)) $$),
+  ('create_share_link', $$ (select count(*) from public.create_share_link('trip_tracking_public', null, tests.val('trip'), null)) $$),
+  ('revoke_share_link', $$ public.revoke_share_link(tests.val('share_link')) $$),
+  ('open_internal_share', $$ public.open_internal_share('B24SHARETOKEN') $$),
+  ('public_shared_load', $$ public.public_shared_load('B24SHARETOKEN') $$),
+  ('public_shared_trip', $$ public.public_shared_trip('B24SHARETOKEN') $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -645,7 +662,7 @@ select is_empty(
        'set_vehicle_availability', 'clear_vehicle_availability', 'assign_trip', 'cancel_trip', 'report_incident',
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
-       'create_invitation', 'revoke_invitation']) $$,
+       'create_invitation', 'revoke_invitation', 'create_share_link']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'
 );
 

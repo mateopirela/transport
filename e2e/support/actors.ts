@@ -233,3 +233,46 @@ export async function minimumPhotos(client: Client, stage: 'pickup' | 'delivery'
   );
   return row.min_photos;
 }
+
+/**
+ * Shipper: creates and publishes a load (create_load, publish_load) from
+ * Monterrey to Guadalajara with the given unit type, its pickup window
+ * opening in a day. Returns the load id.
+ */
+export async function publishLoad(
+  shipper: Client,
+  input: { unitType: Database['public']['Enums']['unit_type']; weightKg: number },
+): Promise<string> {
+  const at = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+  const loadId = check(
+    await shipper.rpc('create_load', {
+      p_load: {
+        origin: {
+          address: 'Av. Constitución 100',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          lat: 25.6866,
+          lng: -100.3161,
+        },
+        destination: {
+          address: 'Av. Vallarta 200',
+          city: 'Guadalajara',
+          state: 'Jalisco',
+          lat: 20.6597,
+          lng: -103.3496,
+        },
+        pickupWindow: { start: at(24), end: at(28) },
+        deliveryWindow: { start: at(48), end: at(54) },
+        cargoType: 'palletized',
+        description: 'Tarimas de prueba (E2E)',
+        weightKg: input.weightKg,
+        unitType: input.unitType,
+        specialRequirements: [],
+        proposedPriceCents: 2_500_000,
+      },
+    }),
+  );
+  const { error } = await shipper.rpc('publish_load', { p_load_id: loadId });
+  if (error) throw new Error(error.message);
+  return loadId;
+}

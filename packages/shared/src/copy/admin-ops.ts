@@ -124,6 +124,9 @@ export const adminOpsCopy = {
       'Ese transportista ya tiene una oferta pendiente en esta carga. Acéptala desde la lista de ofertas.',
     loadClosed: 'La carga ya no está abierta.',
     pickupEnded: 'La ventana de recolección ya terminó.',
+    /** G5: the offer's unit is pending release. */
+    unitPendingRelease:
+      'La unidad de esta oferta espera ser liberada (su viaje anterior se canceló en camino). Pide al transportista una oferta nueva.',
     notPending: 'La oferta ya no está pendiente.',
     invalidAmount: 'El monto no es válido.',
     incidentResolved: 'La incidencia ya estaba resuelta.',

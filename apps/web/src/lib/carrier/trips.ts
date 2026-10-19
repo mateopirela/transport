@@ -217,7 +217,7 @@ export async function getCarrierTrip(
     .from('trips')
     .select(
       `id, load_id, offer_id, shipper_company_id, status, business_unit_id, vehicle_id, operator_id,
-       estimated_unload_end_at, started_at, cancellation_reason, created_at,
+       estimated_unload_end_at, started_at, cancellation_reason, cancellation_reason_code, created_at,
        vehicle:vehicles!trips_vehicle_fkey(plate, fleet_number),
        operator:operators!trips_operator_fkey(full_name),
        business_unit:business_units!trips_business_unit_fkey(name)`,

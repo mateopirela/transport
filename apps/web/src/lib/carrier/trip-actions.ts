@@ -3,6 +3,7 @@
 import {
   authErrors,
   cancelTripSchema,
+  tripCancelCopy,
   carrierTripErrorText,
   carrierWebCopy,
   incidentFormSchema,
@@ -77,21 +78,30 @@ export async function assignCarrierTrip(_prev: FormState, formData: FormData): P
   return done(c.assign.done);
 }
 
-/** Cancels a trip before the operator starts loading (cancel_trip), with a reason. */
+/**
+ * Cancels a trip before the operator starts loading (cancel_trip, G5), with a
+ * reason from the list and notes. After departure the unit waits for its
+ * release (D20), which the fleet and the home now show.
+ */
 export async function cancelCarrierTrip(_prev: FormState, formData: FormData): Promise<FormState> {
   const tripId = uuidOf(formData, 'tripId');
   if (!tripId) return { error: c.errors.notFound };
   const entries = formEntries(formData);
-  const parsed = cancelTripSchema.safeParse({ reason: entries.reason });
+  const parsed = cancelTripSchema.safeParse({
+    reasonCode: entries.reasonCode,
+    notes: entries.notes,
+  });
   if (!parsed.success) return invalidForm(parsed.error, entries);
   const supabase = await createClient();
   if (!supabase) return notConfigured;
   const { error } = await supabase.rpc('cancel_trip', {
     p_trip_id: tripId,
-    p_reason: parsed.data.reason,
+    p_reason_code: parsed.data.reasonCode,
+    // Blank is no notes (cancel_trip trims it to null).
+    p_notes: parsed.data.notes ?? '',
   });
   if (error) return { error: tripError(error), values: refillValues(entries) };
-  return done(c.cancel.done);
+  return done(tripCancelCopy.done);
 }
 
 /**

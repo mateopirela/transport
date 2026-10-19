@@ -1,6 +1,8 @@
 import {
   canAddTripDocuments,
   canCancelTrip,
+  cancelLeavesUnitPending,
+  cancellationText,
   carrierTripsCopy,
   carrierWebCopy,
   chatCopy,
@@ -23,18 +25,22 @@ import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { TripAssignForm } from '@/components/carrier/trip-assign-form';
-import { TripCancelForm } from '@/components/carrier/trip-cancel-form';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { ProviderBadge } from '@/components/shared-documents/provider-status';
 import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ReportIncidentForm } from '@/components/trips/trip-actions';
+import { TripCancelForm } from '@/components/trips/trip-cancel-form';
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { carrierContext } from '@/lib/carrier/context';
-import { registerCarrierTripDocument, reportCarrierIncident } from '@/lib/carrier/trip-actions';
+import {
+  cancelCarrierTrip,
+  registerCarrierTripDocument,
+  reportCarrierIncident,
+} from '@/lib/carrier/trip-actions';
 import { getCarrierTrip } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
 import { carrierLoadPath, carrierTripPath, paths, tripFileHref } from '@/lib/routing';
@@ -129,7 +135,9 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
       </div>
       {trip.status === 'cancelled' && (
         <div className="mb-6">
-          <Notice tone="error">{d.cancelled(trip.cancellation_reason)}</Notice>
+          <Notice tone="error">
+            {d.cancelled(cancellationText(trip.cancellation_reason_code, trip.cancellation_reason))}
+          </Notice>
         </div>
       )}
       {trip.status === 'delivered' && (
@@ -381,7 +389,13 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
             )}
           </section>
 
-          {canCancelTrip(trip.status) && <TripCancelForm tripId={trip.id} />}
+          {canCancelTrip(trip.status) && (
+            <TripCancelForm
+              tripId={trip.id}
+              action={cancelCarrierTrip}
+              onTheWay={cancelLeavesUnitPending(trip.status, trip.vehicle_id !== null)}
+            />
+          )}
         </aside>
       </div>
     </>

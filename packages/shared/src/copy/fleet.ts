@@ -3,6 +3,7 @@
 import type { VehicleReadiness } from '../fleet';
 
 export const vehicleReadinessLabels: Record<VehicleReadiness, string> = {
+  pending_release: 'No disponible: pendiente de liberar',
   expired_documents: 'No disponible: documentos vencidos',
   unset: 'Sin disponibilidad registrada',
   scheduled: 'Disponible próximamente',

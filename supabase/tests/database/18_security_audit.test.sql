@@ -211,6 +211,8 @@ select set_eq(
     'add_trip_evidence', 'confirm_delivery', 'cancel_trip', 'report_incident', 'resolve_incident',
     'trip_point_locations', 'add_trip_document', 'shipper_trip_parties',
     'record_location_consent', 'revoke_location_consent',
+    -- Unit release after a cancelled trip that set off (G5).
+    'vehicle_release_context', 'release_vehicle',
     -- Chat and notifications (B07).
     'send_message', 'mark_conversation_read', 'register_push_token', 'unregister_push_token',
     'mark_notifications_read',

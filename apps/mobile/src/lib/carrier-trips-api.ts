@@ -1,4 +1,5 @@
 import {
+  cancellationText,
   isTripActive,
   licensePairsFrom,
   toMexicoCityDate,
@@ -6,6 +7,7 @@ import {
   uploadableTripDocumentKinds,
   type AssignableOperator,
   type AssignableUnit,
+  type CancelTripValues,
   type LicensePairs,
   type ProviderStatus,
   type SharedDocumentRow,
@@ -35,7 +37,7 @@ function check<T>({ data, error }: { data: T; error: unknown }): NonNullable<T> 
 }
 
 const TRIP_COLUMNS =
-  'id, status, load_id, offer_id, shipper_company_id, vehicle_id, operator_id, business_unit_id, estimated_unload_end_at, cancellation_reason, created_at, updated_at';
+  'id, status, load_id, offer_id, shipper_company_id, vehicle_id, operator_id, business_unit_id, estimated_unload_end_at, cancellation_reason, cancellation_reason_code, created_at, updated_at';
 
 type TripRow = Pick<
   Tables<'trips'>,
@@ -49,6 +51,7 @@ type TripRow = Pick<
   | 'business_unit_id'
   | 'estimated_unload_end_at'
   | 'cancellation_reason'
+  | 'cancellation_reason_code'
   | 'created_at'
   | 'updated_at'
 >;
@@ -488,7 +491,7 @@ export async function loadCarrierTrip(
         ? { lat: latest.latitude, lng: latest.longitude, recordedAt: latest.recorded_at }
         : null,
     ),
-    cancellationReason: trip.cancellation_reason,
+    cancellationReason: cancellationText(trip.cancellation_reason_code, trip.cancellation_reason),
     events: check(events),
     incidents: check(incidents),
     evidence: {
@@ -523,6 +526,25 @@ export async function assignTrip(
     p_trip_id: tripId,
     p_vehicle_id: vehicleId,
     p_operator_id: operatorId,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Cancels the trip before the operator starts loading (cancel_trip, G5): a
+ * reason from the list and notes. After departure the unit waits for its
+ * release (D20).
+ */
+export async function cancelTrip(
+  client: Supabase,
+  tripId: string,
+  values: CancelTripValues,
+): Promise<void> {
+  const { error } = await client.rpc('cancel_trip', {
+    p_trip_id: tripId,
+    p_reason_code: values.reasonCode,
+    // Blank is no notes (cancel_trip trims it to null).
+    p_notes: values.notes ?? '',
   });
   if (error) throw error;
 }

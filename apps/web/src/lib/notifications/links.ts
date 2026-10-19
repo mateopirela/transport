@@ -80,6 +80,12 @@ export function notificationHref(
         if (tripId) return carrierTripPath(tripId);
         return negotiationId && carrierNegotiationPath(negotiationId);
       }
+      // A unit to release, or released (G5): its screen, where it is released.
+      case 'vehicle_release_pending':
+      case 'vehicle_released': {
+        const vehicleId = id(data, 'vehicleId');
+        return vehicleId && carrierUnitPath(vehicleId);
+      }
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6).
       case 'trip_location_stale':
@@ -117,6 +123,8 @@ export function notificationHref(
     case 'document_approved':
     case 'document_rejected':
     case 'document_expiring':
+    case 'vehicle_release_pending':
+    case 'vehicle_released':
       return null;
   }
 }

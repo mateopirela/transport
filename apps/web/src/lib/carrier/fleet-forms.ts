@@ -64,13 +64,16 @@ export function operatorFormValues(row: OperatorFormRow): Entries {
   };
 }
 
-/** Flash parameter of the screen a successful write redirects to (`alta`, `baja`). */
+/** Flash parameter of the screen a successful write redirects to (`alta`, `baja`, `liberada`). */
 export const FLEET_FLASH_PARAM = 'aviso';
 
+const FLEET_FLASHES = ['alta', 'baja', 'liberada'] as const;
+export type FleetFlash = (typeof FLEET_FLASHES)[number];
+
 /** The flash of a fleet screen from its query parameter, or null. */
-export function parseFleetFlash(value: string | string[] | undefined): 'alta' | 'baja' | null {
+export function parseFleetFlash(value: string | string[] | undefined): FleetFlash | null {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'alta' || raw === 'baja' ? raw : null;
+  return FLEET_FLASHES.find((flash) => flash === raw) ?? null;
 }
 
 /** Input for `operatorDraftSchema` from the form's entries (a blank license type is none). */

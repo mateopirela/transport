@@ -3,6 +3,8 @@
 // apps/mobile/.maestro in order against the local Supabase with the demo seed,
 // and between them does what the app cannot:
 //   - the shipper accepts the carrier's offer (the web does it with the same RPC),
+//   - a trip of TT-01 sets off and the shipper cancels it (G5), so the
+//     coordinator has a unit to release,
 //   - the API goes down and up again around the offline flow (the iOS
 //     simulator shares the Mac's network, so the app is cut off from the
 //     server by stopping the local API gateway, the Kong container).
@@ -39,6 +41,12 @@ const flowsDir = join(root, 'apps/mobile/.maestro');
 const RETURN_TRIP_LOAD = '5eed0005-0000-4000-8000-000000000002';
 const SHIPPER = 'luis.ramirez@demo.test';
 const DEMO_PASSWORD = 'Demo1234';
+// G5: Héctor's torton TT-01 and Raúl Méndez ("Regional Monterrey"), for Sofía's load.
+const RELEASE_SHIPPER = 'sofia.trevino@demo.test';
+const RELEASE_COORDINATOR = 'hector.ibarra@demo.test';
+const RELEASE_OPERATOR = 'raul.mendez@demo.test';
+const TORTON = '5eed0004-0000-4000-8000-000000000004';
+const RAUL = '5eed0003-0000-4000-8000-000000000002';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -129,6 +137,84 @@ async function shipperAccepts(status) {
   console.log(`${SHIPPER} accepted the offer on the return trip.`);
 }
 
+async function signIn(status, email) {
+  const session = await api(status, '/auth/v1/token?grant_type=password', {
+    body: { email, password: DEMO_PASSWORD },
+  });
+  return session.access_token;
+}
+
+/**
+ * G5: Sofía publishes a MTY → Apodaca torton load, Héctor offers TT-01, she
+ * accepts, he assigns Raúl, Raúl sets off and Sofía cancels the trip: TT-01
+ * waits for Héctor to release it (10-coordinator-release.yaml).
+ */
+async function tripCancelledOnTheWay(status) {
+  const [shipper, coordinator, operator] = await Promise.all(
+    [RELEASE_SHIPPER, RELEASE_COORDINATOR, RELEASE_OPERATOR].map((email) => signIn(status, email)),
+  );
+  const at = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
+  const loadId = await api(status, '/rest/v1/rpc/create_load', {
+    token: shipper,
+    body: {
+      p_load: {
+        origin: {
+          address: 'Av. Constitución 100',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          lat: 25.6866,
+          lng: -100.3161,
+        },
+        destination: {
+          address: 'Carretera Miguel Alemán 500',
+          city: 'Apodaca',
+          state: 'Nuevo León',
+          lat: 25.7817,
+          lng: -100.1886,
+        },
+        pickupWindow: { start: at(2), end: at(6) },
+        deliveryWindow: { start: at(8), end: at(12) },
+        cargoType: 'palletized',
+        description: 'Tarimas (E2E G5)',
+        weightKg: 9000,
+        unitType: 'torton',
+        specialRequirements: [],
+        proposedPriceCents: 1_200_000,
+      },
+    },
+  });
+  await api(status, '/rest/v1/rpc/publish_load', { token: shipper, body: { p_load_id: loadId } });
+  const offerId = await api(status, '/rest/v1/rpc/make_offer', {
+    token: coordinator,
+    body: { p_load_id: loadId, p_amount_cents: 1_200_000, p_vehicle_id: TORTON },
+  });
+  const tripId = await api(status, '/rest/v1/rpc/accept_offer', {
+    token: shipper,
+    body: { p_offer_id: offerId },
+  });
+  await api(status, '/rest/v1/rpc/assign_trip', {
+    token: coordinator,
+    body: { p_trip_id: tripId, p_vehicle_id: TORTON, p_operator_id: RAUL },
+  });
+  await api(status, '/rest/v1/rpc/record_trip_event', {
+    token: operator,
+    body: {
+      p_trip_id: tripId,
+      p_event_type: 'departed',
+      p_occurred_at: new Date().toISOString(),
+      p_latitude: 25.6866,
+      p_longitude: -100.3161,
+    },
+  });
+  await api(status, '/rest/v1/rpc/cancel_trip', {
+    token: shipper,
+    body: { p_trip_id: tripId, p_reason_code: 'shipper_request', p_notes: '' },
+  });
+  console.log(
+    `${RELEASE_SHIPPER} cancelled the TT-01 trip on its way: TT-01 waits for its release.`,
+  );
+}
+
 function apiDown() {
   run('docker', ['stop', gatewayContainer()]);
   console.log('API gateway stopped: the app is offline.');
@@ -203,6 +289,12 @@ const steps = [
   { name: 'api-up', run: (status) => apiUp(status) },
   { name: '07-operator-delivery', run: () => flow('07-operator-delivery') },
   { name: '08-operator-invite', run: () => flow('08-operator-invite') },
+  { name: 'trip-cancelled-on-the-way', run: (status) => tripCancelledOnTheWay(status) },
+  {
+    name: '10-coordinator-release',
+    needs: 'trip-cancelled-on-the-way',
+    run: () => flow('10-coordinator-release'),
+  },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

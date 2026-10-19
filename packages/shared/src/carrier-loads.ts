@@ -5,6 +5,7 @@
 // again in the negotiation RPCs (B05).
 import { carrierLoadsCopy } from './copy/carrier-loads';
 import { offersCopy } from './copy/negotiation';
+import { vehicleReleaseCopy } from './copy/vehicle-release';
 import type { LoadStatus, OfferSide, OfferStatus, TripStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
@@ -197,6 +198,7 @@ const OFFER_ERRORS: readonly (readonly [RegExp, string])[] = [
     carrierLoadsCopy.errors.otherBusinessUnit,
   ],
   [/^business_unit_id is required/u, carrierLoadsCopy.errors.businessUnitRequired],
+  [/^vehicle is pending release/u, vehicleReleaseCopy.errors.pendingRelease],
   [/^both companies must be approved/u, carrierLoadsCopy.errors.bothApproved],
 ];
 

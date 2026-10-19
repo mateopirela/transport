@@ -213,15 +213,7 @@ export const carrierWebCopy = {
       submitting: 'Asignando…',
       done: 'Asignación guardada. Avisamos al operador con una notificación.',
     },
-    cancel: {
-      open: 'Cancelar el viaje',
-      title: '¿Cancelar el viaje?',
-      help: 'Se avisará al cliente y al operador. Un viaje solo se cancela antes de que el operador empiece a cargar.',
-      reason: 'Motivo',
-      confirm: 'Sí, cancelar el viaje',
-      cancelling: 'Cancelando…',
-      done: 'El viaje quedó cancelado.',
-    },
+    // The cancellation dialog is tripCancelCopy (G5), shared with the shipper.
     documents: {
       upload: 'Subir un documento',
       done: 'Documento guardado. El cliente ya lo ve en su viaje.',

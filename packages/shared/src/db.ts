@@ -2244,7 +2244,9 @@ export interface Database {
           assigned_at: string | null;
           business_unit_id: string;
           cancellation_reason: string | null;
+          cancellation_reason_code: Database['public']['Enums']['trip_cancellation_reason'] | null;
           cancelled_at: string | null;
+          cancelled_by_side: Database['public']['Enums']['trip_cancellation_side'] | null;
           carrier_company_id: string;
           closed_at: string | null;
           created_at: string;
@@ -2271,7 +2273,9 @@ export interface Database {
           assigned_at?: string | null;
           business_unit_id: string;
           cancellation_reason?: string | null;
+          cancellation_reason_code?: Database['public']['Enums']['trip_cancellation_reason'] | null;
           cancelled_at?: string | null;
+          cancelled_by_side?: Database['public']['Enums']['trip_cancellation_side'] | null;
           carrier_company_id: string;
           closed_at?: string | null;
           created_at?: string;
@@ -2291,7 +2295,9 @@ export interface Database {
           assigned_at?: string | null;
           business_unit_id?: string;
           cancellation_reason?: string | null;
+          cancellation_reason_code?: Database['public']['Enums']['trip_cancellation_reason'] | null;
           cancelled_at?: string | null;
+          cancelled_by_side?: Database['public']['Enums']['trip_cancellation_side'] | null;
           carrier_company_id?: string;
           closed_at?: string | null;
           created_at?: string;
@@ -2447,6 +2453,103 @@ export interface Database {
           },
           {
             foreignKeyName: 'vehicle_availability_vehicle_fkey';
+            columns: ['company_id', 'vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
+      vehicle_release_tasks: {
+        Row: {
+          business_unit_id: string;
+          company_id: string;
+          created_at: string;
+          id: string;
+          last_known_at: string | null;
+          last_known_location: unknown;
+          notes: string | null;
+          released_at: string | null;
+          released_availability_id: string | null;
+          released_available_from: string | null;
+          released_by: string | null;
+          released_city: string | null;
+          released_location: unknown;
+          released_state: string | null;
+          status: Database['public']['Enums']['release_task_status'];
+          trip_id: string;
+          vehicle_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          business_unit_id: string;
+          company_id: string;
+          created_at?: string;
+          id?: string;
+          last_known_at?: string | null;
+          last_known_location?: unknown;
+          notes?: string | null;
+          released_at?: string | null;
+          released_availability_id?: string | null;
+          released_available_from?: string | null;
+          released_by?: string | null;
+          released_city?: string | null;
+          released_location?: unknown;
+          released_state?: string | null;
+          status?: Database['public']['Enums']['release_task_status'];
+          trip_id: string;
+          vehicle_id: string;
+        };
+        Update: {
+          business_unit_id?: string;
+          company_id?: string;
+          created_at?: string;
+          id?: string;
+          last_known_at?: string | null;
+          last_known_location?: unknown;
+          notes?: string | null;
+          released_at?: string | null;
+          released_availability_id?: string | null;
+          released_available_from?: string | null;
+          released_by?: string | null;
+          released_city?: string | null;
+          released_location?: unknown;
+          released_state?: string | null;
+          status?: Database['public']['Enums']['release_task_status'];
+          trip_id?: string;
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'vehicle_release_tasks_business_unit_fkey';
+            columns: ['company_id', 'business_unit_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_units';
+            referencedColumns: ['company_id', 'id'];
+          },
+          {
+            foreignKeyName: 'vehicle_release_tasks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'vehicle_release_tasks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'vehicle_release_tasks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_release_tasks_vehicle_fkey';
             columns: ['company_id', 'vehicle_id'];
             isOneToOne: false;
             referencedRelation: 'vehicles';
@@ -2841,7 +2944,16 @@ export interface Database {
       backfill_document_shares: { Args: Record<PropertyKey, never>; Returns: number };
       can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
-      cancel_trip: { Args: { p_reason: string; p_trip_id: string }; Returns: undefined };
+      cancel_trip:
+        | { Args: { p_reason: string; p_trip_id: string }; Returns: undefined }
+        | {
+            Args: {
+              p_notes: string;
+              p_reason_code: Database['public']['Enums']['trip_cancellation_reason'];
+              p_trip_id: string;
+            };
+            Returns: undefined;
+          };
       check_offer_fields: {
         Args: {
           p_amount_cents: number;
@@ -3070,7 +3182,9 @@ export interface Database {
           assigned_at: string | null;
           business_unit_id: string;
           cancellation_reason: string | null;
+          cancellation_reason_code: Database['public']['Enums']['trip_cancellation_reason'] | null;
           cancelled_at: string | null;
+          cancelled_by_side: Database['public']['Enums']['trip_cancellation_side'] | null;
           carrier_company_id: string;
           closed_at: string | null;
           created_at: string;
@@ -3175,6 +3289,7 @@ export interface Database {
         };
         Returns: undefined;
       };
+      notify_matches_for_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined };
       open_internal_share: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
@@ -3238,6 +3353,18 @@ export interface Database {
         Returns: undefined;
       };
       reject_offer: { Args: { p_offer_id: string; p_reason?: string }; Returns: undefined };
+      release_vehicle: {
+        Args: {
+          p_available_from: string;
+          p_city: string;
+          p_latitude: number;
+          p_longitude: number;
+          p_notes?: string;
+          p_state: string;
+          p_task_id: string;
+        };
+        Returns: string;
+      };
       remind_stale_trip_locations: { Args: { p_stale_after?: string }; Returns: number };
       report_incident: {
         Args: {
@@ -3512,6 +3639,7 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      vehicle_label: { Args: { p_vehicle_id: string }; Returns: string };
       vehicle_missing_requirements: {
         Args: { p_vehicle_id: string };
         Returns: {
@@ -3538,6 +3666,28 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      vehicle_pending_release: { Args: { p_vehicle_id: string }; Returns: boolean };
+      vehicle_release_context: {
+        Args: { p_task_id: string };
+        Returns: {
+          created_at: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_state: string;
+          last_known_at: string;
+          last_latitude: number;
+          last_longitude: number;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_state: string;
+          status: Database['public']['Enums']['release_task_status'];
+          task_id: string;
+          trip_id: string;
+          vehicle_id: string;
+        }[];
+      };
       vehicle_trip_chain_end: {
         Args: { p_vehicle_id: string };
         Returns: {
@@ -3548,7 +3698,7 @@ export interface Database {
       withdraw_offer: { Args: { p_offer_id: string }; Returns: undefined };
     };
     Enums: {
-      availability_source: 'manual' | 'trip_estimate';
+      availability_source: 'manual' | 'trip_estimate' | 'release';
       cargo_type:
         | 'general'
         | 'palletized'
@@ -3602,12 +3752,15 @@ export interface Database {
         | 'trip_unassigned'
         | 'documents_shared'
         | 'provider_status_changed'
-        | 'trip_document_added';
+        | 'trip_document_added'
+        | 'vehicle_release_pending'
+        | 'vehicle_released';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
       provider_status: 'approved' | 'rejected' | 'revoked';
       push_platform: 'ios' | 'android';
+      release_task_status: 'pending' | 'released';
       share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public';
       special_requirement:
         | 'temperature_control'
@@ -3620,6 +3773,15 @@ export interface Database {
         | 'extended_cargo_insurance'
         | 'loading_crew';
       taxpayer_type: 'moral' | 'fisica';
+      trip_cancellation_reason:
+        | 'shipper_request'
+        | 'carrier_request'
+        | 'mechanical_failure'
+        | 'accident'
+        | 'cargo_issue'
+        | 'documentation'
+        | 'other';
+      trip_cancellation_side: 'shipper' | 'carrier' | 'admin';
       trip_document_kind: 'service_order' | 'carta_porte' | 'invoice' | 'other';
       trip_document_stage: 'before_departure' | 'billing';
       trip_event_type:
@@ -3804,7 +3966,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      availability_source: ['manual', 'trip_estimate'],
+      availability_source: ['manual', 'trip_estimate', 'release'],
       cargo_type: [
         'general',
         'palletized',
@@ -3867,12 +4029,15 @@ export const Constants = {
         'documents_shared',
         'provider_status_changed',
         'trip_document_added',
+        'vehicle_release_pending',
+        'vehicle_released',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
       product_event_name: ['recommendations_viewed', 'recommendation_opened', 'offer_submitted'],
       provider_status: ['approved', 'rejected', 'revoked'],
       push_platform: ['ios', 'android'],
+      release_task_status: ['pending', 'released'],
       share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public'],
       special_requirement: [
         'temperature_control',
@@ -3886,6 +4051,16 @@ export const Constants = {
         'loading_crew',
       ],
       taxpayer_type: ['moral', 'fisica'],
+      trip_cancellation_reason: [
+        'shipper_request',
+        'carrier_request',
+        'mechanical_failure',
+        'accident',
+        'cargo_issue',
+        'documentation',
+        'other',
+      ],
+      trip_cancellation_side: ['shipper', 'carrier', 'admin'],
       trip_document_kind: ['service_order', 'carta_porte', 'invoice', 'other'],
       trip_document_stage: ['before_departure', 'billing'],
       trip_event_type: [

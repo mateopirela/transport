@@ -4,6 +4,7 @@
 // key). Pure, so the rules are unit-tested; Postgres validates the assignment
 // again in assign_trip (B06).
 import { carrierTripsCopy } from './copy/carrier-trips';
+import { vehicleReleaseCopy } from './copy/vehicle-release';
 import type { LicenseType, SpecialRequirement, TripStatus, UnitType, VehicleKind } from './enums';
 import { haversineKm, type LatLng } from './geo';
 import { isTripActive } from './trips';
@@ -419,6 +420,9 @@ const TRIP_ERRORS: readonly (readonly [RegExp, string | ((detail: string) => str
   [/^operator license is not suitable for hazardous cargo: /u, e.operatorLicenseHazmat],
   [/^vehicle not found/u, e.unitUnavailable],
   [/^vehicle has expired documents/u, e.unitExpired],
+  // G5: the unit waits for its release after a trip cancelled on the way.
+  [/^vehicle is pending release/u, vehicleReleaseCopy.errors.pendingRelease],
+  [/^a cancellation reason is required/u, e.cancelReason],
   [/^trip is cancelled/u, e.tripCancelled],
   [/^the \w+ side does not upload/u, e.documentSideNotAllowed],
   [/^invalid storage path|^file was not uploaded|mime type|exceeded the maximum/iu, e.invalidFile],

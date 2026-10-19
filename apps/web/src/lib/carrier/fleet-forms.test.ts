@@ -119,9 +119,10 @@ describe('operator form', () => {
 });
 
 describe('parseFleetFlash', () => {
-  it('reads the add and archive flashes', () => {
+  it('reads the add, archive and release flashes', () => {
     expect(parseFleetFlash('alta')).toBe('alta');
     expect(parseFleetFlash('baja')).toBe('baja');
+    expect(parseFleetFlash('liberada')).toBe('liberada');
   });
 
   it('takes the first value of a repeated parameter', () => {

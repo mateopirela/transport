@@ -72,10 +72,30 @@ describe('incident and cancellation forms', () => {
     expect(incidentFormSchema.safeParse({ kind: 'delay', description: ' ' }).success).toBe(false);
   });
 
-  it('needs a reason to resolve an incident or cancel a trip', () => {
+  it('needs a reason to resolve an incident', () => {
     expect(incidentResolutionSchema.safeParse({ resolution: 'Listo' }).success).toBe(true);
-    expect(cancelTripSchema.safeParse({ reason: '' }).error?.issues[0]?.message).toBe(m.required);
-    expect(cancelTripSchema.safeParse({ reason: 'x'.repeat(1001) }).success).toBe(false);
+    expect(incidentResolutionSchema.safeParse({ resolution: ' ' }).success).toBe(false);
+  });
+
+  it('needs a reason from the list to cancel a trip, and notes for "other" (G5)', () => {
+    expect(cancelTripSchema.parse({ reasonCode: 'mechanical_failure', notes: '  ' })).toEqual({
+      reasonCode: 'mechanical_failure',
+      notes: undefined,
+    });
+    expect(cancelTripSchema.parse({ reasonCode: 'accident', notes: ' Choque leve ' })).toEqual({
+      reasonCode: 'accident',
+      notes: 'Choque leve',
+    });
+    expect(cancelTripSchema.safeParse({ reasonCode: '', notes: 'x' }).success).toBe(false);
+    expect(
+      cancelTripSchema.safeParse({ reasonCode: 'other', notes: '' }).error?.issues[0],
+    ).toMatchObject({
+      message: m.reasonRequired,
+      path: ['notes'],
+    });
+    expect(
+      cancelTripSchema.safeParse({ reasonCode: 'other', notes: 'x'.repeat(1001) }).success,
+    ).toBe(false);
   });
 });
 

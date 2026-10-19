@@ -5,7 +5,7 @@ const rpc = vi.fn();
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('../supabase/server', () => ({ createClient: () => Promise.resolve({ rpc }) }));
 
-const { confirmDelivery, reportIncident } = await import('./actions');
+const { cancelShipperTrip, confirmDelivery, reportIncident } = await import('./actions');
 
 const TRIP = 'bf200000-0000-4000-8000-0000000000a1';
 const KEY = 'bf200000-0000-4000-8000-0000000000b1';
@@ -92,5 +92,39 @@ describe('reportIncident', () => {
     for (const [, args] of rpc.mock.calls) {
       expect(args).toMatchObject({ p_client_event_id: undefined });
     }
+  });
+});
+
+describe('cancelShipperTrip (G5)', () => {
+  it('sends the reason code and the notes to cancel_trip', async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    const state = await cancelShipperTrip(
+      {},
+      form({ tripId: TRIP, reasonCode: 'shipper_request', notes: '  ' }),
+    );
+    expect(state.message).toBeTruthy();
+    expect(rpc).toHaveBeenCalledWith('cancel_trip', {
+      p_trip_id: TRIP,
+      p_reason_code: 'shipper_request',
+      p_notes: '',
+    });
+  });
+
+  it('asks for notes when the reason is "other", without calling the RPC', async () => {
+    const state = await cancelShipperTrip(
+      {},
+      form({ tripId: TRIP, reasonCode: 'other', notes: '' }),
+    );
+    expect(state.fieldErrors?.notes).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('shows the refusal of a trip already loading', async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: '55000', message: 'cannot cancel a trip in status loading' },
+    });
+    const state = await cancelShipperTrip({}, form({ tripId: TRIP, reasonCode: 'accident' }));
+    expect(state.error).toBe(clientTripsCopy.errors.notCancellable);
   });
 });

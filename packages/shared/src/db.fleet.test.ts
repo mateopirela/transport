@@ -13,7 +13,11 @@ describe('generated database types (B04)', () => {
     expect(Constants.public.Enums.unit_type).toEqual([...UNIT_TYPES]);
     expect(Constants.public.Enums.special_requirement).toEqual([...SPECIAL_REQUIREMENTS]);
     expect(Constants.public.Enums.license_type).toEqual([...LICENSE_TYPES]);
-    expect(Constants.public.Enums.availability_source).toEqual(['manual', 'trip_estimate']);
+    expect(Constants.public.Enums.availability_source).toEqual([
+      'manual',
+      'trip_estimate',
+      'release',
+    ]);
   });
 
   it('types the fleet rows and RPCs', () => {

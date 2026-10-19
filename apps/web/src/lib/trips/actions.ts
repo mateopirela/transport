@@ -2,15 +2,17 @@
 
 import {
   authErrors,
+  cancelTripSchema,
   clientTripsCopy,
   incidentFormSchema,
+  tripCancelCopy,
   tripDocumentSchema,
   uuidField,
   validationMessages,
 } from '@transport/shared';
 import { revalidatePath } from 'next/cache';
 
-import { formEntries, invalidForm, type FormState } from '../forms';
+import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
 import { paths } from '../routing';
 import { createClient } from '../supabase/server';
 import { tripErrorMessage } from './errors';
@@ -90,6 +92,32 @@ export async function reportIncident(_prev: FormState, formData: FormData): Prom
     };
   }
   return done(clientTripsCopy.incidents.sent);
+}
+
+/**
+ * Cancels the trip before the operator starts loading (cancel_trip, G5):
+ * a reason from the list and notes (required for "Otro"). After departure
+ * the unit waits for its carrier to release it (D20).
+ */
+export async function cancelShipperTrip(_prev: FormState, formData: FormData): Promise<FormState> {
+  const tripId = tripIdOf(formData);
+  if (!tripId) return { error: clientTripsCopy.errors.notFound };
+  const entries = formEntries(formData);
+  const parsed = cancelTripSchema.safeParse({
+    reasonCode: entries.reasonCode,
+    notes: entries.notes,
+  });
+  if (!parsed.success) return invalidForm(parsed.error, entries);
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+  const { error } = await supabase.rpc('cancel_trip', {
+    p_trip_id: tripId,
+    p_reason_code: parsed.data.reasonCode,
+    // Blank is no notes (cancel_trip trims it to null).
+    p_notes: parsed.data.notes ?? '',
+  });
+  if (error) return { error: tripErrorMessage(error), values: refillValues(entries) };
+  return done(tripCancelCopy.done);
 }
 
 /**

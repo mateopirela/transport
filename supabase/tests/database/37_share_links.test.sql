@@ -703,7 +703,8 @@ select throws_ok(
 reset role;
 
 -- A cancelled trip cannot be shared.
-update public.trips set status = 'cancelled', cancelled_at = now(), closed_at = null where id = tests.val('trip1');
+update public.trips set status = 'cancelled', cancelled_at = now(), closed_at = null,
+  cancellation_reason_code = 'shipper_request', cancelled_by_side = 'shipper' where id = tests.val('trip1');
 set local role authenticated;
 select tests.login('a3700000-0000-4000-8000-000000000001');
 select throws_ok(

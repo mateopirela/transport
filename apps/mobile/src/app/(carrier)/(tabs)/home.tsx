@@ -4,6 +4,7 @@ import {
   fleetCopy,
   mobileNavCopy,
   progressSummary,
+  vehicleReleaseCopy,
 } from '@transport/shared';
 import { useRouter, type Href } from 'expo-router';
 
@@ -24,6 +25,7 @@ import {
   unitLabel,
   unitRecommendations,
 } from '../../../lib/loads-api';
+import { listPendingReleases } from '../../../lib/release-api';
 import { track } from '../../../lib/track';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useSession } from '../../../providers/session';
@@ -74,7 +76,15 @@ async function loadFeed({ client, companyId }: CarrierContext) {
   };
 }
 
-/** Carrier home: recommended loads and return trips (B19), then the onboarding steps (B18). */
+/** Units waiting for their release (G5, D20), for the card on top of the home. */
+async function loadPendingReleases({ client, companyId }: CarrierContext) {
+  return listPendingReleases(client, companyId);
+}
+
+/**
+ * Carrier home: the units to release (G5), recommended loads and return trips
+ * (B19), then the onboarding steps (B18).
+ */
 export default function HomeTab() {
   const { profile } = useSession();
   const router = useRouter();
@@ -85,6 +95,7 @@ export default function HomeTab() {
     <Screen>
       <Title>{profile?.companyName ?? mobileNavCopy.home}</Title>
       {profile ? <CompanyStatus profile={profile} /> : null}
+      {approved ? <PendingReleases /> : null}
       {approved ? <Feed /> : <Body>{feedCopy.notApproved}</Body>}
       <SectionTitle>{approved ? feedCopy.onboarding : copy.title}</SectionTitle>
       <Body>{copy.subtitle}</Body>
@@ -158,5 +169,27 @@ function Feed() {
         </>
       )}
     </Loaded>
+  );
+}
+
+/** "Unidades por liberar (n)": nothing while there are none. */
+function PendingReleases() {
+  const router = useRouter();
+  const { state } = useCarrierData(loadPendingReleases);
+  if (state.status !== 'ready' || state.data.length === 0) return null;
+  const pending = state.data;
+  return (
+    <>
+      <SectionTitle>{vehicleReleaseCopy.home.title(pending.length)}</SectionTitle>
+      <Body>{vehicleReleaseCopy.home.help}</Body>
+      {pending.map((p) => (
+        <Card
+          key={p.taskId}
+          title={vehicleReleaseCopy.home.item(p.unit, p.route)}
+          subtitle={vehicleReleaseCopy.badge}
+          onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: p.vehicleId } })}
+        />
+      ))}
+    </>
   );
 }

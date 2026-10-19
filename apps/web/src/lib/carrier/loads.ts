@@ -141,7 +141,7 @@ async function returnTripCities(supabase: Supabase): Promise<Map<string, string>
  * not served locally) the same candidates are scored here with estimated
  * distances: the ranking is the same pure code (packages/shared/matching).
  */
-async function unitRecommendations(
+export async function unitRecommendations(
   supabase: Supabase,
   vehicleId: string,
 ): Promise<UnitRecommendations> {

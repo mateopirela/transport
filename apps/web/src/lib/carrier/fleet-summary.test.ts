@@ -159,6 +159,7 @@ describe('summarizeVehicles', () => {
           state: 'Nuevo León',
         },
       ],
+      new Set(),
       NOW,
     );
     expect(first).toMatchObject({
@@ -183,6 +184,7 @@ describe('summarizeVehicles', () => {
           state: 'Jalisco',
         },
       ],
+      new Set(),
       NOW,
     );
     expect(unset?.readiness).toBe('unset');
@@ -209,6 +211,7 @@ describe('summarizeVehicles', () => {
           state: 'Nuevo León',
         },
       ],
+      new Set(),
       NOW,
     );
     expect(summary?.readiness).toBe('expired_documents');
@@ -234,9 +237,29 @@ describe('summarizeVehicles', () => {
           state: 'Nuevo León',
         },
       ],
+      new Set(),
       NOW,
     );
     expect(summary?.readiness).toBe('available');
+  });
+
+  it('holds a unit pending release ahead of everything else (G5)', () => {
+    const [pending, other] = summarizeVehicles(
+      context([]),
+      [vehicle('v1'), vehicle('v2')],
+      [
+        {
+          vehicle_id: 'v1',
+          available_from: '2026-10-19T12:00:00Z',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+        },
+      ],
+      new Set(['v1']),
+      NOW,
+    );
+    expect(pending?.readiness).toBe('pending_release');
+    expect(other?.readiness).toBe('unset');
   });
 });
 

@@ -1,4 +1,4 @@
-import { carrierLoadsCopy, carrierWebCopy, unitLabel } from '@transport/shared';
+import { carrierLoadsCopy, carrierWebCopy, unitLabel, vehicleReleaseCopy } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -8,7 +8,8 @@ import { RecommendationCard } from '@/components/carrier/recommendation-card';
 import { buttonVariants } from '@/components/ui/button';
 import { carrierContext } from '@/lib/carrier/context';
 import { carrierFeed, listCarrierUnits } from '@/lib/carrier/loads';
-import { paths } from '@/lib/routing';
+import { listPendingReleases } from '@/lib/carrier/release';
+import { carrierUnitPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.home;
 const feedCopy = carrierLoadsCopy.home;
@@ -16,19 +17,44 @@ const feedCopy = carrierLoadsCopy.home;
 export const metadata: Metadata = { title: c.title };
 
 /**
- * Carrier home (G10a): the recommendations of every unit of the selected
- * business units (B08), return trips first (B19). Units that are not ready
- * (documents, availability) simply get none.
+ * Carrier home (G10a): the units waiting for their release first (G5, D20),
+ * then the recommendations of every unit of the selected business units
+ * (B08), return trips first (B19). Units that are not ready (documents,
+ * availability, pending release) simply get none.
  */
 export default async function CarrierHomePage() {
   const { supabase, viewer, companyId, units } = await carrierContext(paths.carrier);
-  const carrierUnits = await listCarrierUnits(supabase, companyId, units.ids);
+  const [carrierUnits, pendingReleases] = await Promise.all([
+    listCarrierUnits(supabase, companyId, units.ids),
+    listPendingReleases(supabase, companyId, units.ids),
+  ]);
   const feed = carrierUnits.length > 0 ? await carrierFeed(supabase, carrierUnits) : null;
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
 
   return (
     <>
       <PageHeading title={viewer.company?.legalName ?? c.title} description={c.description} />
+      {pendingReleases.length > 0 && (
+        <section className="mb-8 space-y-3 rounded-xl border border-destructive/40 bg-card p-4">
+          <h2 className="text-xl">{vehicleReleaseCopy.home.title(pendingReleases.length)}</h2>
+          <p className="text-sm text-muted-foreground">{vehicleReleaseCopy.home.help}</p>
+          <ul className="divide-y">
+            {pendingReleases.map((p) => (
+              <li key={p.taskId} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                <span className="text-sm font-medium">
+                  {vehicleReleaseCopy.home.item(p.unit, p.route)}
+                </span>
+                <Link
+                  href={carrierUnitPath(p.vehicleId)}
+                  className={buttonVariants({ variant: 'accent', size: 'sm' })}
+                >
+                  {vehicleReleaseCopy.home.open}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {units.operable.length === 0 ? (
         <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
       ) : !feed ? (

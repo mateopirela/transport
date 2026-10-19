@@ -3,21 +3,28 @@
 // Postgres enforces the same rules (set_vehicle_availability,
 // vehicle_expired_requirements).
 import { fleetErrorCopy } from './copy/fleet';
+import { vehicleReleaseCopy } from './copy/vehicle-release';
 import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verification';
 
 /**
  * What the carrier sees for a unit:
+ * - `pending_release`: its trip was cancelled after it set off; not available
+ *   until its coordinator or the manager releases it (G5, D20).
  * - `expired_documents`: a required document expired; not available (B18).
  * - `unset`: no active availability.
  * - `scheduled`: free from a future date.
  * - `available`: free now.
  */
-export type VehicleReadiness = 'expired_documents' | 'unset' | 'scheduled' | 'available';
+export type VehicleReadiness =
+  'pending_release' | 'expired_documents' | 'unset' | 'scheduled' | 'available';
 
 export function vehicleReadiness(
-  input: { expiredDocuments: boolean; availableFrom: string | null },
+  input: { expiredDocuments: boolean; availableFrom: string | null; pendingRelease?: boolean },
   now: Date = new Date(),
 ): VehicleReadiness {
+  // First: it is what the staff must do next (and the database refuses any
+  // availability or commitment until then).
+  if (input.pendingRelease) return 'pending_release';
   if (input.expiredDocuments) return 'expired_documents';
   if (!input.availableFrom) return 'unset';
   return Date.parse(input.availableFrom) > now.getTime() ? 'scheduled' : 'available';
@@ -172,6 +179,7 @@ const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
   [/cannot archive: it is assigned to a trip in progress/u, fleetErrorCopy.archiveBlocked],
   [/only the manager can move or archive/u, fleetErrorCopy.managerOnly],
   [/business_unit_id is required/u, fleetErrorCopy.businessUnitRequired],
+  [/vehicle is pending release/u, vehicleReleaseCopy.errors.pendingRelease],
 ];
 
 /** Spanish text for a known error message of a fleet write, or null when unknown. */

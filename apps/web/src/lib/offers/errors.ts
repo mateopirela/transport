@@ -20,6 +20,7 @@ export function offerErrorMessage(error: PostgrestLikeError): string {
       if (message.startsWith('load is no longer open')) return e.loadClosed;
       if (message.startsWith('pickup window already ended')) return e.pickupEnded;
       if (message.startsWith('both companies must be approved')) return e.bothApproved;
+      if (message.startsWith('vehicle is pending release')) return e.unitPendingRelease;
       return e.generic;
     case '22023':
       return message.includes('amount') ? e.invalidAmount : e.generic;

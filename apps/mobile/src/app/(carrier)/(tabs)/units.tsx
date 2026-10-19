@@ -16,6 +16,7 @@ import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 const copy = fleetCopy.units;
 
 const READINESS_TONES: Record<VehicleReadiness, Tone> = {
+  pending_release: 'warning',
   expired_documents: 'danger',
   unset: 'neutral',
   scheduled: 'info',

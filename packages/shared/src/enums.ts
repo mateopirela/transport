@@ -48,6 +48,17 @@ export type TripStatus = (typeof TRIP_STATUSES)[number];
 export const TRIP_EVENT_TYPES = DB_ENUMS.trip_event_type;
 export type TripEventType = (typeof TRIP_EVENT_TYPES)[number];
 
+/** Why a trip was cancelled (cancel_trip, G5). */
+export const TRIP_CANCELLATION_REASONS = DB_ENUMS.trip_cancellation_reason;
+export type TripCancellationReason = (typeof TRIP_CANCELLATION_REASONS)[number];
+
+/** Who cancelled a trip (trips.cancelled_by_side, G5). */
+export type TripCancellationSide = (typeof DB_ENUMS.trip_cancellation_side)[number];
+
+/** A unit waiting to be released after its trip was cancelled on the way (G5, D20). */
+export const RELEASE_TASK_STATUSES = DB_ENUMS.release_task_status;
+export type ReleaseTaskStatus = (typeof RELEASE_TASK_STATUSES)[number];
+
 /** Moment of the trip a photo documents (trip_evidence, B06). */
 export const EVIDENCE_STAGES = DB_ENUMS.evidence_stage;
 export type EvidenceStage = (typeof EVIDENCE_STAGES)[number];

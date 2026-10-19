@@ -5,6 +5,7 @@ import {
   unitTypeLabels,
   vehicleKindLabels,
   vehicleReadinessLabels,
+  vehicleReleaseCopy,
   type VehicleReadiness,
 } from '@transport/shared';
 import type { Metadata } from 'next';
@@ -26,6 +27,7 @@ const c = carrierWebCopy.fleet;
 export const metadata: Metadata = { title: c.units.title };
 
 const READINESS_TONES: Record<VehicleReadiness, string> = {
+  pending_release: 'bg-destructive/10 text-destructive',
   expired_documents: 'bg-destructive/10 text-destructive',
   unset: 'bg-muted text-muted-foreground',
   scheduled: 'bg-accent/10 text-accent',
@@ -108,7 +110,9 @@ export default async function CarrierUnitsPage({
               </td>
               <td>
                 <Link href={carrierUnitPath(vehicle.id)} className="text-accent hover:underline">
-                  {c.units.open}
+                  {vehicle.readiness === 'pending_release'
+                    ? vehicleReleaseCopy.home.open
+                    : c.units.open}
                 </Link>
               </td>
             </tr>

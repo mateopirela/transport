@@ -141,6 +141,15 @@ describe('tripErrorMessage', () => {
     expect(tripErrorMessage({ code: '55000', message: 'trip is cancelled' })).toBe(
       'El viaje está cancelado.',
     );
+    expect(
+      tripErrorMessage({ code: '55000', message: 'cannot cancel a trip in status loading' }),
+    ).toMatch(/ya no se puede cancelar/u);
+    expect(
+      tripErrorMessage({
+        code: '22023',
+        message: 'a reason of at most 1000 characters is required',
+      }),
+    ).toMatch(/Elige un motivo/u);
   });
 
   it('never shows database text', () => {

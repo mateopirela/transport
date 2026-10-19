@@ -27,7 +27,7 @@ import { getOfferBoard } from '@/lib/offers/queries';
 import { editLoadPath, loadPath, paths, tripPath } from '@/lib/routing';
 import { listActiveShareLinks } from '@/lib/share-links/queries';
 import { getProviderDecisions } from '@/lib/shared-documents/queries';
-import { findLoadTripId } from '@/lib/trips/queries';
+import { findLoadTrip } from '@/lib/trips/queries';
 
 const c = loadsCopy.detail;
 const number = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
@@ -53,7 +53,8 @@ export default async function LoadDetailPage({
   );
   const actions = shipperLoadActions(load.status);
   // accept_offer creates the trip together with the acceptance (B06).
-  const tripId = load.accepted_offer_id ? await findLoadTripId(supabase, companyId, load.id) : null;
+  const trip = load.accepted_offer_id ? await findLoadTrip(supabase, companyId, load.id) : null;
+  const tripId = trip?.id ?? null;
   // A published load can be shared with anyone, read-only (G7, D23). Its
   // active links stay listed (and revocable) after it leaves the market.
   const shareable = load.status === 'published' || load.status === 'negotiating';
@@ -84,7 +85,8 @@ export default async function LoadDetailPage({
     [c.created, formatDateTime(load.created_at)],
     [c.published, optional(load.published_at, formatDateTime)],
     [c.cancelled, optional(load.cancelled_at, formatDateTime)],
-    [c.cancellationReason, load.cancellation_reason],
+    // A cancelled trip has the structured reason (G5); a load cancelled before, its own text.
+    [c.cancellationReason, trip?.cancellation ?? load.cancellation_reason],
   ];
   const details = rows.filter((row): row is [string, string] => row[1] !== null);
 

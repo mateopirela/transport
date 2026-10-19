@@ -727,7 +727,8 @@ end;
 $$;
 
 -- Same as 20261027000100_invitations.sql, except an `operator` link that
--- names a row is no longer valid once that row has an account or is archived.
+-- names a row is no longer valid once that row has an account, is archived
+-- or drives for another business unit than the link names.
 create or replace function public.invitation_preview(p_token text)
 returns table (
   kind public.invitation_kind,
@@ -781,6 +782,7 @@ begin
   if v_invitation.kind = 'operator' and v_invitation.operator_id is not null and not exists (
     select 1 from public.operators o
     where o.id = v_invitation.operator_id and o.profile_id is null and o.archived_at is null
+      and o.business_unit_id = v_invitation.business_unit_ids[1]
   ) then
     raise exception 'invalid or expired invitation' using errcode = '22023';
   end if;
@@ -882,6 +884,9 @@ begin
           phone = coalesce(phone, v_phone),
           email = coalesce(email, v_email)
       where id = v_invitation.operator_id and profile_id is null and archived_at is null
+        -- Moved to another business unit since the link was made: the link
+        -- is stale (the move revokes it too), so a new one is needed.
+        and business_unit_id = v_invitation.business_unit_ids[1]
       returning id into v_operator_id;
       if v_operator_id is null then
         raise exception 'invalid or expired invitation' using errcode = '22023';
@@ -966,6 +971,35 @@ comment on function public.revoke_user_sessions_service(uuid) is
 
 revoke all on function public.revoke_user_sessions_service(uuid) from public, anon, authenticated;
 grant execute on function public.revoke_user_sessions_service(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Moving an operator to another business unit revokes their pending links
+-- (operator and access reset): they name the old business unit, so they could
+-- never be redeemed and invitation_preview would offer a dead link. Security
+-- definer because the Gerente moves the row through RLS (G1a) and has no
+-- direct write on invitations.
+-- ---------------------------------------------------------------------------
+create function public.operators_revoke_invitations_on_unit_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.invitations
+  set revoked_at = now()
+  where operator_id = new.id and accepted_at is null and revoked_at is null;
+  return new;
+end;
+$$;
+
+revoke all on function public.operators_revoke_invitations_on_unit_change() from public, anon, authenticated;
+
+create trigger operators_revoke_invitations_on_unit_change
+after update of business_unit_id on public.operators
+for each row
+when (old.business_unit_id is distinct from new.business_unit_id)
+execute function public.operators_revoke_invitations_on_unit_change();
 
 -- ---------------------------------------------------------------------------
 -- RPC (service role only): the compensation of redeem-invitation. Deletes the

@@ -14,7 +14,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(90);
+select plan(93);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -550,6 +550,42 @@ select throws_ok(
   $$ select * from public.redeem_operator_invitation_service(tests.token('link_p'), 'a3100000-0000-4000-8000-000000000009', 'X', null, null) $$,
   '42501', 'user already belongs to a company', 'and cannot be redeemed by that account'
 );
+
+-- Moving the operator to another business unit revokes the link (it names the
+-- old one); a stale link that slipped through is refused, never half-redeemed.
+reset role;
+insert into public.operators (id, company_id, business_unit_id, profile_id, full_name) values
+  ('d3100000-0000-4000-8000-00000000000d', tests.val('carrier_company'), tests.val('bu_a'), null, 'Rita Registrada');
+set local role authenticated;
+select tests.login('a3100000-0000-4000-8000-000000000002');
+insert into tests.tokens
+select 'link_r', token from public.create_invitation('operator', '{}', 'd3100000-0000-4000-8000-00000000000d');
+reset role;
+-- Clients cannot write operators.business_unit_id; the move RPC (G4) or the
+-- admin does, and the trigger covers every path.
+update public.operators set business_unit_id = tests.val('bu_b') where id = 'd3100000-0000-4000-8000-00000000000d';
+select isnt(
+  (select revoked_at from public.invitations where operator_id = 'd3100000-0000-4000-8000-00000000000d'), null,
+  'moving the operator to another business unit revokes their pending link'
+);
+-- As if the revocation had been missed: the link is pending again.
+update public.invitations set revoked_at = null where operator_id = 'd3100000-0000-4000-8000-00000000000d';
+select tests.new_user('a3100000-0000-4000-8000-0000000000fa', 'operator', '8119990010',
+                      '{"provisioned_by": "redeem-invitation"}');
+set local role anon;
+select set_config('request.jwt.claims', '{"role": "anon"}', true);
+select throws_ok(
+  $$ select * from public.invitation_preview(tests.token('link_r')) $$,
+  '22023', 'invalid or expired invitation', 'a link naming the old business unit previews as invalid'
+);
+reset role;
+set local role service_role;
+select tests.login_service();
+select throws_ok(
+  $$ select * from public.redeem_operator_invitation_service(tests.token('link_r'), 'a3100000-0000-4000-8000-0000000000fa', 'Rita', '81 9999 0010', null) $$,
+  '22023', 'invalid or expired invitation', 'and redeeming it asks for a new link instead of failing the shape check'
+);
+reset role;
 
 -- ---------------------------------------------------------------------------
 -- revoke_user_sessions_service (after an access reset)

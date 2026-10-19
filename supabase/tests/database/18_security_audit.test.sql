@@ -244,6 +244,7 @@ select set_eq(
     'fleet_block_archive_with_trips', 'open_conversation', 'notify_offer', 'notify_trip_event',
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
     'companies_create_default_business_unit', 'default_business_unit',
+    'operators_revoke_invitations_on_unit_change',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

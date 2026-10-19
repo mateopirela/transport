@@ -28,7 +28,7 @@ const row = (id: string, overrides: Partial<ClaimedNotification> = {}): ClaimedN
   push_pending: true,
   email_pending: true,
   email: null,
-  role: 'carrier',
+  role: 'manager',
   push_tokens: [],
   ...overrides,
 });

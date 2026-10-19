@@ -161,7 +161,7 @@ describe('sentry settings', () => {
 
   it('scrubs users, requests, extras, breadcrumbs and messages', () => {
     const event = scrubEvent({
-      user: { id: 'u1', email: 'ana@a.mx', ip_address: '1.2.3.4', role: 'carrier' },
+      user: { id: 'u1', email: 'ana@a.mx', ip_address: '1.2.3.4', role: 'manager' },
       request: {
         url: 'https://app.mx/cliente/viajes?token=abc#x',
         query_string: 'token=abc',
@@ -176,7 +176,7 @@ describe('sentry settings', () => {
       message: 'for ana@a.mx',
     });
     expect(event).toEqual({
-      user: { id: 'u1', role: 'carrier' },
+      user: { id: 'u1', role: 'manager' },
       request: { url: 'https://app.mx/cliente/viajes', headers: { 'User-Agent': 'UA' } },
       extra: { lat: REDACTED, tripId: 't1' },
       contexts: { trip: { lng: REDACTED } },

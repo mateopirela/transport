@@ -93,9 +93,9 @@ grant select, insert on tests.vals to authenticated, service_role;
 -- Users: ...01 shipper S  ...02 carrier A  ...03 carrier B  ...04 carrier C (in
 --        review)  ...05 operator O of A  ...06 admin
 select tests.new_user('a8000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
-select tests.new_user('a8000000-0000-4000-8000-000000000002', 'ana@a.test', 'carrier');
-select tests.new_user('a8000000-0000-4000-8000-000000000003', 'beto@b.test', 'carrier');
-select tests.new_user('a8000000-0000-4000-8000-000000000004', 'ciro@c.test', 'carrier');
+select tests.new_user('a8000000-0000-4000-8000-000000000002', 'ana@a.test', 'manager');
+select tests.new_user('a8000000-0000-4000-8000-000000000003', 'beto@b.test', 'manager');
+select tests.new_user('a8000000-0000-4000-8000-000000000004', 'ciro@c.test', 'manager');
 select tests.new_user('a8000000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
 select tests.new_user('a8000000-0000-4000-8000-000000000006', 'admin@x.test', 'shipper');
 

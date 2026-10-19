@@ -64,8 +64,8 @@ grant execute on all functions in schema tests to authenticated;
 select tests.new_user('a8000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
 select tests.new_user('a8000000-0000-4000-8000-000000000002', 'sofia@s.test', 'shipper');
 select tests.new_user('a8000000-0000-4000-8000-000000000003', 'tomas@t.test', 'shipper');
-select tests.new_user('a8000000-0000-4000-8000-000000000004', 'ana@a.test', 'carrier');
-select tests.new_user('a8000000-0000-4000-8000-000000000005', 'beto@b.test', 'carrier');
+select tests.new_user('a8000000-0000-4000-8000-000000000004', 'ana@a.test', 'manager');
+select tests.new_user('a8000000-0000-4000-8000-000000000005', 'beto@b.test', 'manager');
 select tests.new_user('a8000000-0000-4000-8000-000000000006', 'oscar@a.test', 'operator');
 select tests.new_user('a8000000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');
 

@@ -16,7 +16,7 @@ const CARRIER = '00000000-0000-4000-8000-000000000003';
 const message = (id: string, created_at: string, sender_id = ME): ChatMessage => ({
   id,
   sender_id,
-  sender_role: sender_id === CARRIER ? 'carrier' : 'shipper',
+  sender_role: sender_id === CARRIER ? 'manager' : 'shipper',
   body: id,
   attachments: [],
   created_at,

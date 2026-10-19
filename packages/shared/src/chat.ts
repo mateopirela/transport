@@ -114,7 +114,9 @@ export function chatSenderLabel(
   if (message.sender_id === viewerId) return chatCopy.you;
   const labels: Record<UserRole, string> = {
     shipper: chatCopy.shipper,
-    carrier: chatCopy.carrier,
+    // To the shipper, the Gerente and the Coordinador both speak for the carrier.
+    manager: chatCopy.carrier,
+    coordinator: chatCopy.carrier,
     operator: chatCopy.operator,
     admin: chatCopy.admin,
   };

@@ -8,7 +8,8 @@ const admin: SignedIn = { role: 'admin', company: null };
 const approvedShipper: SignedIn = { role: 'shipper', company: { status: 'approved' } };
 const pendingShipper: SignedIn = { role: 'shipper', company: { status: 'pending_review' } };
 const newShipper: SignedIn = { role: 'shipper', company: null };
-const carrier: SignedIn = { role: 'carrier', company: { status: 'approved' } };
+const manager: SignedIn = { role: 'manager', company: { status: 'approved' } };
+const coordinator: SignedIn = { role: 'coordinator', company: { status: 'approved' } };
 const operator: SignedIn = { role: 'operator', company: null };
 
 describe('homeFor', () => {
@@ -18,7 +19,8 @@ describe('homeFor', () => {
     [pendingShipper, paths.review],
     [{ role: 'shipper', company: { status: 'suspended' } } as SignedIn, paths.review],
     [newShipper, paths.completeCompany],
-    [carrier, paths.mobileOnly],
+    [manager, paths.mobileOnly],
+    [coordinator, paths.mobileOnly],
     [operator, paths.mobileOnly],
   ])('%o lands on %s', (viewer, home) => {
     expect(homeFor(viewer)).toBe(home);
@@ -46,7 +48,15 @@ describe('resolveRoute', () => {
   });
 
   it('opens the legal pages to everyone, signed in or not (B27)', () => {
-    for (const viewer of [null, admin, approvedShipper, pendingShipper, carrier, operator]) {
+    for (const viewer of [
+      null,
+      admin,
+      approvedShipper,
+      pendingShipper,
+      manager,
+      coordinator,
+      operator,
+    ]) {
       expect(resolveRoute('/aviso-de-privacidad', viewer)).toBeNull();
       expect(resolveRoute('/terminos', viewer)).toBeNull();
     }
@@ -62,7 +72,14 @@ describe('resolveRoute', () => {
   it('keeps everyone but admins out of /admin', () => {
     expect(resolveRoute('/admin', admin)).toBeNull();
     expect(resolveRoute('/admin/usuarios', admin)).toBeNull();
-    for (const viewer of [approvedShipper, pendingShipper, newShipper, carrier, operator]) {
+    for (const viewer of [
+      approvedShipper,
+      pendingShipper,
+      newShipper,
+      manager,
+      coordinator,
+      operator,
+    ]) {
       expect(resolveRoute('/admin', viewer)).toBe(homeFor(viewer));
       expect(resolveRoute('/admin/usuarios', viewer)).not.toBeNull();
     }
@@ -78,7 +95,8 @@ describe('resolveRoute', () => {
     expect(resolveRoute('/cliente', pendingShipper)).toBe(paths.review);
     expect(resolveRoute('/cliente', newShipper)).toBe(paths.completeCompany);
     expect(resolveRoute('/cliente', admin)).toBe(paths.admin);
-    expect(resolveRoute('/cliente', carrier)).toBe(paths.mobileOnly);
+    expect(resolveRoute('/cliente', manager)).toBe(paths.mobileOnly);
+    expect(resolveRoute('/cliente', coordinator)).toBe(paths.mobileOnly);
   });
 
   it('shows the review and completion screens only when they apply', () => {

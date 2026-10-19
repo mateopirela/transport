@@ -35,7 +35,7 @@ grant execute on all functions in schema tests to anon, authenticated;
 select tests.new_user('a0000000-0000-4000-8000-000000000001', 'ana@acme.test',
   '{"role":"shipper","full_name":"Ana Pérez"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000002', 'beto@beta.test',
-  '{"role":"carrier","full_name":"Beto Ruiz"}');
+  '{"role":"manager","full_name":"Beto Ruiz"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000003', 'carla_op@beta.test',
   '{"role":"operator","full_name":"Carla Díaz"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000005', 'admin@transport.test',

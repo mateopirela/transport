@@ -2572,6 +2572,10 @@ export interface Database {
           unit_type: Database['public']['Enums']['unit_type'];
         }[];
       };
+      staff_role_for_company_type: {
+        Args: { p_type: Database['public']['Enums']['company_type'] };
+        Returns: Database['public']['Enums']['user_role'];
+      };
       submit_document: {
         Args: {
           p_expires_at?: string;
@@ -2795,7 +2799,7 @@ export interface Database {
         | 'torton'
         | 'rabon'
         | 'pickup_3_5t';
-      user_role: 'shipper' | 'carrier' | 'operator' | 'admin';
+      user_role: 'shipper' | 'manager' | 'coordinator' | 'operator' | 'admin';
       vehicle_kind: 'tractor' | 'rigid' | 'trailer';
       verification_status: 'pending_review' | 'approved' | 'rejected' | 'expired' | 'suspended';
     };
@@ -3049,7 +3053,7 @@ export const Constants = {
         'rabon',
         'pickup_3_5t',
       ],
-      user_role: ['shipper', 'carrier', 'operator', 'admin'],
+      user_role: ['shipper', 'manager', 'coordinator', 'operator', 'admin'],
       vehicle_kind: ['tractor', 'rigid', 'trailer'],
       verification_status: ['pending_review', 'approved', 'rejected', 'expired', 'suspended'],
     },

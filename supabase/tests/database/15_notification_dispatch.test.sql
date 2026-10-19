@@ -143,7 +143,7 @@ grant select, insert on tests.vals to authenticated, service_role;
 
 -- Users: ...01 shipper S  ...02 carrier A  ...05 operator O of A
 select tests.new_user('a9000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
-select tests.new_user('a9000000-0000-4000-8000-000000000002', 'ana@a.test', 'carrier');
+select tests.new_user('a9000000-0000-4000-8000-000000000002', 'ana@a.test', 'manager');
 select tests.new_user('a9000000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
 
 insert into public.companies (id, type, legal_name, rfc, status) values
@@ -259,7 +259,7 @@ select results_eq(
   $$ select id, attempt, push_pending, email_pending, email, role::text, cardinality(push_tokens)
      from public.claim_notifications(2, 60) $$,
   $$ values ('f9000000-0000-4000-8000-000000000001'::uuid, 1, true, true, 'sara@s.test'::text, 'shipper'::text, 0),
-            ('f9000000-0000-4000-8000-000000000002'::uuid, 1, true, true, 'ana@a.test'::text, 'carrier'::text, 2) $$,
+            ('f9000000-0000-4000-8000-000000000002'::uuid, 1, true, true, 'ana@a.test'::text, 'manager'::text, 2) $$,
   'claim returns the due notifications, oldest first, with the email, role and devices of the user; old ones do not take their place in the batch'
 );
 select is_empty(

@@ -71,7 +71,7 @@ grant execute on function tests.point(timestamptz) to authenticated;
 -- Users: ...01 shipper S   ...03 carrier A   ...05 operator O of A
 --        ...06 operator P of A   ...07 admin
 select tests.new_user('a7000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
-select tests.new_user('a7000000-0000-4000-8000-000000000003', 'ana@a.test', 'carrier');
+select tests.new_user('a7000000-0000-4000-8000-000000000003', 'ana@a.test', 'manager');
 select tests.new_user('a7000000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
 select tests.new_user('a7000000-0000-4000-8000-000000000006', 'pedro@a.test', 'operator');
 select tests.new_user('a7000000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');

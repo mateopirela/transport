@@ -31,7 +31,7 @@ values
   ('b2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'xavier@fuera.test', now(),
    '{"role": "shipper"}', now(), now()),
   ('b2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'yolanda@fuera.test', now(),
-   '{"role": "carrier"}', now(), now()),
+   '{"role":"manager"}', now(), now()),
   ('b2400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'zoe@fuera.test', now(),
    '{"role": "operator"}', now(), now()),
   -- An operator account without a company yet (invitations are bound to an email).
@@ -120,7 +120,7 @@ values (tests.val('trip'), 'carta_porte', tests.val('trip') || '/a2400000-0000-4
 insert into public.rate_limit_counters (bucket, subject, window_start, hits)
 values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
 insert into public.product_events (name, user_id, user_role, company_id, properties)
-values ('recommendations_viewed', '5eed0001-0000-4000-8000-000000000005', 'carrier', tests.val('carrier_company'),
+values ('recommendations_viewed', '5eed0001-0000-4000-8000-000000000005', 'manager', tests.val('carrier_company'),
         '{"recommendations": 3}');
 
 -- ---------------------------------------------------------------------------

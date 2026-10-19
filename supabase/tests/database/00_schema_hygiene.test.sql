@@ -13,7 +13,7 @@ select has_extension('pg_cron', 'pg_cron is installed');
 -- Enums.
 select enum_has_labels('public', 'company_type', array['shipper', 'carrier'], 'company_type labels');
 select enum_has_labels(
-  'public', 'user_role', array['shipper', 'carrier', 'operator', 'admin'], 'user_role labels'
+  'public', 'user_role', array['shipper', 'manager', 'coordinator', 'operator', 'admin'], 'user_role labels'
 );
 select enum_has_labels(
   'public', 'verification_status',

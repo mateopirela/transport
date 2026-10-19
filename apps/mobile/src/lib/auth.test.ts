@@ -59,7 +59,7 @@ describe('signUpCarrier', () => {
       email: 'c@x.mx',
       password: 'camion2026',
       redirectTo: 'transport://auth/callback',
-      metadata: { role: 'carrier', full_name: 'Ana', phone: '8112345678' },
+      metadata: { role: 'manager', full_name: 'Ana', phone: '8112345678' },
     });
   });
 

@@ -65,10 +65,10 @@ grant execute on function tests.val(text) to authenticated;
 -- Users: ...01 shipper S   ...03 carrier A   ...04 carrier B   ...05 operator O of A
 --        ...06 carrier C (company in review)   ...07 admin
 select tests.new_user('a1600000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
-select tests.new_user('a1600000-0000-4000-8000-000000000003', 'ana@a.test', 'carrier');
-select tests.new_user('a1600000-0000-4000-8000-000000000004', 'beto@b.test', 'carrier');
+select tests.new_user('a1600000-0000-4000-8000-000000000003', 'ana@a.test', 'manager');
+select tests.new_user('a1600000-0000-4000-8000-000000000004', 'beto@b.test', 'manager');
 select tests.new_user('a1600000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
-select tests.new_user('a1600000-0000-4000-8000-000000000006', 'carla@c.test', 'carrier');
+select tests.new_user('a1600000-0000-4000-8000-000000000006', 'carla@c.test', 'manager');
 select tests.new_user('a1600000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');
 
 insert into public.companies (id, type, legal_name, rfc, status, created_at) values

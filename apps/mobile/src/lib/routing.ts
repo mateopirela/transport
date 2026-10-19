@@ -32,8 +32,12 @@ export function resolveArea(snapshot: SessionSnapshot): Area {
   if (!profile) return profileError ? 'problem' : 'loading';
 
   switch (profile.role) {
-    case 'carrier':
+    // The Gerente (manager) creates the company; a Coordinador only joins one
+    // by invitation (G1b), so without a company they land on the join screen.
+    case 'manager':
       return profile.companyId ? 'carrier' : 'company_setup';
+    case 'coordinator':
+      return profile.companyId ? 'carrier' : 'join';
     case 'operator':
       return profile.companyId ? 'operator' : 'join';
     case 'shipper':

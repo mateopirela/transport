@@ -1,6 +1,6 @@
 # Especificación de producto: V1
 
-> Consolida el deck de JP, la reunión del 14 oct 2026 y las decisiones en [decisiones.md](decisiones.md). Las fuentes originales están en [fuentes/](fuentes/).
+> Consolida el deck de JP, la reunión del 14 oct 2026, las respuestas de JP y Mateo del 16 oct 2026 y las decisiones en [decisiones.md](decisiones.md). Las fuentes originales están en [fuentes/](fuentes/). Cómo se construye lo nuevo del 16 oct: [plan-v1.md §G](plan-v1.md).
 
 ## 1. Visión y problema
 
@@ -20,23 +20,27 @@
 
 **Competidor directo:** BeGo, que tiene 3 apps separadas. Nos diferenciamos con viajes de regreso, anticipación de disponibilidad, mejor UX y altas simples.
 
-**Lanzamiento:** una sola ruta, **Monterrey ↔ Guadalajara**. El primer transportista es la empresa familiar de JP.
+**Lanzamiento:** una sola ruta, **Monterrey ↔ Guadalajara**. El primer transportista es la empresa familiar de JP. La prueba piloto es **gratis** (D24) y el flete se paga fuera de la plataforma (D08-E1).
 
 ## 2. Perfiles
 
 | Perfil | Quién es | Plataforma V1 |
 |---|---|---|
 | **Cliente** | Empresa que necesita mover carga | Web |
-| **Transportista** | Empresa o dueño de camiones; administra flota, operadores y negociaciones | App móvil |
-| **Operador** | Conductor que ejecuta el viaje | App móvil (misma app, vista de operador) |
+| **Gerente** (transportista) | Dueño o director de la empresa transportista: lo legal, la flota, las unidades de negocio, los coordinadores y, más adelante, la suscripción (pospuesta, D24) | App móvil y web (D06-E1) |
+| **Coordinador** (transportista) | Opera una o varias unidades de negocio: busca cargas, negocia, asigna y supervisa | App móvil y web (D06-E1) |
+| **Operador** | Conductor que ejecuta el viaje | App móvil (vista de operador) |
+| **Hombre-camión** | Transportista independiente: una sola cuenta con los perfiles de Gerente y Operador (D13) | App móvil y web |
 | **Admin** | Equipo interno: verifica, supervisa y resuelve | Web |
 
-Cada empresa (cliente o transportista) pasa por **verificación** antes de operar. Mientras está "en revisión" puede completar su perfil, pero no publicar cargas ni ofertar.
+- **Unidad de negocio** (grupo): conjunto de camiones y operadores de una empresa transportista, con uno o varios coordinadores asignados (D19). Toda empresa transportista tiene al menos una ("Principal"). Un camión y un operador pertenecen a una sola; un coordinador puede tener varias.
+- Cada empresa (cliente o transportista) pasa por **verificación** antes de operar. Mientras está "en revisión" puede completar su perfil, pero no publicar cargas ni ofertar.
+- **Cómo entra cada quien:** Cliente, Gerente, Coordinador y hombre-camión, con correo y contraseña. El Operador, con **teléfono y contraseña** (D15-E1). La web y la app tienen un solo campo "Correo o teléfono".
 
 ## 3. Funcionalidades V1 por perfil
 
 ### Cliente (web)
-- Registro de empresa: razón social, RFC, contacto y documentos legales. La cuenta queda en revisión.
+- Registro de empresa: RFC y razón social, domicilio fiscal, representante legal (cuando se requiera) y documentos (D16). Usuario con nombre, correo, **teléfono** y contraseña. La cuenta queda en revisión.
 - Publicar carga con:
   - origen y destino (autocompletado de Google)
   - ventana de recolección y ventana de entrega
@@ -44,29 +48,46 @@ Cada empresa (cliente o transportista) pasa por **verificación** antes de opera
   - tipo de unidad requerida y requisitos especiales
   - precio propuesto (MXN)
 - Editar o cancelar publicaciones mientras no estén contratadas.
-- Recibir ofertas, contraofertar, aceptar o rechazar. Cada negociación tiene su chat.
+- Recibir ofertas, compararlas, contraofertar, aceptar o rechazar. Cada negociación tiene su chat con el coordinador.
+- Al aceptar: ver los **documentos compartidos** del transportista, de la unidad y del operador (solo lectura) y **dar de alta al transportista como proveedor** si lo necesita (D21).
 - Viajes activos e historial:
   - mapa en vivo
   - línea de tiempo de eventos
   - fotos de evidencia
-  - documentos del viaje (incluida la Carta Porte que suba el transportista)
+  - documentos del viaje (D22): subir la orden de servicio y ver el CFDI con Carta Porte y la factura que sube el coordinador
   - confirmación de entrega
+- **Compartir** una carga o el seguimiento de un viaje con un enlace público de solo lectura (D23).
 - Reportar incidencias.
 
-### Transportista (app móvil)
-- Registro de empresa con documentos y verificación.
-- Flota:
-  - camiones y remolques: tipo de unidad, capacidad, características y documentos
-  - operadores: invitación, licencia y documentos
-- Rutas habituales y **disponibilidad** (dónde y desde cuándo queda libre cada unidad).
-- **Cargas recomendadas**, incluido el modo **viaje de regreso**: para un camión con viaje activo, se recomiendan cargas que salen cerca de su destino después de su fin estimado de descarga.
+### Gerente (app y web)
+- Registro de la empresa: RFC y razón social, Constancia de Situación Fiscal, representante legal (nombre e identificación) y domicilio fiscal. Usuario con nombre, correo, teléfono y contraseña.
+- **Mi empresa**:
+  - unidades de negocio: crear, renombrar y archivar
+  - coordinadores: invitar por enlace, asignarlos a una o varias unidades de negocio, moverlos o darlos de baja
+  - camiones: alta con placas, tipo de unidad, capacidad y documentos (tarjeta de circulación, permisos, seguro vigente); editarlos, moverlos de unidad de negocio o darlos de baja
+  - operadores: invitar por enlace, moverlos de unidad de negocio, restablecerles el acceso o darlos de baja
+  - las bajas nunca rompen un viaje activo (se bloquean mientras haya uno)
+- Supervisar **todos** los viajes de la empresa, con filtro por unidad de negocio.
+- Todo lo que hace un coordinador, en cualquier unidad de negocio.
+- *(Pospuesto, D24)* **Suscripción**: ver el estado; pagar y administrarla en la web.
+
+### Coordinador (app y web)
+- Registro por enlace del Gerente: nombre, correo, teléfono y contraseña. No vuelve a registrar la empresa.
+- Ve y opera solo **sus unidades de negocio**: sus camiones, operadores, negociaciones y viajes.
+- Disponibilidad de sus unidades (dónde y desde cuándo queda libre cada una) y rutas habituales de la empresa.
+- **Cargas recomendadas**, incluido el modo **viaje de regreso**, y notificaciones de cargas nuevas cercanas a sus camiones disponibles y compatibles.
 - Búsqueda y filtro de cargas, con detalle de la carga (mapa y distancia en vacío).
-- Ofertar y contraofertar, con chat por negociación.
-- Asignar unidad y operador al viaje ganado.
-- Monitorear viajes activos en el mapa y consultar el historial.
+- Ofertar y contraofertar (precio y disponibilidad), con chat con el cliente.
+- Confirmar camión y operador del viaje ganado; ver si el cliente ya lo dio de alta como proveedor.
+- Subir los documentos del viaje (D22): orden de servicio, CFDI con Carta Porte y factura.
+- **Compartir** una carga por enlace con operadores u otros coordinadores de la empresa (D23).
+- Monitorear viajes activos en el mapa, chatear con el operador y consultar el historial.
+- Cuando un viaje que ya salió se cancela: confirmar dónde quedó el camión y **liberarlo** (D20).
+- Invitar operadores a sus unidades de negocio y restablecerles el acceso.
 
 ### Operador (app móvil)
-- Viaje asignado: origen, destino, instrucciones y contactos.
+- Registro por enlace: nombre, teléfono y contraseña; correo opcional; identificación oficial y licencia de conducir vigente y adecuada al vehículo.
+- Notificación de viaje asignado y pantalla del viaje: origen, destino, ruta, instrucciones, contactos y documentos del viaje.
 - Botones de estado:
   - salida
   - llegada a recolección
@@ -75,32 +96,56 @@ Cada empresa (cliente o transportista) pasa por **verificación** antes de opera
   - llegada a destino
   - inicio de descarga, con **hora estimada de fin de descarga**
   - fin de descarga
-- **Ubicación compartida en segundo plano**, con consentimiento explícito y solo durante viajes activos.
-- Fotos de evidencia de recolección y entrega, con hora y ubicación. Funciona sin señal y sube después.
-- Reportar incidencias (con fotos).
+- **Ubicación compartida en segundo plano**, con consentimiento explícito y solo durante viajes activos. La app le pide activar la **ubicación precisa** y el permiso **"Siempre"** (D17).
+- Evidencia de recolección y evidencia firmada de entrega (fotos con hora y ubicación, y quién recibe). Funciona sin señal y sube después.
+- Reportar incidencias (con fotos) y escribir al coordinador por chat.
+
+### Hombre-camión (app y web)
+- En el registro elige "Hombre camión": una sola cuenta crea la empresa, su perfil de Gerente y su perfil de Operador (D13).
+- Sube sus documentos fiscales, personales (identificación y licencia) y del camión.
+- Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación y subir evidencias. Pagar la suscripción queda pospuesto (D24).
 
 ### Admin (web)
 - Cola de verificación de empresas, documentos, unidades y operadores: aprobar o rechazar con motivo.
 - Usuarios: buscar, suspender y reactivar.
 - Supervisión de cargas y viajes, con asignación manual.
 - Incidencias: seguimiento y resolución.
+- *(Pospuesto, D24)* Estado de suscripción de cada empresa transportista y fin del periodo piloto.
 - Estadísticas básicas: cargas publicadas, ofertas, viajes, viajes de regreso logrados y km en vacío.
 - Bitácora de auditoría de acciones administrativas.
 
 ### Transversal
 - Notificaciones push (móvil) y por email (web) cuando hay:
-  - una carga nueva compatible
+  - una carga nueva compatible (al coordinador de la unidad de negocio con el camión compatible, y al Gerente)
   - una oferta o contraoferta
   - una aceptación
-  - una asignación
+  - una asignación (al operador)
   - un cambio de estado del viaje
+  - un documento del viaje nuevo, o documentos compartidos
+  - una unidad pendiente de liberar
   - un documento aprobado, rechazado o por vencer
-- Alertas de **documentos por vencer**.
+  - *(pospuesto, D24)* una suscripción por vencer o vencida
+- Alertas de **documentos por vencer** (licencias, seguros y demás documentos con vigencia).
 - Aviso de privacidad (LFPDPPP) y términos, con consentimiento de ubicación registrado.
+
+### Flujo principal (D19–D22)
+
+1. El **cliente** publica una carga (origen, destino, fecha, mercancía y precio).
+2. El **coordinador** ve las cargas, o recibe una notificación de una carga cercana a un camión disponible y compatible de su unidad de negocio.
+3. El coordinador **oferta** precio y disponibilidad (con el camión que propone).
+4. El cliente compara las ofertas y **elige** una. Se crea el viaje.
+5. La plataforma **comparte automáticamente** al cliente los documentos aprobados de la empresa transportista; al asignar, también los de la unidad y el operador (D21).
+6. Si el cliente lo necesita, **da de alta** al transportista como proveedor (D21).
+7. El coordinador **confirma camión y operador**.
+8. El coordinador **sube la documentación del viaje** (orden de servicio y CFDI con Carta Porte; D22). El cliente también puede subir la orden de servicio.
+9. El **operador** recibe la notificación, ejecuta el viaje, comparte ubicación y sube la evidencia de recolección y la evidencia firmada de entrega.
+10. El cliente confirma la entrega y el coordinador **sube la factura** para cobrar (el cobro del flete es fuera de la plataforma, D08-E1).
+
+**Cancelación de un viaje que ya salió (D20):** se registra con motivo; la unidad queda "No disponible: pendiente de liberar"; el coordinador confirma la ubicación actual y la libera; la unidad vuelve a tener disponibilidad ahí y la app le recomienda cargas cercanas.
 
 ## 4. Fuera de la V1
 
-Hardware propio, pagos dentro de la plataforma, emisión o validación de Carta Porte, suscripciones y comisiones automáticas, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros. Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
+Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o validación de Carta Porte, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros o de flotas (D17). La suscripción entró a la V1 (D24), pero Mateo la **pospuso** el 2026-10-16: no se construye en esta ola y el piloto es gratis. Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
 
 ## 5. Indicadores de éxito del piloto (MTY ↔ GDL)
 
@@ -111,12 +156,43 @@ Hardware propio, pagos dentro de la plataforma, emisión o validación de Carta 
 - Tiempo de alta de un transportista (registro → aprobado)
 - Precisión del fin estimado de descarga frente al real (sirve de base para la futura predicción)
 
-## 6. Glosario
+## 6. Permisos por perfil
+
+✅ puede · 🔸 solo en sus unidades de negocio · 👁 solo lectura · — no
+
+| Acción | Cliente | Gerente | Coordinador | Operador | Admin |
+|---|---|---|---|---|---|
+| Registrar y editar la empresa y sus documentos | ✅ (la suya) | ✅ (la suya) | 👁 | — | ✅ |
+| Crear, renombrar y archivar unidades de negocio | — | ✅ | — | — | — |
+| Invitar coordinadores y asignarlos a unidades de negocio | — | ✅ | — | — | — |
+| Alta, edición, cambio de unidad de negocio y baja de camiones | — | ✅ | 🔸 editar datos operativos y documentos | — | — |
+| Invitar operadores, restablecerles el acceso | — | ✅ | 🔸 | — | — |
+| Cambiar de unidad de negocio o dar de baja operadores | — | ✅ | — | — | — |
+| Disponibilidad de camiones | — | ✅ | 🔸 | — | — |
+| Ver cargas publicadas, recomendaciones | — | ✅ | 🔸 (con sus camiones) | — | ✅ |
+| Ofertar, contraofertar y chatear en negociaciones | ✅ | ✅ | 🔸 | — | 👁 |
+| Asignar camión y operador | — | ✅ | 🔸 | — | ✅ |
+| Ver viajes | ✅ (los suyos) | ✅ (todos) | 🔸 | ✅ (el asignado) | ✅ |
+| Subir documentos del viaje | ✅ orden de servicio | ✅ | 🔸 | 👁 | 👁 |
+| Registrar estados, ubicación y evidencia | — | — (sí como hombre-camión) | — | ✅ (su viaje) | — |
+| Cancelar un viaje | ✅ (hasta la recolección) | ✅ | 🔸 | — | ✅ |
+| Liberar una unidad pendiente | — | ✅ | 🔸 | — | ✅ |
+| Ver documentos compartidos del transportista | ✅ (de sus viajes) | — | — | — | ✅ |
+| Dar de alta a un transportista como proveedor | ✅ | — | — | — | 👁 |
+| Compartir por enlace | ✅ carga y seguimiento (público) | ✅ carga (interno) | 🔸 carga (interno) | — | — |
+| Pagar y administrar la suscripción *(pospuesto, D24: no se construye en esta ola)* | — | ✅ (web) | 👁 estado | — | 👁 |
+
+## 7. Glosario
 
 - **Carga:** necesidad de transporte publicada por un cliente.
-- **Negociación:** conversación entre un cliente y un transportista sobre una carga. Contiene ofertas y chat.
+- **Negociación:** conversación entre un cliente y un transportista (una unidad de negocio) sobre una carga. Contiene ofertas y chat.
 - **Oferta:** propuesta de precio y condiciones de una de las partes.
 - **Viaje:** carga contratada y en ejecución, con unidad y operador asignados.
+- **Unidad** (o camión): tractocamión, camión unitario o remolque de la flota.
+- **Unidad de negocio** (grupo): conjunto de camiones y operadores de una empresa transportista que opera uno o varios coordinadores.
 - **Disponibilidad:** momento y lugar en que una unidad queda libre.
+- **Pendiente de liberar:** estado de una unidad cuyo viaje se canceló después de salir; vuelve a estar disponible cuando el coordinador confirma dónde quedó.
+- **Proveedor aprobado:** transportista que un cliente dio de alta como proveedor.
+- **Enlace compartido:** enlace con token para ver una carga o un seguimiento sin ser parte del viaje.
 - **Km en vacío:** distancia que recorre la unidad sin carga para llegar a la recolección.
 - **Viaje de regreso:** carga que sale cerca del destino del viaje actual, en sentido de regreso.

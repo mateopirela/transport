@@ -164,7 +164,7 @@ select extensions.dblink_exec('setup', $sql$
     ('a2f00000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@rc.test', now(),
      '{"role":"shipper"}', now(), now()),
     ('a2f00000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@rc.test', now(),
-     '{"role":"carrier"}', now(), now()),
+     '{"role":"manager"}', now(), now()),
     ('a2f00000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'oscar@rc.test', now(),
      '{"role":"operator"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values

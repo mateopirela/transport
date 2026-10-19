@@ -123,9 +123,9 @@ select extensions.dblink_exec('setup', $sql$
     ('a5100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@cs.test', now(),
      '{"role":"shipper"}', now(), now()),
     ('a5100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@ca.test', now(),
-     '{"role":"carrier"}', now(), now()),
+     '{"role":"manager"}', now(), now()),
     ('a5100000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'beto@cb.test', now(),
-     '{"role":"carrier"}', now(), now());
+     '{"role":"manager"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c5100000-0000-4000-8000-000000000001', 'shipper', 'Carrera Sigma SA de CV', 'CSI050505AA5', 'approved'),
     ('c5100000-0000-4000-8000-000000000002', 'carrier', 'Carrera Alfa SA de CV', 'CAL050505AA5', 'approved'),

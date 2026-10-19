@@ -177,10 +177,10 @@ select tests.cleanup();
 -- Fixtures (committed): S shipper, M manager, O operator; unit V.
 -- ---------------------------------------------------------------------------
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
-    ('a3400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 's@g5c.test', now(), '{"role":"shipper"}', now(), now()),
-    ('a3400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'm@g5c.test', now(), '{"role":"manager"}', now(), now()),
-    ('a3400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'o@g5c.test', now(), '{"role":"operator"}', now(), now());
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
+    ('a3400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 's@g5c.test', now(), null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
+    ('a3400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'm@g5c.test', now(), null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
+    ('a3400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'o@g5c.test', now(), '{"provisioned_by":"redeem-invitation"}', '{"role":"operator","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c3400000-0000-4000-8000-000000000001', 'shipper', 'Envíos Siete SA de CV', 'ESI050505GH5', 'approved'),
     ('c3400000-0000-4000-8000-000000000002', 'carrier', 'Fletes Siete SA de CV', 'FSI040404CD4', 'approved');

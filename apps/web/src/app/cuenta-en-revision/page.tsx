@@ -1,9 +1,11 @@
 import {
   carrierWebCopy,
+  companyFiscalFieldLabels,
   isCarrierStaff,
   onboardingCopy,
   progressSummary,
   shellCopy,
+  type CompanyFiscalColumn,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 
@@ -71,6 +73,14 @@ export default async function AccountInReviewPage() {
   const verification =
     supabase && viewer.company ? await loadCompanyVerification(supabase, viewer.company.id) : null;
   const company = verification?.company ?? null;
+  // Fiscal columns still empty (G2): the admin cannot approve without them.
+  const missingFields =
+    supabase && company
+      ? ((await supabase.rpc('company_missing_fields', { p_company_id: company.id })).data ?? [])
+      : [];
+  const missingLabels = missingFields
+    .map((column) => companyFiscalFieldLabels[column as CompanyFiscalColumn] ?? column)
+    .join(', ');
   // requireAccess only lets company staff with a non-approved company through.
   const status = company && company.status !== 'approved' ? company.status : 'pending_review';
   const text = c[status];
@@ -78,7 +88,7 @@ export default async function AccountInReviewPage() {
   const summary = progressSummary(progress);
   const readOnly = viewer.role === 'coordinator';
   const editable = !readOnly && (status === 'pending_review' || status === 'rejected');
-  const docsDone = summary.needsAction === 0;
+  const docsDone = summary.needsAction === 0 && missingFields.length === 0;
   const description =
     status === 'pending_review' && isCarrierStaff(viewer.role)
       ? readOnly
@@ -101,6 +111,14 @@ export default async function AccountInReviewPage() {
           <div className="mb-6">
             <Notice tone="error">
               {c.reasonLabel}: {company.status_reason}
+            </Notice>
+          </div>
+        )}
+        {missingFields.length > 0 && (
+          <div className="mb-6">
+            <Notice tone="info">
+              <strong>{o.company.missingFiscalTitle}.</strong>{' '}
+              {o.company.missingFiscal(missingLabels)}
             </Notice>
           </div>
         )}
@@ -169,6 +187,14 @@ export default async function AccountInReviewPage() {
                       contactName: company.contact_name ?? '',
                       contactEmail: company.contact_email ?? '',
                       contactPhone: company.contact_phone ?? '',
+                      fiscalStreet: company.fiscal_street ?? '',
+                      fiscalExteriorNumber: company.fiscal_exterior_number ?? '',
+                      fiscalInteriorNumber: company.fiscal_interior_number ?? '',
+                      fiscalNeighborhood: company.fiscal_neighborhood ?? '',
+                      fiscalPostalCode: company.fiscal_postal_code ?? '',
+                      fiscalMunicipality: company.fiscal_municipality ?? '',
+                      fiscalState: company.fiscal_state ?? '',
+                      legalRepresentativeName: company.legal_representative_name ?? '',
                     }}
                   />
                 )}

@@ -1,53 +1,55 @@
 import { z } from 'zod';
 
-import { authMessages as a } from '../copy/auth';
 import { validationMessages as m } from '../copy/validation';
-import { isInvitationCode, normalizeInvitationCode } from '../invitation-code';
+import { resolveLoginIdentifier } from '../phone';
 import {
   emailField,
   enumField,
   formError,
+  mxPhoneField,
   onlyWhenValid,
-  phoneField,
   requiredText,
 } from './common';
 import {
+  checkLegalRepresentative,
   checkRfcMatchesPersonType,
-  PERSON_TYPES,
-  rfcField,
-  type CompanyFormInput,
+  COMPANY_REGISTRATION_KINDS,
+  companyFiscalFields,
+  type CompanyRegistrationValues,
 } from './company';
+import { checkPasswordsMatch, newPasswordField, passwordConfirmationField } from './password';
 
-/** Supabase Auth hashes with bcrypt, which ignores bytes past 72. */
-export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 72;
+export {
+  checkPasswordsMatch,
+  newPasswordField,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from './password';
 
-/** Policy for new passwords: 8 to 72 characters with at least a letter and a digit. */
-export const newPasswordField = z
-  .string({ error: m.required })
-  .min(PASSWORD_MIN_LENGTH, { error: a.passwordTooShort(PASSWORD_MIN_LENGTH) })
-  .max(PASSWORD_MAX_LENGTH, { error: m.tooLong(PASSWORD_MAX_LENGTH) })
-  .refine((value) => /\p{L}/u.test(value) && /\d/u.test(value), { error: a.passwordWeak });
+/**
+ * "Correo o teléfono" (G2, D15-E1): an email as typed, or a phone that
+ * becomes the synthetic Auth email of a phone-only operator.
+ */
+export const loginIdentifierField = z
+  .string({ error: m.loginIdentifier })
+  .transform((value, ctx) => {
+    const email = resolveLoginIdentifier(value);
+    if (email) return email;
+    ctx.addIssue({ code: 'custom', message: m.loginIdentifier });
+    return z.NEVER;
+  });
 
-const passwordConfirmationField = z.string({ error: m.required }).min(1, { error: m.required });
-
-function checkPasswordsMatch(
-  { password, passwordConfirmation }: { password: string; passwordConfirmation: string },
-  ctx: z.RefinementCtx,
-): void {
-  if (password !== passwordConfirmation) {
-    ctx.addIssue({ code: 'custom', message: a.passwordMismatch, path: ['passwordConfirmation'] });
-  }
-}
-
-export const signInSchema = z.object(
-  {
-    email: emailField,
-    // Existing passwords are not re-validated against the current policy.
-    password: z.string({ error: m.required }).min(1, { error: m.required }),
-  },
-  formError,
-);
+export const signInSchema = z
+  .object(
+    {
+      identifier: loginIdentifierField,
+      // Existing passwords are not re-validated against the current policy.
+      password: z.string({ error: m.required }).min(1, { error: m.required }),
+    },
+    formError,
+  )
+  .transform(({ identifier, password }) => ({ email: identifier, password }));
+export type SignInValues = z.output<typeof signInSchema>;
 
 export const passwordResetRequestSchema = z.object({ email: emailField }, formError);
 
@@ -58,81 +60,66 @@ export const newPasswordSchema = z
   )
   .superRefine(checkPasswordsMatch, onlyWhenValid);
 
+/** The person who signs up: name, email, phone (E.164) and password. */
+const accountFields = {
+  fullName: requiredText(120),
+  email: emailField,
+  phone: mxPhoneField,
+  password: newPasswordField,
+  passwordConfirmation: passwordConfirmationField,
+} as const;
+
 /**
- * Web sign-up of a shipper company (D06): the account plus the company data.
- * The person who signs up is the company contact.
+ * Web sign-up (G2): the account plus the company's fiscal data, as a
+ * shipper, a carrier company or a hombre-camión (D13, D16). The person who
+ * signs up is the company contact.
  */
-export const shipperSignUpSchema = z
+export const registrationSignUpSchema = z
   .object(
-    {
-      fullName: requiredText(120),
-      email: emailField,
-      phone: phoneField,
-      password: newPasswordField,
-      passwordConfirmation: passwordConfirmationField,
-      personType: enumField(PERSON_TYPES),
-      legalName: requiredText(200),
-      rfc: rfcField,
-    },
+    { kind: enumField(COMPANY_REGISTRATION_KINDS), ...accountFields, ...companyFiscalFields },
     formError,
   )
   .superRefine((values, ctx) => {
     checkPasswordsMatch(values, ctx);
     checkRfcMatchesPersonType(values, ctx);
+    checkLegalRepresentative(values, ctx);
   }, onlyWhenValid);
-export type ShipperSignUpValues = z.output<typeof shipperSignUpSchema>;
+export type RegistrationSignUpValues = z.output<typeof registrationSignUpSchema>;
 
-/** The company form (./company) that a shipper sign-up describes. */
-export function companyFromShipperSignUp(values: ShipperSignUpValues): CompanyFormInput {
-  return {
-    type: 'shipper',
-    personType: values.personType,
-    legalName: values.legalName,
-    rfc: values.rfc,
-    contactName: values.fullName,
-    contactEmail: values.email,
-    contactPhone: values.phone,
-  };
+/** The company registration (./company) a web sign-up describes. */
+export function companyFromSignUp(values: RegistrationSignUpValues): CompanyRegistrationValues {
+  const {
+    fullName,
+    email,
+    phone,
+    password: _password,
+    passwordConfirmation: _confirmation,
+    ...company
+  } = values;
+  return { ...company, contactName: fullName, contactEmail: email, contactPhone: phone };
 }
 
-// --- Mobile app (B17): carrier sign-up and operator invitations (D15) -------
+/** The sign-up role of a registration kind (read by handle_new_user). */
+export function signUpRoleForKind(
+  kind: (typeof COMPANY_REGISTRATION_KINDS)[number],
+): 'shipper' | 'manager' {
+  return kind === 'shipper' ? 'shipper' : 'manager';
+}
 
-/**
- * Invitation code as typed or received in a link: normalized like the
- * database does (uppercase, without spaces or hyphens) and checked against
- * the format that create_operator_invitation issues (../invitation-code).
- */
-export const invitationCodeField = z
-  .string({ error: m.invitationCode })
-  .transform(normalizeInvitationCode)
-  .refine(isInvitationCode, { error: m.invitationCode });
+// --- Mobile app (B17, G2) --------------------------------------------------
+
+/** Kinds a carrier may sign up as in the app (the company comes next). */
+export const CARRIER_SIGN_UP_KINDS = ['carrier', 'owner_operator'] as const;
+export type CarrierSignUpKind = (typeof CARRIER_SIGN_UP_KINDS)[number];
 
 /** Carrier self sign-up (mobile). The company is registered after the account exists. */
 export const carrierSignUpSchema = z
-  .object(
-    {
-      fullName: requiredText(120),
-      email: emailField,
-      phone: phoneField,
-      password: newPasswordField,
-      passwordConfirmation: passwordConfirmationField,
-    },
-    formError,
-  )
+  .object({ kind: enumField(CARRIER_SIGN_UP_KINDS), ...accountFields }, formError)
   .superRefine(checkPasswordsMatch, onlyWhenValid);
 export type CarrierSignUpValues = z.output<typeof carrierSignUpSchema>;
 
-/** Operator sign-up through a carrier's invitation (D15). */
-export const operatorSignUpSchema = z
-  .object(
-    {
-      invitationCode: invitationCodeField,
-      fullName: requiredText(120),
-      email: emailField,
-      password: newPasswordField,
-      passwordConfirmation: passwordConfirmationField,
-    },
-    formError,
-  )
+/** Coordinator sign-up from an invitation link (G1b, G2): web and app. */
+export const coordinatorSignUpSchema = z
+  .object(accountFields, formError)
   .superRefine(checkPasswordsMatch, onlyWhenValid);
-export type OperatorSignUpValues = z.output<typeof operatorSignUpSchema>;
+export type CoordinatorSignUpValues = z.output<typeof coordinatorSignUpSchema>;

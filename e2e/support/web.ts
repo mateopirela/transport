@@ -5,15 +5,17 @@ import { DEMO_PASSWORD, users, type DemoUser } from './demo';
 
 const f = authCopy.fields;
 
-/** Signs in on the web app and waits to leave the sign-in page. */
+/** Signs in on the web app ("Correo o teléfono") and waits to leave the sign-in page. */
 export async function signInOnWeb(
   page: Page,
-  user: DemoUser | { email: string; password: string },
+  user: DemoUser | { email: string; password: string } | { phone: string; password: string },
 ): Promise<void> {
-  const { email, password } =
-    typeof user === 'string' ? { email: users[user], password: DEMO_PASSWORD } : user;
+  const { identifier, password } =
+    typeof user === 'string'
+      ? { identifier: users[user], password: DEMO_PASSWORD }
+      : { identifier: 'email' in user ? user.email : user.phone, password: user.password };
   await page.goto('/login');
-  await page.getByLabel(f.email).fill(email);
+  await page.getByLabel(f.identifier).fill(identifier);
   await page.getByLabel(f.password, { exact: true }).fill(password);
   await page.getByRole('button', { name: authCopy.signIn.submit }).click();
   await expect(page).not.toHaveURL(/\/login/u);

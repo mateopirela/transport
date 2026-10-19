@@ -20,15 +20,30 @@ const KEYS: Record<string, AuthErrorKey> = {
   '23505': 'rfcTaken',
 };
 
+/** Fixed English messages of the invitation and registration RPCs (G1b, G2). */
+const MESSAGES: [RegExp, AuthErrorKey][] = [
+  [/invalid or expired invitation/u, 'invitationInvalid'],
+  [/only coordinator accounts can accept/u, 'invitationWrongAccount'],
+  [/already belongs to a company/u, 'alreadyInCompany'],
+  [/email not confirmed/u, 'emailNotConfirmed'],
+  [/phone is required/u, 'phoneRequired'],
+];
+
 /** Copy key for an auth or RPC error. Unknown errors get the generic message. */
-export function authErrorKey(error: { code?: string | null } | null | undefined): AuthErrorKey {
+export function authErrorKey(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+): AuthErrorKey {
   const code = error?.code;
   const key = code && Object.hasOwn(KEYS, code) ? KEYS[code] : undefined;
-  return key ?? 'generic';
+  if (key) return key;
+  const message = error?.message ?? '';
+  return MESSAGES.find(([pattern]) => pattern.test(message))?.[1] ?? 'generic';
 }
 
 /** Spanish message for an auth or RPC error. */
-export function authErrorMessage(error: { code?: string | null } | null | undefined): string {
+export function authErrorMessage(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+): string {
   return authErrors[authErrorKey(error)];
 }
 

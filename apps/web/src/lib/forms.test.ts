@@ -1,4 +1,4 @@
-import { authErrors, shipperSignUpSchema, signInSchema } from '@transport/shared';
+import { authErrors, registrationSignUpSchema, signInSchema } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { authErrorKey, authErrorMessage, isAuthErrorKey } from './auth-errors';
@@ -30,17 +30,17 @@ describe('refillValues', () => {
 
 describe('invalidForm', () => {
   it('keeps the first message per field and the submitted values', () => {
-    const entries = { email: 'no-es-correo', password: 'x' };
-    const result = signInSchema.safeParse({ email: 'no-es-correo' });
+    const entries = { identifier: 'jorge', password: 'x' };
+    const result = signInSchema.safeParse({ identifier: 'jorge' });
     if (result.success) throw new Error('expected a failed parse');
     const state = invalidForm(result.error, entries);
     expect(state.error).toBeUndefined();
-    expect(Object.keys(state.fieldErrors ?? {})).toEqual(['email', 'password']);
-    expect(state.values).toEqual({ email: 'no-es-correo' });
+    expect(Object.keys(state.fieldErrors ?? {})).toEqual(['identifier', 'password']);
+    expect(state.values).toEqual({ identifier: 'jorge' });
   });
 
   it('reports form-level issues separately', () => {
-    const result = shipperSignUpSchema.safeParse(undefined);
+    const result = registrationSignUpSchema.safeParse(undefined);
     if (result.success) throw new Error('expected a failed parse');
     const state = invalidForm(result.error, {});
     expect(state.error).toBeTypeOf('string');

@@ -89,9 +89,9 @@ select tests.cleanup();
 -- Fixtures: one user and one notification for it, already claimed once by a
 -- worker (attempt 1, push in flight) whose lease has ended.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('a9100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@dc.test', now(),
-     '{"role":"shipper"}', now(), now());
+     null, '{"role":"shipper","phone":"+525500000000"}', now(), now());
   insert into public.notifications (id, user_id, type, data, push_state, email_state, dispatch_attempts, dispatch_retry_at)
   values ('f9100000-0000-4000-8000-000000000001', 'a9100000-0000-4000-8000-000000000001', 'offer_received', '{}',
           'in_flight', 'in_flight', 1, now() - interval '1 second');

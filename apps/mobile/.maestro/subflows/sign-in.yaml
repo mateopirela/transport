@@ -47,14 +47,15 @@ appId: ${APP_ID}
       - tapOn: 'Continue'
       - waitForAnimationToEnd
 # Right after launch the screen can still re-render and drop what was typed,
-# so the email is typed until it sticks.
+# so the email is typed until it sticks. The field takes an email or a phone
+# (G2).
 - retry:
     maxRetries: 3
     commands:
       - runFlow:
           file: fill-field.yaml
           env:
-            LABEL: 'Correo electrónico'
+            LABEL: 'Correo o teléfono'
             TEXT: ${EMAIL}
       - assertVisible: ${EMAIL}
 - runFlow:

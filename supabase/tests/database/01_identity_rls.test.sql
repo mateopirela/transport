@@ -16,8 +16,8 @@ create function tests.new_user(p_id uuid, p_meta jsonb)
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, raw_user_meta_data, created_at, updated_at)
-  values (p_id, 'authenticated', 'authenticated', p_id || '@test.local', p_meta, now(), now());
+  insert into auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values (p_id, 'authenticated', 'authenticated', p_id || '@test.local', case when p_meta ->> 'role' = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, p_meta || '{"phone": "+525500000000"}', now(), now());
 $$;
 
 -- Sets the JWT claims read by auth.uid(); the caller then switches role.

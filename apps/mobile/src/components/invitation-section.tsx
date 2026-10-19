@@ -1,4 +1,4 @@
-import { fleetCopy, formatDateTime, formatInvitationCode } from '@transport/shared';
+import { fleetCopy, formatDateTime, invitationUrl } from '@transport/shared';
 import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
@@ -11,11 +11,29 @@ import { SectionTitle } from './fleet-ui';
 import { Body, Button, Notice } from './ui';
 
 const copy = fleetCopy.invitation;
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL?.trim();
 
 /**
- * Invites an operator (D15): issues a single-use code bound to its email and
- * shares the link `transport://invite?code=…` (or the code to type). The plain
- * code exists only in this screen's memory; the database keeps its hash.
+ * The link to share: the web page `/invitacion/<token>` when the site URL is
+ * configured (it opens the app or explains how to get it), otherwise the
+ * deep link `transport://invitacion/<token>`.
+ */
+function shareableLink(token: string): string {
+  if (SITE_URL) {
+    try {
+      return invitationUrl(SITE_URL, token);
+    } catch {
+      // Fall back to the deep link.
+    }
+  }
+  return Linking.createURL(`/invitacion/${token}`);
+}
+
+/**
+ * Invites the operator of this row (G2): issues a single-use link
+ * (create_invitation) that the operator opens to create their account with
+ * their phone. The plain token exists only in this screen's memory; the
+ * database keeps its hash.
  */
 export function InvitationSection({
   client,
@@ -32,15 +50,15 @@ export function InvitationSection({
   const pending = operator.invitation;
   const [created, setCreated] = useState<{
     invitationId: string;
-    code: string;
+    token: string;
     expiresAt: string;
-    /** The operator as loaded when the code was created. */
+    /** The operator as loaded when the link was created. */
     loadedBefore: OperatorSummary;
   } | null>(null);
-  // Show the code until a refresh says it is no longer the pending invitation
-  // (replaced, cancelled, revoked by an email change, or expired): then it can
-  // no longer be accepted and must not be shared. If the refresh after
-  // creating it fails, the code stays visible.
+  // Show the link until a refresh says it is no longer the pending invitation
+  // (replaced, cancelled or expired): then it can no longer be redeemed and
+  // must not be shared. If the refresh after creating it fails, the link
+  // stays visible.
   const issued =
     created && (operator === created.loadedBefore || pending?.id === created.invitationId)
       ? created
@@ -73,11 +91,8 @@ export function InvitationSection({
       setCreated(null);
     });
 
-  function share(code: string) {
-    const link = Linking.createURL('/invite', { queryParams: { code } });
-    void Share.share({
-      message: copy.shareMessage(companyName, link, formatInvitationCode(code)),
-    });
+  function share(token: string) {
+    void Share.share({ message: copy.shareMessage(companyName, shareableLink(token)) });
   }
 
   return (
@@ -88,19 +103,19 @@ export function InvitationSection({
       {issued ? (
         <>
           <View style={styles.codeBox}>
-            <Text style={styles.codeLabel}>{copy.code}</Text>
-            <Text selectable style={styles.code}>
-              {formatInvitationCode(issued.code)}
+            <Text style={styles.codeLabel}>{copy.link}</Text>
+            <Text selectable style={styles.code} testID="invitation-link">
+              {shareableLink(issued.token)}
             </Text>
             <Text style={styles.codeLabel}>
               {copy.validUntil(formatDateTime(issued.expiresAt))}
             </Text>
           </View>
-          <Button label={copy.share} onPress={() => share(issued.code)} />
+          <Button label={copy.share} onPress={() => share(issued.token)} />
         </>
       ) : pending ? (
         <Notice tone="info" title={copy.validUntil(formatDateTime(pending.expires_at))}>
-          {copy.pendingNoCode}
+          {copy.pendingNoLink}
         </Notice>
       ) : null}
       <Button
@@ -135,5 +150,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   codeLabel: { fontSize: 13, color: colors.textMuted },
-  code: { fontSize: 24, fontWeight: '700', letterSpacing: 2, color: colors.navy },
+  code: { fontSize: 14, fontWeight: '600', color: colors.navy, textAlign: 'center' },
 });

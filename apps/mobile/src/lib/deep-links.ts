@@ -1,6 +1,7 @@
 // Parsing of the links that open the app:
-//   transport://auth/callback?code=…   e-mail confirmation (PKCE)
-//   transport://invite?code=…          operator invitation (D15)
+//   transport://auth/callback?code=…      e-mail confirmation (PKCE)
+//   transport://invitacion/<token>        invitation link (G1b, G2)
+import { parseInvitationLink } from '@transport/shared';
 
 export type AuthRedirect =
   { kind: 'code'; code: string } | { kind: 'error'; errorCode: string | null } | { kind: 'none' };
@@ -35,8 +36,11 @@ export function parseAuthRedirect(url: string | null | undefined): AuthRedirect 
   return { kind: 'none' };
 }
 
-/** `code` route param of the invitation link, as a string (or empty). */
-export function invitationCodeParam(value: string | string[] | undefined): string {
+/**
+ * The `token` route param of invitacion/[token] (or a pasted link), as a
+ * well-formed invitation token; null otherwise.
+ */
+export function invitationTokenParam(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
-  return (raw ?? '').trim().slice(0, 64);
+  return parseInvitationLink(raw?.trim().slice(0, 300));
 }

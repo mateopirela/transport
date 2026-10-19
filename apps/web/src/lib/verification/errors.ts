@@ -16,6 +16,7 @@ export function adminErrorMessage(error: PostgrestLikeError): string {
       return e.forbidden;
     case '55000':
       if (message.startsWith('company is missing required documents')) return e.missingDocuments;
+      if (message.startsWith('company is missing fiscal data')) return e.missingFiscalData;
       if (message.startsWith('document is not pending review')) return e.notPending;
       return e.invalidTransition;
     case '22023':

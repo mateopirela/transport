@@ -65,7 +65,7 @@ describe('redirectFor', () => {
   it('lets signed-out users use sign-in, sign-up and the invitation screen', () => {
     expect(redirectFor('auth', ['(auth)', 'sign-in'])).toBeNull();
     expect(redirectFor('auth', ['(auth)', 'sign-up'])).toBeNull();
-    expect(redirectFor('auth', ['invite'])).toBeNull();
+    expect(redirectFor('auth', ['invitacion'])).toBeNull();
     expect(redirectFor('auth', [])).toBe('/sign-in');
   });
 
@@ -88,8 +88,8 @@ describe('redirectFor', () => {
   it('sends users that must finish onboarding to the right step', () => {
     expect(redirectFor('company_setup', ['(carrier)', 'home'])).toBe('/company');
     expect(redirectFor('company_setup', ['company'])).toBeNull();
-    expect(redirectFor('join', ['(operator)', 'trip'])).toBe('/invite');
-    expect(redirectFor('join', ['invite'])).toBeNull();
+    expect(redirectFor('join', ['(operator)', 'trip'])).toBe('/invitacion');
+    expect(redirectFor('join', ['invitacion'])).toBeNull();
   });
 
   it('always allows the e-mail confirmation callback', () => {
@@ -108,7 +108,7 @@ describe('redirectFor: shared loads (G7)', () => {
 
   it('asks everyone else to sign in or finish joining first', () => {
     expect(redirectFor('auth', ['shared', 'abc'])).toBe('/sign-in');
-    expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invite');
+    expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invitacion');
     expect(redirectFor('company_setup', ['shared', 'abc'])).toBe('/company');
     expect(redirectFor('unsupported', ['shared', 'abc'])).toBe('/unsupported');
   });
@@ -152,7 +152,7 @@ describe('resolveRedirect: a shared load survives sign-in (G7)', () => {
 
   it('waits while the user cannot open it yet and ignores malformed paths', () => {
     expect(resolveRedirect('join', ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
-      target: '/invite',
+      target: '/invitacion',
       pending: shared,
     });
     expect(resolveRedirect('auth', ['shared', '[token]'], '/shared/nope', null)).toEqual({

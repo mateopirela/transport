@@ -56,7 +56,7 @@ select ok(
   (select count(distinct unit_type) >= 5 from public.vehicles where id::text like '5eed0004-%'),
   'units of several body types'
 );
-select is((select count(*)::int from public.operators where id::text like '5eed0003-%'), 6, 'six operators');
+select is((select count(*)::int from public.operators where id::text like '5eed0003-%'), 7, 'seven operators (Iván Garza signs in with his phone, G2)');
 select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 15, 'fifteen loads');
 select is(
   (select array_agg(distinct status::text order by status::text) from public.loads where id::text like '5eed0005-%'),
@@ -83,7 +83,7 @@ select is(
 );
 select is(
   (select count(*)::int from auth.identities where user_id::text like '5eed0001-%' and provider = 'email'),
-  12, 'every demo user has an email identity (needed to sign in)'
+  13, 'every demo user has an email identity (needed to sign in; Iván''s is the synthetic one of his phone)'
 );
 
 -- ---------------------------------------------------------------------------

@@ -112,9 +112,9 @@ select tests.cleanup();
 -- A) and P (...06, unit B), units VA and VB with approved documents, and a
 -- contracted load with its trip in unit A.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   select id, 'authenticated', 'authenticated', id::text || '@g1a2c.test', now(),
-         jsonb_build_object('role', role), now(), now()
+         case when role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, jsonb_build_object('role', role, 'phone', '+525500000000'), now(), now()
   from (values
     ('a2800000-0000-4000-8000-000000000001'::uuid, 'shipper'),
     ('a2800000-0000-4000-8000-000000000002', 'manager'),

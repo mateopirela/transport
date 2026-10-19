@@ -3,6 +3,7 @@ import { mobileNavCopy as nav } from '@transport/shared';
 import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 
+import { useSession } from '../../../providers/session';
 import { colors } from '../../../theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -17,6 +18,8 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
 ];
 
 export default function CarrierTabs() {
+  // A hombre-camión (D13) also drives: the operator's trip screen as "Mi viaje".
+  const ownerOperator = useSession().profile?.isOwnerOperator === true;
   return (
     <Tabs
       screenOptions={{
@@ -35,6 +38,16 @@ export default function CarrierTabs() {
           }}
         />
       ))}
+      <Tabs.Screen
+        name="my-trip"
+        options={{
+          title: nav.myTrip,
+          href: ownerOperator ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="navigate-outline" color={color} size={size} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

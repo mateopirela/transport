@@ -120,6 +120,12 @@ jobs:
           deno check --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/index.ts
           deno test --config supabase/functions/dispatch-notifications/deno.json supabase/functions/dispatch-notifications/
 
+      # G2: operator invitation links, with a simulated Supabase (no keys, no network).
+      - name: Type-check and test the redeem-invitation function
+        run: |
+          deno check --config supabase/functions/redeem-invitation/deno.json supabase/functions/redeem-invitation/index.ts
+          deno test --config supabase/functions/redeem-invitation/deno.json supabase/functions/redeem-invitation/
+
       # B25: request ids, structured logs and error reporting of every function.
       - name: Type-check and test the shared observability helpers
         run: |

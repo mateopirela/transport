@@ -1,4 +1,10 @@
-import type { MobileErrorKey } from '@transport/shared';
+import type {
+  CarrierSignUpKind,
+  CompanyRegistrationValues,
+  MobileErrorKey,
+  RedeemableKind,
+} from '@transport/shared';
+import { phoneAuthEmail, registerCompanyPayload } from '@transport/shared';
 
 import { isFinalInvitationError, toErrorKey } from './errors';
 
@@ -11,29 +17,42 @@ interface Outcome {
 }
 
 export interface AuthBackend {
+  /** Supabase signInWithPassword; `email` may be the synthetic one of a phone (G2). */
   signIn(email: string, password: string): PromiseLike<Outcome>;
   /** Supabase signUp; `hasSession` is false while the e-mail awaits confirmation. */
   signUp(input: {
     email: string;
     password: string;
     redirectTo: string;
-    metadata: { role: 'manager' | 'operator'; full_name: string; phone?: string };
+    metadata: {
+      role: 'manager' | 'coordinator';
+      full_name: string;
+      phone: string;
+      /** What a Gerente registers next (company or hombre-camión); only a hint for the form. */
+      pending_company_kind?: CarrierSignUpKind;
+    };
   }): PromiseLike<Outcome & { hasSession: boolean }>;
   signOut(): PromiseLike<Outcome>;
   exchangeCode(code: string): PromiseLike<Outcome>;
-  acceptInvitation(code: string): PromiseLike<Outcome>;
-  createCompany(input: {
-    p_legal_name: string;
-    p_rfc: string;
-    p_contact_name: string;
-    p_contact_email: string;
-    p_contact_phone: string;
-  }): PromiseLike<Outcome>;
+  /** accept_coordinator_invitation (G1b). */
+  acceptCoordinatorInvitation(token: string): PromiseLike<Outcome>;
+  /** The Edge Function redeem-invitation (G2); `error` carries its JSON answer. */
+  redeemInvitation(body: {
+    token: string;
+    password: string;
+    fullName?: string;
+    phone?: string;
+    email?: string;
+  }): PromiseLike<Outcome & { kind: RedeemableKind | null }>;
+  /** register_company (G2). */
+  registerCompany(payload: ReturnType<typeof registerCompanyPayload>): PromiseLike<Outcome>;
+  /** profiles.phone of the signed-in user (G2, "Completa tu teléfono"). */
+  updatePhone(userId: string, phone: string): PromiseLike<Outcome>;
 }
 
 export interface PendingInvitationStore {
   get(): Promise<string | null>;
-  set(code: string): Promise<void>;
+  set(token: string): Promise<void>;
   clear(): Promise<void>;
 }
 
@@ -53,9 +72,9 @@ async function guarded<T>(action: () => Promise<Result<T>>): Promise<Result<T>> 
 
 export type SignUpOutcome = 'signed_in' | 'check_email';
 
-/** Outcome of accepting the stored invitation; `code` lets the UI offer a retry. */
+/** Outcome of accepting the stored invitation; `token` lets the UI offer a retry. */
 export interface PendingAcceptance {
-  code: string;
+  token: string;
   result: Result;
 }
 
@@ -64,24 +83,25 @@ export function createAuthActions(
   pending: PendingInvitationStore,
   { redirectTo }: { redirectTo: string },
 ) {
-  /** Forgets the stored code; a storage failure must not block the caller. */
+  /** Forgets the stored token; a storage failure must not block the caller. */
   const forgetPending = () => pending.clear().catch(() => undefined);
 
-  function acceptInvitation(code: string): Promise<Result> {
+  function acceptCoordinatorInvitation(token: string): Promise<Result> {
     return guarded(async () => {
-      const { error } = await backend.acceptInvitation(code);
+      const { error } = await backend.acceptCoordinatorInvitation(token);
       if (!error) {
         await forgetPending();
         return ok(undefined);
       }
       const key = toErrorKey(error);
-      // Codes that can never succeed are dropped so they are not retried forever.
+      // Links that can never succeed are dropped so they are not retried forever.
       if (isFinalInvitationError(key)) await forgetPending();
       return { ok: false, error: key };
     });
   }
 
   return {
+    /** "Correo o teléfono": `email` is already the Auth email (signInSchema resolves it). */
     signIn(email: string, password: string): Promise<Result> {
       return guarded(async () => {
         const { error } = await backend.signIn(email, password);
@@ -89,20 +109,27 @@ export function createAuthActions(
       });
     },
 
+    /** A carrier company or a hombre-camión (D13); the company comes next (company.tsx). */
     signUpCarrier(input: {
+      kind: CarrierSignUpKind;
       email: string;
       password: string;
       fullName: string;
       phone: string;
     }): Promise<Result<SignUpOutcome>> {
       return guarded(async () => {
-        // A previous, unfinished operator sign-up must not leak into this account.
+        // A previous, unfinished sign-up by link must not leak into this account.
         await pending.clear();
         const { error, hasSession } = await backend.signUp({
           email: input.email,
           password: input.password,
           redirectTo,
-          metadata: { role: 'manager', full_name: input.fullName, phone: input.phone },
+          metadata: {
+            role: 'manager',
+            full_name: input.fullName,
+            phone: input.phone,
+            pending_company_kind: input.kind,
+          },
         });
         if (error) return fail(error);
         return ok(hasSession ? 'signed_in' : 'check_email');
@@ -110,56 +137,95 @@ export function createAuthActions(
     },
 
     /**
-     * Operator sign-up with an invitation (D15). The code is stored before the
-     * account is created so it survives the e-mail confirmation; it is
-     * accepted as soon as there is a session.
+     * Coordinator sign-up from an invitation link (G1b). The token is stored
+     * before the account is created so it survives the e-mail confirmation;
+     * it is accepted as soon as there is a session (acceptPendingInvitation).
      */
-    signUpOperator(input: {
+    signUpCoordinator(input: {
+      token: string;
       email: string;
       password: string;
       fullName: string;
-      invitationCode: string;
+      phone: string;
     }): Promise<Result<SignUpOutcome>> {
       return guarded(async () => {
-        await pending.set(input.invitationCode);
+        await pending.set(input.token);
         const { error, hasSession } = await backend.signUp({
           email: input.email,
           password: input.password,
           redirectTo,
-          metadata: { role: 'operator', full_name: input.fullName },
+          metadata: { role: 'coordinator', full_name: input.fullName, phone: input.phone },
         });
         if (error) {
           await forgetPending();
           return fail(error);
         }
-        // With a session the profile reloads and the join screen accepts the
-        // stored code (acceptPendingInvitation): a single path, so the code is
-        // never submitted twice concurrently.
         return ok(hasSession ? 'signed_in' : 'check_email');
       });
     },
 
-    acceptInvitation,
+    acceptCoordinatorInvitation,
 
     /**
-     * Keeps an invitation code for an operator who already has an account: it
-     * is accepted on the join screen right after signing in.
+     * Keeps an invitation token for a coordinator who already has an account:
+     * it is accepted on the invitation screen right after signing in.
      */
-    rememberInvitation(code: string): Promise<Result> {
+    rememberInvitation(token: string): Promise<Result> {
       return guarded(async () => {
-        await pending.set(code);
+        await pending.set(token);
         return ok(undefined);
       });
     },
 
+    /** The stored invitation token, if any (without accepting it). */
+    pendingInvitation(): Promise<string | null> {
+      return pending.get().catch(() => null);
+    },
+
     /**
      * Accepts the stored invitation, if any. Null when there is none (or it
-     * cannot be read). The code is returned so the screen can offer a retry
+     * cannot be read). The token is returned so the screen can offer a retry
      * after a transient failure, such as no connection.
      */
     async acceptPendingInvitation(): Promise<PendingAcceptance | null> {
-      const code = await pending.get().catch(() => null);
-      return code ? { code, result: await acceptInvitation(code) } : null;
+      const token = await pending.get().catch(() => null);
+      return token ? { token, result: await acceptCoordinatorInvitation(token) } : null;
+    },
+
+    /**
+     * Operator by phone (D15-E1): the Edge Function creates the account and
+     * links it; then the operator signs in with the synthetic email of the
+     * phone. A failed sign-in after a successful redemption is reported as
+     * such (the account exists; the sign-in screen works with the phone).
+     */
+    redeemOperatorInvitation(input: {
+      token: string;
+      fullName: string;
+      phone: string;
+      password: string;
+      email?: string | undefined;
+    }): Promise<Result<'signed_in' | 'redeemed'>> {
+      return guarded(async () => {
+        await forgetPending();
+        const { error } = await backend.redeemInvitation({
+          token: input.token,
+          fullName: input.fullName,
+          phone: input.phone,
+          password: input.password,
+          ...(input.email ? { email: input.email } : {}),
+        });
+        if (error) return fail(error);
+        const signedIn = await backend.signIn(phoneAuthEmail(input.phone), input.password);
+        return ok(signedIn.error ? 'redeemed' : 'signed_in');
+      });
+    },
+
+    /** Access reset (D15-E1): the new password of the operator the link names. */
+    redeemAccessReset(input: { token: string; password: string }): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.redeemInvitation(input);
+        return error ? fail(error) : ok(undefined);
+      });
     },
 
     completeEmailConfirmation(code: string): Promise<Result> {
@@ -169,28 +235,25 @@ export function createAuthActions(
       });
     },
 
-    createCompany(input: {
-      legalName: string;
-      rfc: string;
-      contactName: string;
-      contactEmail: string;
-      contactPhone: string;
-    }): Promise<Result> {
+    /** register_company (G2): shipper, carrier or owner_operator with the fiscal data. */
+    registerCompany(values: CompanyRegistrationValues): Promise<Result> {
       return guarded(async () => {
-        const { error } = await backend.createCompany({
-          p_legal_name: input.legalName,
-          p_rfc: input.rfc,
-          p_contact_name: input.contactName,
-          p_contact_email: input.contactEmail,
-          p_contact_phone: input.contactPhone,
-        });
+        const { error } = await backend.registerCompany(registerCompanyPayload(values));
+        return error ? fail(error) : ok(undefined);
+      });
+    },
+
+    /** "Completa tu teléfono" (G2): accounts from before the phone was required. */
+    savePhone(userId: string, phone: string): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.updatePhone(userId, phone);
         return error ? fail(error) : ok(undefined);
       });
     },
 
     /**
-     * Forgets any pending code and signs out. The sign-out always runs, even if
-     * clearing the code fails; the backend drops the local session even when
+     * Forgets any pending token and signs out. The sign-out always runs, even if
+     * clearing the token fails; the backend drops the local session even when
      * the server call fails.
      */
     async signOut(): Promise<void> {

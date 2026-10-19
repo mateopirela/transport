@@ -22,7 +22,7 @@ describe('generated database types (B04)', () => {
     expectTypeOf<Tables<'vehicles'>['features']>().toEqualTypeOf<Enums<'special_requirement'>[]>();
     expectTypeOf<Tables<'operators'>['profile_id']>().toEqualTypeOf<string | null>();
     expectTypeOf<
-      Database['public']['Functions']['accept_operator_invitation']['Returns']
+      Database['public']['Functions']['register_company']['Returns']
     >().toEqualTypeOf<string>();
   });
 });

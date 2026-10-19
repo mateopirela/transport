@@ -21,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(32);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -29,17 +29,17 @@ grant usage on schema tests to anon, authenticated;
 -- ---------------------------------------------------------------------------
 -- Fixtures: the outsiders and a row in every table the seed leaves empty
 -- ---------------------------------------------------------------------------
-insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
   ('b2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'xavier@fuera.test', now(),
-   '{"role": "shipper"}', now(), now()),
+   null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
   ('b2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'yolanda@fuera.test', now(),
-   '{"role":"manager"}', now(), now()),
+   null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
   ('b2400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'zoe@fuera.test', now(),
-   '{"role": "operator"}', now(), now()),
-  -- An operator account without a company yet (invitations are bound to an email).
+   '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now()),
+  -- An operator account without a company yet (provisioned by the Edge Function, G2).
   ('b2400000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'walter@fuera.test', now(),
-   '{"role": "operator"}', now(), now());
+   '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now());
 insert into public.companies (id, type, legal_name, rfc, status) values
   ('c2400000-0000-4000-8000-000000000001', 'shipper', 'Envíos Ajenos, S.A. de C.V.', 'EAJ150301KQ3', 'approved'),
   ('c2400000-0000-4000-8000-000000000002', 'carrier', 'Fletes Ajenos, S.A. de C.V.', 'FAJ150301KQ4', 'approved');
@@ -96,7 +96,7 @@ insert into public.message_reads (conversation_id, user_id, last_read_at)
 values (tests.val('trip_conversation'), '5eed0001-0000-4000-8000-000000000002', now());
 insert into public.operator_invitations (id, company_id, operator_id, email, code_hash, expires_at)
 values ('f2400000-0000-4000-8000-000000000001', tests.val('carrier_company'), tests.val('operator_without_account'),
-        -- Hash of the normalized code (accept_operator_invitation drops
+        -- History row (the codes were retired by G2): hash of a normalized code (the old RPC dropped
         -- spaces and dashes and upper-cases it).
         'zoe@fuera.test', sha256(convert_to('B24INVITECODE', 'UTF8')), now() + interval '1 day');
 insert into tests.vals values ('invitation', 'f2400000-0000-4000-8000-000000000001');
@@ -117,6 +117,14 @@ insert into tests.vals values ('link_invitation', 'f2400000-0000-4000-8000-00000
 insert into tests.vals select 'corredor_unit', business_unit_id from public.operators where id = tests.val('operator');
 insert into tests.vals select 'regional_unit', id from public.business_units
 where company_id = tests.val('carrier_company') and id <> tests.val('corredor_unit');
+-- An operator row of "Corredor MTY–GDL" without an account (G2): the target
+-- of an `operator` link that names a row.
+insert into public.operators (id, company_id, business_unit_id, full_name)
+values ('f2400000-0000-4000-8000-0000000000a1', tests.val('carrier_company'), tests.val('corredor_unit'), 'Ulises Sin Cuenta');
+insert into tests.vals values ('corredor_operator_without_account', 'f2400000-0000-4000-8000-0000000000a1');
+-- A provisioning ticket of redeem-invitation (G2): service role only.
+insert into public.operator_provisioning_tickets (email, nonce_hash, expires_at)
+values ('528119990002@tel.transport.invalid', extensions.digest(repeat('n', 64), 'sha256'), now() + interval '5 minutes');
 insert into public.push_tokens (user_id, token, platform)
 values ('5eed0001-0000-4000-8000-000000000008', 'ExponentPushToken[b24SeedDeviceToken]', 'android');
 insert into public.route_distance_cache (origin_lat, origin_lng, destination_lat, destination_lng, distance_km, duration_minutes)
@@ -160,6 +168,7 @@ insert into tests.ownership values
   ('public.document_expiry_notices', 'false'),
   ('public.route_distance_cache', 'false'),
   ('public.rate_limit_counters', 'false'),
+  ('public.operator_provisioning_tickets', 'false'),
   ('public.product_events', 'false'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
@@ -477,9 +486,7 @@ insert into tests.rpc_calls values
   ('review_document', $$ public.review_document(tests.val('pending_document'), 'approve', null, now() + interval '1 year') $$),
   ('review_company', $$ public.review_company(tests.val('carrier_company'), 'suspend', 'x') $$),
   ('admin_list_users', $$ (select count(*) from public.admin_list_users(null, 50, 0)) $$),
-  ('create_operator_invitation', $$ (select count(*) from public.create_operator_invitation(tests.val('operator_without_account'), 24)) $$),
-  ('revoke_operator_invitation', $$ public.revoke_operator_invitation(tests.val('invitation')) $$),
-  ('accept_operator_invitation', $$ public.accept_operator_invitation('B24-INVITE-CODE') $$),
+  ('create_invitation', $$ (select count(*) from public.create_invitation('operator', '{}', tests.val('corredor_operator_without_account'))) $$),
   ('create_invitation', $$ (select count(*) from public.create_invitation('coordinator',
        array[tests.val('corredor_unit'), tests.val('regional_unit')])) $$),
   ('create_invitation', $$ (select count(*) from public.create_invitation('operator', array[tests.val('corredor_unit')])) $$),
@@ -554,7 +561,8 @@ select ok(
 create table tests.self_scoped (fn text);
 insert into tests.self_scoped values
   ('auth_role'), ('auth_company_id'), ('auth_shipper_company_id'), ('auth_fleet_company_id'), ('auth_operator_id'),
-  ('is_admin'), ('is_company_approved'), ('has_location_consent'), ('create_company'), ('request_company_review'),
+  ('is_admin'), ('is_company_approved'), ('has_location_consent'), ('create_company'), ('register_company'),
+  ('request_company_review'),
   ('auth_carrier_company_id'), ('auth_is_manager'), ('auth_business_unit_ids'), ('can_operate_unit'),
   ('coordinator_runs_document_owner'), ('conversation_business_unit_id'),
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
@@ -707,7 +715,7 @@ select ok(
 );
 select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000011',
-                     (select call from tests.rpc_calls where fn = 'create_invitation' and call like '%''operator'',%')),
+                     (select call from tests.rpc_calls where fn = 'create_invitation' and call like '%''operator'', array%')),
   'harness: the coordinator of the business unit can invite the operator Héctor could not'
 );
 

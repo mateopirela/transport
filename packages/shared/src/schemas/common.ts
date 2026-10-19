@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
 import { MAX_AMOUNT_CENTS } from '../money';
+import type { MX_STATES } from '../mx-states';
+import { isMxState } from '../mx-states';
+import { normalizeMxPhone } from '../phone';
 
 /** Error for a missing or malformed form object; the fields carry their own messages. */
 export const formError = { error: m.required };
@@ -43,6 +46,30 @@ export const phoneField = z
   .string({ error: m.phone })
   .transform((value) => value.replace(/[\s()-]/gu, '').replace(/^\+?52(?=\d{10}$)/u, ''))
   .pipe(z.string().regex(/^\d{10}$/u, { error: m.phone }));
+
+/**
+ * A person's phone in E.164 (G2): 10 Mexican digits, with or without +52,
+ * or any E.164 number. profiles.phone is stored like this.
+ */
+export const mxPhoneField = z.string({ error: m.phone }).transform((value, ctx) => {
+  const phone = normalizeMxPhone(value);
+  if (phone) return phone;
+  ctx.addIssue({ code: 'custom', message: m.phone });
+  return z.NEVER;
+});
+
+/** Mexican postal code: exactly 5 digits. */
+export const postalCodeField = z
+  .string({ error: m.postalCode })
+  .trim()
+  .regex(/^\d{5}$/u, { error: m.postalCode });
+
+/** One of the 32 federative entities (../mx-states). */
+export const mxStateField = z
+  .string({ error: m.mxState })
+  .trim()
+  .refine(isMxState, { error: m.mxState })
+  .transform((value) => value as (typeof MX_STATES)[number]);
 
 /** Integer MXN cents, greater than zero. */
 export const amountCentsField = z

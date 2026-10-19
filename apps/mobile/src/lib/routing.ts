@@ -51,8 +51,10 @@ const AREA_ROUTES: Record<
   Exclude<Area, 'loading'>,
   { home: string; segments: readonly string[] }
 > = {
-  auth: { home: '/sign-in', segments: ['(auth)', 'invite'] },
-  join: { home: '/invite', segments: ['invite'] },
+  auth: { home: '/sign-in', segments: ['(auth)', 'invitacion'] },
+  // A coordinator or operator account without a company: only an invitation
+  // link (transport://invitacion/<token>) gets them in (G1b, G2).
+  join: { home: '/invitacion', segments: ['invitacion'] },
   company_setup: { home: '/company', segments: ['company'] },
   // `shared` is a load shared with the team (G7); `compartido` is its deep
   // link (transport://compartido/<token>), which redirects to `shared`.
@@ -62,8 +64,12 @@ const AREA_ROUTES: Record<
   problem: { home: '/problem', segments: ['problem'] },
 };
 
-/** Routes reachable in any area: the e-mail confirmation deep link lands here. */
-const ALWAYS_ALLOWED = new Set(['auth']);
+/**
+ * Routes reachable in any area: the e-mail confirmation deep link lands on
+ * `auth`, and an invitation link may be opened with any session (the screen
+ * tells a signed-in user what to do).
+ */
+const ALWAYS_ALLOWED = new Set(['auth', 'invitacion']);
 
 /**
  * The route to replace the current one with, or null to stay. `segments` are

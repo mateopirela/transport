@@ -10,6 +10,7 @@ import {
   carrierUnitPath,
   chatAttachmentHref,
   homeFor,
+  invitationPath,
   paths,
   resolveRoute,
   safeNextPath,
@@ -30,6 +31,17 @@ const pendingManager: SignedIn = { role: 'manager', company: { status: 'pending_
 const suspendedCoordinator: SignedIn = { role: 'coordinator', company: { status: 'suspended' } };
 const newManager: SignedIn = { role: 'manager', company: null };
 const operator: SignedIn = { role: 'operator', company: null };
+
+describe('invitation links (G2)', () => {
+  it('are open to everyone, signed in or not', () => {
+    const path = invitationPath('a'.repeat(43));
+    expect(path).toBe('/invitacion/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    expect(resolveRoute(path, null)).toBeNull();
+    expect(resolveRoute(path, manager)).toBeNull();
+    expect(resolveRoute(path, { role: 'coordinator', company: null })).toBeNull();
+    expect(resolveRoute(path, operator)).toBeNull();
+  });
+});
 
 describe('homeFor', () => {
   it.each([

@@ -3,12 +3,15 @@
 import {
   authCopy,
   authErrors,
-  companyFormSchema,
-  companyFromShipperSignUp,
+  companyFromSignUp,
+  companyRegistrationSchema,
+  coordinatorSignUpSchema,
+  invitationTokenField,
   newPasswordSchema,
   passwordResetRequestSchema,
-  shipperSignUpSchema,
+  registrationSignUpSchema,
   signInSchema,
+  signUpRoleForKind,
 } from '@transport/shared';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -16,13 +19,13 @@ import { redirect } from 'next/navigation';
 import { authErrorMessage } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
-import { homeFor, paths, safeNextPath } from '../routing';
+import { homeFor, invitationPath, paths, safeNextPath } from '../routing';
 import { createClient } from '../supabase/server';
 import { loadViewer, type Supabase } from '../viewer';
 import {
   completeCompanyPath,
-  createCompany,
   PENDING_COMPANY_KEY,
+  registerCompany,
   registerPendingCompany,
 } from './company';
 
@@ -44,6 +47,7 @@ async function confirmUrl(next?: string): Promise<string> {
   return `${siteUrl(origin)}/auth/confirm${query}`;
 }
 
+/** "Correo o teléfono" (G2): a phone becomes the synthetic Auth email of the operator. */
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
   const entries = formEntries(formData);
   const parsed = signInSchema.safeParse(entries);
@@ -62,9 +66,14 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   return {};
 }
 
-export async function signUpShipper(_prev: FormState, formData: FormData): Promise<FormState> {
+/**
+ * Sign-up with the company's fiscal data (G2, D16): a shipper, a carrier
+ * company or a hombre-camión (D13). The company is registered once the
+ * email is confirmed (registerPendingCompany).
+ */
+export async function signUp(_prev: FormState, formData: FormData): Promise<FormState> {
   const entries = formEntries(formData);
-  const parsed = shipperSignUpSchema.safeParse(entries);
+  const parsed = registrationSignUpSchema.safeParse(entries);
   if (!parsed.success) return invalidForm(parsed.error, entries);
   const supabase = await createClient();
   if (!supabase) return notConfigured;
@@ -75,12 +84,13 @@ export async function signUpShipper(_prev: FormState, formData: FormData): Promi
     password: values.password,
     options: {
       emailRedirectTo: await confirmUrl(),
-      // Read by the on_auth_user_created trigger (B01); `admin` is never accepted there.
+      // Read by the on_auth_user_created trigger (B01): the role follows the
+      // kind; `admin` and `operator` are never accepted there.
       data: {
-        role: 'shipper',
+        role: signUpRoleForKind(values.kind),
         full_name: values.fullName,
         phone: values.phone,
-        [PENDING_COMPANY_KEY]: companyFromShipperSignUp(values),
+        [PENDING_COMPANY_KEY]: companyFromSignUp(values),
       },
     },
   });
@@ -126,15 +136,62 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
   return redirectHome(supabase);
 }
 
+/**
+ * /completar-registro: the company of a signed-in shipper or Gerente whose
+ * registration did not go through at sign-up. The kind comes from the form
+ * (a Gerente chooses between a company and hombre-camión); the RPC checks
+ * it against the role.
+ */
 export async function completeCompany(_prev: FormState, formData: FormData): Promise<FormState> {
   const entries = formEntries(formData);
-  const parsed = companyFormSchema.safeParse({ ...entries, type: 'shipper' });
+  const parsed = companyRegistrationSchema.safeParse(entries);
   if (!parsed.success) return invalidForm(parsed.error, entries);
   const supabase = await createClient();
   if (!supabase) return notConfigured;
 
-  const { error } = await createCompany(supabase, parsed.data);
+  const { error } = await registerCompany(supabase, parsed.data);
   if (error) return { error: authErrors[error], values: refillValues(entries) };
+  return redirectHome(supabase);
+}
+
+/**
+ * Coordinator sign-up from an invitation link (G1b, G2): the account is
+ * created with role `coordinator` and the confirmation email brings the
+ * person back to the link, where they join the company.
+ */
+export async function signUpCoordinator(_prev: FormState, formData: FormData): Promise<FormState> {
+  const entries = formEntries(formData);
+  const token = invitationTokenField.safeParse(entries.token);
+  if (!token.success) return { error: authErrors.invitationInvalid };
+  const parsed = coordinatorSignUpSchema.safeParse(entries);
+  if (!parsed.success) return invalidForm(parsed.error, entries);
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+
+  const values = parsed.data;
+  const { data, error } = await supabase.auth.signUp({
+    email: values.email,
+    password: values.password,
+    options: {
+      emailRedirectTo: await confirmUrl(invitationPath(token.data)),
+      data: { role: 'coordinator', full_name: values.fullName, phone: values.phone },
+    },
+  });
+  if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
+  if (data.session) redirect(invitationPath(token.data));
+  return { message: authCopy.invitation.coordinator.checkEmail };
+}
+
+/** "Unirme": a signed-in Coordinador without a company accepts the link. */
+export async function joinCompany(_prev: FormState, formData: FormData): Promise<FormState> {
+  const entries = formEntries(formData);
+  const token = invitationTokenField.safeParse(entries.token);
+  if (!token.success) return { error: authErrors.invitationInvalid };
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+
+  const { error } = await supabase.rpc('accept_coordinator_invitation', { p_token: token.data });
+  if (error) return { error: authErrorMessage(error) };
   return redirectHome(supabase);
 }
 

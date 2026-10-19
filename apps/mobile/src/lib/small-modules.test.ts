@@ -1,7 +1,7 @@
 import { carrierSignUpSchema, validationMessages } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
-import { invitationCodeParam, parseAuthRedirect } from './deep-links';
+import { invitationTokenParam, parseAuthRedirect } from './deep-links';
 import { readMobileEnv } from './env';
 import { validateForm } from './forms';
 import { isOffline } from './network';
@@ -125,18 +125,26 @@ describe('parseAuthRedirect', () => {
   });
 });
 
-describe('invitationCodeParam', () => {
-  it('takes the first value, trimmed and bounded', () => {
-    expect(invitationCodeParam(' ABCD-1234 ')).toBe('ABCD-1234');
-    expect(invitationCodeParam(['A1', 'B2'])).toBe('A1');
-    expect(invitationCodeParam(undefined)).toBe('');
-    expect(invitationCodeParam('x'.repeat(100))).toHaveLength(64);
+describe('invitationTokenParam', () => {
+  const token = 'A'.repeat(42) + '_';
+
+  it('takes the first value when it is a well-formed token or link', () => {
+    expect(invitationTokenParam(` ${token} `)).toBe(token);
+    expect(invitationTokenParam([token, 'other'])).toBe(token);
+    expect(invitationTokenParam(`transport://invitacion/${token}`)).toBe(token);
+  });
+
+  it('is null for anything else', () => {
+    expect(invitationTokenParam(undefined)).toBeNull();
+    expect(invitationTokenParam('ABCD-1234')).toBeNull();
+    expect(invitationTokenParam('x'.repeat(400))).toBeNull();
   });
 });
 
 describe('validateForm', () => {
   it('returns parsed data or the first message per field', () => {
     const valid = validateForm(carrierSignUpSchema, {
+      kind: 'carrier',
       fullName: 'Ana',
       email: 'ANA@x.mx',
       phone: '8112345678',
@@ -195,7 +203,12 @@ describe('toProfileDetails', () => {
         company_id: 'c1',
         full_name: 'Ana',
         phone: '8112345678',
-        companies: { legal_name: 'Fletes Ana', status: 'rejected', status_reason: 'Falta RFC' },
+        companies: {
+          legal_name: 'Fletes Ana',
+          status: 'rejected',
+          status_reason: 'Falta RFC',
+          is_owner_operator: true,
+        },
       }),
     ).toEqual({
       role: 'manager',
@@ -205,6 +218,7 @@ describe('toProfileDetails', () => {
       phone: '8112345678',
       companyName: 'Fletes Ana',
       companyStatusReason: 'Falta RFC',
+      isOwnerOperator: true,
     });
   });
 
@@ -217,6 +231,11 @@ describe('toProfileDetails', () => {
         phone: null,
         companies: null,
       }),
-    ).toMatchObject({ companyId: null, companyStatus: null, companyName: null });
+    ).toMatchObject({
+      companyId: null,
+      companyStatus: null,
+      companyName: null,
+      isOwnerOperator: false,
+    });
   });
 });

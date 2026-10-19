@@ -7,7 +7,8 @@
 -- What it creates (docs/plan-v1.md, B10):
 --   * 1 admin, 3 shipper companies and 3 carrier companies (the third one is a
 --     "hombre-camión": a persona física that is also its own operator, D13).
---   * 8 units of several kinds and types, and 6 operators (4 with an account).
+--   * 8 units of several kinds and types, and 7 operators (5 with an account,
+--     one of them a phone-only operator provisioned by an invitation link, G2).
 --   * Business units (G1a.2): Transportes Regios del Norte has two, each with
 --     its coordinator; the other carriers have their "Principal" one.
 --   * 15 loads in both directions and in every status, with their
@@ -49,8 +50,13 @@ as $$
 $$;
 
 -- An email/password user, already confirmed. The sign-up trigger
--- (handle_new_user) creates its profile from the metadata.
-create function pg_temp.seed_user(p_id uuid, p_email text, p_role text, p_full_name text, p_phone text)
+-- (handle_new_user) creates its profile from the metadata; the phone is
+-- stored in E.164 (G2). An operator account carries the app metadata the
+-- Edge Function redeem-invitation writes (handle_new_user requires it).
+create function pg_temp.seed_user(
+  p_id uuid, p_email text, p_role text, p_full_name text, p_phone text,
+  p_app_meta jsonb default '{"provider": "email", "providers": ["email"]}'
+)
 returns void
 language sql
 as $$
@@ -61,7 +67,7 @@ as $$
   ) values (
     '00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated', p_email,
     extensions.crypt('Demo1234', extensions.gen_salt('bf')), pg_temp.at('-60 days'),
-    '{"provider": "email", "providers": ["email"]}',
+    p_app_meta,
     jsonb_build_object('role', p_role, 'full_name', p_full_name, 'phone', p_phone),
     pg_temp.at('-60 days'), pg_temp.at('-60 days'),
     '', '', '', ''
@@ -117,34 +123,55 @@ select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000004', 'sofia.trevino@
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000005', 'jorge.villarreal@demo.test', 'manager', 'Jorge Villarreal', '+52 81 1000 0005');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000006', 'carmen.navarro@demo.test', 'manager', 'Carmen Navarro', '+52 33 1000 0006');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000007', 'jose.sanchez@demo.test', 'manager', 'José Sánchez Medina', '+52 81 1000 0007');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000008', 'pedro.lopez@demo.test', 'operator', 'Pedro López', '+52 81 1000 0008');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000009', 'raul.mendez@demo.test', 'operator', 'Raúl Méndez', '+52 81 1000 0009');
-select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000010', 'miguel.hernandez@demo.test', 'operator', 'Miguel Hernández', '+52 33 1000 0010');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000008', 'pedro.lopez@demo.test', 'operator', 'Pedro López', '+52 81 1000 0008', '{"provider": "email", "providers": ["email"], "provisioned_by": "redeem-invitation"}');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000009', 'raul.mendez@demo.test', 'operator', 'Raúl Méndez', '+52 81 1000 0009', '{"provider": "email", "providers": ["email"], "provisioned_by": "redeem-invitation"}');
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000010', 'miguel.hernandez@demo.test', 'operator', 'Miguel Hernández', '+52 33 1000 0010', '{"provider": "email", "providers": ["email"], "provisioned_by": "redeem-invitation"}');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000011', 'andrea.cavazos@demo.test', 'coordinator', 'Andrea Cavazos', '+52 81 1000 0014');
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000012', 'hector.ibarra@demo.test', 'coordinator', 'Héctor Ibarra', '+52 81 1000 0015');
+-- Phone-only operator (D15-E1, G2): signs in with +52 81 1000 0013 (the
+-- synthetic Auth email of that phone) and the demo password.
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000013', '528110000013@tel.transport.invalid', 'operator', 'Iván Garza', '+52 81 1000 0013', '{"provider": "email", "providers": ["email"], "provisioned_by": "redeem-invitation"}');
 
 -- Admins cannot sign up (handle_new_user): they are promoted by the database
 -- owner, as with the service role in staging and production.
 update public.profiles set role = 'admin' where id = '5eed0001-0000-4000-8000-000000000001';
 
 -- ---------------------------------------------------------------------------
--- Companies, all approved by the admin
+-- Companies, all approved by the admin, with their fiscal data (D16, G2)
 -- ---------------------------------------------------------------------------
-insert into public.companies (id, type, legal_name, rfc, status, contact_name, contact_email, contact_phone, created_by, created_at)
+insert into public.companies (
+  id, type, legal_name, rfc, status, contact_name, contact_email, contact_phone,
+  fiscal_street, fiscal_exterior_number, fiscal_interior_number, fiscal_neighborhood,
+  fiscal_postal_code, fiscal_municipality, fiscal_state, legal_representative_name,
+  created_by, created_at
+)
 values
   ('5eed0002-0000-4000-8000-000000000001', 'shipper', 'Aceros del Norte, S.A. de C.V.', 'ADN150301KQ2', 'approved',
-   'Ana Garza', 'ana.garza@demo.test', '+52 81 1000 0002', '5eed0001-0000-4000-8000-000000000002', pg_temp.at('-60 days')),
+   'Ana Garza', 'ana.garza@demo.test', '+528110000002',
+   'Av. Churubusco', '3900', null, 'Fierro', '64590', 'Monterrey', 'Nuevo León', 'Ana Garza Elizondo',
+   '5eed0001-0000-4000-8000-000000000002', pg_temp.at('-60 days')),
   ('5eed0002-0000-4000-8000-000000000002', 'shipper', 'Alimentos de Occidente, S.A. de C.V.', 'AOC160315MX4', 'approved',
-   'Luis Ramírez', 'luis.ramirez@demo.test', '+52 33 1000 0003', '5eed0001-0000-4000-8000-000000000003', pg_temp.at('-60 days')),
+   'Luis Ramírez', 'luis.ramirez@demo.test', '+523310000003',
+   'Av. Lázaro Cárdenas', '2305', 'Piso 4', 'Las Torres', '44920', 'Guadalajara', 'Jalisco', 'Luis Ramírez Orozco',
+   '5eed0001-0000-4000-8000-000000000003', pg_temp.at('-60 days')),
   ('5eed0002-0000-4000-8000-000000000003', 'shipper', 'Empaques Plásticos Regios, S.A. de C.V.', 'EPR170620HT8', 'approved',
-   'Sofía Treviño', 'sofia.trevino@demo.test', '+52 81 1000 0004', '5eed0001-0000-4000-8000-000000000004', pg_temp.at('-60 days')),
+   'Sofía Treviño', 'sofia.trevino@demo.test', '+528110000004',
+   'Carretera Miguel Alemán', 'Km 22', null, 'Parque Industrial Milenium', '66600', 'Apodaca', 'Nuevo León', 'Sofía Treviño Garza',
+   '5eed0001-0000-4000-8000-000000000004', pg_temp.at('-60 days')),
   ('5eed0002-0000-4000-8000-000000000004', 'carrier', 'Transportes Regios del Norte, S.A. de C.V.', 'TRN120210LP5', 'approved',
-   'Jorge Villarreal', 'jorge.villarreal@demo.test', '+52 81 1000 0005', '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-60 days')),
+   'Jorge Villarreal', 'jorge.villarreal@demo.test', '+528110000005',
+   'Av. Ruiz Cortines', '1500', 'Nave 3', 'Mitras Norte', '64320', 'Monterrey', 'Nuevo León', 'Jorge Villarreal Cantú',
+   '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-60 days')),
   ('5eed0002-0000-4000-8000-000000000005', 'carrier', 'Fletes Tapatíos, S.A. de C.V.', 'FTA140505RS6', 'approved',
-   'Carmen Navarro', 'carmen.navarro@demo.test', '+52 33 1000 0006', '5eed0001-0000-4000-8000-000000000006', pg_temp.at('-60 days')),
-  -- Hombre-camión: persona física (13-character RFC), also its own operator.
+   'Carmen Navarro', 'carmen.navarro@demo.test', '+523310000006',
+   'Periférico Sur', '7800', null, 'Santa María Tequepexpan', '45601', 'San Pedro Tlaquepaque', 'Jalisco', 'Carmen Navarro Ruiz',
+   '5eed0001-0000-4000-8000-000000000006', pg_temp.at('-60 days')),
+  -- Hombre-camión: persona física (13-character RFC), also its own operator;
+  -- a persona física is their own legal representative.
   ('5eed0002-0000-4000-8000-000000000006', 'carrier', 'José Sánchez Medina', 'SAMJ800417TD3', 'approved',
-   'José Sánchez Medina', 'jose.sanchez@demo.test', '+52 81 1000 0007', '5eed0001-0000-4000-8000-000000000007', pg_temp.at('-60 days'));
+   'José Sánchez Medina', 'jose.sanchez@demo.test', '+528110000007',
+   'Calle Hidalgo', '218', null, 'Centro', '66400', 'San Nicolás de los Garza', 'Nuevo León', null,
+   '5eed0001-0000-4000-8000-000000000007', pg_temp.at('-60 days'));
 
 update public.profiles p
 set company_id = v.company_id
@@ -159,6 +186,7 @@ from (values
   ('5eed0001-0000-4000-8000-000000000008', '5eed0002-0000-4000-8000-000000000004'),
   ('5eed0001-0000-4000-8000-000000000009', '5eed0002-0000-4000-8000-000000000004'),
   ('5eed0001-0000-4000-8000-000000000010', '5eed0002-0000-4000-8000-000000000005'),
+  ('5eed0001-0000-4000-8000-000000000013', '5eed0002-0000-4000-8000-000000000004'),
   -- Coordinators joined through an invitation (G1b).
   ('5eed0001-0000-4000-8000-000000000011', '5eed0002-0000-4000-8000-000000000004'),
   ('5eed0001-0000-4000-8000-000000000012', '5eed0002-0000-4000-8000-000000000004')
@@ -166,7 +194,7 @@ from (values
 where p.id = v.profile_id;
 
 -- ---------------------------------------------------------------------------
--- Operators (6) and units (8)
+-- Operators (6 here, plus the phone-only one below) and units (8)
 -- ---------------------------------------------------------------------------
 insert into public.operators (id, company_id, profile_id, full_name, email, phone, license_number, license_type, license_expires_on)
 values
@@ -603,6 +631,12 @@ where id in ('5eed0004-0000-4000-8000-000000000003', '5eed0004-0000-4000-8000-00
 update public.operators set business_unit_id = '5eed0009-0000-4000-8000-000000000002'
 where id in ('5eed0003-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-000000000003');
 
+-- Iván Garza (G2, D15-E1): joined "Regional Monterrey" through an operator
+-- link, with a phone and no email. He signs in with his phone.
+insert into public.operators (id, company_id, business_unit_id, profile_id, full_name, email, phone, license_number, license_type, license_expires_on)
+values ('5eed0003-0000-4000-8000-000000000007', '5eed0002-0000-4000-8000-000000000004', '5eed0009-0000-4000-8000-000000000002',
+        '5eed0001-0000-4000-8000-000000000013', 'Iván Garza', null, '+528110000013', 'NL-B-0518823', 'B', (pg_temp.at('30 months'))::date);
+
 insert into public.business_unit_coordinators (business_unit_id, company_id, profile_id, created_by, created_at)
 select b.id, b.company_id, c.profile_id::uuid, '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-30 days')
 from (values
@@ -613,6 +647,26 @@ join public.business_units b on b.company_id = '5eed0002-0000-4000-8000-00000000
 
 -- The hombre-camión (D13).
 update public.companies set is_owner_operator = true where id = '5eed0002-0000-4000-8000-000000000006';
+
+-- ---------------------------------------------------------------------------
+-- Demo invitation links (G2, LOCAL ONLY): fixed tokens so the sign-up by
+-- link can be tried by hand and by Maestro. Jorge invites a coordinator to
+-- both business units and Héctor an operator to "Regional Monterrey":
+--   /invitacion/demo-coordinador-trn-0000000000000000000000
+--   /invitacion/demo-operador-trn-0000000000000000000000000
+-- (43 characters each, the shape of a real token). Single use: after one
+-- redemption, reset the seed to try again.
+-- ---------------------------------------------------------------------------
+insert into public.invitations (id, company_id, kind, business_unit_ids, invitee_name, token_hash, expires_at, created_by, created_at)
+values
+  ('5eed000a-0000-4000-8000-000000000001', '5eed0002-0000-4000-8000-000000000004', 'coordinator',
+   array(select id from public.business_units where company_id = '5eed0002-0000-4000-8000-000000000004' order by name),
+   'Coordinador demo', sha256(convert_to(rpad('demo-coordinador-trn-', 43, '0'), 'UTF8')),
+   pg_temp.at('30 days'), '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-1 day')),
+  ('5eed000a-0000-4000-8000-000000000002', '5eed0002-0000-4000-8000-000000000004', 'operator',
+   array['5eed0009-0000-4000-8000-000000000002'::uuid],
+   'Operador demo', sha256(convert_to(rpad('demo-operador-trn-', 43, '0'), 'UTF8')),
+   pg_temp.at('30 days'), '5eed0001-0000-4000-8000-000000000012', pg_temp.at('-1 day'));
 
 -- ---------------------------------------------------------------------------
 -- Notifications queued by the triggers: mark them as already dispatched so the

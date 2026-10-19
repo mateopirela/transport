@@ -110,10 +110,17 @@ const OPERATOR_STATUSES: TripStatus[] = [
 
 /** The trip the operator works on now (see pickOperatorTrip), or null. */
 export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip | null> {
+  // Only the trips assigned to the caller's own operator row: a hombre-camión
+  // (D13, "Mi viaje") is also a Gerente and can read every trip of the company.
+  const own = await client.rpc('auth_operator_id');
+  if (own.error) throw own.error;
+  const operatorId = own.data;
+  if (!operatorId) return null;
   const trips = check(
     await client
       .from('trips')
       .select('id, status, load_id, vehicle_id, estimated_unload_end_at')
+      .eq('operator_id', operatorId)
       .in('status', OPERATOR_STATUSES),
   );
   if (trips.length === 0) return null;

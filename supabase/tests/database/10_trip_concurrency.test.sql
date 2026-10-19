@@ -120,15 +120,15 @@ select tests.cleanup();
 -- O (...03) and P (...04) of A with accounts. Unit V1 is driven by O in the
 -- fleet, unit V2 by nobody. Loads L1 and L2 with a pending offer from A each.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('a5400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@ts.test', now(),
-     '{"role":"shipper"}', now(), now()),
+     null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@ta.test', now(),
-     '{"role":"manager"}', now(), now()),
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'oscar@ta.test', now(),
-     '{"role":"operator"}', now(), now()),
+     '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now()),
     ('a5400000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'pedro@ta.test', now(),
-     '{"role":"operator"}', now(), now());
+     '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c5400000-0000-4000-8000-000000000001', 'shipper', 'Trayecto Sigma SA de CV', 'TSI060606AA6', 'approved'),
     ('c5400000-0000-4000-8000-000000000002', 'carrier', 'Trayecto Alfa SA de CV', 'TAL060606AA6', 'approved');

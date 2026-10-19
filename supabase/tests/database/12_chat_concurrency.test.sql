@@ -106,11 +106,11 @@ select tests.cleanup();
 -- negotiated by A (its conversation is opened by the trigger), and 9 push
 -- tokens of the shipper.
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('a7100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@cs.test', now(),
-     '{"role":"shipper"}', now(), now()),
+     null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
     ('a7100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@ca.test', now(),
-     '{"role":"manager"}', now(), now());
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c7100000-0000-4000-8000-000000000001', 'shipper', 'Charla Sigma SA de CV', 'CSI070707AA7', 'approved'),
     ('c7100000-0000-4000-8000-000000000002', 'carrier', 'Charla Alfa SA de CV', 'CAL070707AA7', 'approved');

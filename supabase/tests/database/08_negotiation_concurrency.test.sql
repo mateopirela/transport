@@ -119,13 +119,13 @@ select tests.cleanup();
 -- approved. Loads L1, L2, L3 negotiating, with pending offers:
 --   L1: A1 (carrier A), B1 (carrier B)   L2: A2 (carrier A)   L3: A3 (carrier A)
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('a5100000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@cs.test', now(),
-     '{"role":"shipper"}', now(), now()),
+     null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
     ('a5100000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@ca.test', now(),
-     '{"role":"manager"}', now(), now()),
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
     ('a5100000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'beto@cb.test', now(),
-     '{"role":"manager"}', now(), now());
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c5100000-0000-4000-8000-000000000001', 'shipper', 'Carrera Sigma SA de CV', 'CSI050505AA5', 'approved'),
     ('c5100000-0000-4000-8000-000000000002', 'carrier', 'Carrera Alfa SA de CV', 'CAL050505AA5', 'approved'),

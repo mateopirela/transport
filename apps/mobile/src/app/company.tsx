@@ -1,35 +1,54 @@
 import {
-  companyFormSchema,
+  companyRegistrationSchema,
   mobileAuthCopy,
   mobileCompanyCopy as copy,
   mobileErrorCopy,
   PERSON_TYPES,
+  type CarrierSignUpKind,
+  type MxState,
+  type PersonType,
 } from '@transport/shared';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
+import { OptionGroup } from '../components/option-group';
+import { SectionTitle } from '../components/fleet-ui';
+import { StatePicker } from '../components/state-picker';
 import { Button, Field, Notice, Screen, Title } from '../components/ui';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import { useSession } from '../providers/session';
-import { colors, spacing } from '../theme';
 
-type PersonType = (typeof PERSON_TYPES)[number];
+const KINDS: { value: CarrierSignUpKind; label: string }[] = [
+  { value: 'carrier', label: copy.kindCarrier },
+  { value: 'owner_operator', label: copy.kindOwnerOperator },
+];
 
-const PERSON_LABELS: Record<PersonType, string> = {
-  moral: copy.personTypeMoral,
-  fisica: copy.personTypeFisica,
-};
+const PERSON_OPTIONS: { value: PersonType; label: string }[] = PERSON_TYPES.map((type) => ({
+  value: type,
+  label: type === 'moral' ? copy.personTypeMoral : copy.personTypeFisica,
+}));
 
 /**
- * Carrier company registration after sign-up (create_company RPC). The company
- * starts "en revisión"; documents and fleet come in B18.
+ * Carrier company registration after sign-up (register_company, G2): the
+ * kind (company or hombre-camión, D13), the fiscal data (D16) and the
+ * contact. The company starts "en revisión"; documents and fleet come in
+ * B18. The kind chosen at sign-up only preselects the form.
  */
 export default function CompanySetup() {
   const { session, profile, actions, refreshProfile } = useSession();
+  const initialKind = session?.user.user_metadata.pending_company_kind as unknown;
   const [values, setValues] = useState({
-    personType: 'moral' as PersonType,
+    kind: (initialKind === 'owner_operator' ? 'owner_operator' : 'carrier') as CarrierSignUpKind,
+    personType: (initialKind === 'owner_operator' ? 'fisica' : 'moral') as PersonType,
     legalName: '',
     rfc: '',
+    fiscalStreet: '',
+    fiscalExteriorNumber: '',
+    fiscalInteriorNumber: '',
+    fiscalNeighborhood: '',
+    fiscalPostalCode: '',
+    fiscalMunicipality: '',
+    fiscalState: '' as MxState | '',
+    legalRepresentativeName: '',
     contactName: profile?.fullName ?? '',
     contactEmail: session?.user.email ?? '',
     contactPhone: profile?.phone ?? '',
@@ -38,16 +57,17 @@ export default function CompanySetup() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const set = (field: Exclude<keyof typeof values, 'personType'>) => (text: string) =>
+  type TextField = Exclude<keyof typeof values, 'kind' | 'personType' | 'fiscalState'>;
+  const set = (field: TextField) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
 
   async function submit() {
     setFormError(null);
-    const parsed = validateForm(companyFormSchema, { ...values, type: 'carrier' });
+    const parsed = validateForm(companyRegistrationSchema, values);
     setErrors(parsed.ok ? {} : parsed.errors);
     if (!parsed.ok) return;
     setSubmitting(true);
-    const result = await actions.createCompany(parsed.data);
+    const result = await actions.registerCompany(parsed.data);
     if (result.ok) await refreshProfile();
     else setFormError(mobileErrorCopy[result.error]);
     setSubmitting(false);
@@ -57,20 +77,21 @@ export default function CompanySetup() {
     <Screen>
       <Title subtitle={copy.subtitle}>{copy.title}</Title>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <View style={styles.group}>
-        <Text style={styles.label}>{copy.personTypeLabel}</Text>
-        <View style={styles.row}>
-          {PERSON_TYPES.map((type) => (
-            <View key={type} style={styles.flex}>
-              <Button
-                label={PERSON_LABELS[type]}
-                variant={values.personType === type ? 'primary' : 'secondary'}
-                onPress={() => setValues((current) => ({ ...current, personType: type }))}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
+      <OptionGroup
+        label={copy.kindLabel}
+        options={KINDS}
+        value={values.kind}
+        onChange={(kind) => setValues((current) => ({ ...current, kind }))}
+        hint={values.kind === 'owner_operator' ? copy.kindOwnerOperatorHint : undefined}
+        error={errors.kind}
+      />
+      <OptionGroup
+        label={copy.personTypeLabel}
+        options={PERSON_OPTIONS}
+        value={values.personType}
+        onChange={(personType) => setValues((current) => ({ ...current, personType }))}
+        error={errors.personType}
+      />
       <Field
         label={copy.legalNameLabel}
         value={values.legalName}
@@ -86,6 +107,61 @@ export default function CompanySetup() {
         autoCapitalize="characters"
         autoCorrect={false}
       />
+      <Field
+        label={copy.legalRepresentativeLabel}
+        value={values.legalRepresentativeName}
+        onChangeText={set('legalRepresentativeName')}
+        error={errors.legalRepresentativeName}
+        placeholder={copy.legalRepresentativeHint}
+        autoComplete="name"
+      />
+      <SectionTitle>{copy.fiscalAddressTitle}</SectionTitle>
+      <Field
+        label={copy.streetLabel}
+        value={values.fiscalStreet}
+        onChangeText={set('fiscalStreet')}
+        error={errors.fiscalStreet}
+        autoComplete="street-address"
+      />
+      <Field
+        label={copy.exteriorNumberLabel}
+        value={values.fiscalExteriorNumber}
+        onChangeText={set('fiscalExteriorNumber')}
+        error={errors.fiscalExteriorNumber}
+      />
+      <Field
+        label={copy.interiorNumberLabel}
+        value={values.fiscalInteriorNumber}
+        onChangeText={set('fiscalInteriorNumber')}
+        error={errors.fiscalInteriorNumber}
+      />
+      <Field
+        label={copy.neighborhoodLabel}
+        value={values.fiscalNeighborhood}
+        onChangeText={set('fiscalNeighborhood')}
+        error={errors.fiscalNeighborhood}
+      />
+      <Field
+        label={copy.postalCodeLabel}
+        value={values.fiscalPostalCode}
+        onChangeText={set('fiscalPostalCode')}
+        error={errors.fiscalPostalCode}
+        keyboardType="number-pad"
+        autoComplete="postal-code"
+        maxLength={5}
+      />
+      <Field
+        label={copy.municipalityLabel}
+        value={values.fiscalMunicipality}
+        onChangeText={set('fiscalMunicipality')}
+        error={errors.fiscalMunicipality}
+      />
+      <StatePicker
+        value={values.fiscalState}
+        onChange={(fiscalState) => setValues((current) => ({ ...current, fiscalState }))}
+        error={errors.fiscalState}
+      />
+      <SectionTitle>{copy.contactTitle}</SectionTitle>
       <Field
         label={mobileAuthCopy.fullNameLabel}
         value={values.contactName}
@@ -117,10 +193,3 @@ export default function CompanySetup() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  group: { gap: spacing.xs },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text },
-});

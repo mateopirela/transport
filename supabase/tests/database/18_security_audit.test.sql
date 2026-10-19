@@ -194,11 +194,10 @@ select set_eq(
     -- Business units (G1a.2): the caller's scope, or whether they run a row.
     'auth_carrier_company_id', 'auth_is_manager', 'auth_business_unit_ids', 'can_operate_unit',
     'conversation_business_unit_id', 'coordinator_runs_document_owner',
-    -- Identity and verification (B01, B03, B12).
-    'create_company', 'request_company_review', 'submit_document', 'review_document', 'review_company',
-    'admin_list_users',
-    -- Fleet (B04).
-    'create_operator_invitation', 'revoke_operator_invitation', 'accept_operator_invitation',
+    -- Identity and verification (B01, B03, B12, G2).
+    'create_company', 'register_company', 'request_company_review', 'submit_document', 'review_document',
+    'review_company', 'admin_list_users',
+    -- Fleet (B04). The operator invitation codes were retired by G2.
     'set_vehicle_availability', 'clear_vehicle_availability',
     -- Invitations by link (G1b). invitation_preview is also granted to anon:
     -- it answers only to a valid token and returns no id.
@@ -241,14 +240,17 @@ select set_eq(
        and not has_function_privilege('authenticated', p.oid, 'execute') $$,
   array[
     -- Triggers (service-role writes fire them).
-    'handle_new_user', 'operators_revoke_invitations_on_email_change', 'audit_admin_action',
+    'handle_new_user', 'audit_admin_action',
     'fleet_block_archive_with_trips', 'open_conversation', 'notify_offer', 'notify_trip_event',
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
     'companies_create_default_business_unit', 'default_business_unit',
+    'operators_revoke_invitations_on_unit_change',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
-    -- G2's redeem-invitation Edge Function (G1b): also checks the JWT role claim.
-    'redeem_operator_invitation_service'
+    -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.
+    'redeem_operator_invitation_service', 'revoke_user_sessions_service',
+    'issue_operator_provisioning_ticket_service', 'discard_unredeemed_operator_service',
+    'discard_orphan_operator_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );
@@ -269,11 +271,11 @@ select ok(
   'users consume only their own limits; service limits are for the service role'
 );
 
-insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values ('a2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'ana@a.test', now(),
-        '{"role":"manager"}', now(), now()),
+        null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
        ('a2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'beto@b.test', now(),
-        '{"role":"manager"}', now(), now());
+        null, '{"role":"manager","phone":"+525500000000"}', now(), now());
 
 -- The window logic, with a controlled clock (as the owner).
 select is(

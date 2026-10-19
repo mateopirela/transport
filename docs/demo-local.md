@@ -22,8 +22,14 @@ Contraseña de todos: **`Demo1234`**
 | `pedro.lopez@demo.test`      | Operador                  | Transportes Regios del Norte               | Viaje en descarga: actualizar el fin estimado y terminar           |
 | `raul.mendez@demo.test`      | Operador                  | Transportes Regios del Norte               | Operador sin viaje activo                                          |
 | `miguel.hernandez@demo.test` | Operador                  | Fletes Tapatíos                            | Viaje asignado Apodaca → GDL: registrar la salida                  |
+| `81 1000 0013` (teléfono)    | Operador sin correo (G2)  | TRN · "Regional Monterrey"                 | Iván Garza: entra con su teléfono y `Demo1234` ("Correo o teléfono") |
 
 Arturo Cantú y Daniel Ortiz son operadores **sin cuenta** (para probar la invitación, D15).
+
+Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo uso: `supabase db reset` los renueva):
+
+- Coordinador: `/invitacion/demo-coordinador-trn-0000000000000000000000` (web) o `transport://invitacion/demo-coordinador-trn-0000000000000000000000` (app).
+- Operador por teléfono: `/invitacion/demo-operador-trn-0000000000000000000000000` (web) o `transport://invitacion/demo-operador-trn-0000000000000000000000000` (app; lo usa el flujo de Maestro `08-operator-invite.yaml`).
 
 ## Qué hay
 

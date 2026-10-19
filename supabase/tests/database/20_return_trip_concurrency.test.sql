@@ -160,13 +160,13 @@ select tests.cleanup();
 -- (...03) of A, unit V. Load L1 with a plain offer (trip 1); loads L2 and L3
 -- with offers that book V (the return trips).
 select extensions.dblink_exec('setup', $sql$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
     ('a2f00000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'sara@rc.test', now(),
-     '{"role":"shipper"}', now(), now()),
+     null, '{"role":"shipper","phone":"+525500000000"}', now(), now()),
     ('a2f00000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'ana@rc.test', now(),
-     '{"role":"manager"}', now(), now()),
+     null, '{"role":"manager","phone":"+525500000000"}', now(), now()),
     ('a2f00000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'oscar@rc.test', now(),
-     '{"role":"operator"}', now(), now());
+     '{"provisioned_by": "redeem-invitation"}'::jsonb, '{"role":"operator","phone":"+525500000000"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc, status) values
     ('c2f00000-0000-4000-8000-000000000001', 'shipper', 'Regreso Sigma SA de CV', 'RSI070707AA7', 'approved'),
     ('c2f00000-0000-4000-8000-000000000002', 'carrier', 'Regreso Alfa SA de CV', 'RAL070707AA7', 'approved');

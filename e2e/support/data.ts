@@ -47,10 +47,20 @@ export function toDateInput(instant: Date, timeZone = 'America/Mexico_City'): st
  * Auth `site_url`. Null when the email has no confirmation link.
  */
 export function confirmationPath(body: string): string | null {
-  const match = /\/auth\/confirm\?token_hash=([A-Za-z0-9_-]+)(?:&amp;|&)type=([a-z_]+)/u.exec(body);
+  const match =
+    /\/auth\/confirm\?token_hash=([A-Za-z0-9_-]+)(?:&amp;|&)type=([a-z_]+)(?:(?:&amp;|&)redirect_to=([^"\s<]*))?/u.exec(
+      body,
+    );
   if (!match) return null;
-  const [, tokenHash, type] = match;
-  return `/auth/confirm?token_hash=${tokenHash}&type=${type}`;
+  const [, tokenHash, type, redirectTo] = match;
+  // The sign-up's emailRedirectTo travels along (G2: back to an invitation
+  // link), already URL-encoded by the template.
+  const redirect = redirectTo ? `&redirect_to=${decodeEntities(redirectTo)}` : '';
+  return `/auth/confirm?token_hash=${tokenHash}&type=${type}${redirect}`;
+}
+
+function decodeEntities(value: string): string {
+  return value.replace(/&amp;/gu, '&').replace(/&#43;/gu, '+').replace(/&#34;/gu, '"');
 }
 
 /** Hours from now, as a Date (test fixtures are relative to the run). */

@@ -111,17 +111,17 @@ export const fleetCopy = {
   invitation: {
     title: 'Invitación',
     subtitle:
-      'Comparte el enlace o el código. El operador crea su cuenta con este mismo correo y queda ligado a tu empresa.',
-    create: 'Generar invitación',
-    recreate: 'Generar un código nuevo',
+      'Comparte el enlace. El operador crea su cuenta con su teléfono y una contraseña, y queda ligado a esta ficha y a tu empresa.',
+    create: 'Generar enlace de invitación',
+    recreate: 'Generar un enlace nuevo',
     share: 'Compartir enlace',
     revoke: 'Cancelar invitación',
-    code: 'Código',
+    link: 'Enlace',
     validUntil: (date: string) => `Vence el ${date}`,
-    pendingNoCode:
-      'Hay una invitación vigente. Por seguridad el código solo se muestra al generarlo; genera uno nuevo si lo perdiste.',
-    shareMessage: (companyName: string, link: string, code: string) =>
-      `${companyName} te invita a unirte como operador en Transport. Abre este enlace desde tu teléfono: ${link}\n\nO escribe el código: ${code}`,
+    pendingNoLink:
+      'Hay una invitación vigente. Por seguridad el enlace solo se muestra al generarlo; genera uno nuevo si lo perdiste.',
+    shareMessage: (companyName: string, link: string) =>
+      `${companyName} te invita a unirte como operador en Transport. Abre este enlace desde tu teléfono: ${link}`,
   },
   routes: {
     title: 'Rutas habituales',
@@ -146,7 +146,6 @@ export const fleetErrorCopy = {
   expiredDocuments:
     'La unidad tiene documentos vencidos. Sube los documentos vigentes para marcarla como disponible.',
   operatorHasAccount: 'Este operador ya tiene cuenta en la app.',
-  operatorNoEmail: 'Agrega el correo del operador para invitarlo.',
   uploadFailed: 'No pudimos subir el archivo. Revisa tu conexión e inténtalo de nuevo.',
   documentExpired: 'El documento ya está vencido.',
   /** fleet_block_archive_with_trips (B06). */

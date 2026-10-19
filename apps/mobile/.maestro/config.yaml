@@ -14,3 +14,4 @@ executionOrder:
     - 05-operator-pickup
     - 06-operator-incident-offline
     - 07-operator-delivery
+    - 08-operator-invite

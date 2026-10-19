@@ -1,6 +1,7 @@
 import {
   adminCopy,
   companyDecisions,
+  companyFiscalFieldLabels,
   companyTypeLabels,
   documentOwnerTypeLabels,
   formatDateTime,
@@ -8,6 +9,7 @@ import {
   toMexicoCityDate,
   userRoleLabels,
   uuidField,
+  type CompanyFiscalColumn,
   type SubmittedDocument,
 } from '@transport/shared';
 import type { Metadata } from 'next';
@@ -64,12 +66,16 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
   if (!uuidField.safeParse(id).success) notFound();
   const supabase = await createClient();
   if (!supabase) notFound();
-  const [verification, members] = await Promise.all([
+  const [verification, members, missingFields] = await Promise.all([
     loadCompanyVerification(supabase, id),
     supabase.from('profiles').select('id, full_name, role').eq('company_id', id),
+    supabase.rpc('company_missing_fields', { p_company_id: id }),
   ]);
   if (!verification) notFound();
   if (members.error) throw new Error(`Could not load members: ${members.error.message}`);
+  const missingFiscal = (missingFields.data ?? [])
+    .map((column) => companyFiscalFieldLabels[column as CompanyFiscalColumn] ?? column)
+    .join(', ');
   const { company, owners, unlisted } = verification;
   const [companyOwner, ...fleet] = owners;
   const summary = companyOwner ? progressSummary(companyOwner.progress) : null;
@@ -166,7 +172,38 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                 </div>
                 <div>
                   <dt className="text-muted-foreground">{adminCopy.columns.rfc}</dt>
-                  <dd className="font-mono">{company.rfc}</dd>
+                  <dd className="font-mono">
+                    {company.rfc}
+                    {company.is_owner_operator && (
+                      <span className="ml-2 font-sans text-muted-foreground">
+                        ({c.ownerOperator})
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{c.fiscalAddress}</dt>
+                  <dd>
+                    {[
+                      [
+                        company.fiscal_street,
+                        company.fiscal_exterior_number,
+                        company.fiscal_interior_number,
+                      ]
+                        .filter(Boolean)
+                        .join(' '),
+                      company.fiscal_neighborhood,
+                      company.fiscal_postal_code,
+                      company.fiscal_municipality,
+                      company.fiscal_state,
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{c.legalRepresentative}</dt>
+                  <dd>{company.legal_representative_name ?? '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">{c.contact}</dt>
@@ -201,6 +238,9 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
             <CardHeader>
               <CardTitle className="text-xl">{adminCopy.companyActions.title}</CardTitle>
               <p className="text-sm text-muted-foreground">{c.missingDocuments(missing)}</p>
+              {missingFiscal && (
+                <p className="text-sm text-destructive">{c.missingFiscal(missingFiscal)}</p>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               <CompanyReviewForm

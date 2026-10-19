@@ -6,10 +6,11 @@ import { Button, Field, Notice, Screen, Title } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
 
+/** Sign-in with "Correo o teléfono" (G2): a phone-only operator types their phone. */
 export default function SignIn() {
   const { actions } = useSession();
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export default function SignIn() {
 
   async function submit() {
     setFormError(null);
-    const parsed = validateForm(signInSchema, { email, password });
+    const parsed = validateForm(signInSchema, { identifier, password });
     setErrors(parsed.ok ? {} : parsed.errors);
     if (!parsed.ok) return;
     setSubmitting(true);
@@ -32,12 +33,13 @@ export default function SignIn() {
       <Title subtitle={copy.tagline}>{copy.appName}</Title>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
       <Field
-        label={copy.emailLabel}
-        value={email}
-        onChangeText={setEmail}
-        error={errors.email}
+        label={copy.identifierLabel}
+        value={identifier}
+        onChangeText={setIdentifier}
+        error={errors.identifier}
         autoCapitalize="none"
-        autoComplete="email"
+        autoCorrect={false}
+        autoComplete="username"
         keyboardType="email-address"
         textContentType="username"
       />
@@ -53,7 +55,7 @@ export default function SignIn() {
       />
       <Button label={copy.signInAction} onPress={submit} loading={submitting} />
       <Button label={copy.goToSignUp} variant="secondary" onPress={() => router.push('/sign-up')} />
-      <Button label={copy.goToInvite} variant="link" onPress={() => router.push('/invite')} />
+      <Button label={copy.goToInvite} variant="link" onPress={() => router.push('/invitacion')} />
     </Screen>
   );
 }

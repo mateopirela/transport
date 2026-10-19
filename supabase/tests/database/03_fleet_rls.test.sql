@@ -1,10 +1,11 @@
 -- Fleet (B04): role x operation RLS matrix for vehicles, operators,
--- operator_invitations, carrier_routes and vehicle_availability, isolation
--- between companies, operator invitations (D15) and owner-operators (D13).
+-- carrier_routes and vehicle_availability, isolation between companies,
+-- operators linked to an account and owner-operators (D13). The operator
+-- invitation codes of B04 were retired by G2 (links: 29_invitations).
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(75);
+select plan(57);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -16,11 +17,11 @@ create function tests.new_user(p_id uuid, p_email text, p_role text, p_confirmed
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   values (
     p_id, 'authenticated', 'authenticated', p_email,
     case when p_confirmed then now() end,
-    jsonb_build_object('role', p_role), now(), now()
+    case when p_role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end, jsonb_build_object('role', p_role, 'phone', '+525500000000'), now(), now()
   );
 $$;
 
@@ -35,23 +36,15 @@ as $$
   );
 $$;
 
--- Codes returned by create_operator_invitation, kept across role switches.
-create table tests.codes (name text primary key, code text not null);
-grant select, insert, update on tests.codes to authenticated;
-
 -- Users:
---   ...01 carrier A      ...02 carrier B      ...03 operator invited by A
---   ...04 shipper S      ...05 admin          ...06 operator, other email
---   ...07 operator, unconfirmed email         ...08 operator (expired code)
+--   ...01 carrier A      ...02 carrier B      ...03 operator of A (linked below)
+--   ...04 shipper S      ...05 admin
 -- Companies: c...0a = A (carrier), c...0b = B (carrier), c...0c = S (shipper).
 select tests.new_user('b0000000-0000-4000-8000-000000000001', 'carla@a.test', 'manager');
 select tests.new_user('b0000000-0000-4000-8000-000000000002', 'bruno@b.test', 'manager');
 select tests.new_user('b0000000-0000-4000-8000-000000000003', 'omar@a.test', 'operator');
 select tests.new_user('b0000000-0000-4000-8000-000000000004', 'sofia@s.test', 'shipper');
 select tests.new_user('b0000000-0000-4000-8000-000000000005', 'admin@x.test', 'shipper');
-select tests.new_user('b0000000-0000-4000-8000-000000000006', 'otro@x.test', 'operator');
-select tests.new_user('b0000000-0000-4000-8000-000000000007', 'pablo@a.test', 'operator', false);
-select tests.new_user('b0000000-0000-4000-8000-000000000008', 'eva@a.test', 'operator');
 
 insert into public.companies (id, type, legal_name, rfc) values
   ('c0000000-0000-4000-8000-00000000000a', 'carrier', 'Fletes Alfa SA de CV', 'FAL010101AB1'),
@@ -265,56 +258,6 @@ select throws_ok(
   'availability is written only through the RPC'
 );
 
--- operator_invitations
-insert into tests.codes
-select 'omar', code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a1');
-insert into tests.codes
-select 'pablo', code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a2');
-insert into tests.codes
-select 'eva_old', code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a3');
-insert into tests.codes
-select 'eva', code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a3', 1);
-
-select ok(
-  (select code ~ '^[0-9A-HJKMNP-TV-Z]{16}$' from tests.codes where name = 'omar'),
-  'invitation codes are 16 Crockford base32 characters'
-);
-select results_eq(
-  $$ select operator_id, accepted_at is null, revoked_at is not null from public.operator_invitations
-     where operator_id = 'd0000000-0000-4000-8000-0000000000a3' order by created_at, revoked_at nulls last $$,
-  $$ values ('d0000000-0000-4000-8000-0000000000a3'::uuid, true, true),
-            ('d0000000-0000-4000-8000-0000000000a3'::uuid, true, false) $$,
-  're-inviting an operator revokes the previous pending invitation'
-);
-select throws_ok(
-  $$ select code_hash from public.operator_invitations $$,
-  '42501', null,
-  'clients cannot read invitation code hashes'
-);
-select throws_ok(
-  $$ insert into public.operator_invitations (company_id, operator_id, email, code_hash, expires_at)
-     values ('c0000000-0000-4000-8000-00000000000a', 'd0000000-0000-4000-8000-0000000000a1', 'omar@a.test',
-             '\x00', now() + interval '1 day') $$,
-  '42501', null,
-  'invitations are created only through the RPC'
-);
-select throws_ok(
-  $$ select public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a9') $$,
-  '22023', null,
-  'an operator that already has an account cannot be invited'
-);
-select throws_ok(
-  $$ select public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a1', 0) $$,
-  '22023', null,
-  'the invitation lifetime is bounded'
-);
-select lives_ok(
-  $$ select public.revoke_operator_invitation(
-       (select id from public.operator_invitations
-        where operator_id = 'd0000000-0000-4000-8000-0000000000a2' and revoked_at is null)) $$,
-  'carrier revokes a pending invitation'
-);
-
 -- ---------------------------------------------------------------------------
 -- Carrier B and shipper S cannot touch A's fleet
 -- ---------------------------------------------------------------------------
@@ -330,11 +273,6 @@ select is_empty(
      union all select id from public.operator_invitations
      union all select id from public.vehicle_availability $$,
   'another carrier sees no operators, invitations or availability of A'
-);
-select throws_ok(
-  $$ select public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a1') $$,
-  '42501', null,
-  'another carrier cannot invite A''s operators'
 );
 select throws_ok(
   $$ select public.clear_vehicle_availability('e0000000-0000-4000-8000-0000000000a2') $$,
@@ -357,42 +295,16 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- Accepting invitations (D15)
+-- An operator linked to its account (as redeem_operator_invitation_service
+-- does from an invitation link, G1b/G2)
 -- ---------------------------------------------------------------------------
-select tests.login('b0000000-0000-4000-8000-000000000001');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'omar')) $$,
-  '42501', null,
-  'a carrier account cannot accept an operator invitation'
-);
-
-select tests.login('b0000000-0000-4000-8000-000000000006');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'omar')) $$,
-  '42501', null,
-  'an invitation cannot be accepted with another email'
-);
-select throws_ok(
-  $$ select public.accept_operator_invitation('0000000000000000') $$,
-  '22023', null,
-  'an unknown code is rejected'
-);
-
-select tests.login('b0000000-0000-4000-8000-000000000007');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'pablo')) $$,
-  '22023', null,
-  'a revoked invitation fails'
-);
-
+reset role;
+update public.operators set profile_id = 'b0000000-0000-4000-8000-000000000003'
+where id = 'd0000000-0000-4000-8000-0000000000a1';
+update public.profiles set company_id = 'c0000000-0000-4000-8000-00000000000a'
+where id = 'b0000000-0000-4000-8000-000000000003';
+set local role authenticated;
 select tests.login('b0000000-0000-4000-8000-000000000003');
-select is(
-  public.accept_operator_invitation(
-    (select lower(substr(code, 1, 4) || '-' || substr(code, 5, 4) || ' ' || substr(code, 9)) from tests.codes where name = 'omar')
-  ),
-  'd0000000-0000-4000-8000-0000000000a1'::uuid,
-  'the invited operator accepts (code is case and separator insensitive)'
-);
 select is(
   public.auth_company_id(), 'c0000000-0000-4000-8000-00000000000a'::uuid,
   'the operator joins the carrier company'
@@ -420,42 +332,6 @@ select throws_ok(
 select lives_ok(
   $$ update public.operators set license_expires_on = '2040-01-01' where id = 'd0000000-0000-4000-8000-0000000000a1' $$,
   'an operator update of its row runs but matches no rows'
-);
-
-select tests.login('b0000000-0000-4000-8000-000000000006');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'omar')) $$,
-  '22023', null,
-  'a used invitation fails'
-);
-
-select tests.login('b0000000-0000-4000-8000-000000000008');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'eva_old')) $$,
-  '22023', null,
-  'a superseded invitation fails'
-);
-
-reset role;
-update public.operator_invitations set expires_at = now() - interval '1 second'
-where operator_id = 'd0000000-0000-4000-8000-0000000000a3' and revoked_at is null;
-set local role authenticated;
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'eva')) $$,
-  '22023', null,
-  'an expired invitation fails'
-);
-
--- Unconfirmed email: re-invite Pablo and try with the unconfirmed account.
-select tests.login('b0000000-0000-4000-8000-000000000001');
-update tests.codes set code = (
-  select code from public.create_operator_invitation('d0000000-0000-4000-8000-0000000000a2')
-) where name = 'pablo';
-select tests.login('b0000000-0000-4000-8000-000000000007');
-select throws_ok(
-  $$ select public.accept_operator_invitation((select code from tests.codes where name = 'pablo')) $$,
-  '42501', null,
-  'an unconfirmed email cannot accept an invitation'
 );
 
 -- ---------------------------------------------------------------------------
@@ -515,11 +391,6 @@ reset role;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 set local role anon;
 select throws_ok($$ select * from public.vehicles $$, '42501', null, 'anon cannot read vehicles');
-select throws_ok(
-  $$ select public.accept_operator_invitation('0000000000000000') $$,
-  '42501', null,
-  'anon cannot accept invitations'
-);
 
 -- ---------------------------------------------------------------------------
 -- Documents (B03) can now be owned by vehicles and operators

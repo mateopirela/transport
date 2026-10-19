@@ -137,14 +137,14 @@ export async function listVehicles(
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const pendingRelease = new Set(check(pending).map((t) => t.vehicle_id));
-  return check(vehicles).map(({ business_units: unit, business_unit_id, ...vehicle }) => {
+  return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     const owner = { type: 'vehicle', id: vehicle.id } as const;
     const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
-      businessUnitId: business_unit_id,
+      businessUnitId: vehicle.business_unit_id,
       availability: current,
       readiness: vehicleReadiness({
         expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
@@ -258,10 +258,10 @@ export async function listOperators(
       .gt('expires_at', new Date().toISOString()),
   ]);
   const pending = new Map(check(invitations).map((i) => [i.operator_id ?? '', i]));
-  return check(operators).map(({ business_units: unit, business_unit_id, ...o }) => ({
+  return check(operators).map(({ business_units: unit, ...o }) => ({
     ...o,
     businessUnitName: unit?.name ?? null,
-    businessUnitId: business_unit_id,
+    businessUnitId: o.business_unit_id,
     invitation: pending.get(o.id) ?? null,
   }));
 }

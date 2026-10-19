@@ -17,7 +17,7 @@ import { fleetErrorMessage } from '../../../lib/fleet-errors';
 import { EMPTY_VEHICLE_FORM, vehicleFormFromRow } from '../../../lib/fleet-forms';
 import { unitRecommendations } from '../../../lib/loads-api';
 import { getReleaseContext } from '../../../lib/release-api';
-import { useCarrier, useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
+import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 
 const copy = fleetCopy.units;
 

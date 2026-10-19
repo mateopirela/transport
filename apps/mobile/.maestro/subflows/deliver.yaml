@@ -15,8 +15,24 @@ appId: ${APP_ID}
           env:
             BUTTON: 'Tomar foto'
             NOTICE: UP
+# A tap can land while the screen re-renders after the first photo: if
+# only one counted, take the missing one.
 - scrollUntilVisible:
-    element: '2 de 2 fotos mínimas'
+    element: '[0-9] de 2 fotos mínimas'
+    direction: DOWN
+    timeout: 30000
+- runFlow:
+    when:
+      visible: '[01] de 2 fotos mínimas'
+    commands:
+      - runFlow:
+          file: take-photo.yaml
+          env:
+            BUTTON: 'Tomar foto'
+            NOTICE: UP
+# (A photo of an interrupted run may still upload: 3 of 2 is fine too.)
+- scrollUntilVisible:
+    element: '[2-9] de 2 fotos mínimas'
     direction: DOWN
     timeout: 30000
 - runFlow:

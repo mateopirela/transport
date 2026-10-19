@@ -28,6 +28,14 @@ appId: ${APP_ID}
             camera: allow
             notifications: deny
 - openLink: ${DEV_CLIENT_URL}
+# iOS can ask before a custom scheme opens the app ("Open in …?").
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
 # A camera prompt left open by an earlier, interrupted run survives the
 # relaunch and hides the screen: allow it (take-photo.yaml explains why iOS
 # can still ask).

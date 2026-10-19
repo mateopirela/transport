@@ -636,6 +636,25 @@ where id in ('5eed0003-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-00
 insert into public.operators (id, company_id, business_unit_id, profile_id, full_name, email, phone, license_number, license_type, license_expires_on)
 values ('5eed0003-0000-4000-8000-000000000007', '5eed0002-0000-4000-8000-000000000004', '5eed0009-0000-4000-8000-000000000002',
         '5eed0001-0000-4000-8000-000000000013', 'Iván Garza', null, '+528110000013', 'NL-B-0518823', 'B', (pg_temp.at('30 months'))::date);
+-- His documents (the federal licence, until its expiry) were approved like the
+-- other operators' (G9): the demo can assign him without uploading anything.
+insert into public.documents (
+  company_id, requirement_id, owner_type, owner_id, storage_path, file_name, mime_type, size_bytes,
+  status, reviewed_by, reviewed_at, expires_at, submitted_by, created_at
+)
+select op.company_id, r.id, 'operator', op.id,
+       op.company_id || '/operator/' || op.id || '/' || gen_random_uuid() || '.pdf',
+       r.code || '.pdf', 'application/pdf', 245760, 'approved', '5eed0001-0000-4000-8000-000000000001',
+       pg_temp.at('-25 days'), case when r.requires_expiry then op.license_expires_on::timestamptz end,
+       '5eed0001-0000-4000-8000-000000000012', pg_temp.at('-28 days')
+from public.operators op
+join public.companies c on c.id = op.company_id
+join public.document_requirements r
+  on r.owner_type = 'operator'
+ and r.archived_at is null
+ and (r.company_type is null or r.company_type = c.type)
+ and (r.taxpayer_type is null or r.taxpayer_type = public.taxpayer_type_for_rfc(c.rfc))
+where op.id = '5eed0003-0000-4000-8000-000000000007';
 
 insert into public.business_unit_coordinators (business_unit_id, company_id, profile_id, created_by, created_at)
 select b.id, b.company_id, c.profile_id::uuid, '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-30 days')

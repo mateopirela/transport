@@ -54,6 +54,16 @@ export const trackingCopy = {
   needsPermissionAction: 'Dar permiso',
   unavailable:
     'Este teléfono no permite compartir la ubicación en segundo plano. Mantén la app abierta durante el viaje.',
+  // D17: shown until the location is precise and "Always".
+  preciseTitle: 'Ubicación precisa y "Siempre"',
+  preciseBody:
+    'Activa la ubicación precisa y "Siempre" para que tu coordinador y el cliente vean tu avance.',
+  preciseMissing: {
+    denied: 'Ahora la ubicación está desactivada para Transport.',
+    enable_always: 'Ahora Transport solo tiene permiso "Mientras se usa la app".',
+    enable_precise: 'Ahora la ubicación es aproximada: activa "Ubicación exacta".',
+  },
+  preciseAction: 'Abrir ajustes',
   // Android foreground service notification (persistent while tracking).
   notificationTitle: 'Compartiendo ubicación del viaje',
   notificationBody: 'Se detiene sola al registrar la entrega.',

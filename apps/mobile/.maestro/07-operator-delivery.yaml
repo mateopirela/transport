@@ -38,7 +38,12 @@ tags: [operator, offline]
     file: subflows/status-step.yaml
     env:
       STEP: 'Llegué a destino'
-# Starts unloading with the default estimated end (in 4 hours).
+# Starts unloading with the default estimated end (in 4 hours). Wait for
+# the estimate form, which pushes the button down when it appears.
+- scrollUntilVisible:
+    element: 'Fin estimado de descarga'
+    timeout: 15000
+- waitForAnimationToEnd
 - runFlow:
     file: subflows/status-step.yaml
     env:

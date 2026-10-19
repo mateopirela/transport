@@ -25,6 +25,8 @@ export const users = {
   carmen: 'carmen.navarro@demo.test',
   /** Operator of Fletes Tapatíos: has the Apodaca → GDL trip assigned with RB-01. */
   miguel: 'miguel.hernandez@demo.test',
+  /** Hombre-camión (D13): Gerente and operator of José Sánchez Medina, drives JSM-01. */
+  jose: 'jose.sanchez@demo.test',
 } as const;
 
 export type DemoUser = keyof typeof users;

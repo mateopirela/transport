@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
 import type { ViewerDetails } from '@/lib/viewer';
 
-/** Header and frame of the signed-in area (Cliente, Transportista or Admin). */
+/** Header and frame of the signed-in area (Cliente, Gerente or Coordinador, or Admin). */
 export function AppShell({
   area,
   nav,

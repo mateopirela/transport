@@ -16,8 +16,18 @@ tags: [operator, invitation]
       camera: allow
       notifications: deny
 - openLink: ${DEV_CLIENT_URL}
+# iOS can ask before a custom scheme opens the app ("Open in …?").
 - extendedWaitUntil:
-    visible: 'Entrar'
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+# The sign-in screen, or the invitation already (a link left pending by an
+# interrupted run reopens on launch).
+- extendedWaitUntil:
+    visible: 'Entrar|Unirme con invitación'
     timeout: 60000
 - runFlow:
     when:
@@ -25,9 +35,25 @@ tags: [operator, invitation]
     commands:
       - tapOn: 'Continue'
       - waitForAnimationToEnd
+# The dev menu sheet can stay open after "Continue": close it first.
+- runFlow:
+    when:
+      visible: 'Toggle performance monitor'
+    commands:
+      - tapOn:
+          point: '50%,12%'
+      - waitForAnimationToEnd
 - openLink: transport://invitacion/demo-operador-trn-0000000000000000000000000
+# iOS can ask before a custom scheme opens the app ("Open in …?").
 - extendedWaitUntil:
-    visible: 'Transportes Regios del Norte te invita como Operador.*'
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Transportes Regios del Norte.* te invita como Operador.*'
     timeout: 30000
 - takeScreenshot: 08-1-operator-invite
 - runFlow:
@@ -41,16 +67,19 @@ tags: [operator, invitation]
       LABEL: 'Teléfono'
       TEXT: '8110000099'
 - runFlow:
-    file: subflows/fill-field.yaml
+    file: subflows/fill-new-password.yaml
     env:
       LABEL: 'Contraseña'
       TEXT: 'Demo1234'
 - runFlow:
-    file: subflows/fill-field.yaml
+    file: subflows/fill-new-password.yaml
     env:
       LABEL: 'Confirma tu contraseña'
       TEXT: 'Demo1234'
-- tapOn: 'Unirme con invitación'
+- tapOn: 'Confirma tu contraseña'
+- scrollUntilVisible:
+    element: 'Crear mi cuenta'
+    centerElement: true
 - tapOn: 'Crear mi cuenta'
 - extendedWaitUntil:
     visible: 'Not Now'
@@ -60,6 +89,6 @@ tags: [operator, invitation]
     text: 'Not Now'
     optional: true
 - extendedWaitUntil:
-    visible: 'Sin viaje asignado'
+    visible: 'No tienes un viaje asignado por ahora.*'
     timeout: 30000
 - takeScreenshot: 08-2-operator-no-trip

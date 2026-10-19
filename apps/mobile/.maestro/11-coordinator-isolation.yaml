@@ -1,0 +1,36 @@
+# Coordinadora (G1a, G9): Andrea runs only the "Corredor MTY–GDL". Her units
+# are TRN-01 and CS53-01 (never RF53-01 or TT-01 of "Regional Monterrey"), her
+# trips are the corridor's and "Más" has no "Mi empresa" (that is the
+# Gerente's, G4).
+appId: ${APP_ID}
+name: Coordinadora · solo su unidad de negocio
+tags: [carrier, coordinator]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: andrea.cavazos@demo.test
+# Tab buttons read "<label>, tab, n of 5".
+- extendedWaitUntil:
+    visible: 'Unidades, tab.*'
+    timeout: 30000
+- takeScreenshot: 11-1-coordinator-home
+- tapOn: 'Unidades, tab.*'
+- extendedWaitUntil:
+    visible: '.*CS53-01.*'
+    timeout: 15000
+- assertVisible: '.*TRN-01.*'
+- assertNotVisible: '.*RF53-01.*'
+- assertNotVisible: '.*TT-01.*'
+- takeScreenshot: 11-2-coordinator-units
+- tapOn: 'Viajes, tab.*'
+- extendedWaitUntil:
+    visible: 'Guadalajara → Monterrey.*'
+    timeout: 15000
+- takeScreenshot: 11-3-coordinator-trips
+- tapOn: 'Más, tab.*'
+- extendedWaitUntil:
+    visible: 'Operadores.*'
+    timeout: 15000
+- assertNotVisible: 'Mi empresa.*'
+- takeScreenshot: 11-4-coordinator-more

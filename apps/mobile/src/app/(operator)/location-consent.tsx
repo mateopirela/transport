@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { SectionTitle } from '../../components/fleet-ui';
+import { PreciseLocationBanner } from '../../components/precise-location-banner';
 import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
 import { requestTrackingPermission } from '../../lib/background-location';
 import { acceptLocationConsent, useLocationConsent } from '../../lib/location-consent';
@@ -60,6 +61,7 @@ export default function LocationConsentScreen() {
       <Screen>
         <Title>{copy.permissionTitle}</Title>
         <Body>{Platform.OS === 'ios' ? copy.permissionIos : copy.permissionAndroid}</Body>
+        <PreciseLocationBanner />
         {problem === 'permission' ? (
           <Notice tone="danger">
             <Body>{copy.permissionDenied}</Body>

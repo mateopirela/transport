@@ -19,7 +19,9 @@ const c = tripCancelCopy;
  * reason from the list and notes (required for "Otro"), which the other side
  * and the operator see. Used by the shipper and the carrier staff. When the
  * unit already set off it warns that it will wait for its release (D20).
- * Folded until opened, so a stray click never cancels anything.
+ * Folded until opened, so a stray click never cancels anything. Once
+ * cancelled the page reloads without the form and shows the trip as
+ * cancelled with its reason: that notice is the confirmation.
  */
 export function TripCancelForm({
   tripId,
@@ -33,7 +35,6 @@ export function TripCancelForm({
   const id = useId();
   const [state, action, pending] = useActionState(cancel, {});
   const errors = state.fieldErrors ?? {};
-  if (state.message) return <Notice tone="success">{state.message}</Notice>;
   return (
     <details
       className="rounded-lg border p-4 open:bg-muted/40"

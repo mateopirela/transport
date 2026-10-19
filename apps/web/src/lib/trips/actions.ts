@@ -5,7 +5,6 @@ import {
   cancelTripSchema,
   clientTripsCopy,
   incidentFormSchema,
-  tripCancelCopy,
   tripDocumentSchema,
   uuidField,
   validationMessages,
@@ -117,7 +116,10 @@ export async function cancelShipperTrip(_prev: FormState, formData: FormData): P
     p_notes: parsed.data.notes ?? '',
   });
   if (error) return { error: tripErrorMessage(error), values: refillValues(entries) };
-  return done(tripCancelCopy.done);
+  // The page reloads with the trip cancelled and its reason: that is the
+  // confirmation (the form is gone), so there is no message of its own.
+  revalidatePath(paths.shipper, 'layout');
+  return {};
 }
 
 /**

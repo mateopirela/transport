@@ -36,7 +36,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
   ];
   return (
     <AppShell
-      area={shellCopy.carrierArea}
+      area={isManager ? shellCopy.managerArea : shellCopy.coordinatorArea}
       nav={nav}
       toolbar={
         <BusinessUnitPicker operable={units.operable} selectedId={units.selected?.id ?? null} />

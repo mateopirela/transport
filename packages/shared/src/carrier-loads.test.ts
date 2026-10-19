@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCarrierFeed,
   carrierNegotiationState,
+  chainEndLoads,
+  committedUnit,
+  type CommittedTrip,
   carrierOfferErrorText,
   directionsUrl,
   offerStatusReasonText,
@@ -240,5 +243,82 @@ describe('directionsUrl', () => {
     const url = new URL(directionsUrl(GDL_WAREHOUSE, APODACA));
     expect(url.searchParams.get('origin')).toBe('20.65600,-103.39100');
     expect(url.searchParams.has('waypoints')).toBe(false);
+  });
+});
+
+describe('committed trips (vehicle_trip_chain_end, F5)', () => {
+  const trip = (over: Partial<CommittedTrip>): CommittedTrip => ({
+    id: 't1',
+    status: 'assigned',
+    vehicleId: 'v1',
+    offeredVehicleId: null,
+    loadId: 'l1',
+    estimatedUnloadEndAt: null,
+    pickupWindowStart: '2026-10-20T14:00:00Z',
+    deliveryWindowEnd: '2026-10-21T14:00:00Z',
+    ...over,
+  });
+
+  it('counts the offered unit only while the trip is pending without one', () => {
+    expect(
+      committedUnit(
+        trip({ status: 'pending_assignment', vehicleId: null, offeredVehicleId: 'v2' }),
+      ),
+    ).toBe('v2');
+    expect(
+      committedUnit(
+        trip({ status: 'pending_assignment', vehicleId: 'v1', offeredVehicleId: 'v2' }),
+      ),
+    ).toBeNull();
+    expect(committedUnit(trip({ status: 'in_transit' }))).toBe('v1');
+    expect(committedUnit(trip({ status: 'delivered' }))).toBeNull();
+    expect(committedUnit(trip({ status: 'cancelled' }))).toBeNull();
+  });
+
+  it('ends the chain with the last trip not started, by pickup window', () => {
+    const ends = chainEndLoads([
+      trip({
+        id: 'a',
+        status: 'in_transit',
+        loadId: 'road',
+        estimatedUnloadEndAt: '2026-10-25T00:00:00Z',
+      }),
+      trip({ id: 'b', loadId: 'later', pickupWindowStart: '2026-10-23T00:00:00Z' }),
+      trip({ id: 'c', loadId: 'sooner', pickupWindowStart: '2026-10-22T00:00:00Z' }),
+      trip({
+        id: 'd',
+        status: 'pending_assignment',
+        vehicleId: null,
+        offeredVehicleId: 'v2',
+        loadId: 'other unit',
+      }),
+    ]);
+    expect(ends.get('v1')).toBe('later');
+    expect(ends.get('v2')).toBe('other unit');
+  });
+
+  it('without trips to start, ends with the started one that ends last', () => {
+    const ends = chainEndLoads([
+      trip({
+        id: 'a',
+        status: 'unloading',
+        loadId: 'late',
+        deliveryWindowEnd: '2026-10-22T00:00:00Z',
+      }),
+      trip({
+        id: 'b',
+        status: 'in_transit',
+        loadId: 'early',
+        estimatedUnloadEndAt: '2026-10-21T00:00:00Z',
+        deliveryWindowEnd: '2026-10-23T00:00:00Z',
+      }),
+      trip({
+        id: 'c',
+        status: 'delivered',
+        loadId: 'done',
+        deliveryWindowEnd: '2026-10-30T00:00:00Z',
+      }),
+    ]);
+    expect(ends.get('v1')).toBe('late');
   });
 });

@@ -1,10 +1,12 @@
 import 'server-only';
 
 import {
-  ACTIVE_TRIP_STATUSES,
   buildCarrierFeed,
   candidateFromRow,
   carrierNegotiationState,
+  chainEndLoads,
+  committedUnit,
+  COMMITTED_TRIP_STATUSES,
   DEFAULT_ROAD_DISTANCE_FACTOR,
   DEFAULT_TOP_N,
   estimateRoadKm,
@@ -15,6 +17,7 @@ import {
   uuidField,
   type CarrierFeed,
   type CarrierNegotiationState,
+  type CommittedTrip,
   type NegotiationOffer,
   type Recommendation,
   type Tables,
@@ -71,31 +74,63 @@ export async function listCarrierUnits(
   );
 }
 
-/** Destination city of each unit with a trip in progress (return-trip mode). */
-async function returnTripCities(supabase: Supabase): Promise<Map<string, string>> {
+/**
+ * The trips that commit the carrier's units (vehicle_trip_chain_end, F5),
+ * with the destination city of each load. RLS limits them to the trips of the
+ * caller's business units.
+ */
+async function committedTrips(
+  supabase: Supabase,
+): Promise<{ trips: CommittedTrip[]; cityByLoad: Map<string, string> }> {
   const trips = check(
     await supabase
       .from('trips')
-      .select('vehicle_id, load_id')
-      // Same statuses as return-trip mode in match_pairs (B08).
-      .in('status', ['assigned', ...ACTIVE_TRIP_STATUSES])
-      .not('vehicle_id', 'is', null),
+      .select('id, status, vehicle_id, load_id, estimated_unload_end_at, offers(vehicle_id)')
+      .in('status', [...COMMITTED_TRIP_STATUSES]),
   );
-  if (trips.length === 0) return new Map();
+  if (trips.length === 0) return { trips: [], cityByLoad: new Map() };
   const loads = check(
     await supabase
       .from('loads')
-      .select('id, destination_city')
+      .select('id, destination_city, pickup_window_start, delivery_window_end')
       .in(
         'id',
         trips.map((t) => t.load_id),
       ),
   );
-  const cityByLoad = new Map(loads.map((l) => [l.id, l.destination_city]));
+  const byId = new Map(loads.map((l) => [l.id, l]));
+  return {
+    trips: trips.flatMap((t) => {
+      const load = byId.get(t.load_id);
+      return load
+        ? [
+            {
+              id: t.id,
+              status: t.status,
+              vehicleId: t.vehicle_id,
+              offeredVehicleId: t.offers?.vehicle_id ?? null,
+              loadId: t.load_id,
+              estimatedUnloadEndAt: t.estimated_unload_end_at,
+              pickupWindowStart: load.pickup_window_start,
+              deliveryWindowEnd: load.delivery_window_end,
+            },
+          ]
+        : [];
+    }),
+    cityByLoad: new Map(loads.map((l) => [l.id, l.destination_city])),
+  };
+}
+
+/**
+ * City where each committed unit is free (return-trip mode): the destination
+ * of the last trip of its chain, where the matching starts it (F5).
+ */
+async function returnTripCities(supabase: Supabase): Promise<Map<string, string>> {
+  const { trips, cityByLoad } = await committedTrips(supabase);
   return new Map(
-    trips.flatMap((t) => {
-      const city = cityByLoad.get(t.load_id);
-      return t.vehicle_id && city ? [[t.vehicle_id, city] as const] : [];
+    [...chainEndLoads(trips)].flatMap(([unit, loadId]) => {
+      const city = cityByLoad.get(loadId);
+      return city ? [[unit, city] as const] : [];
     }),
   );
 }
@@ -201,17 +236,20 @@ export async function emptyLegs(
       )
       .is('archived_at', null)
       .lte('available_from', load.pickup_window_end),
-    // The trips vehicle_trip_chain_end (F5) chains: the unit's assigned or
-    // active trips, and those pending assignment whose offer named it.
+    // The trips vehicle_trip_chain_end (F5) chains.
     supabase
       .from('trips')
-      .select('vehicle_id, offers(vehicle_id)')
-      .in('status', ['pending_assignment', 'assigned', ...ACTIVE_TRIP_STATUSES]),
+      .select('status, vehicle_id, offers(vehicle_id)')
+      .in('status', [...COMMITTED_TRIP_STATUSES]),
   ]);
   const freeAt = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const booked = new Set(
     check(committed).flatMap((t) => {
-      const unit = t.vehicle_id ?? t.offers?.vehicle_id ?? null;
+      const unit = committedUnit({
+        status: t.status,
+        vehicleId: t.vehicle_id,
+        offeredVehicleId: t.offers?.vehicle_id ?? null,
+      });
       return unit ? [unit] : [];
     }),
   );

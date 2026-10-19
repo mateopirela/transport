@@ -72,8 +72,8 @@ using (
 create trigger share_links_rate_limit before insert on public.share_links
 for each row execute function public.enforce_rate_limit('create_share_link');
 
--- Same as F12 (20261025120000_incident_photos_clock_rate_limits.sql), except
--- it adds the create_share_link bucket (docs/seguridad.md).
+-- Same as G1b (20261027000100_invitations.sql), except it adds the
+-- create_share_link bucket (docs/seguridad.md).
 create or replace function public.rate_limit_policy(
   p_bucket text,
   out scope text,
@@ -97,6 +97,9 @@ as $$
     ('create_load', 'rpc', 30, 60),
     ('offers', 'rpc', 60, 60),
     ('record_trip_locations', 'rpc', 120, 60),
+    -- G1b: invitation links. Inviting is manual; this stops a script from
+    -- minting links in bulk.
+    ('create_invitation', 'rpc', 20, 60),
     -- G7: a person shares a handful of links; this only stops scripts.
     ('create_share_link', 'rpc', 30, 60)
   ) as v(bucket, scope, max_hits, window_seconds)

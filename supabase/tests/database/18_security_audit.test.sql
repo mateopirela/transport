@@ -225,13 +225,15 @@ select set_eq(
   ],
   'every client-callable security definer function is on the reviewed list'
 );
--- anon reaches exactly the two sanitized share-link views (G7): a token of
--- 256 bits is the only credential, and 37_share_links checks what they return.
+-- anon reaches exactly the two sanitized share-link views (G7) and the
+-- invitation preview (G1b): a token of 256 bits is the only credential of
+-- each, 37_share_links checks what the views return and 29_invitations what
+-- the preview returns.
 select set_eq(
   $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute') $$,
-  array['public_shared_load', 'public_shared_trip'],
-  'anon executes only the two public share-link views'
+  array['invitation_preview', 'public_shared_load', 'public_shared_trip'],
+  'anon executes only the invitation preview and the two public share-link views'
 );
 select set_eq(
   $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace

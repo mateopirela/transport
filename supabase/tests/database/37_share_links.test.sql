@@ -183,6 +183,9 @@ insert into public.operators (id, company_id, business_unit_id, profile_id, full
 insert into public.vehicles (id, company_id, business_unit_id, kind, plate, unit_type, capacity_kg) values
   ('e3700000-0000-4000-8000-00000000000a', 'c3700000-0000-4000-8000-000000000003', tests.val('bu_a'),
    'rigid', 'GGA3701', 'dry_van', 30000);
+-- D16 (G3): assign_trip needs a current license of a suitable type.
+update public.operators set license_type = 'E', license_expires_on = current_date + 365
+where license_type is null;
 insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
 select v.company_id, r.id, 'vehicle', v.id, v.company_id || '/vehicle/' || v.id || '/' || gen_random_uuid() || '.pdf',
        'approved', case when r.requires_expiry then now() + interval '1 year' end

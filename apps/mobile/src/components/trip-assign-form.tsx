@@ -3,6 +3,7 @@ import {
   carrierTripsCopy,
   checkAssignment,
   defaultAssignment,
+  type SpecialRequirement,
   type TripStatus,
   type UnitType,
 } from '@transport/shared';
@@ -27,6 +28,7 @@ export function TripAssignForm({
   tripId,
   status,
   loadUnitType,
+  loadRequirements,
   current,
   options,
   onAssigned,
@@ -35,6 +37,8 @@ export function TripAssignForm({
   tripId: string;
   status: TripStatus;
   loadUnitType: UnitType;
+  /** Special requirements of the load (a hazmat permit needs a type E license, D16). */
+  loadRequirements: readonly SpecialRequirement[];
   current: { vehicleId: string | null; operatorId: string | null };
   options: AssignmentOptions;
   onAssigned: () => Promise<void>;
@@ -56,7 +60,13 @@ export function TripAssignForm({
   const operator = options.operators.find((o) => o.id === operatorId) ?? null;
   const unchanged =
     assigned && vehicleId === current.vehicleId && operatorId === current.operatorId;
-  const { blockers, warnings } = checkAssignment({ unit, operator, loadUnitType });
+  const { blockers, warnings } = checkAssignment({
+    unit,
+    operator,
+    loadUnitType,
+    loadRequirements,
+    licensePairs: options.licensePairs,
+  });
 
   if (!canAssignTrip(status)) {
     return (
@@ -115,7 +125,14 @@ export function TripAssignForm({
           label={copy.operator}
           options={options.operators.map((o) => ({
             value: o.id,
-            label: tagged(o.name, o.hasAccount ? null : copy.noAccountTag),
+            label: tagged(
+              o.name,
+              !o.hasAccount
+                ? copy.noAccountTag
+                : o.licenseType
+                  ? copy.licenseTag(o.licenseType, o.licenseCurrent)
+                  : copy.noLicenseTag,
+            ),
           }))}
           value={operatorId ?? undefined}
           onChange={setOperatorId}

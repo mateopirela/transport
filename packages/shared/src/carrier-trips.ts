@@ -3,7 +3,7 @@
 // the road (last position, progress and a schematic map that needs no Maps
 // key). Pure, so the rules are unit-tested; Postgres validates the assignment
 // again in assign_trip (B06).
-import type { TripStatus, UnitType } from './enums';
+import type { LicenseType, SpecialRequirement, TripStatus, UnitType, VehicleKind } from './enums';
 import { haversineKm, type LatLng } from './geo';
 import { isTripActive } from './trips';
 
@@ -61,11 +61,63 @@ export function groupCarrierTrips<T extends GroupableTrip>(
 }
 
 // ---------------------------------------------------------------------------
+// License <-> unit kind (D16). Mirrors the license_unit_compatibility table
+// (provisional list, plan §G.2 follow-up 4) and the hazmat rule of assign_trip.
+// ---------------------------------------------------------------------------
+
+/** Unit kinds each license type may drive. */
+export type LicensePairs = Record<LicenseType, readonly VehicleKind[]>;
+
+/**
+ * The provisional pairs the migration seeds. The apps read the current table
+ * (admins may switch pairs on or off) and fall back to this list.
+ */
+export const LICENSE_VEHICLE_KINDS = {
+  B: ['tractor', 'rigid', 'trailer'],
+  C: ['rigid'],
+  E: ['tractor', 'rigid', 'trailer'],
+} as const satisfies LicensePairs;
+
+/** The allowed pairs from the rows of license_unit_compatibility. */
+export function licensePairsFrom(
+  rows: readonly { license_type: LicenseType; vehicle_kind: VehicleKind; allowed: boolean }[],
+): LicensePairs {
+  const pairs: LicensePairs = { B: [], C: [], E: [] };
+  for (const row of rows) {
+    if (row.allowed) pairs[row.license_type] = [...pairs[row.license_type], row.vehicle_kind];
+  }
+  return pairs;
+}
+
+/** License type a load with a hazmat permit requires. */
+export const HAZMAT_LICENSE_TYPE: LicenseType = 'E';
+
+/** Whether a license of `licenseType` may drive a unit of `kind` (mirrors assign_trip). */
+export function licenseAllowsVehicle(
+  licenseType: LicenseType | null,
+  kind: VehicleKind,
+  pairs: LicensePairs = LICENSE_VEHICLE_KINDS,
+): boolean {
+  if (!licenseType) return false;
+  return pairs[licenseType].includes(kind);
+}
+
+/** Whether a license of `licenseType` may carry a load with `requirements` (hazmat needs E). */
+export function licenseAllowsLoad(
+  licenseType: LicenseType | null,
+  requirements: readonly SpecialRequirement[],
+): boolean {
+  if (!licenseType) return false;
+  return !requirements.includes('hazmat_permit') || licenseType === HAZMAT_LICENSE_TYPE;
+}
+
+// ---------------------------------------------------------------------------
 // Assignment
 // ---------------------------------------------------------------------------
 
 export interface AssignableUnit {
   id: string;
+  kind: VehicleKind;
   unitType: UnitType | null;
   /** A required document is expired: assign_trip rejects it. */
   expiredDocuments: boolean;
@@ -79,11 +131,19 @@ export interface AssignableOperator {
   id: string;
   /** Only operators who accepted their invitation can record the trip. */
   hasAccount: boolean;
+  licenseType: LicenseType | null;
+  /** The license is current (approved unexpired document, or a license date today or later). */
+  licenseCurrent: boolean;
   otherTrips: number;
 }
 
 /** Reasons the server would reject an assignment: the button stays disabled. */
-export type AssignmentBlocker = 'missingSelection' | 'operatorWithoutAccount' | 'unitExpired';
+export type AssignmentBlocker =
+  | 'missingSelection'
+  | 'operatorWithoutAccount'
+  | 'operatorLicenseExpired'
+  | 'operatorLicenseMismatch'
+  | 'unitExpired';
 
 /** Allowed, but worth a second look before confirming. */
 export type AssignmentWarning = 'unitTypeMismatch' | 'unitBusy' | 'operatorBusy';
@@ -98,15 +158,29 @@ export function checkAssignment({
   unit,
   operator,
   loadUnitType,
+  loadRequirements = [],
+  licensePairs = LICENSE_VEHICLE_KINDS,
 }: {
   unit: AssignableUnit | null;
   operator: AssignableOperator | null;
   loadUnitType: UnitType;
+  loadRequirements?: readonly SpecialRequirement[];
+  /** The current license_unit_compatibility rows (admins edit them); the seeded list by default. */
+  licensePairs?: LicensePairs;
 }): AssignmentCheck {
   const blockers: AssignmentBlocker[] = [];
   const warnings: AssignmentWarning[] = [];
   if (!unit || !operator) blockers.push('missingSelection');
   if (operator && !operator.hasAccount) blockers.push('operatorWithoutAccount');
+  if (operator && !operator.licenseCurrent) blockers.push('operatorLicenseExpired');
+  if (
+    unit &&
+    operator &&
+    (!licenseAllowsVehicle(operator.licenseType, unit.kind, licensePairs) ||
+      !licenseAllowsLoad(operator.licenseType, loadRequirements))
+  ) {
+    blockers.push('operatorLicenseMismatch');
+  }
   if (unit?.expiredDocuments) blockers.push('unitExpired');
   if (unit?.unitType && unit.unitType !== loadUnitType) warnings.push('unitTypeMismatch');
   if (unit && unit.otherTrips > 0) warnings.push('unitBusy');

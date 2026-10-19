@@ -395,8 +395,10 @@ export interface Database {
           id: string;
           is_required: boolean;
           name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
           owner_type: Database['public']['Enums']['document_owner_type'];
           requires_expiry: boolean;
+          shareable_with_shipper: boolean;
           sort_order: number;
           taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at: string;
@@ -411,8 +413,10 @@ export interface Database {
           id?: string;
           is_required?: boolean;
           name: string;
+          optional_for?: Database['public']['Enums']['company_type'][];
           owner_type: Database['public']['Enums']['document_owner_type'];
           requires_expiry?: boolean;
+          shareable_with_shipper?: boolean;
           sort_order?: number;
           taxpayer_type?: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at?: string;
@@ -426,8 +430,10 @@ export interface Database {
           id?: string;
           is_required?: boolean;
           name?: string;
+          optional_for?: Database['public']['Enums']['company_type'][];
           owner_type?: Database['public']['Enums']['document_owner_type'];
           requires_expiry?: boolean;
+          shareable_with_shipper?: boolean;
           sort_order?: number;
           taxpayer_type?: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at?: string;
@@ -673,6 +679,31 @@ export interface Database {
             referencedColumns: ['company_id', 'id'];
           },
         ];
+      };
+      license_unit_compatibility: {
+        Row: {
+          allowed: boolean;
+          id: string;
+          license_type: Database['public']['Enums']['license_type'];
+          updated_at: string;
+          vehicle_kind: Database['public']['Enums']['vehicle_kind'];
+        };
+        ComputedFields: never;
+        Insert: {
+          allowed?: boolean;
+          id?: string;
+          license_type: Database['public']['Enums']['license_type'];
+          updated_at?: string;
+          vehicle_kind: Database['public']['Enums']['vehicle_kind'];
+        };
+        Update: {
+          allowed?: boolean;
+          id?: string;
+          license_type?: Database['public']['Enums']['license_type'];
+          updated_at?: string;
+          vehicle_kind?: Database['public']['Enums']['vehicle_kind'];
+        };
+        Relationships: [];
       };
       loads: {
         Row: {
@@ -1482,6 +1513,37 @@ export interface Database {
           fetched_at?: string;
           origin_lat?: number;
           origin_lng?: number;
+        };
+        Relationships: [];
+      };
+      trip_document_requirements: {
+        Row: {
+          blocks_departure: boolean;
+          is_required: boolean;
+          kind: Database['public']['Enums']['trip_document_kind'];
+          sort_order: number;
+          stage: Database['public']['Enums']['trip_document_stage'];
+          updated_at: string;
+          uploader_sides: Database['public']['Enums']['offer_side'][];
+        };
+        ComputedFields: never;
+        Insert: {
+          blocks_departure?: boolean;
+          is_required?: boolean;
+          kind: Database['public']['Enums']['trip_document_kind'];
+          sort_order?: number;
+          stage: Database['public']['Enums']['trip_document_stage'];
+          updated_at?: string;
+          uploader_sides: Database['public']['Enums']['offer_side'][];
+        };
+        Update: {
+          blocks_departure?: boolean;
+          is_required?: boolean;
+          kind?: Database['public']['Enums']['trip_document_kind'];
+          sort_order?: number;
+          stage?: Database['public']['Enums']['trip_document_stage'];
+          updated_at?: string;
+          uploader_sides?: Database['public']['Enums']['offer_side'][];
         };
         Relationships: [];
       };
@@ -2436,8 +2498,10 @@ export interface Database {
           id: string;
           is_required: boolean;
           name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
           owner_type: Database['public']['Enums']['document_owner_type'];
           requires_expiry: boolean;
+          shareable_with_shipper: boolean;
           sort_order: number;
           taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at: string;
@@ -2700,6 +2764,7 @@ export interface Database {
         };
         Returns: undefined;
       };
+      operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       product_event_properties_valid: {
         Args: { p_name: Database['public']['Enums']['product_event_name']; p_properties: Json };
@@ -2877,6 +2942,16 @@ export interface Database {
         };
         Returns: undefined;
       };
+      trip_checklist: {
+        Args: { p_trip_id: string };
+        Returns: {
+          code: string;
+          done_at: string;
+          required: boolean;
+          responsible: string;
+          stage: string;
+        }[];
+      };
       trip_event_transition: {
         Args: { p_event: Database['public']['Enums']['trip_event_type'] };
         Returns: Record<string, unknown>;
@@ -2925,8 +3000,10 @@ export interface Database {
           id: string;
           is_required: boolean;
           name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
           owner_type: Database['public']['Enums']['document_owner_type'];
           requires_expiry: boolean;
+          shareable_with_shipper: boolean;
           sort_order: number;
           taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at: string;
@@ -2949,8 +3026,10 @@ export interface Database {
           id: string;
           is_required: boolean;
           name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
           owner_type: Database['public']['Enums']['document_owner_type'];
           requires_expiry: boolean;
+          shareable_with_shipper: boolean;
           sort_order: number;
           taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
           updated_at: string;
@@ -3036,7 +3115,8 @@ export interface Database {
         | 'extended_cargo_insurance'
         | 'loading_crew';
       taxpayer_type: 'moral' | 'fisica';
-      trip_document_kind: 'carta_porte' | 'other';
+      trip_document_kind: 'service_order' | 'carta_porte' | 'invoice' | 'other';
+      trip_document_stage: 'before_departure' | 'billing';
       trip_event_type:
         | 'created'
         | 'assigned'
@@ -3288,7 +3368,8 @@ export const Constants = {
         'loading_crew',
       ],
       taxpayer_type: ['moral', 'fisica'],
-      trip_document_kind: ['carta_porte', 'other'],
+      trip_document_kind: ['service_order', 'carta_porte', 'invoice', 'other'],
+      trip_document_stage: ['before_departure', 'billing'],
       trip_event_type: [
         'created',
         'assigned',

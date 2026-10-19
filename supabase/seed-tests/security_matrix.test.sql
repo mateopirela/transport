@@ -158,6 +158,8 @@ insert into tests.ownership values
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
+  ('public.trip_document_requirements', 'true'),
+  ('public.license_unit_compatibility', 'true'),
   -- Company data.
   ('public.companies', 't.id = $1'),
   ('public.profiles', 't.company_id = $1 or t.id = $2'),

@@ -15,6 +15,20 @@ describe('carrierTripErrorMessage', () => {
       ['vehicle not found', e.unitUnavailable],
       ['vehicle has expired documents', e.unitExpired],
       ['trip is cancelled', e.tripCancelled],
+      ['the shipper side does not upload invoice documents', e.documentSideNotAllowed],
+      // D16: the operator's name travels after the colon.
+      [
+        'operator license is missing or expired: Pedro López',
+        e.operatorLicenseExpired('Pedro López'),
+      ],
+      [
+        'operator license is not suitable for this vehicle: Pedro López',
+        e.operatorLicenseMismatch('Pedro López'),
+      ],
+      [
+        'operator license is not suitable for hazardous cargo: Raúl Méndez',
+        e.operatorLicenseHazmat('Raúl Méndez'),
+      ],
       ['invalid storage path', e.invalidFile],
       ['file was not uploaded', e.invalidFile],
       ['mime type application/zip is not supported', e.invalidFile],

@@ -12,10 +12,21 @@ export function tripErrorMessage(error: PostgrestLikeError): string {
   const message = error?.message ?? '';
   switch (error?.code) {
     case '42501':
-      return message.startsWith('trip not found') ? e.notFound : e.generic;
+      if (message.startsWith('trip not found')) return e.notFound;
+      // add_trip_document (D22): the kind belongs to the carrier side.
+      if (/^the \w+ side does not upload/u.test(message)) return e.documentSideNotAllowed;
+      return e.generic;
     case '55000':
       if (message.startsWith('cannot confirm delivery')) return e.notDelivered;
       if (message.startsWith('trip is cancelled')) return e.cancelled;
+      return e.generic;
+    case '22023':
+      if (
+        message.startsWith('invalid storage path') ||
+        message.startsWith('file was not uploaded')
+      ) {
+        return e.uploadFailed;
+      }
       return e.generic;
     default:
       return e.generic;

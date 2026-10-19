@@ -10,6 +10,8 @@ import {
   operatorStepConfirmLabels,
   operatorTripCopy as copy,
   formatDateTime,
+  missingTripDocumentsFromError,
+  tripDocumentKindLabels,
   tripEventTypeLabels,
   tripStatusLabels,
   unloadEstimateProblem,
@@ -29,6 +31,7 @@ import {
   type EvidenceItem,
 } from '../../components/evidence-section';
 import { Badge, SectionTitle } from '../../components/fleet-ui';
+import { OperatorDocumentsSection } from '../../components/operator-documents-section';
 import { IncidentForm, UnloadEstimateForm } from '../../components/trip-forms';
 import {
   IncidentList,
@@ -149,15 +152,34 @@ export default function AssignedTripTab() {
     return <Loading label={copy.refresh} />;
   }
 
-  // Refused actions of any trip: the trip itself may no longer be shown.
+  // Refused actions of any trip: the trip itself may no longer be shown. A
+  // departure refused for missing documents (D22, blocks_departure) names
+  // them: the coordinator uploads them and the operator departs again. Any
+  // other refusal (an incident, a step after a changed trip) is listed too, so
+  // the operator knows what to submit again.
+  const missingDocuments = queue.rejected.flatMap(
+    (a) => missingTripDocumentsFromError(queue.rejectedReasons[a.id] ?? '') ?? [],
+  );
+  const otherRefused = queue.rejected.filter(
+    (a) => missingTripDocumentsFromError(queue.rejectedReasons[a.id] ?? '') === null,
+  );
   const rejectedNotice =
     queue.rejected.length > 0 ? (
       <Notice tone="danger" title={copy.rejectedTitle}>
-        <Body>
-          {copy.rejectedBody(
-            queue.rejected.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
-          )}
-        </Body>
+        {missingDocuments.length > 0 ? (
+          <Body>
+            {copy.rejectedMissingDocuments(
+              missingDocuments.map((kind) => tripDocumentKindLabels[kind]).join(', '),
+            )}
+          </Body>
+        ) : null}
+        {otherRefused.length > 0 ? (
+          <Body>
+            {copy.rejectedBody(
+              otherRefused.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
+            )}
+          </Body>
+        ) : null}
         <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
       </Notice>
     ) : null;
@@ -585,6 +607,8 @@ function TripView({
       ) : null}
 
       <InstructionsSection trip={trip} />
+
+      <OperatorDocumentsSection documents={trip.documents} />
 
       <View style={styles.section}>
         <SectionTitle>{copy.incidents}</SectionTitle>

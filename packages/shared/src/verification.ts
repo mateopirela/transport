@@ -26,6 +26,7 @@ export type Requirement = Pick<
   | 'company_type'
   | 'taxpayer_type'
   | 'is_required'
+  | 'optional_for'
   | 'requires_expiry'
   | 'sort_order'
   | 'archived_at'
@@ -45,7 +46,23 @@ export type SubmittedDocument = Pick<
   | 'file_name'
 >;
 
-/** Active catalog entries that apply to an owner of a company, in display order. */
+/**
+ * Whether a requirement is mandatory for a company of `companyType`: required
+ * in the catalog and not optional for that type (D16 "cuando se requiera";
+ * mirrors `company_missing_requirements` in SQL).
+ */
+export function isRequiredFor(
+  requirement: Pick<Requirement, 'is_required' | 'optional_for'>,
+  companyType: CompanyType,
+): boolean {
+  return requirement.is_required && !requirement.optional_for.includes(companyType);
+}
+
+/**
+ * Active catalog entries that apply to an owner of a company, in display
+ * order. `is_required` comes back resolved for the company's type, so every
+ * consumer (progress, readiness, labels) sees one definition.
+ */
 export function applicableRequirements<R extends Requirement>(
   requirements: readonly R[],
   ownerType: DocumentOwnerType,
@@ -61,6 +78,7 @@ export function applicableRequirements<R extends Requirement>(
         // Taxpayer type only narrows company documents (same as SQL).
         (ownerType !== 'company' || r.taxpayer_type === null || r.taxpayer_type === taxpayer),
     )
+    .map((r) => ({ ...r, is_required: isRequiredFor(r, company.type) }))
     .sort((a, b) => a.sort_order - b.sort_order || a.code.localeCompare(b.code));
 }
 

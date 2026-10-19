@@ -34,6 +34,8 @@ export interface TripQueueState extends StoredQueue {
   ready: boolean;
   /** Actions the server refused, until the operator dismisses the notice. */
   rejected: readonly QueuedAction[];
+  /** The server's message for each refused action (by id), to explain the refusal (G3). */
+  rejectedReasons: Readonly<Record<string, string>>;
   /** Grows every time something reached the server (the screen reloads). */
   syncCount: number;
 }
@@ -44,6 +46,7 @@ const EMPTY: TripQueueState = {
   pending: [],
   sent: [],
   rejected: [],
+  rejectedReasons: {},
   syncCount: 0,
 };
 
@@ -125,7 +128,7 @@ function confirmLoadedTrip(userId: string, trip: OperatorTrip | null): void {
 }
 
 export function dismissRejected(): void {
-  setState({ ...state, rejected: [] });
+  setState({ ...state, rejected: [], rejectedReasons: {} });
 }
 
 /** Thrown to stop sending when the session no longer belongs to the queue's user. */
@@ -194,6 +197,7 @@ async function runFlush(client: Supabase): Promise<void> {
       // Kept until a loaded trip shows them (confirmLoadedTrip).
       sent: [...state.sent, ...state.pending.filter((a) => sentIds.has(a.id))],
       rejected: [...state.rejected, ...result.rejected],
+      rejectedReasons: { ...state.rejectedReasons, ...result.reasons },
       syncCount: state.syncCount + (done.size > 0 ? 1 : 0),
     });
     sentThisRun.clear();

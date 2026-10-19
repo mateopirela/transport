@@ -254,8 +254,17 @@ export interface FlushResult {
   sent: string[];
   /** Actions the server refused, and the later steps of the same trip. */
   rejected: QueuedAction[];
+  /** The server's message for each refused action, by id (the dropped later steps have none). */
+  reasons: Record<string, string>;
   /** Whether it stopped early to retry later (no connection, etc.). */
   stopped: boolean;
+}
+
+/** The message of a refusal, if the error carries one. */
+function refusalMessage(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('message' in error)) return null;
+  const { message } = error as { message: unknown };
+  return typeof message === 'string' && message !== '' ? message : null;
 }
 
 /**
@@ -270,7 +279,7 @@ export async function flushQueue(
   queue: readonly QueuedAction[],
   send: (action: QueuedAction) => Promise<void>,
 ): Promise<FlushResult> {
-  const result: FlushResult = { sent: [], rejected: [], stopped: false };
+  const result: FlushResult = { sent: [], rejected: [], reasons: {}, stopped: false };
   const refusedTrips = new Set<string>();
   for (const action of queue) {
     const isIncident = action.kind === 'incident';
@@ -288,6 +297,8 @@ export async function flushQueue(
       }
       if (!isIncident) refusedTrips.add(action.tripId);
       result.rejected.push(action);
+      const reason = refusalMessage(error);
+      if (reason) result.reasons[action.id] = reason;
     }
   }
   return result;

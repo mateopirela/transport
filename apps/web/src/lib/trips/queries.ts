@@ -1,6 +1,11 @@
 import 'server-only';
 
-import { uuidField, type UnitType, type VerificationStatus } from '@transport/shared';
+import {
+  uploadableTripDocumentKinds,
+  uuidField,
+  type UnitType,
+  type VerificationStatus,
+} from '@transport/shared';
 
 import type { Supabase } from '../viewer';
 import { FINISHED_TRIP_STATUSES, type TripsView } from './tracking';
@@ -101,40 +106,51 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
   if (error) throw new Error(`Trip query failed: ${error.message}`);
   if (!trip) return null;
 
-  const [events, incidents, evidence, documents, locations, conversation, parties] =
-    await Promise.all([
-      supabase
-        .from('trip_events')
-        .select(
-          'id, event_type, occurred_at, estimated_unload_end_at, incident_id, notes, received_by_name',
-        )
-        .eq('trip_id', trip.id)
-        .order('occurred_at')
-        .order('recorded_at'),
-      supabase
-        .from('incidents')
-        .select('id, kind, description, status, occurred_at, resolution')
-        .eq('trip_id', trip.id)
-        .order('occurred_at'),
-      supabase
-        .from('trip_evidence')
-        .select('id, stage, storage_path, captured_at')
-        .eq('trip_id', trip.id)
-        .order('captured_at'),
-      supabase
-        .from('trip_documents')
-        .select('id, kind, storage_path, file_name, created_at')
-        .eq('trip_id', trip.id)
-        .order('created_at'),
-      supabase
-        .from('trip_locations')
-        .select('recorded_at, latitude, longitude')
-        .eq('trip_id', trip.id)
-        .order('recorded_at', { ascending: false })
-        .limit(MAP_POINTS_LIMIT),
-      supabase.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
-      tripParties(supabase, [trip.id]),
-    ]);
+  const [
+    events,
+    incidents,
+    evidence,
+    documents,
+    locations,
+    conversation,
+    parties,
+    checklist,
+    requirements,
+  ] = await Promise.all([
+    supabase
+      .from('trip_events')
+      .select(
+        'id, event_type, occurred_at, estimated_unload_end_at, incident_id, notes, received_by_name',
+      )
+      .eq('trip_id', trip.id)
+      .order('occurred_at')
+      .order('recorded_at'),
+    supabase
+      .from('incidents')
+      .select('id, kind, description, status, occurred_at, resolution')
+      .eq('trip_id', trip.id)
+      .order('occurred_at'),
+    supabase
+      .from('trip_evidence')
+      .select('id, stage, storage_path, captured_at')
+      .eq('trip_id', trip.id)
+      .order('captured_at'),
+    supabase
+      .from('trip_documents')
+      .select('id, kind, storage_path, file_name, created_at')
+      .eq('trip_id', trip.id)
+      .order('created_at'),
+    supabase
+      .from('trip_locations')
+      .select('recorded_at, latitude, longitude')
+      .eq('trip_id', trip.id)
+      .order('recorded_at', { ascending: false })
+      .limit(MAP_POINTS_LIMIT),
+    supabase.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
+    tripParties(supabase, [trip.id]),
+    supabase.rpc('trip_checklist', { p_trip_id: trip.id }),
+    supabase.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
+  ]);
   for (const [name, result] of Object.entries({
     events,
     incidents,
@@ -142,6 +158,8 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     documents,
     locations,
     conversation,
+    checklist,
+    requirements,
   })) {
     if (result.error) throw new Error(`Trip ${name} query failed: ${result.error.message}`);
   }
@@ -153,6 +171,10 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     incidents: incidents.data ?? [],
     evidence: evidence.data ?? [],
     documents: documents.data ?? [],
+    /** What the trip still needs (trip_checklist, D22). */
+    checklist: checklist.data ?? [],
+    /** Kinds the shipper may upload (trip_document_requirements), in order. */
+    uploadableKinds: uploadableTripDocumentKinds(requirements.data ?? [], 'shipper'),
     // Oldest first, to draw the trail in order.
     locations: (locations.data ?? []).reverse(),
     conversationId: conversation.data?.id ?? null,

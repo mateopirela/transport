@@ -14,7 +14,7 @@ import type { Supabase } from '../viewer';
 import { selectAll } from './paging';
 
 const REQUIREMENT_COLUMNS =
-  'id, code, name, description, owner_type, company_type, taxpayer_type, is_required, requires_expiry, sort_order, archived_at';
+  'id, code, name, description, owner_type, company_type, taxpayer_type, is_required, optional_for, requires_expiry, sort_order, archived_at';
 const DOCUMENT_COLUMNS =
   'id, requirement_id, owner_type, owner_id, status, review_notes, expires_at, created_at, archived_at, file_name';
 

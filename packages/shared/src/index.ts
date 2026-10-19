@@ -22,6 +22,7 @@ export * from './roles';
 export * from './schemas';
 export * from './state-machines';
 export * from './tracking';
+export * from './trip-checklist';
 export * from './trips';
 export * from './verification';
 

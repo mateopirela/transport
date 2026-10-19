@@ -60,9 +60,26 @@ export const clientTripsCopy = {
   },
   documents: {
     title: 'Documentos del viaje',
-    description: 'La Carta Porte y otros documentos que sube el transportista.',
-    empty: 'El transportista todavía no sube documentos.',
+    description:
+      'La orden de servicio la subes tú o el transportista; la Carta Porte y la factura, el transportista. Solo se guardan; no se emiten ni se validan.',
+    empty: 'Todavía no hay archivos.',
+    files: 'Archivos',
     uploadedAt: (at: string) => `Subido el ${at}`,
+    upload: {
+      title: 'Subir un documento',
+      kind: 'Tipo de documento',
+      file: 'Archivo (PDF o imagen, hasta 15 MB)',
+      submit: 'Subir documento',
+      submitting: 'Subiendo…',
+      done: 'Documento guardado. El transportista ya lo ve.',
+      chooseFile: 'Elige un archivo.',
+      cancelled: 'El viaje está cancelado: ya no se pueden subir documentos.',
+      fileIssues: {
+        empty: 'El archivo está vacío.',
+        tooLarge: 'El archivo pesa más de 15 MB.',
+        type: 'Sube un PDF o una imagen (JPG, PNG o WEBP).',
+      } as Record<'empty' | 'tooLarge' | 'type', string>,
+    },
   },
   incidents: {
     title: 'Incidencias',
@@ -93,5 +110,7 @@ export const clientTripsCopy = {
     notDelivered: 'El viaje todavía no está entregado, o ya se confirmó.',
     cancelled: 'El viaje está cancelado.',
     fileUnavailable: 'El archivo no está disponible.',
+    uploadFailed: 'No pudimos subir el archivo. Inténtalo de nuevo.',
+    documentSideNotAllowed: 'Ese tipo de documento lo sube el transportista.',
   },
 } as const;

@@ -3,6 +3,7 @@ import {
   pickOperatorTrip,
   type EvidenceMinimums,
   type Tables,
+  type TripDocumentKind,
   type TripStatus,
 } from '@transport/shared';
 
@@ -77,7 +78,20 @@ export interface OperatorTrip {
   /** Photos the server has (B23); counted against `evidenceMinimums`. */
   evidence: EvidenceRow[];
   evidenceMinimums: EvidenceMinimums;
+  /**
+   * Documents the operator reads on the road (D22: the service order and the
+   * Carta Porte). Absent in copies saved on the phone before G3.
+   */
+  documents?: OperatorTripDocument[];
 }
+
+export type OperatorTripDocument = Pick<
+  Tables<'trip_documents'>,
+  'id' | 'kind' | 'storage_path' | 'file_name' | 'created_at'
+>;
+
+/** Kinds the operator needs on the road; the rest stays with the coordinator. */
+export const OPERATOR_DOCUMENT_KINDS: TripDocumentKind[] = ['service_order', 'carta_porte'];
 
 const LOAD_COLUMNS =
   'id, origin_address, origin_city, origin_state, origin_lat, origin_lng, destination_address, destination_city, destination_state, destination_lat, destination_lng, pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end, cargo_type, description, weight_kg, special_requirements, notes';
@@ -121,7 +135,7 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
   const trip = pickOperatorTrip(candidates);
   if (!trip) return null;
 
-  const [events, incidents, vehicle, evidence, minimums] = await Promise.all([
+  const [events, incidents, vehicle, evidence, minimums, documents] = await Promise.all([
     client
       .from('trip_events')
       .select(
@@ -144,6 +158,12 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
       .eq('trip_id', trip.id)
       .order('captured_at'),
     client.from('trip_evidence_requirements').select('stage, min_photos'),
+    client
+      .from('trip_documents')
+      .select('id, kind, storage_path, file_name, created_at')
+      .eq('trip_id', trip.id)
+      .in('kind', OPERATOR_DOCUMENT_KINDS)
+      .order('created_at'),
   ]);
   if (vehicle.error) throw vehicle.error;
 
@@ -157,7 +177,20 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
     incidents: check(incidents),
     evidence: check(evidence),
     evidenceMinimums: evidenceMinimumsFrom(check(minimums)),
+    documents: check(documents),
   };
+}
+
+/** Short-lived link to open a trip document (the bucket policy checks the reader). */
+export async function operatorTripDocumentUrl(
+  client: Supabase,
+  storagePath: string,
+): Promise<string> {
+  const { data, error } = await client.storage
+    .from('trip-documents')
+    .createSignedUrl(storagePath, 60);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 /** Sends one queued action to its RPC. Throws the PostgREST error as is. */

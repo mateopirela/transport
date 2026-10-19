@@ -179,7 +179,7 @@ describe('flushQueue', () => {
       return Promise.resolve();
     });
     expect(sent).toEqual(queue.map((a) => a.id));
-    expect(result).toEqual({ sent, rejected: [], stopped: false });
+    expect(result).toEqual({ sent, rejected: [], reasons: {}, stopped: false });
   });
 
   it('stops at a retryable failure and keeps the rest for later', async () => {
@@ -196,7 +196,7 @@ describe('flushQueue', () => {
         : Promise.resolve();
     });
     expect(calls).toBe(2);
-    expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], stopped: true });
+    expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], reasons: {}, stopped: true });
   });
 
   it('keeps a rate-limited action and the rest for a later run (F12)', async () => {
@@ -209,7 +209,7 @@ describe('flushQueue', () => {
         ? Promise.reject({ code: 'PT429', message: 'rate limit exceeded' })
         : Promise.resolve(),
     );
-    expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], stopped: true });
+    expect(result).toEqual({ sent: [queue[0]?.id], rejected: [], reasons: {}, stopped: true });
   });
 
   it('drops a refused action with the later ones of its trip only', async () => {
@@ -221,7 +221,13 @@ describe('flushQueue', () => {
         ? Promise.reject({ code: '55000', message: 'cannot record departed' })
         : Promise.resolve(),
     );
-    expect(result).toEqual({ sent: [other.id], rejected: [departed, arrived], stopped: false });
+    expect(result).toEqual({
+      sent: [other.id],
+      rejected: [departed, arrived],
+      // Only the refusal itself has a reason (G3): the dropped step was never sent.
+      reasons: { [departed.id]: 'cannot record departed' },
+      stopped: false,
+    });
   });
 });
 
@@ -326,7 +332,7 @@ describe('offline incidents (F7)', () => {
       return Promise.resolve();
     });
     expect(sent).toEqual(queue.map((a) => a.id));
-    expect(result).toEqual({ sent, rejected: [], stopped: false });
+    expect(result).toEqual({ sent, rejected: [], reasons: {}, stopped: false });
   });
 
   it('keeps an incident that failed to send, and retries it with the same key', async () => {
@@ -338,14 +344,19 @@ describe('offline incidents (F7)', () => {
       return Promise.reject(new TypeError('Network request failed'));
     });
     // Nothing after it goes out of order, and nothing is dropped.
-    expect(offline).toEqual({ sent: [], rejected: [], stopped: true });
+    expect(offline).toEqual({ sent: [], rejected: [], reasons: {}, stopped: true });
 
     // The retry sends the very same action: report_incident is idempotent on its id.
     const online = await flushQueue([report, later], (action) => {
       keys.push(action.id);
       return Promise.resolve();
     });
-    expect(online).toEqual({ sent: [report.id, later.id], rejected: [], stopped: false });
+    expect(online).toEqual({
+      sent: [report.id, later.id],
+      rejected: [],
+      reasons: {},
+      stopped: false,
+    });
     expect(keys).toEqual([report.id, report.id, later.id]);
   });
 
@@ -364,6 +375,10 @@ describe('offline incidents (F7)', () => {
       sent: [afterRefusal.id],
       // The step after the refused departure would be refused too; the incident is not.
       rejected: [refusedIncident, departed, arrived],
+      reasons: {
+        [refusedIncident.id]: 'occurred_at is out of range',
+        [departed.id]: 'occurred_at is out of range',
+      },
       stopped: false,
     });
   });

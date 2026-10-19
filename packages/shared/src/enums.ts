@@ -73,6 +73,10 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export const PUSH_PLATFORMS = DB_ENUMS.push_platform;
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
 
+/** What an invitation link is for (invitations, G1b). */
+export const INVITATION_KINDS = DB_ENUMS.invitation_kind;
+export type InvitationKind = (typeof INVITATION_KINDS)[number];
+
 export const VEHICLE_KINDS = ['tractor', 'rigid', 'trailer'] as const;
 export type VehicleKind = (typeof VEHICLE_KINDS)[number];
 

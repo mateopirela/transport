@@ -44,6 +44,8 @@ Se revisaron las 54 que podían llamar los clientes (55 con `consume_rate_limit`
 
 Criterios: `search_path` fijo, `auth.uid()` obligatorio, validación explícita de rol y empresa antes de leer o escribir, error `42501` sin revelar si la fila existe, revocadas de `PUBLIC` y `anon`, y escritas en SQL o PL/pgSQL. Todas cumplen. La suite 18 guarda el inventario: una función nueva que los clientes puedan ejecutar hace fallar CI hasta que se revisa y se agrega a la lista (y a la matriz).
 
+**G1b (invitaciones por enlace).** Se agregan `create_invitation`, `revoke_invitation`, `accept_coordinator_invitation` e `invitation_preview` para clientes, y `redeem_operator_invitation_service` solo para la service role (exige además el claim `role = service_role`, como las RPC de Edge Functions). `invitation_preview` es la única función `security definer` que `anon` puede ejecutar, a propósito: el enlace es la credencial (token de 32 bytes aleatorios, 256 bits, del que solo se guarda el SHA-256), y el preview responde lo mismo (`22023`) para un token desconocido, mal formado, vencido, usado o revocado, sin devolver ningún id. Los tests 00 y 18 la listan como excepción revisada. Un restablecimiento de acceso solo se emite y se canjea para una cuenta con rol `operator` de la misma empresa (nunca para el Gerente de un hombre-camión), y solo lo emite el Gerente o un Coordinador de la unidad de negocio del operador.
+
 ## Límites de frecuencia
 
 | Edge Function | Límite | Llave | Al excederlo |
@@ -61,6 +63,7 @@ Las RPC de cliente más costosas o abusables también tienen límite propio (F12
 | `create_load` | 30 cargas por minuto | Cada borrador nuevo | Crear una carga lleva un formulario completo; 30 por minuto solo lo alcanza un script |
 | `make_offer`, `counter_offer` (y `admin_create_offer`) | 60 ofertas por minuto, en conjunto | Cada oferta o contraoferta nueva | Negociar es manual; frena las ofertas en masa y sus notificaciones |
 | `record_trip_locations` | 120 llamadas por minuto | Cada lote (hasta 500 puntos), no cada punto | La app manda un lote cada pocos minutos y, al recuperar señal, hasta 10 lotes por corrida: un atraso de horas se vacía sin chocar |
+| `create_invitation` (G1b) | 20 enlaces por minuto | Cada invitación creada | Invitar es manual; frena a un script que acuñe enlaces en masa |
 
 Al excederlo, la RPC falla con SQLSTATE `PT429` (PostgREST responde HTTP `429`) y el mensaje `rate limit exceeded`; la pista dice en cuántos segundos se libera. Las colas del teléfono (pasos e incidencias, fotos y ubicaciones) lo tratan como reintentable: conservan lo pendiente y lo mandan en la siguiente corrida, sin perder ni reordenar nada. Se cuenta con un trigger sobre la tabla que escribe cada RPC (`enforce_rate_limit`), dentro de la misma transacción: una llamada rechazada (por el límite o por otra validación) no consume, y un reintento que la RPC contesta por su llave de idempotencia tampoco, porque no crea fila. Las escrituras sin usuario (service role, pg_cron, seed) no se limitan. Estos buckets (alcance `rpc`) no se pueden consumir con `consume_rate_limit`.
 

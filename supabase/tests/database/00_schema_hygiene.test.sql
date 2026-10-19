@@ -51,7 +51,9 @@ select is_empty(
   'every security definer function in public sets search_path'
 );
 
--- No security definer function in public is executable by anon.
+-- No security definer function in public is executable by anon, except the
+-- reviewed ones that are public by design: invitation_preview (G1b) answers
+-- only to a valid invitation token and returns no id.
 select is_empty(
   $$
     select p.oid::regprocedure::text
@@ -60,8 +62,9 @@ select is_empty(
     where n.nspname = 'public'
       and p.prosecdef
       and has_function_privilege('anon', p.oid, 'execute')
+      and p.oid::regprocedure::text not in ('invitation_preview(text)')
   $$,
-  'anon cannot execute any security definer function in public'
+  'anon cannot execute any security definer function in public (except the reviewed public preview)'
 );
 
 -- anon has no privileges on the identity tables.

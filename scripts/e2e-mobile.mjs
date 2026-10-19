@@ -111,28 +111,41 @@ function gatewayContainer() {
   return `supabase_kong_${projectId}`;
 }
 
-/** fetch, retried a few times when the connection itself fails (not on HTTP errors). */
-async function fetchWithRetry(url, init) {
+/**
+ * fetch, retried a few times when the connection itself fails (never on an
+ * HTTP error). Only for requests that are safe to repeat: a write whose
+ * response is lost could otherwise run twice (a second load, a second offer).
+ */
+async function fetchWithRetry(url, init, { retry }) {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await fetch(url, init);
     } catch (error) {
-      if (attempt >= 5) throw error;
+      if (!retry || attempt >= 5) throw error;
       await new Promise((r) => setTimeout(r, 1000 * attempt));
     }
   }
 }
 
+/** Reads and the password sign-in change nothing, so a retry cannot duplicate anything. */
+function safeToRepeat(path, body) {
+  return body === undefined || path.startsWith('/auth/v1/token?grant_type=password');
+}
+
 async function api(status, path, { token, body } = {}) {
-  const response = await fetchWithRetry(`${status.apiUrl}${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: {
-      apikey: status.anonKey,
-      authorization: `Bearer ${token ?? status.anonKey}`,
-      'content-type': 'application/json',
+  const response = await fetchWithRetry(
+    `${status.apiUrl}${path}`,
+    {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: {
+        apikey: status.anonKey,
+        authorization: `Bearer ${token ?? status.anonKey}`,
+        'content-type': 'application/json',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+    { retry: safeToRepeat(path, body) },
+  );
   const text = await response.text();
   if (!response.ok) throw new Error(`${path}: ${response.status} ${text}`);
   return text ? JSON.parse(text) : null;

@@ -14,7 +14,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(83);
+select plan(90);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -621,6 +621,58 @@ select tests.login('a3100000-0000-4000-8000-000000000002');
 select throws_ok(
   $$ select public.discard_unredeemed_operator_service('a3100000-0000-4000-8000-000000000009') $$,
   '42501', null, 'a user cannot discard accounts'
+);
+reset role;
+set local role service_role;
+select tests.login_service();
+
+-- ---------------------------------------------------------------------------
+-- discard_orphan_operator_service (createUser saved the account, its answer was lost)
+-- ---------------------------------------------------------------------------
+reset role;
+insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values
+  ('a3100000-0000-4000-8000-0000000000f8', 'authenticated', 'authenticated', '528119990008@tel.transport.invalid', now(),
+   '{"provisioned_by": "redeem-invitation"}',
+   '{"role": "operator", "phone": "8119990008", "full_name": "Huérfano Reciente", "provisioning_nonce": "nonce-of-this-attempt-0123456789abcdef"}',
+   now(), now()),
+  ('a3100000-0000-4000-8000-0000000000f9', 'authenticated', 'authenticated', '528119990009@tel.transport.invalid', now(),
+   '{"provisioned_by": "redeem-invitation"}',
+   '{"role": "operator", "phone": "8119990009", "full_name": "Huérfano Viejo"}',
+   now() - interval '5 minutes', now());
+update auth.users set created_at = now() - interval '5 minutes' where id = 'a3100000-0000-4000-8000-000000000009';
+set local role service_role;
+select tests.login_service();
+select is(
+  public.discard_orphan_operator_service('528119990008@tel.transport.invalid', 'another-attempt-0123456789abcdef'), false,
+  'another attempt''s nonce does not discard the account'
+);
+select is(
+  public.discard_orphan_operator_service('528119990008@tel.transport.invalid'), false,
+  'without the nonce, an account under two minutes old is left to the redemption in flight'
+);
+select is(
+  public.discard_orphan_operator_service('528119990008@TEL.transport.invalid', 'nonce-of-this-attempt-0123456789abcdef'), true,
+  'the attempt''s own unlinked account is discarded by its nonce'
+);
+select is(
+  public.discard_orphan_operator_service('528119990009@tel.transport.invalid'), true,
+  'an unlinked leftover older than two minutes is discarded'
+);
+select is(
+  public.discard_orphan_operator_service('a3100000-0000-4000-8000-000000000009@g2.test'), false,
+  'a linked operator account is never discarded, however old'
+);
+reset role;
+select is(
+  (select count(*)::int from auth.users where id in ('a3100000-0000-4000-8000-0000000000f8', 'a3100000-0000-4000-8000-0000000000f9', 'a3100000-0000-4000-8000-000000000009')),
+  1, 'both orphans are gone and the linked account stays'
+);
+set local role authenticated;
+select tests.login('a3100000-0000-4000-8000-000000000002');
+select throws_ok(
+  $$ select public.discard_orphan_operator_service('528119990008@tel.transport.invalid') $$,
+  '42501', null, 'a user cannot discard orphan accounts'
 );
 reset role;
 set local role service_role;

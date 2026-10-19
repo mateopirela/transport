@@ -169,6 +169,8 @@ export const authCopy = {
       rateLimited: 'Hiciste demasiados intentos. Espera unos minutos y vuelve a intentarlo.',
       passwordNotSaved:
         'El enlace se usó, pero no pudimos guardar la contraseña. Pide a tu transportista un enlace nuevo.',
+      sessionsNotRevoked:
+        'Guardamos tu contraseña nueva, pero no pudimos cerrar las sesiones abiertas. Pide a tu transportista un enlace nuevo para cerrarlas.',
       generic: 'No pudimos completar el registro. Inténtalo de nuevo en unos minutos.',
     },
   },

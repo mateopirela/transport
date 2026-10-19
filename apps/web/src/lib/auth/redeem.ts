@@ -17,6 +17,7 @@ const ERRORS: Record<string, RedeemErrorKey> = {
   phone_taken: 'phoneTaken',
   rate_limited: 'rateLimited',
   password_not_saved: 'passwordNotSaved',
+  sessions_not_revoked: 'sessionsNotRevoked',
 };
 
 async function errorKey(error: unknown): Promise<RedeemErrorKey> {

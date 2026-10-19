@@ -19,12 +19,16 @@
 //    is also marked with app_metadata.provisioned_by = 'redeem-invitation'.
 //    Then redeem_operator_invitation_service links it to the company; if that
 //    fails, discard_unredeemed_operator_service deletes the account again
-//    (compensation) unless the redemption did commit.
+//    (compensation) unless the redemption did commit. If createUser's answer
+//    is lost, discard_orphan_operator_service recovers the account of this
+//    attempt by its nonce; a phone held by an unlinked leftover older than
+//    two minutes is freed the same way and the account created again.
 // 4. operator_access_reset: redeem_operator_invitation_service marks the link
 //    used and returns the operator's profile id; the password of that account
-//    is replaced and its sessions ended (revoke_user_sessions_service). If
-//    the password update fails the link stays used: the answer asks for a
-//    new one, so a link never allows two redemptions.
+//    is replaced and its sessions ended (revoke_user_sessions_service, with
+//    retries). If either fails the link stays used: the answer says what did
+//    not happen and asks for a new link (a new reset ends the sessions), so a
+//    link never allows two redemptions.
 // 5. Logs and Sentry never see the phone, the password, the email or the
 //    token: only the kind, the outcome and opaque ids.
 import { phoneAuthEmail } from '../../../packages/shared/src/phone.ts';
@@ -62,9 +66,12 @@ export type RedeemError =
   | 'invalid_invitation'
   | 'phone_taken'
   | 'password_not_saved'
+  | 'sessions_not_revoked'
   | 'upstream_error';
 
 const REQUEST_TIMEOUT_MS = 10_000;
+/** Attempts at ending the sessions after an access reset. */
+const REVOKE_ATTEMPTS = 3;
 const defaultLog = createLogger({ service: 'redeem-invitation' });
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -291,9 +298,8 @@ async function redeemOperator(body: unknown, backend: Backend, log: Logger): Pro
     return fail('upstream_error', 502);
   }
 
-  let userId: string;
-  try {
-    userId = await backend.createUser({
+  const createAccount = () =>
+    backend.createUser({
       email: authEmail,
       password,
       // Read by handle_new_user (B01): role, name and phone of the profile,
@@ -306,12 +312,44 @@ async function redeemOperator(body: unknown, backend: Backend, log: Logger): Pro
         ...(email ? { contact_email: email } : {}),
       },
     });
+  // Deletes an operator account of this phone that never got linked: this
+  // attempt's (by nonce) or an older leftover (null nonce). Never throws.
+  const discardOrphan = async (attemptNonce: string | null): Promise<boolean> => {
+    try {
+      return (
+        (await backend.rpc('discard_orphan_operator_service', {
+          p_email: authEmail,
+          p_nonce: attemptNonce,
+        })) === true
+      );
+    } catch (error) {
+      log.error('discard_orphan_operator_service failed', { error });
+      return false;
+    }
+  };
+  const isPhoneTaken = (error: unknown) =>
+    error instanceof UpstreamError && error.api.code === 'email_exists';
+
+  let userId: string;
+  try {
+    try {
+      userId = await createAccount();
+    } catch (error) {
+      // A leftover of an earlier attempt whose answer was lost holds the
+      // phone: free it and create the account once more.
+      if (!isPhoneTaken(error) || !(await discardOrphan(null))) throw error;
+      log.warn('discarded an unlinked leftover account of this phone');
+      userId = await createAccount();
+    }
   } catch (error) {
-    if (error instanceof UpstreamError && error.api.code === 'email_exists') {
+    if (isPhoneTaken(error)) {
       log.info('redeem refused', { kind: 'operator', reason: 'phone_taken' });
       return fail('phone_taken', 409);
     }
-    log.error('createUser failed', { error });
+    // The answer may be lost after GoTrue saved the account: remove this
+    // attempt's account so the phone is not left taken without a company.
+    const discarded = await discardOrphan(nonce);
+    log.error('createUser failed', { error, discarded });
     return fail('upstream_error', 502);
   }
 
@@ -389,14 +427,18 @@ async function redeemAccessReset(body: unknown, backend: Backend, log: Logger): 
     return fail('password_not_saved', 500);
   }
 
-  let sessionsRevoked = true;
-  try {
-    await backend.rpc('revoke_user_sessions_service', { p_user_id: profileId });
-  } catch (error) {
-    sessionsRevoked = false;
-    log.error('revoke_user_sessions_service failed', { profileId, error });
+  // The reset is complete only once the old sessions are gone: a stolen
+  // refresh token must not outlive it.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await backend.rpc('revoke_user_sessions_service', { p_user_id: profileId });
+      break;
+    } catch (error) {
+      log.error('revoke_user_sessions_service failed', { profileId, attempt, error });
+      if (attempt >= REVOKE_ATTEMPTS) return fail('sessions_not_revoked', 500);
+    }
   }
 
-  log.info('redeemed', { kind: 'operator_access_reset', profileId, sessionsRevoked });
-  return json({ kind: 'operator_access_reset', sessionsRevoked });
+  log.info('redeemed', { kind: 'operator_access_reset', profileId });
+  return json({ kind: 'operator_access_reset', sessionsRevoked: true });
 }

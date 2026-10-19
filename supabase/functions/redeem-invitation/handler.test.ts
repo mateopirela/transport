@@ -33,6 +33,7 @@ function setup(
     redeem?: Answer;
     updatePassword?: Answer;
     discard?: Answer;
+    discardOrphan?: Answer;
     revokeSessions?: Answer;
   } = {},
 ) {
@@ -74,6 +75,9 @@ function setup(
             Response.json([{ operator_id: 'op', profile_id: PROFILE_ID, kind: options.kind }]),
           ),
         );
+      }
+      if (url.endsWith('/rpc/discard_orphan_operator_service')) {
+        return Promise.resolve(answer(options.discardOrphan, Response.json(false)));
       }
       if (url.endsWith('/rpc/discard_unredeemed_operator_service')) {
         return Promise.resolve(answer(options.discard, Response.json(true)));
@@ -382,3 +386,77 @@ Deno.test(
     assert.equal(weak.of('/rpc/redeem_operator_invitation_service').length, 0);
   },
 );
+
+const emailExists = () =>
+  Response.json(
+    {
+      code: 422,
+      error_code: 'email_exists',
+      msg: 'A user with this email address has already been registered',
+    },
+    { status: 422 },
+  );
+
+Deno.test('operator: a lost createUser answer discards the account of this attempt', async () => {
+  const { deps, of } = setup({
+    createUser: () => {
+      throw new DOMException('timed out', 'TimeoutError');
+    },
+    discardOrphan: Response.json(true),
+  });
+  const response = await handleRedeem(post(operatorBody), deps);
+  assert.equal(response.status, 502);
+  const nonce = of('/rpc/issue_operator_provisioning_ticket_service')[0]?.body?.p_nonce;
+  assert.deepEqual(of('/rpc/discard_orphan_operator_service')[0]?.body, {
+    p_email: '528110000013@tel.transport.invalid',
+    p_nonce: nonce,
+  });
+  assert.equal(of('/rpc/redeem_operator_invitation_service').length, 0);
+});
+
+Deno.test(
+  'operator: an unlinked leftover of the phone is discarded and the account created again',
+  async () => {
+    let attempts = 0;
+    const { deps, of } = setup({
+      createUser: () => (++attempts === 1 ? emailExists() : Response.json({ id: USER_ID })),
+      discardOrphan: Response.json(true),
+    });
+    const response = await handleRedeem(post(operatorBody), deps);
+    assert.equal(response.status, 200);
+    assert.deepEqual(of('/rpc/discard_orphan_operator_service')[0]?.body, {
+      p_email: '528110000013@tel.transport.invalid',
+      p_nonce: null,
+    });
+    assert.equal(of('/auth/v1/admin/users').filter((c) => c.method === 'POST').length, 2);
+    assert.deepEqual(of('/rpc/redeem_operator_invitation_service')[0]?.body?.p_user_id, USER_ID);
+  },
+);
+
+Deno.test('operator: a phone of a linked account stays taken', async () => {
+  const { deps, of } = setup({ createUser: emailExists, discardOrphan: Response.json(false) });
+  const response = await handleRedeem(post(operatorBody), deps);
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error: 'phone_taken' });
+  assert.equal(of('/auth/v1/admin/users').filter((c) => c.method === 'POST').length, 1);
+});
+
+Deno.test('access reset: retries ending the sessions and fails if they stay open', async () => {
+  let calls = 0;
+  const flaky = setup({
+    kind: 'operator_access_reset',
+    revokeSessions: () => (++calls === 1 ? postgrestError('XX000', 'boom', 500) : Response.json(1)),
+  });
+  const ok = await handleRedeem(post({ token: TOKEN, password: 'nueva2026' }), flaky.deps);
+  assert.equal(ok.status, 200);
+  assert.equal(flaky.of('/rpc/revoke_user_sessions_service').length, 2);
+
+  const down = setup({
+    kind: 'operator_access_reset',
+    revokeSessions: () => postgrestError('XX000', 'boom', 500),
+  });
+  const failed = await handleRedeem(post({ token: TOKEN, password: 'nueva2026' }), down.deps);
+  assert.equal(failed.status, 500);
+  assert.deepEqual(await failed.json(), { error: 'sessions_not_revoked' });
+  assert.equal(down.of('/rpc/revoke_user_sessions_service').length, 3);
+});

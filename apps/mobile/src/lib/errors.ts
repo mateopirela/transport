@@ -24,6 +24,7 @@ const EDGE_FUNCTION_CODES: Record<string, MobileErrorKey> = {
   phone_taken: 'phoneTaken',
   rate_limited: 'rateLimited',
   password_not_saved: 'passwordNotSaved',
+  sessions_not_revoked: 'sessionsNotRevoked',
   invalid_body: 'unknown',
   not_configured: 'unknown',
   upstream_error: 'unknown',

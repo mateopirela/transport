@@ -1010,3 +1010,51 @@ comment on function public.discard_unredeemed_operator_service(uuid) is
 
 revoke all on function public.discard_unredeemed_operator_service(uuid) from public, anon, authenticated;
 grant execute on function public.discard_unredeemed_operator_service(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- RPC (service role only): recovers an operator account that createUser saved
+-- but whose answer redeem-invitation never got (timeout, dropped connection),
+-- so the phone is not left taken by an account without a company.
+--   * With p_nonce: the account of that very attempt (its provisioning nonce
+--     is in user_metadata), right away.
+--   * Without it: an older leftover of the same phone, created more than two
+--     minutes ago, so a redemption still in flight is never touched.
+-- The deletion itself is discard_unredeemed_operator_service (profile lock,
+-- operator role, no company, no linked operator row, provisioned marker).
+-- Returns true when an account was deleted.
+-- ---------------------------------------------------------------------------
+create function public.discard_orphan_operator_service(p_email text, p_nonce text default null)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+begin
+  -- Explicit caller check on top of the grant: only the service role key.
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service role required' using errcode = '42501';
+  end if;
+  if p_email is null then
+    return false;
+  end if;
+  select u.id into v_user_id
+  from auth.users u
+  where lower(u.email) = lower(p_email)
+    and case
+          when p_nonce is not null then u.raw_user_meta_data ->> 'provisioning_nonce' = p_nonce
+          else u.created_at < now() - interval '2 minutes'
+        end;
+  if v_user_id is null then
+    return false;
+  end if;
+  return public.discard_unredeemed_operator_service(v_user_id);
+end;
+$$;
+
+comment on function public.discard_orphan_operator_service(text, text) is
+  'Recovery of redeem-invitation (G2): deletes an operator account of that phone that was created but never linked (this attempt by nonce, or a leftover older than two minutes). Service role only.';
+
+revoke all on function public.discard_orphan_operator_service(text, text) from public, anon, authenticated;
+grant execute on function public.discard_orphan_operator_service(text, text) to service_role;

@@ -248,7 +248,8 @@ select set_eq(
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.
     'redeem_operator_invitation_service', 'revoke_user_sessions_service',
-    'issue_operator_provisioning_ticket_service', 'discard_unredeemed_operator_service'
+    'issue_operator_provisioning_ticket_service', 'discard_unredeemed_operator_service',
+    'discard_orphan_operator_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

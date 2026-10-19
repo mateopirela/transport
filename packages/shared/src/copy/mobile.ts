@@ -166,6 +166,8 @@ export const mobileErrorCopy = {
     'Ya existe una cuenta con ese teléfono. Pide a tu transportista restablecer tu acceso.',
   passwordNotSaved:
     'El enlace se usó, pero no pudimos guardar la contraseña. Pide a tu transportista un enlace nuevo.',
+  sessionsNotRevoked:
+    'Guardamos tu contraseña nueva, pero no pudimos cerrar las sesiones abiertas. Pide a tu transportista un enlace nuevo para cerrarlas.',
   rfcTaken: 'Ya hay una empresa registrada con este RFC.',
   missingFiscalData: 'Faltan datos fiscales. Revisa el domicilio fiscal y el representante legal.',
   phoneInvalid: 'Escribe un teléfono válido de 10 dígitos.',

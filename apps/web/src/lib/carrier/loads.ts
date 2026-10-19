@@ -152,7 +152,9 @@ export interface EmptyLeg {
    * compatible and free in time), so it may be proposed by default.
    * `availability`: an estimate from the unit's availability for a load the
    * matching does not list (already negotiated, beyond its radius or its
-   * limit); shown, never proposed by default.
+   * limit); shown, never proposed by default. Not given for a unit committed
+   * to a trip: the matching starts it where its chain of trips ends, which
+   * its manual availability does not reflect.
    */
   source: 'matching' | 'availability';
 }
@@ -162,7 +164,8 @@ export interface EmptyLeg {
  * pickup: from match_candidates (B08) when it lists the load, and otherwise
  * (the company already negotiates it, or it is beyond the matching's radius
  * or limit) from the unit's availability and the pickup, as the matching
- * estimates without Routes. Nearest first.
+ * estimates without Routes, unless the unit is committed to a trip. Nearest
+ * first.
  */
 export async function emptyLegs(
   supabase: Supabase,
@@ -188,16 +191,30 @@ export async function emptyLegs(
   );
   if (compatible.length === 0) return [];
   // Free in time, as match_pairs requires.
-  const availability = await supabase
-    .from('vehicle_availability')
-    .select('vehicle_id, city, state, available_from')
-    .in(
-      'vehicle_id',
-      compatible.map((unit) => unit.id),
-    )
-    .is('archived_at', null)
-    .lte('available_from', load.pickup_window_end);
+  const [availability, committed] = await Promise.all([
+    supabase
+      .from('vehicle_availability')
+      .select('vehicle_id, city, state, available_from')
+      .in(
+        'vehicle_id',
+        compatible.map((unit) => unit.id),
+      )
+      .is('archived_at', null)
+      .lte('available_from', load.pickup_window_end),
+    // The trips vehicle_trip_chain_end (F5) chains: the unit's assigned or
+    // active trips, and those pending assignment whose offer named it.
+    supabase
+      .from('trips')
+      .select('vehicle_id, offers(vehicle_id)')
+      .in('status', ['pending_assignment', 'assigned', ...ACTIVE_TRIP_STATUSES]),
+  ]);
   const freeAt = new Map(check(availability).map((a) => [a.vehicle_id, a]));
+  const booked = new Set(
+    check(committed).flatMap((t) => {
+      const unit = t.vehicle_id ?? t.offers?.vehicle_id ?? null;
+      return unit ? [unit] : [];
+    }),
+  );
   const results = await Promise.all(
     compatible.map(async (unit): Promise<EmptyLeg[]> => {
       const { data, error } = await supabase.rpc('match_candidates', {
@@ -221,6 +238,8 @@ export async function emptyLegs(
           },
         ];
       }
+      // A booked unit starts where its trips end, not at its availability.
+      if (booked.has(unit.id)) return [];
       // Availability is stored as a city preset (B18), so its coordinates are known.
       const free = freeAt.get(unit.id);
       const place = free && findCityPreset(free.city, free.state);

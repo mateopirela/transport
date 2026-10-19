@@ -33,7 +33,8 @@ const copy = carrierTripsCopy.detail;
 export default function CarrierTripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const load = useCallback(
-    ({ client, companyId }: CarrierContext) => loadCarrierTrip(client, companyId, id),
+    ({ client, companyId, isManager }: CarrierContext) =>
+      loadCarrierTrip(client, companyId, id, isManager),
     [id],
   );
   const { carrier, state, reload } = useCarrierData(load);

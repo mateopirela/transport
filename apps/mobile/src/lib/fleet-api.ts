@@ -94,7 +94,7 @@ export type Availability = Pick<
   'vehicle_id' | 'available_from' | 'city' | 'state'
 >;
 
-export interface VehicleSummary extends VehicleRow {
+export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'business_unit_id'> {
   availability: Availability | null;
   readiness: VehicleReadiness;
   /** Name of the business unit that runs it (G1a.2). */
@@ -102,7 +102,7 @@ export interface VehicleSummary extends VehicleRow {
 }
 
 const VEHICLE_COLUMNS =
-  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_units(name)';
+  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_unit_id, business_units(name)';
 
 export async function listVehicles(
   client: Supabase,
@@ -212,7 +212,8 @@ export type InvitationRow = Pick<
   'id' | 'operator_id' | 'expires_at'
 >;
 
-export interface OperatorSummary extends OperatorRow {
+export interface OperatorSummary
+  extends OperatorRow, Pick<Tables<'operators'>, 'business_unit_id'> {
   /** Pending (not accepted, revoked or expired) invitation, if any. */
   invitation: InvitationRow | null;
   /** Name of the business unit the operator drives for (G1a.2). */
@@ -227,7 +228,7 @@ export async function listOperators(
     client
       .from('operators')
       .select(
-        'id, full_name, email, phone, license_number, license_type, license_expires_on, profile_id, business_units(name)',
+        'id, full_name, email, phone, license_number, license_type, license_expires_on, profile_id, business_unit_id, business_units(name)',
       )
       .eq('company_id', companyId)
       .is('archived_at', null)

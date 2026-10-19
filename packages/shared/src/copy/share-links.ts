@@ -41,7 +41,7 @@ export const shareLinksCopy = {
     /** Shown instead of "Crear enlace" when the target can no longer be shared. */
     cannotCreate: {
       load: 'La carga ya no está publicada: no se pueden crear enlaces nuevos. Revoca los que sigan activos si ya no quieres compartirla.',
-      trip: 'El viaje se canceló: no se pueden crear enlaces nuevos. Revoca los que sigan activos si ya no quieres compartirlo.',
+      trip: 'El viaje se canceló o su seguimiento ya terminó: no se pueden crear enlaces nuevos. Revoca los que sigan activos si ya no quieres compartirlo.',
     },
   },
   public: {

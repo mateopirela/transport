@@ -253,7 +253,7 @@ Formato: objetivo, alcance, fuera de alcance, tests, aceptación, E2E que probab
 - **Objetivo:** que no quede nada del tema anterior y que el conjunto se vea como un solo producto.
 - **Alcance:**
   - Borrar los alias (`Title`, `Body`, `Card`, `Badge`, `Loaded`, `fleet-ui.tsx`, `theme.ts`, `--navy`, `font-serif`, Georgia/Marcellus/Manrope) y migrar lo que aún los use.
-  - **Prueba de higiene** (Vitest): ningún archivo de `apps/*/src` fuera del kit y de `theme.tsx` contiene un color hex o `rgba(`, `fontSize:` numérico, `borderRadius:` numérico, `shadow*`, `elevation`, ni las palabras `navy`, `Georgia`, `serif`.
+  - **Prueba de higiene** (Vitest): ningún archivo de `apps/*/src` fuera del kit, de `theme.tsx` y de `apps/web/src/app/globals.css` contiene un color hex o `rgba(`, `fontSize:` numérico, `borderRadius:` numérico, `shadow*`, `elevation`, ni las palabras `navy`, `Georgia`, `serif`.
   - Pasada de tema oscuro por todas las pantallas (capturas); pasada de contraste y de tamaños táctiles (≥44 px).
   - `pnpm e2e:mobile` completo y Playwright completo; `expo export` y `next build`.
   - Capturas finales claro/oscuro para `docs/tiendas.md` (las de las tiendas) y `docs/demo-local.md` si muestra pantallas; `apps/mobile/app.json`: color del splash y del icono adaptativo sobre `bg`/`accent`.

@@ -198,9 +198,17 @@ export interface Database {
           contact_phone: string | null;
           created_at: string;
           created_by: string | null;
+          fiscal_exterior_number: string | null;
+          fiscal_interior_number: string | null;
+          fiscal_municipality: string | null;
+          fiscal_neighborhood: string | null;
+          fiscal_postal_code: string | null;
+          fiscal_state: string | null;
+          fiscal_street: string | null;
           id: string;
           is_owner_operator: boolean;
           legal_name: string;
+          legal_representative_name: string | null;
           rfc: string;
           status: Database['public']['Enums']['verification_status'];
           status_reason: string | null;
@@ -215,9 +223,17 @@ export interface Database {
           contact_phone?: string | null;
           created_at?: string;
           created_by?: string | null;
+          fiscal_exterior_number?: string | null;
+          fiscal_interior_number?: string | null;
+          fiscal_municipality?: string | null;
+          fiscal_neighborhood?: string | null;
+          fiscal_postal_code?: string | null;
+          fiscal_state?: string | null;
+          fiscal_street?: string | null;
           id?: string;
           is_owner_operator?: boolean;
           legal_name: string;
+          legal_representative_name?: string | null;
           rfc: string;
           status?: Database['public']['Enums']['verification_status'];
           status_reason?: string | null;
@@ -231,9 +247,17 @@ export interface Database {
           contact_phone?: string | null;
           created_at?: string;
           created_by?: string | null;
+          fiscal_exterior_number?: string | null;
+          fiscal_interior_number?: string | null;
+          fiscal_municipality?: string | null;
+          fiscal_neighborhood?: string | null;
+          fiscal_postal_code?: string | null;
+          fiscal_state?: string | null;
+          fiscal_street?: string | null;
           id?: string;
           is_owner_operator?: boolean;
           legal_name?: string;
+          legal_representative_name?: string | null;
           rfc?: string;
           status?: Database['public']['Enums']['verification_status'];
           status_reason?: string | null;
@@ -1374,6 +1398,25 @@ export interface Database {
             referencedColumns: ['company_id', 'id'];
           },
         ];
+      };
+      operator_provisioning_tickets: {
+        Row: {
+          email: string;
+          expires_at: string;
+          nonce_hash: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          email: string;
+          expires_at: string;
+          nonce_hash: string;
+        };
+        Update: {
+          email?: string;
+          expires_at?: string;
+          nonce_hash?: string;
+        };
+        Relationships: [];
       };
       operators: {
         Row: {
@@ -2631,7 +2674,6 @@ export interface Database {
     Functions: {
       accept_coordinator_invitation: { Args: { p_token: string }; Returns: string };
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
-      accept_operator_invitation: { Args: { p_code: string }; Returns: string };
       add_trip_document: {
         Args: {
           p_file_name: string;
@@ -2827,6 +2869,7 @@ export interface Database {
         }[];
       };
       clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
+      company_missing_fields: { Args: { p_company_id: string }; Returns: string[] };
       company_missing_requirements: {
         Args: { p_company_id: string };
         Returns: {
@@ -2904,14 +2947,6 @@ export interface Database {
         }[];
       };
       create_load: { Args: { p_load: Json }; Returns: string };
-      create_operator_invitation: {
-        Args: { p_operator_id: string; p_valid_for_hours?: number };
-        Returns: {
-          code: string;
-          expires_at: string;
-          invitation_id: string;
-        }[];
-      };
       create_share_link: {
         Args: {
           p_kind: Database['public']['Enums']['share_link_kind'];
@@ -2928,6 +2963,11 @@ export interface Database {
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       device_time_ahead: { Args: { p_at: string }; Returns: boolean };
+      discard_orphan_operator_service: {
+        Args: { p_email: string; p_nonce?: string };
+        Returns: boolean;
+      };
+      discard_unredeemed_operator_service: { Args: { p_user_id: string }; Returns: boolean };
       document_is_shareable: { Args: { p_document_id: string }; Returns: boolean };
       document_owner_company_id: {
         Args: {
@@ -2967,6 +3007,10 @@ export interface Database {
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { p_conversation_id: string }; Returns: boolean };
+      issue_operator_provisioning_ticket_service: {
+        Args: { p_email: string; p_nonce: string };
+        Returns: undefined;
+      };
       load_negotiation_carriers: {
         Args: { p_load_id: string };
         Returns: {
@@ -3094,6 +3138,7 @@ export interface Database {
           isSetofReturn: true;
         };
       };
+      normalize_mx_phone: { Args: { p_phone: string }; Returns: string };
       notify_business_unit_coordinators: {
         Args: {
           p_business_unit_id: string;
@@ -3187,6 +3232,7 @@ export interface Database {
           profile_id: string;
         }[];
       };
+      register_company: { Args: { p_payload: Json }; Returns: string };
       register_push_token: {
         Args: { p_platform: Database['public']['Enums']['push_platform']; p_token: string };
         Returns: undefined;
@@ -3233,8 +3279,8 @@ export interface Database {
       revoke_document_share: { Args: { p_share_id: string }; Returns: undefined };
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
-      revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       revoke_share_link: { Args: { p_id: string }; Returns: undefined };
+      revoke_user_sessions_service: { Args: { p_user_id: string }; Returns: number };
       send_message: {
         Args: {
           p_attachments?: Json;

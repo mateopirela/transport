@@ -387,7 +387,7 @@ begin
 end;
 $$;
 
--- Same as G3 (20261027000100_d16_document_requirements.sql), except a unit
+-- Same as G3 (20261027010100_d16_document_requirements.sql), except a unit
 -- pending release cannot be assigned (checked under the unit lock).
 create or replace function public.assign_trip(p_trip_id uuid, p_vehicle_id uuid, p_operator_id uuid)
 returns void

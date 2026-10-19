@@ -393,7 +393,7 @@ select is_empty(
   $$ select * from tests.availability('ef500000-0000-4000-8000-000000000001') $$,
   'cancelling a trip on its way leaves V without availability'
 );
--- G5: V now waits for its release (33_vehicle_release); released where the
+-- G5: V now waits for its release (36_vehicle_release); released where the
 -- trip was called off, so the next sections can book it again.
 select public.release_vehicle(
   (select t.id from public.vehicle_release_tasks t where t.trip_id = tests.val('trip_f')),

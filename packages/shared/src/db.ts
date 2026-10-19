@@ -609,6 +609,77 @@ export interface Database {
           },
         ];
       };
+      invitations: {
+        Row: {
+          accepted_at: string | null;
+          accepted_by: string | null;
+          business_unit_ids: string[];
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          invitee_name: string | null;
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          business_unit_ids: string[];
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          invitee_name?: string | null;
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id?: string | null;
+          revoked_at?: string | null;
+          token_hash: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          business_unit_ids?: string[];
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          invitee_name?: string | null;
+          kind?: Database['public']['Enums']['invitation_kind'];
+          operator_id?: string | null;
+          revoked_at?: string | null;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'invitations_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'invitations_operator_fkey';
+            columns: ['company_id', 'operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'operators';
+            referencedColumns: ['company_id', 'id'];
+          },
+        ];
+      };
       license_unit_compatibility: {
         Row: {
           allowed: boolean;
@@ -676,8 +747,9 @@ export interface Database {
           updated_at: string;
           volume_m3: number | null;
           weight_kg: number;
+          share_link_public_load: Json | null;
         };
-        ComputedFields: never;
+        ComputedFields: 'share_link_public_load';
         Insert: {
           accepted_offer_id?: string | null;
           agreed_price_cents?: number | null;
@@ -1444,6 +1516,102 @@ export interface Database {
           origin_lng?: number;
         };
         Relationships: [];
+      };
+      share_links: {
+        Row: {
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at: string | null;
+          load_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+          trip_id: string | null;
+          view_count: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at?: string | null;
+          load_id?: string | null;
+          revoked_at?: string | null;
+          token_hash: string;
+          trip_id?: string | null;
+          view_count?: number;
+        };
+        Update: {
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          kind?: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at?: string | null;
+          load_id?: string | null;
+          revoked_at?: string | null;
+          token_hash?: string;
+          trip_id?: string | null;
+          view_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'share_links_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'share_links_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'share_links_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id'];
+          },
+          {
+            foreignKeyName: 'share_links_load_id_fkey';
+            columns: ['load_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'share_links_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       trip_document_requirements: {
         Row: {
@@ -2326,6 +2494,7 @@ export interface Database {
       };
     };
     Functions: {
+      accept_coordinator_invitation: { Args: { p_token: string }; Returns: string };
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
       accept_operator_invitation: { Args: { p_code: string }; Returns: string };
       add_trip_document: {
@@ -2589,6 +2758,20 @@ export interface Database {
         };
         Returns: string;
       };
+      create_invitation: {
+        Args: {
+          p_business_unit_ids: string[];
+          p_invitee_name?: string;
+          p_kind: Database['public']['Enums']['invitation_kind'];
+          p_operator_id?: string;
+          p_valid_for_hours?: number;
+        };
+        Returns: {
+          expires_at: string;
+          invitation_id: string;
+          token: string;
+        }[];
+      };
       create_load: { Args: { p_load: Json }; Returns: string };
       create_operator_invitation: {
         Args: { p_operator_id: string; p_valid_for_hours?: number };
@@ -2596,6 +2779,19 @@ export interface Database {
           code: string;
           expires_at: string;
           invitation_id: string;
+        }[];
+      };
+      create_share_link: {
+        Args: {
+          p_kind: Database['public']['Enums']['share_link_kind'];
+          p_load_id?: string;
+          p_trip_id?: string;
+          p_valid_for_hours?: number;
+        };
+        Returns: {
+          expires_at: string;
+          id: string;
+          token: string;
         }[];
       };
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
@@ -2621,6 +2817,18 @@ export interface Database {
         }[];
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
+      invitation_preview: {
+        Args: { p_token: string };
+        Returns: {
+          business_unit_names: string[];
+          company_legal_name: string;
+          expires_at: string;
+          invitee_name: string;
+          inviter_name: string;
+          kind: Database['public']['Enums']['invitation_kind'];
+        }[];
+      };
+      invitation_token_hash: { Args: { p_token: string }; Returns: string };
       invoke_notification_dispatcher: { Args: Record<PropertyKey, never>; Returns: number };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_company_approved: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -2781,12 +2989,15 @@ export interface Database {
         Returns: undefined;
       };
       notify_matches_for_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined };
+      open_internal_share: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       product_event_properties_valid: {
         Args: { p_name: Database['public']['Enums']['product_event_name']; p_properties: Json };
         Returns: boolean;
       };
+      public_shared_load: { Args: { p_token: string }; Returns: Json };
+      public_shared_trip: { Args: { p_token: string }; Returns: Json };
       publish_load: { Args: { p_load_id: string }; Returns: undefined };
       put_route_distances: { Args: { p_legs: Json }; Returns: undefined };
       rate_limit_hit: {
@@ -2821,6 +3032,20 @@ export interface Database {
         Returns: string;
       };
       record_trip_locations: { Args: { p_points: Json; p_trip_id: string }; Returns: number };
+      redeem_operator_invitation_service: {
+        Args: {
+          p_email?: string;
+          p_full_name?: string;
+          p_phone?: string;
+          p_token: string;
+          p_user_id: string;
+        };
+        Returns: {
+          kind: Database['public']['Enums']['invitation_kind'];
+          operator_id: string;
+          profile_id: string;
+        }[];
+      };
       register_push_token: {
         Args: { p_platform: Database['public']['Enums']['push_platform']; p_token: string };
         Returns: undefined;
@@ -2876,8 +3101,10 @@ export interface Database {
         };
         Returns: Database['public']['Enums']['verification_status'];
       };
+      revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
       revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
       revoke_operator_invitation: { Args: { p_invitation_id: string }; Returns: undefined };
+      revoke_share_link: { Args: { p_id: string }; Returns: undefined };
       send_message: {
         Args: {
           p_attachments?: Json;
@@ -2917,6 +3144,39 @@ export interface Database {
         };
         Returns: string;
       };
+      share_link_by_token: {
+        Args: { p_kind: Database['public']['Enums']['share_link_kind']; p_token: string };
+        Returns: {
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          kind: Database['public']['Enums']['share_link_kind'];
+          last_viewed_at: string | null;
+          load_id: string | null;
+          revoked_at: string | null;
+          token_hash: string;
+          trip_id: string | null;
+          view_count: number;
+        };
+        SetofOptions: {
+          from: '*';
+          to: 'share_links';
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
+      share_link_public_load: {
+        Args: {
+          p_load: Omit<
+            Database['public']['Tables']['loads']['Row'],
+            Database['public']['Tables']['loads']['ComputedFields']
+          >;
+        };
+        Returns: Json;
+      };
+      share_link_record_view: { Args: { p_id: string }; Returns: undefined };
       shipper_trip_parties: {
         Args: { p_trip_ids: string[] };
         Returns: {
@@ -3114,6 +3374,7 @@ export interface Database {
         | 'road_blockade'
         | 'other';
       incident_status: 'open' | 'resolved';
+      invitation_kind: 'coordinator' | 'operator' | 'operator_access_reset';
       license_type: 'B' | 'C' | 'E';
       load_status:
         | 'draft'
@@ -3143,6 +3404,7 @@ export interface Database {
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
       push_platform: 'ios' | 'android';
       release_task_status: 'pending' | 'released';
+      share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public';
       special_requirement:
         | 'temperature_control'
         | 'hazmat_permit'
@@ -3375,6 +3637,7 @@ export const Constants = {
         'other',
       ],
       incident_status: ['open', 'resolved'],
+      invitation_kind: ['coordinator', 'operator', 'operator_access_reset'],
       license_type: ['B', 'C', 'E'],
       load_status: [
         'draft',
@@ -3406,6 +3669,7 @@ export const Constants = {
       product_event_name: ['recommendations_viewed', 'recommendation_opened', 'offer_submitted'],
       push_platform: ['ios', 'android'],
       release_task_status: ['pending', 'released'],
+      share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public'],
       special_requirement: [
         'temperature_control',
         'hazmat_permit',

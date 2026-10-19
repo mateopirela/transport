@@ -84,8 +84,8 @@ grant execute on function tests.visible(text) to authenticated;
 --        ...05 operator O of A   ...06 operator P of A   ...07 admin
 select tests.new_user('a6000000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
 select tests.new_user('a6000000-0000-4000-8000-000000000002', 'tomas@t.test', 'shipper');
-select tests.new_user('a6000000-0000-4000-8000-000000000003', 'ana@a.test', 'carrier');
-select tests.new_user('a6000000-0000-4000-8000-000000000004', 'beto@b.test', 'carrier');
+select tests.new_user('a6000000-0000-4000-8000-000000000003', 'ana@a.test', 'manager');
+select tests.new_user('a6000000-0000-4000-8000-000000000004', 'beto@b.test', 'manager');
 select tests.new_user('a6000000-0000-4000-8000-000000000005', 'oscar@a.test', 'operator');
 select tests.new_user('a6000000-0000-4000-8000-000000000006', 'pedro@a.test', 'operator');
 select tests.new_user('a6000000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');

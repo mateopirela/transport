@@ -84,7 +84,7 @@ grant execute on all functions in schema tests to anon, authenticated;
 --            c...0c = C (shipper, física).
 select tests.new_user('a0000000-0000-4000-8000-000000000001', '{"role":"shipper"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000002', '{"role":"shipper"}');
-select tests.new_user('a0000000-0000-4000-8000-000000000003', '{"role":"carrier"}');
+select tests.new_user('a0000000-0000-4000-8000-000000000003', '{"role":"manager"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000004', '{"role":"operator"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000005', '{"role":"shipper"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000006', '{"role":"shipper"}');

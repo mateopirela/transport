@@ -89,9 +89,11 @@ export function homeFor(viewer: NonNullable<Viewer>): string {
     case 'shipper':
       if (!viewer.company) return paths.completeCompany;
       return viewer.company.status === 'approved' ? paths.shipper : paths.review;
-    case 'carrier':
+    case 'manager':
+    case 'coordinator':
     case 'operator':
-      // Carriers and operators use the mobile app (D06).
+      // Carrier staff and operators use the mobile app until the carrier web
+      // (G10a) exists (D06, D06-E1).
       return paths.mobileOnly;
   }
 }

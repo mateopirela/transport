@@ -40,7 +40,7 @@ $$;
 -- Companies: c...0a = A (shipper), c...0b = B (carrier).
 select tests.new_user('a0000000-0000-4000-8000-000000000001', '{"role":"shipper","full_name":"Ana A"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000002', '{"role":"shipper","full_name":"Beto A"}');
-select tests.new_user('a0000000-0000-4000-8000-000000000003', '{"role":"carrier","full_name":"Carla B"}');
+select tests.new_user('a0000000-0000-4000-8000-000000000003', '{"role":"manager","full_name":"Carla B"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000004', '{"role":"operator","full_name":"Omar B"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000005', '{"role":"shipper","full_name":"Admin"}');
 select tests.new_user('a0000000-0000-4000-8000-000000000006', '{"role":"shipper","full_name":"Sin Empresa"}');
@@ -64,7 +64,7 @@ update public.profiles set role = 'admin' where id = 'a0000000-0000-4000-8000-00
 select results_eq(
   $$ select role::text, full_name, company_id from public.profiles
      where id = 'a0000000-0000-4000-8000-000000000003' $$,
-  $$ values ('carrier', 'Carla B', 'c0000000-0000-4000-8000-00000000000b'::uuid) $$,
+  $$ values ('manager', 'Carla B', 'c0000000-0000-4000-8000-00000000000b'::uuid) $$,
   'sign-up creates the profile from raw_user_meta_data'
 );
 
@@ -82,7 +82,7 @@ select throws_ok(
 
 select tests.new_user(
   'a0000000-0000-4000-8000-0000000000f3',
-  '{"role":"carrier","company_id":"c0000000-0000-4000-8000-00000000000b"}'
+  '{"role":"manager","company_id":"c0000000-0000-4000-8000-00000000000b"}'
 );
 select is(
   (select company_id from public.profiles where id = 'a0000000-0000-4000-8000-0000000000f3'),

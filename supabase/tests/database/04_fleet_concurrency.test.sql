@@ -101,7 +101,7 @@ select tests.cleanup();
 select extensions.dblink_exec('setup', $sql$
   insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at) values
     ('f0000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'carla@cc.test', now(),
-     '{"role":"carrier"}', now(), now()),
+     '{"role":"manager"}', now(), now()),
     ('f0000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'zoe@cc.test', now(),
      '{"role":"operator"}', now(), now());
   insert into public.companies (id, type, legal_name, rfc)

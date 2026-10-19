@@ -11,7 +11,14 @@ import {
   type StatusOf,
 } from './state-machines';
 
-const ACTORS: readonly Actor[] = ['shipper', 'carrier', 'operator', 'admin', 'system'];
+const ACTORS: readonly Actor[] = [
+  'shipper',
+  'manager',
+  'coordinator',
+  'operator',
+  'admin',
+  'system',
+];
 const ENTITIES: readonly Entity[] = ['load', 'offer', 'trip', 'document', 'company'];
 
 describe('load state machine', () => {
@@ -46,7 +53,7 @@ describe('load state machine', () => {
   });
 
   it('does not let carriers or operators drive a load', () => {
-    expect(nextStatuses('load', 'draft', 'carrier')).toEqual([]);
+    expect(nextStatuses('load', 'draft', 'manager')).toEqual([]);
     expect(nextStatuses('load', 'published', 'operator')).toEqual([]);
   });
 
@@ -58,7 +65,7 @@ describe('load state machine', () => {
 
 describe('offer state machine', () => {
   it('resolves a pending offer', () => {
-    expect(nextStatuses('offer', 'pending', 'carrier')).toEqual([
+    expect(nextStatuses('offer', 'pending', 'manager')).toEqual([
       'accepted',
       'rejected',
       'countered',
@@ -84,14 +91,14 @@ describe('trip state machine', () => {
       const from = operatorPath[i] as StatusOf<'trip'>;
       const to = operatorPath[i + 1] as StatusOf<'trip'>;
       expect(canTransition('trip', from, to, 'operator')).toBe(true);
-      expect(canTransition('trip', from, to, 'carrier')).toBe(false);
+      expect(canTransition('trip', from, to, 'manager')).toBe(false);
       expect(canTransition('trip', from, to, 'shipper')).toBe(false);
     }
     expect(canTransition('trip', 'assigned', 'loading', 'operator')).toBe(false);
   });
 
   it('assigns by carrier or admin and closes on confirmed delivery', () => {
-    expect(canTransition('trip', 'pending_assignment', 'assigned', 'carrier')).toBe(true);
+    expect(canTransition('trip', 'pending_assignment', 'assigned', 'manager')).toBe(true);
     expect(canTransition('trip', 'pending_assignment', 'assigned', 'admin')).toBe(true);
     expect(canTransition('trip', 'pending_assignment', 'assigned', 'operator')).toBe(false);
     expect(canTransition('trip', 'delivered', 'closed', 'shipper')).toBe(true);
@@ -99,8 +106,8 @@ describe('trip state machine', () => {
   });
 
   it('allows cancelling before loading, and only the admin after', () => {
-    expect(canTransition('trip', 'at_pickup', 'cancelled', 'carrier')).toBe(true);
-    expect(canTransition('trip', 'loading', 'cancelled', 'carrier')).toBe(false);
+    expect(canTransition('trip', 'at_pickup', 'cancelled', 'manager')).toBe(true);
+    expect(canTransition('trip', 'loading', 'cancelled', 'manager')).toBe(false);
     expect(canTransition('trip', 'in_transit', 'cancelled', 'admin')).toBe(true);
     expect(canTransition('trip', 'delivered', 'cancelled', 'admin')).toBe(false);
     expect(canTransition('trip', 'assigned', 'cancelled', 'operator')).toBe(false);
@@ -131,11 +138,11 @@ describe('verification state machines (documents and companies)', () => {
   });
 
   it('lets owners resubmit after rejection or expiry', () => {
-    expect(canTransition('company', 'rejected', 'pending_review', 'carrier')).toBe(true);
+    expect(canTransition('company', 'rejected', 'pending_review', 'manager')).toBe(true);
     expect(canTransition('company', 'expired', 'pending_review', 'shipper')).toBe(true);
     expect(canTransition('company', 'rejected', 'pending_review', 'operator')).toBe(false);
     expect(canTransition('document', 'rejected', 'pending_review', 'operator')).toBe(true);
-    expect(canTransition('document', 'suspended', 'pending_review', 'carrier')).toBe(false);
+    expect(canTransition('document', 'suspended', 'pending_review', 'manager')).toBe(false);
   });
 
   it('has no terminal state', () => {

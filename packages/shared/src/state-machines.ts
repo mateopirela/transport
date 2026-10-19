@@ -52,17 +52,17 @@ const LOAD_RULES: readonly Rule<LoadStatus>[] = [
 // Who may accept, reject or counter depends on the offer's side (only the
 // counterparty may); that check needs the offer row and lives in the RPC.
 const OFFER_RULES: readonly Rule<OfferStatus>[] = [
-  { from: ['pending'], to: 'accepted', by: ['shipper', 'carrier'] },
+  { from: ['pending'], to: 'accepted', by: ['shipper', 'manager'] },
   // `system`: accepting one offer rejects the other pending offers of the load.
-  { from: ['pending'], to: 'rejected', by: ['shipper', 'carrier', 'system'] },
-  { from: ['pending'], to: 'countered', by: ['shipper', 'carrier'] },
-  { from: ['pending'], to: 'withdrawn', by: ['shipper', 'carrier'] },
+  { from: ['pending'], to: 'rejected', by: ['shipper', 'manager', 'system'] },
+  { from: ['pending'], to: 'countered', by: ['shipper', 'manager'] },
+  { from: ['pending'], to: 'withdrawn', by: ['shipper', 'manager'] },
   { from: ['pending'], to: 'expired', by: ['system'] },
 ];
 
 const TRIP_RULES: readonly Rule<TripStatus>[] = [
   // Admin may assign manually (producto §3, Admin).
-  { from: ['pending_assignment'], to: 'assigned', by: ['carrier', 'admin'] },
+  { from: ['pending_assignment'], to: 'assigned', by: ['manager', 'admin'] },
   { from: ['assigned'], to: 'en_route_to_pickup', by: ['operator'] },
   { from: ['en_route_to_pickup'], to: 'at_pickup', by: ['operator'] },
   { from: ['at_pickup'], to: 'loading', by: ['operator'] },
@@ -77,7 +77,7 @@ const TRIP_RULES: readonly Rule<TripStatus>[] = [
   {
     from: ['pending_assignment', 'assigned', 'en_route_to_pickup', 'at_pickup'],
     to: 'cancelled',
-    by: ['shipper', 'carrier', 'admin'],
+    by: ['shipper', 'manager', 'admin'],
   },
   { from: ['loading', 'in_transit', 'at_delivery', 'unloading'], to: 'cancelled', by: ['admin'] },
 ];
@@ -96,9 +96,9 @@ function verificationRules(owners: readonly Actor[]): readonly Rule<Verification
   ];
 }
 
-// Operator documents (license) may be uploaded by the operator or their carrier.
-const DOCUMENT_RULES = verificationRules(['shipper', 'carrier', 'operator']);
-const COMPANY_RULES = verificationRules(['shipper', 'carrier']);
+// Operator documents (license) may be uploaded by the operator or their manager.
+const DOCUMENT_RULES = verificationRules(['shipper', 'manager', 'operator']);
+const COMPANY_RULES = verificationRules(['shipper', 'manager']);
 
 const STATUSES: { [E in Entity]: readonly StatusOf<E>[] } = {
   load: LOAD_STATUSES,

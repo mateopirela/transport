@@ -246,9 +246,9 @@ select ok(
 
 insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
 values ('a2400000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'ana@a.test', now(),
-        '{"role": "carrier"}', now(), now()),
+        '{"role":"manager"}', now(), now()),
        ('a2400000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'beto@b.test', now(),
-        '{"role": "carrier"}', now(), now());
+        '{"role":"manager"}', now(), now());
 
 -- The window logic, with a controlled clock (as the owner).
 select is(

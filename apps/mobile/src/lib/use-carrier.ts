@@ -1,3 +1,4 @@
+import { isCarrierStaff } from '@transport/shared';
 import { useCallback, useMemo } from 'react';
 
 import { useSession } from '../providers/session';
@@ -17,7 +18,7 @@ export interface CarrierContext {
  */
 export function useCarrier(): CarrierContext | null {
   const { profile } = useSession();
-  const companyId = profile?.role === 'carrier' ? profile.companyId : null;
+  const companyId = isCarrierStaff(profile?.role) ? profile.companyId : null;
   const companyName = profile?.companyName ?? '';
   return useMemo(
     () => (supabase && companyId ? { client: supabase, companyId, companyName } : null),

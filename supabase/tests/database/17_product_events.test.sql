@@ -26,8 +26,8 @@ grant execute on all functions in schema tests to authenticated, anon;
 
 -- Users: ...01 shipper S   ...03 carrier A   ...04 carrier B   ...07 admin
 select tests.new_user('a1700000-0000-4000-8000-000000000001', 'sara@s.test', 'shipper');
-select tests.new_user('a1700000-0000-4000-8000-000000000003', 'ana@a.test', 'carrier');
-select tests.new_user('a1700000-0000-4000-8000-000000000004', 'beto@b.test', 'carrier');
+select tests.new_user('a1700000-0000-4000-8000-000000000003', 'ana@a.test', 'manager');
+select tests.new_user('a1700000-0000-4000-8000-000000000004', 'beto@b.test', 'manager');
 select tests.new_user('a1700000-0000-4000-8000-000000000007', 'admin@x.test', 'shipper');
 
 insert into public.companies (id, type, legal_name, rfc, status) values
@@ -162,7 +162,7 @@ select is(
 );
 select results_eq(
   $$ select distinct user_id, user_role::text, company_id from public.product_events $$,
-  $$ values ('a1700000-0000-4000-8000-000000000003'::uuid, 'carrier', 'c1700000-0000-4000-8000-000000000003'::uuid) $$,
+  $$ values ('a1700000-0000-4000-8000-000000000003'::uuid, 'manager', 'c1700000-0000-4000-8000-000000000003'::uuid) $$,
   'user, role and company come from the caller'
 );
 select is(

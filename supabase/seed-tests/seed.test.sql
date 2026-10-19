@@ -41,7 +41,7 @@ select ok(
   exists (
     select 1
     from public.companies c
-    join public.profiles p on p.company_id = c.id and p.role = 'carrier'
+    join public.profiles p on p.company_id = c.id and p.role = 'manager'
     join public.operators o on o.company_id = c.id and o.profile_id = p.id
     where c.id::text like '5eed0002-%' and public.taxpayer_type_for_rfc(c.rfc) = 'fisica'
   ),

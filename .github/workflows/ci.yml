@@ -125,6 +125,11 @@ jobs:
         run: |
           deno check --config supabase/functions/redeem-invitation/deno.json supabase/functions/redeem-invitation/index.ts
           deno test --config supabase/functions/redeem-invitation/deno.json supabase/functions/redeem-invitation/
+      # G6: simulated Auth, PostgREST and Storage (no keys, no network).
+      - name: Type-check and test the shared-document-url function
+        run: |
+          deno check --config supabase/functions/shared-document-url/deno.json supabase/functions/shared-document-url/index.ts
+          deno test --config supabase/functions/shared-document-url/deno.json supabase/functions/shared-document-url/
 
       # B25: request ids, structured logs and error reporting of every function.
       - name: Type-check and test the shared observability helpers

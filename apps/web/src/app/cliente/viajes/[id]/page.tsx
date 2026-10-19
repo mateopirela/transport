@@ -25,12 +25,15 @@ import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
+import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
+import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { getChat } from '@/lib/chat/queries';
 import { shipperContext } from '@/lib/loads/queries';
 import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
 import { listActiveShareLinks } from '@/lib/share-links/queries';
+import { getProviderDecisions, getSharedDocuments } from '@/lib/shared-documents/queries';
 import { getCompanyTrip } from '@/lib/trips/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 
@@ -62,7 +65,16 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   if (!data?.trip.load || !viewer) notFound();
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
   const load = trip.load;
-  const chat = data.conversationId ? await getChat(supabase, data.conversationId, companyId) : null;
+  const [chat, sharedDocuments, decisions] = await Promise.all([
+    data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
+    getSharedDocuments(supabase, trip.id),
+    getProviderDecisions(supabase, {
+      shipperCompanyId: companyId,
+      carrierCompanyIds: [trip.carrier_company_id],
+    }),
+  ]);
+  const decision = decisions.get(trip.carrier_company_id) ?? null;
+
   const now = new Date();
   // The tracking can be shared with anyone, read-only, unless the trip is
   // cancelled or closed more than 24 hours ago (G7, D23); active links stay
@@ -250,6 +262,8 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
             )}
           </section>
 
+          <SharedDocumentsList rows={sharedDocuments} mode="client" />
+
           {chat && data.conversationId && (
             <section className="space-y-3">
               <h2 className="text-2xl">{c.chat.title}</h2>
@@ -296,6 +310,12 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
               </div>
             )}
           </dl>
+
+          <ProviderStatusForm
+            carrierCompanyId={trip.carrier_company_id}
+            status={decision?.status ?? null}
+            decidedAt={decision?.decidedAt ?? null}
+          />
 
           {trip.status === 'delivered' && (
             <ConfirmDeliveryForm tripId={trip.id} clientEventId={randomUUID()} />

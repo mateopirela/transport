@@ -16,11 +16,13 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { negotiationLabel, UnitSummary, VerificationBadge } from '@/components/offers/offer-board';
 import { OfferResponse } from '@/components/offers/offer-response';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
+import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
 import { getChat } from '@/lib/chat/queries';
 import { getCompanyLoad, shipperContext } from '@/lib/loads/queries';
 import { findNegotiation, getOfferBoard } from '@/lib/offers/queries';
 import { loadPath, negotiationPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
+import { getProviderDecisions } from '@/lib/shared-documents/queries';
 import { cn } from '@/lib/utils';
 
 const c = offersCopy.negotiation;
@@ -39,7 +41,14 @@ export default async function NegotiationPage({
   const row = findNegotiation(board, negotiationId);
   const viewer = await getViewer();
   if (!row || !viewer) notFound();
-  const chat = row.conversationId ? await getChat(supabase, row.conversationId, companyId) : null;
+  const [chat, decisions] = await Promise.all([
+    row.conversationId ? getChat(supabase, row.conversationId, companyId) : null,
+    getProviderDecisions(supabase, {
+      shipperCompanyId: companyId,
+      carrierCompanyIds: [row.carrierCompanyId],
+    }),
+  ]);
+  const decision = decisions.get(row.carrierCompanyId) ?? null;
   const lostToOther = row.latest.status_reason === 'other_offer_accepted';
 
   return (
@@ -121,6 +130,11 @@ export default async function NegotiationPage({
             />
           )}
           {row.state === 'accepted' && <Notice tone="success">{c.contracted}</Notice>}
+          <ProviderStatusForm
+            carrierCompanyId={row.carrierCompanyId}
+            status={decision?.status ?? null}
+            decidedAt={decision?.decidedAt ?? null}
+          />
           {row.state === 'closed' && (
             <Notice tone="info">{lostToOther ? c.otherOfferAccepted : c.closed}</Notice>
           )}

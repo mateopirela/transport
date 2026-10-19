@@ -5,10 +5,12 @@ import {
   offerStatusLabels,
   unitTypeLabels,
   vehicleKindLabels,
+  type ProviderState,
   type VerificationStatus,
 } from '@transport/shared';
 import Link from 'next/link';
 
+import { ProviderBadge } from '@/components/shared-documents/provider-status';
 import { buttonVariants } from '@/components/ui/button';
 import { Table } from '@/components/ui/table';
 import { formatDelta, type BoardRow, type BoardVehicle } from '@/lib/offers/board';
@@ -60,8 +62,20 @@ export function negotiationLabel(row: BoardRow): string {
     : offerStatusLabels[row.latest.status];
 }
 
-/** Comparator of the offers of a load: one row per carrier. */
-export function OfferBoard({ loadId, rows }: { loadId: string; rows: readonly BoardRow[] }) {
+/**
+ * Comparator of the offers of a load: one row per carrier, with its
+ * verification and its provider status with the shipper (G6).
+ */
+export function OfferBoard({
+  loadId,
+  rows,
+  providerStates = {},
+}: {
+  loadId: string;
+  rows: readonly BoardRow[];
+  /** Provider status by carrier company id; missing = pending. */
+  providerStates?: Readonly<Record<string, ProviderState>>;
+}) {
   return (
     <Table
       headers={[
@@ -77,7 +91,10 @@ export function OfferBoard({ loadId, rows }: { loadId: string; rows: readonly Bo
         <tr key={row.negotiationId} className={cn(row.state === 'accepted' && 'bg-success/5')}>
           <td>
             <p className="font-medium">{row.carrierName}</p>
-            <VerificationBadge status={row.carrierStatus} />
+            <div className="mt-1 flex flex-wrap gap-1">
+              <VerificationBadge status={row.carrierStatus} />
+              <ProviderBadge state={providerStates[row.carrierCompanyId] ?? 'pending'} />
+            </div>
           </td>
           <td className="whitespace-nowrap">
             <p className="font-medium">{formatMxn(row.latest.amount_cents)}</p>

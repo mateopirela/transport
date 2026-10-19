@@ -28,6 +28,7 @@ export interface BoardOffer {
 export interface BoardCarrier {
   negotiation_id: string;
   conversation_id: string | null;
+  carrier_company_id: string;
   carrier_legal_name: string;
   carrier_status: VerificationStatus;
   unread_messages: number;
@@ -57,6 +58,8 @@ export type NegotiationState = 'accepted' | 'respond' | 'awaiting_carrier' | 'cl
 export interface BoardRow {
   negotiationId: string;
   conversationId: string | null;
+  /** The carrier company, for its provider status with the shipper (G6). */
+  carrierCompanyId: string;
   carrierName: string;
   carrierStatus: VerificationStatus;
   unreadMessages: number;
@@ -122,6 +125,7 @@ export function buildOfferBoard({
     rows.push({
       negotiationId: carrier.negotiation_id,
       conversationId: carrier.conversation_id,
+      carrierCompanyId: carrier.carrier_company_id,
       carrierName: carrier.carrier_legal_name,
       carrierStatus: carrier.carrier_status,
       unreadMessages: carrier.unread_messages,

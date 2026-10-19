@@ -51,6 +51,45 @@ describe('notification content', () => {
     expect(notificationContent('load_match', ROUTE).body).toContain('Monterrey → Guadalajara');
   });
 
+  it('tells the shipper how many carrier documents it can see (G6)', () => {
+    expect(notificationContent('documents_shared', { ...ROUTE, count: 4 })).toEqual({
+      title: 'Documentos del transportista',
+      body: 'Ya puedes consultar 4 documentos del transportista del viaje Monterrey → Guadalajara.',
+    });
+    expect(notificationContent('documents_shared', { count: 1 }).body).toBe(
+      'Ya puedes consultar 1 documento del transportista del viaje.',
+    );
+    expect(notificationContent('documents_shared', { count: -1 }).body).toContain('documentos');
+  });
+
+  it('names the shipper and the decision of a provider approval (G6)', () => {
+    const shipper = { shipperName: 'Aceros del Norte' };
+    expect(
+      notificationContent('provider_status_changed', { ...shipper, status: 'approved' }),
+    ).toEqual({
+      title: 'Alta de proveedor',
+      body: 'Aceros del Norte dio de alta a tu empresa como proveedor aprobado.',
+    });
+    expect(
+      notificationContent('provider_status_changed', { ...shipper, status: 'rejected' }).body,
+    ).toContain('rechazó');
+    expect(
+      notificationContent('provider_status_changed', { ...shipper, status: 'revoked' }).body,
+    ).toContain('revocó');
+    expect(notificationContent('provider_status_changed', { status: 'x' }).body).toBe(
+      'El cliente cambió el alta de tu empresa como proveedor.',
+    );
+  });
+
+  it('names the trip document that was added (G6)', () => {
+    expect(
+      notificationContent('trip_document_added', { ...ROUTE, documentKind: 'carta_porte' }).body,
+    ).toBe('Se agregó CFDI con complemento Carta Porte al viaje Monterrey → Guadalajara.');
+    expect(notificationContent('trip_document_added', { documentKind: 'nope' }).body).toBe(
+      'Se agregó un documento al viaje.',
+    );
+  });
+
   it('names the document and the reason of a rejection', () => {
     const data = { requirementName: 'Comprobante de domicilio', reviewNotes: 'Es ilegible.' };
     expect(notificationContent('document_approved', data).body).toBe(

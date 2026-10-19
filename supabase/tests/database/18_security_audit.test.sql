@@ -214,6 +214,8 @@ select set_eq(
     -- Chat and notifications (B07).
     'send_message', 'mark_conversation_read', 'register_push_token', 'unregister_push_token',
     'mark_notifications_read',
+    -- Documents shared with the shipper and provider approval (G6).
+    'trip_shared_documents', 'revoke_document_share', 'set_provider_status',
     -- Product analytics (B25): records the caller's own event.
     'track_product_event',
     -- Share links (G7, D23). The two public_* views are also granted to anon
@@ -245,12 +247,16 @@ select set_eq(
     'notify_document_review', 'notify_load_match', 'vehicles_end_availability',
     'companies_create_default_business_unit', 'default_business_unit',
     'operators_revoke_invitations_on_unit_change',
+    'trips_sync_document_shares', 'trips_lock_document_shares', 'documents_sync_shares',
+    'notify_trip_document_added',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.
     'redeem_operator_invitation_service', 'revoke_user_sessions_service',
     'issue_operator_provisioning_ticket_service', 'discard_unredeemed_operator_service',
-    'discard_orphan_operator_service'
+    'discard_orphan_operator_service',
+    -- G6's shared-document-url Edge Function.
+    'authorize_shared_document_view_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

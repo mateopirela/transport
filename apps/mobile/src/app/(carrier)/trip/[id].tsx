@@ -15,6 +15,7 @@ import { Badge, Loaded, SectionTitle } from '../../../components/fleet-ui';
 import { TripAssignForm } from '../../../components/trip-assign-form';
 import { TripDocumentsSection } from '../../../components/trip-documents-section';
 import { TripMap } from '../../../components/trip-map';
+import { SharedDocumentsSection } from '../../../components/shared-documents-section';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
 import { Body, Notice, Screen } from '../../../components/ui';
@@ -27,7 +28,8 @@ const copy = carrierTripsCopy.detail;
 
 /**
  * A won trip for the carrier (B20): status, route and the map while it is on
- * the road, "Asignar operador" until the operator departs, the timeline,
+ * the road, "Asignar operador" until the operator departs, the documents, what
+ * is shared with the shipper and its provider status (G6), the timeline,
  * incidents, evidence and the trip chat.
  */
 export default function CarrierTripDetail() {
@@ -133,6 +135,14 @@ export default function CarrierTripDetail() {
                 documents={detail.documents}
                 checklist={detail.checklist}
                 uploadableKinds={detail.uploadableKinds}
+                onChanged={reload}
+              />
+
+              <SharedDocumentsSection
+                client={carrier.client}
+                rows={detail.sharedDocuments}
+                provider={detail.provider}
+                canRevoke={carrier.isManager}
                 onChanged={reload}
               />
 

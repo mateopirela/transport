@@ -22,6 +22,7 @@ export * from './rfc';
 export * from './roles';
 export * from './schemas';
 export * from './share-links';
+export * from './shared-documents';
 export * from './state-machines';
 export * from './tracking';
 export * from './trip-checklist';

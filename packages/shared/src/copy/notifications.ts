@@ -1,9 +1,9 @@
 // Spanish text of the notifications (B07). Postgres stores only the type and
 // the data of each notification; the in-app inbox (B14, B19) and the push and
 // email dispatcher (B09) render them here, so the text lives in one place.
-import type { NotificationType, TripEventType, TripStatus } from '../enums';
+import type { NotificationType, TripDocumentKind, TripEventType, TripStatus } from '../enums';
 import { formatMxn } from '../formatters';
-import { tripEventTypeLabels, tripStatusLabels } from './catalogs';
+import { tripDocumentKindLabels, tripEventTypeLabels, tripStatusLabels } from './catalogs';
 
 export interface NotificationContent {
   title: string;
@@ -115,6 +115,39 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
       return {
         title: 'Documento por vencer',
         body: `${name}${owner ? ` (${owner})` : ''} ${expiry(data)}. Actualízalo para seguir operando.`,
+      };
+    }
+    case 'documents_shared': {
+      const n = count(data, 'count');
+      const what =
+        n === undefined || n === 0 ? 'documentos' : n === 1 ? '1 documento' : `${n} documentos`;
+      return {
+        title: 'Documentos del transportista',
+        body: `Ya puedes consultar ${what} del transportista del viaje${route(data)}.`,
+      };
+    }
+    case 'provider_status_changed': {
+      const shipper = text(data, 'shipperName') ?? 'El cliente';
+      const status = text(data, 'status');
+      const body =
+        status === 'approved'
+          ? `${shipper} dio de alta a tu empresa como proveedor aprobado.`
+          : status === 'rejected'
+            ? `${shipper} rechazó el alta de tu empresa como proveedor.`
+            : status === 'revoked'
+              ? `${shipper} revocó el alta de tu empresa como proveedor.`
+              : `${shipper} cambió el alta de tu empresa como proveedor.`;
+      return { title: 'Alta de proveedor', body };
+    }
+    case 'trip_document_added': {
+      const kind = text(data, 'documentKind');
+      const label =
+        kind && Object.hasOwn(tripDocumentKindLabels, kind)
+          ? tripDocumentKindLabels[kind as TripDocumentKind]
+          : 'un documento';
+      return {
+        title: 'Nuevo documento del viaje',
+        body: `Se agregó ${label} al viaje${route(data)}.`,
       };
     }
     case 'trip_location_stale': {

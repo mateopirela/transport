@@ -216,7 +216,7 @@ export async function getCarrierTrip(
   const { data: trip, error } = await supabase
     .from('trips')
     .select(
-      `id, load_id, offer_id, status, business_unit_id, vehicle_id, operator_id,
+      `id, load_id, offer_id, shipper_company_id, status, business_unit_id, vehicle_id, operator_id,
        estimated_unload_end_at, started_at, cancellation_reason, created_at,
        vehicle:vehicles!trips_vehicle_fkey(plate, fleet_number),
        operator:operators!trips_operator_fkey(full_name),

@@ -77,6 +77,31 @@ describe('notificationHref', () => {
     expect(notificationHref('trip_location_stale', { tripId: LOAD }, 'transportista')).toBeNull();
   });
 
+  it('opens the trip of the shared documents and trip documents (G6)', () => {
+    for (const type of ['documents_shared', 'trip_document_added'] as const) {
+      expect(notificationHref(type, { loadId: LOAD, tripId: NEGOTIATION })).toBe(
+        `/cliente/viajes/${NEGOTIATION}`,
+      );
+      expect(notificationHref(type, { tripId: '../x' })).toBeNull();
+    }
+    expect(notificationHref('provider_status_changed', { tripId: LOAD })).toBeNull();
+    expect(notificationHref('trip_document_added', { tripId: NEGOTIATION }, 'transportista')).toBe(
+      `/transportista/viajes/${NEGOTIATION}`,
+    );
+    expect(
+      notificationHref(
+        'provider_status_changed',
+        { tripId: LOAD, negotiationId: NEGOTIATION },
+        'transportista',
+      ),
+    ).toBe(`/transportista/viajes/${LOAD}`);
+    expect(
+      notificationHref('provider_status_changed', { negotiationId: NEGOTIATION }, 'transportista'),
+    ).toBe(`/transportista/negociaciones/${NEGOTIATION}`);
+    expect(notificationHref('provider_status_changed', {}, 'transportista')).toBeNull();
+    expect(notificationHref('documents_shared', { tripId: LOAD }, 'transportista')).toBeNull();
+  });
+
   it('handles every notification type in both areas', () => {
     for (const type of NOTIFICATION_TYPES) {
       expect(() => notificationHref(type, {})).not.toThrow();

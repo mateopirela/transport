@@ -69,8 +69,21 @@ export function notificationHref(
       case 'document_rejected':
       case 'document_expiring':
         return carrierDocumentHref(data);
-      // The location reminder is for the operator (B09).
+      // G6: a document of the trip uploaded by the shipper; the shipper's
+      // decision about the company, on its latest trip or negotiation.
+      case 'trip_document_added': {
+        const tripId = id(data, 'tripId');
+        return tripId && carrierTripPath(tripId);
+      }
+      case 'provider_status_changed': {
+        const tripId = id(data, 'tripId');
+        if (tripId) return carrierTripPath(tripId);
+        return negotiationId && carrierNegotiationPath(negotiationId);
+      }
+      // The location reminder is for the operator (B09); the shared documents,
+      // for the shipper (G6).
       case 'trip_location_stale':
+      case 'documents_shared':
         return null;
     }
   }
@@ -88,10 +101,17 @@ export function notificationHref(
       if (tripId) return tripPath(tripId);
       return loadId && loadPath(loadId);
     }
+    // G6: the carrier's documents shared on the trip, or a document of it.
+    case 'documents_shared':
+    case 'trip_document_added': {
+      const tripId = id(data, 'tripId');
+      return tripId && tripPath(tripId);
+    }
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2) or company documents, which have no screen for an
     // approved shipper.
     case 'load_match':
+    case 'provider_status_changed':
     case 'trip_location_stale':
     case 'trip_unassigned':
     case 'document_approved':

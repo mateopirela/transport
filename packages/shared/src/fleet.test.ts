@@ -8,6 +8,7 @@ import {
   expiredRequirementIds,
   findCityPreset,
   fleetErrorText,
+  fromEwkbPoint,
   mexicoCityDateTime,
   mexicoCityParts,
   toEwktPoint,
@@ -335,5 +336,25 @@ describe('fleetErrorText', () => {
   it('leaves unknown messages to the caller', () => {
     expect(fleetErrorText('')).toBeNull();
     expect(fleetErrorText('permission denied for table vehicles')).toBeNull();
+  });
+});
+
+describe('fromEwkbPoint', () => {
+  it('reads the point PostgREST returns for a geography column', () => {
+    // Monterrey and Saltillo as stored by the seed.
+    const mty = fromEwkbPoint('0101000020E610000000917EFB3A1459C0006F8104C5AF3940');
+    expect(mty?.lat).toBeCloseTo(25.6866, 4);
+    expect(mty?.lng).toBeCloseTo(-100.3161, 4);
+    const saltillo = fromEwkbPoint('0101000020e61000005f07ce19513e59c039d6c56d34703940');
+    expect(saltillo?.lat).toBeCloseTo(25.4383, 4);
+    expect(saltillo?.lng).toBeCloseTo(-100.9737, 4);
+  });
+
+  it('refuses anything that is not a 4326 point', () => {
+    expect(fromEwkbPoint(null)).toBeNull();
+    expect(fromEwkbPoint('SRID=4326;POINT(-100 25)')).toBeNull();
+    // Without the SRID flag (plain WKB) or with another SRID.
+    expect(fromEwkbPoint('0101000000000000000000000000000000000000000000000000')).toBeNull();
+    expect(fromEwkbPoint('0101000020E710000000917EFB3A1459C0006F8104C5AF3940')).toBeNull();
   });
 });

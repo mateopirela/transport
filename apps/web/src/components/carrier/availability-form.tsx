@@ -13,6 +13,7 @@ import { useActionState, useId } from 'react';
 import { Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { SAVED_CITY_ID } from '@/lib/carrier/availability';
 import type { Availability } from '@/lib/carrier/fleet';
 import { clearCarrierAvailability, setCarrierAvailability } from '@/lib/carrier/fleet-actions';
 import type { FormState } from '@/lib/forms';
@@ -37,9 +38,14 @@ export function AvailabilityForm({
   const id = useId();
   // Editing keeps the saved moment unless the carrier changes it.
   const parts = mexicoCityParts(current ? new Date(current.available_from) : new Date());
+  // A trip can leave the unit free in a city that is not a preset (its
+  // destination): that place stays an option, and the default, so changing
+  // only the moment does not move the unit.
+  const preset = current ? findCityPreset(current.city, current.state) : undefined;
+  const savedElsewhere = current !== null && preset === undefined;
   const initial: FormState = {
     values: {
-      cityId: (current && findCityPreset(current.city, current.state)?.id) ?? 'mty',
+      cityId: preset?.id ?? (savedElsewhere ? SAVED_CITY_ID : 'mty'),
       date: parts.date,
       time: parts.time,
     },
@@ -77,6 +83,11 @@ export function AvailabilityForm({
                 defaultValue={values.cityId}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
+                {savedElsewhere && (
+                  <option value={SAVED_CITY_ID}>
+                    {current.city}, {current.state}
+                  </option>
+                )}
                 {CITY_PRESETS.map((city) => (
                   <option key={city.id} value={city.id}>
                     {city.city}, {city.state}

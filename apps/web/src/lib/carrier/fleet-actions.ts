@@ -10,6 +10,7 @@ import {
   fleetCopy,
   fleetErrorCopy,
   fleetErrorText,
+  fromEwkbPoint,
   isManager,
   operatorDraftSchemaFor,
   submitDocumentSchema,
@@ -26,6 +27,7 @@ import { carrierOperatorPath, carrierUnitPath, paths } from '../routing';
 import { getViewer } from '../session';
 import { createClient } from '../supabase/server';
 import { onboardingErrorMessage } from '../verification/errors';
+import { SAVED_CITY_ID } from './availability';
 import { FLEET_FLASH_PARAM, operatorSchemaInput, vehicleSchemaInput } from './fleet-forms';
 
 // Server actions of the carrier's fleet screens (G10b; B18 on the app).
@@ -154,16 +156,20 @@ export async function setCarrierAvailability(
   const vehicleId = uuidOf(formData, 'vehicleId');
   if (!vehicleId) return { error: c.units.notFound };
   const entries = formEntries(formData);
+  const keepSaved = entries.cityId === SAVED_CITY_ID;
   const parsed = availabilityFormSchema.safeParse({
-    cityId: entries.cityId,
+    // The saved place is not a preset; any preset id validates the moment.
+    cityId: keepSaved ? 'mty' : entries.cityId,
     date: entries.date,
     time: entries.time,
   });
   if (!parsed.success) return invalidForm(parsed.error, entries);
-  const city = cityPreset(parsed.data.cityId);
-  if (!city) return { error: c.errors.generic, values: refillValues(entries) };
   const supabase = await createClient();
   if (!supabase) return notConfigured;
+  const city = keepSaved
+    ? await savedPlace(supabase, vehicleId)
+    : (cityPreset(parsed.data.cityId) ?? null);
+  if (!city) return { error: c.errors.generic, values: refillValues(entries) };
   const { error } = await supabase.rpc('set_vehicle_availability', {
     p_vehicle_id: vehicleId,
     p_available_from: parsed.data.availableFrom,
@@ -174,6 +180,22 @@ export async function setCarrierAvailability(
   });
   if (error) return { error: fleetError(error), values: refillValues(entries) };
   return done(fleetCopy.availability.saved);
+}
+
+/** The place of the unit's current availability (RLS: the viewer's business units). */
+async function savedPlace(
+  supabase: NonNullable<Awaited<ReturnType<typeof createClient>>>,
+  vehicleId: string,
+): Promise<{ city: string; state: string; lat: number; lng: number } | null> {
+  const { data, error } = await supabase
+    .from('vehicle_availability')
+    .select('city, state, location')
+    .eq('vehicle_id', vehicleId)
+    .is('archived_at', null)
+    .maybeSingle();
+  if (error || !data) return null;
+  const point = fromEwkbPoint(data.location);
+  return point && { city: data.city, state: data.state, ...point };
 }
 
 /** Marks a unit as not available (clear_vehicle_availability). */

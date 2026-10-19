@@ -112,6 +112,29 @@ export function toEwktPoint({ lat, lng }: { lat: number; lng: number }): string 
   return `SRID=4326;POINT(${lng} ${lat})`;
 }
 
+/**
+ * Coordinates of a `geography(Point, 4326)` as PostgREST returns it: hex
+ * EWKB (byte order, type with the SRID flag, SRID, then longitude and
+ * latitude as doubles). Null for anything else.
+ */
+export function fromEwkbPoint(value: unknown): { lat: number; lng: number } | null {
+  if (typeof value !== 'string' || !/^(?:[0-9a-f]{2}){25}$/iu.test(value)) return null;
+  const bytes = Uint8Array.from({ length: value.length / 2 }, (_, i) =>
+    Number.parseInt(value.slice(2 * i, 2 * i + 2), 16),
+  );
+  const view = new DataView(bytes.buffer);
+  const little = bytes[0] === 1;
+  if (!little && bytes[0] !== 0) return null;
+  const type = view.getUint32(1, little);
+  if (type !== 0x20000001 || view.getUint32(5, little) !== 4326) return null;
+  const lng = view.getFloat64(9, little);
+  const lat = view.getFloat64(17, little);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return null;
+  }
+  return { lat, lng };
+}
+
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/u;
 

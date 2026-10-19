@@ -32,12 +32,6 @@ export function companyFlashMessage(value: string | string[] | undefined): strin
     : null;
 }
 
-function check<T>({ data, error }: { data: T; error: { message: string } | null }): NonNullable<T> {
-  if (error) throw new Error(error.message);
-  if (data === null || data === undefined) throw new Error('empty response');
-  return data;
-}
-
 export interface CompanyCoordinator {
   id: string;
   fullName: string | null;
@@ -72,22 +66,37 @@ export async function loadManagerCompany(
 ): Promise<ManagerCompany> {
   const now = new Date();
   const [units, coordinators, assignments, vehicles, operators, invitations] = await Promise.all([
-    supabase
-      .from('business_units')
-      .select('id, name')
-      .eq('company_id', companyId)
-      .is('archived_at', null)
-      .order('name'),
-    supabase
-      .from('profiles')
-      .select('id, full_name, phone')
-      .eq('company_id', companyId)
-      .eq('role', 'coordinator')
-      .order('full_name'),
-    supabase
-      .from('business_unit_coordinators')
-      .select('profile_id, business_unit_id')
-      .eq('company_id', companyId),
+    // Paged like the rest: a cut-off list of assignments would be saved
+    // back by set_coordinator_units as the full selection.
+    selectAll((from, to) =>
+      supabase
+        .from('business_units')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .is('archived_at', null)
+        .order('name')
+        .order('id')
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .eq('company_id', companyId)
+        .eq('role', 'coordinator')
+        .order('full_name')
+        .order('id')
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      supabase
+        .from('business_unit_coordinators')
+        .select('profile_id, business_unit_id')
+        .eq('company_id', companyId)
+        .order('profile_id')
+        .order('business_unit_id')
+        .range(from, to),
+    ),
     selectAll((from, to) =>
       supabase
         .from('vehicles')
@@ -122,12 +131,12 @@ export async function loadManagerCompany(
     ),
   ]);
   const unitsOf = new Map<string, string[]>();
-  for (const a of check(assignments)) {
+  for (const a of assignments) {
     unitsOf.set(a.profile_id, [...(unitsOf.get(a.profile_id) ?? []), a.business_unit_id]);
   }
   return {
-    units: check(units),
-    coordinators: check(coordinators).map((p) => ({
+    units,
+    coordinators: coordinators.map((p) => ({
       id: p.id,
       fullName: p.full_name,
       phone: p.phone,

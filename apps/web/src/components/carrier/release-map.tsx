@@ -104,13 +104,16 @@ export function ReleaseMap({
         cleanup.push(() => listener.remove());
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (cancelled) return;
+        // Without markers no point can be picked: the form must not offer it.
+        setFailed(true);
+        onReady(false);
       });
     return () => {
       cancelled = true;
       for (const fn of cleanup) fn();
     };
-  }, [map, origin, destination, last, onPick]);
+  }, [map, origin, destination, last, onPick, onReady]);
 
   // The picked point follows the clicks.
   useEffect(() => {

@@ -48,11 +48,33 @@ describe('notificationHref', () => {
     expect(notificationHref('load_match', { loadId: LOAD }, 'transportista')).toBe(
       `/transportista/cargas/${LOAD}`,
     );
-    // Trips arrive with G10b.
-    expect(notificationHref('trip_assigned', { loadId: LOAD, tripId: LOAD }, 'transportista')).toBe(
-      null,
-    );
-    expect(notificationHref('document_expiring', { loadId: LOAD }, 'transportista')).toBeNull();
+  });
+
+  it('sends the carrier staff to their trips and fleet documents (G10b)', () => {
+    for (const type of ['trip_assigned', 'trip_status_changed', 'trip_unassigned'] as const) {
+      expect(notificationHref(type, { loadId: LOAD, tripId: NEGOTIATION }, 'transportista')).toBe(
+        `/transportista/viajes/${NEGOTIATION}`,
+      );
+      expect(notificationHref(type, { loadId: LOAD, tripId: 'x' }, 'transportista')).toBe(
+        `/transportista/cargas/${LOAD}`,
+      );
+    }
+    for (const type of ['document_approved', 'document_rejected', 'document_expiring'] as const) {
+      expect(notificationHref(type, { ownerType: 'vehicle', ownerId: LOAD }, 'transportista')).toBe(
+        `/transportista/flota/unidades/${LOAD}`,
+      );
+      expect(
+        notificationHref(type, { ownerType: 'operator', ownerId: LOAD }, 'transportista'),
+      ).toBe(`/transportista/flota/operadores/${LOAD}`);
+      // Company documents have no carrier screen until G4; malformed ids are dropped.
+      expect(
+        notificationHref(type, { ownerType: 'company', ownerId: LOAD }, 'transportista'),
+      ).toBeNull();
+      expect(
+        notificationHref(type, { ownerType: 'vehicle', ownerId: '../x' }, 'transportista'),
+      ).toBeNull();
+    }
+    expect(notificationHref('trip_location_stale', { tripId: LOAD }, 'transportista')).toBeNull();
   });
 
   it('handles every notification type in both areas', () => {

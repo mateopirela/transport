@@ -139,6 +139,9 @@ export const carrierTripsCopy = {
   errors: {
     notFound: 'Este viaje ya no está disponible.',
     notAssignable: 'El operador ya salió: la asignación ya no se puede cambiar.',
+    /** cancel_trip (B06): the operator already started loading. */
+    notCancellable: 'El viaje ya no se puede cancelar: el operador ya está cargando o en camino.',
+    cancelReason: 'Escribe el motivo de la cancelación (máximo 1000 caracteres).',
     notApproved: 'Tu empresa debe estar aprobada para asignar viajes.',
     operatorUnavailable: 'Este operador ya no está disponible o no tiene cuenta. Elige otro.',
     unitUnavailable: 'Esta unidad ya no está disponible. Elige otra.',

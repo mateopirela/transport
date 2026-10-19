@@ -9,6 +9,8 @@ export const users = {
   ana: 'ana.garza@demo.test',
   /** Shipper of Alimentos de Occidente: owns the GDL -> MTY return load. */
   luis: 'luis.ramirez@demo.test',
+  /** Shipper of Empaques Plásticos Regios: owns the León -> Apodaca load. */
+  sofia: 'sofia.trevino@demo.test',
   /** Gerente of Transportes Regios del Norte: operates both business units. */
   jorge: 'jorge.villarreal@demo.test',
   /** Coordinadora of TRN's "Corredor MTY–GDL": TRN-01, CS53-01 and Pedro. */
@@ -43,6 +45,8 @@ export const ids = {
   /** Operators of Transportes Regios with an account. */
   pedroOperator: '5eed0003-0000-4000-8000-000000000001',
   raulOperator: '5eed0003-0000-4000-8000-000000000002',
+  /** "Regional Monterrey", the second business unit of Transportes Regios (G1a). */
+  regionalUnit: '5eed0009-0000-4000-8000-000000000002',
 } as const;
 
 /** Points used for the operator's events (D11: every event has a location). */

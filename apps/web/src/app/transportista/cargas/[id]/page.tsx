@@ -25,9 +25,10 @@ import {
   getLoadNegotiation,
   listCarrierUnits,
 } from '@/lib/carrier/loads';
+import { findCarrierTripId } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
 import { serverRoadFactor } from '@/lib/loads/queries';
-import { carrierLoadPath, paths } from '@/lib/routing';
+import { carrierLoadPath, carrierTripPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.detail;
 
@@ -80,9 +81,13 @@ export default async function CarrierLoadPage({
   // proposed by default; an availability estimate just informs the distance.
   const defaultUnit = legs.find((leg) => leg.source === 'matching')?.vehicleId ?? null;
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
-  const chat = negotiation?.conversationId
-    ? await getChat(supabase, negotiation.conversationId, companyId)
-    : null;
+  const [chat, tripId] = await Promise.all([
+    negotiation?.conversationId
+      ? getChat(supabase, negotiation.conversationId, companyId)
+      : Promise.resolve(null),
+    // The company's trip of a won load (G10b); RLS hides anyone else's.
+    findCarrierTripId(supabase, companyId, load.id),
+  ]);
 
   return (
     <>
@@ -93,7 +98,14 @@ export default async function CarrierLoadPage({
           title={loadRoute(load)}
           description={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
         />
-        <LoadStatusBadge status={load.status} />
+        <div className="flex items-center gap-3 text-sm">
+          <LoadStatusBadge status={load.status} />
+          {tripId && (
+            <Link href={carrierTripPath(tripId)} className="text-accent hover:underline">
+              {carrierWebCopy.trips.seeTrip}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_26rem]">

@@ -45,11 +45,16 @@ describe('notification email', () => {
       expect(notificationWebPath(role, { loadId: LOAD, negotiationId: 'x' })).toBe(
         `/transportista/cargas/${LOAD}`,
       );
-      // Trips arrive with G10b; until then the load, which links to its trip.
+      // Trips of the carrier web (G10b); a malformed trip id falls back to the load.
       expect(notificationWebPath(role, { loadId: LOAD, tripId: SITE_ID })).toBe(
+        `/transportista/viajes/${SITE_ID}`,
+      );
+      expect(notificationWebPath(role, { loadId: LOAD, tripId: 'x' })).toBe(
         `/transportista/cargas/${LOAD}`,
       );
-      expect(notificationWebPath(role, { tripId: SITE_ID })).toBe('/transportista/notificaciones');
+      expect(notificationWebPath(role, { tripId: SITE_ID })).toBe(
+        `/transportista/viajes/${SITE_ID}`,
+      );
       expect(notificationWebPath(role, null)).toBe('/transportista/notificaciones');
     }
     const email = notificationEmail(

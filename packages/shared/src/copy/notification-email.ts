@@ -35,13 +35,16 @@ function uuid(data: unknown, key: string): string | null {
 export function notificationWebPath(role: UserRole | null, data: unknown): string | null {
   if (role === 'admin') return '/admin';
   const loadId = uuid(data, 'loadId');
+  const tripId = uuid(data, 'tripId');
   if (role === 'manager' || role === 'coordinator') {
     const negotiationId = uuid(data, 'negotiationId');
     if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;
+    // Trips of the carrier web (G10b); the fleet's documents go to the inbox,
+    // which links each one to its unit or operator.
+    if (tripId) return `/transportista/viajes/${tripId}`;
     return loadId ? `/transportista/cargas/${loadId}` : '/transportista/notificaciones';
   }
   if (role !== 'shipper') return null;
-  const tripId = uuid(data, 'tripId');
   if (tripId) return `/cliente/viajes/${tripId}`;
   return loadId ? `/cliente/cargas/${loadId}` : '/cliente/notificaciones';
 }

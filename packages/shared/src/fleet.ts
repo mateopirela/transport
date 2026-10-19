@@ -2,6 +2,7 @@
 // picks while there is no Google Places key, and Mexico City date-times.
 // Postgres enforces the same rules (set_vehicle_availability,
 // vehicle_expired_requirements).
+import { fleetErrorCopy } from './copy/fleet';
 import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verification';
 
 /**
@@ -111,6 +112,29 @@ export function toEwktPoint({ lat, lng }: { lat: number; lng: number }): string 
   return `SRID=4326;POINT(${lng} ${lat})`;
 }
 
+/**
+ * Coordinates of a `geography(Point, 4326)` as PostgREST returns it: hex
+ * EWKB (byte order, type with the SRID flag, SRID, then longitude and
+ * latitude as doubles). Null for anything else.
+ */
+export function fromEwkbPoint(value: unknown): { lat: number; lng: number } | null {
+  if (typeof value !== 'string' || !/^(?:[0-9a-f]{2}){25}$/iu.test(value)) return null;
+  const bytes = Uint8Array.from({ length: value.length / 2 }, (_, i) =>
+    Number.parseInt(value.slice(2 * i, 2 * i + 2), 16),
+  );
+  const view = new DataView(bytes.buffer);
+  const little = bytes[0] === 1;
+  if (!little && bytes[0] !== 0) return null;
+  const type = view.getUint32(1, little);
+  if (type !== 0x20000001 || view.getUint32(5, little) !== 4326) return null;
+  const lng = view.getFloat64(9, little);
+  const lat = view.getFloat64(17, little);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return null;
+  }
+  return { lat, lng };
+}
+
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/u;
 
@@ -132,4 +156,27 @@ export function mexicoCityParts(value: Date): { date: string; time: string } {
   const shifted = new Date(value.getTime() - 6 * 60 * 60 * 1000);
   const iso = shifted.toISOString();
   return { date: iso.slice(0, 10), time: iso.slice(11, 16) };
+}
+
+/**
+ * Errors raised by the fleet RPCs, triggers and constraints (supabase/
+ * migrations), by a fragment of their fixed English message. Only known ones
+ * are mapped, so database text never reaches the user. Shared by the app and
+ * the web (G10b).
+ */
+const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
+  [/vehicles_company_plate_key/u, fleetErrorCopy.plateTaken],
+  [/vehicle has expired documents/u, fleetErrorCopy.expiredDocuments],
+  [/operator already has an account/u, fleetErrorCopy.operatorHasAccount],
+  [/operator has no email/u, fleetErrorCopy.operatorNoEmail],
+  [/document is already expired/u, fleetErrorCopy.documentExpired],
+  [/cannot archive: it is assigned to a trip in progress/u, fleetErrorCopy.archiveBlocked],
+  [/only the manager can move or archive/u, fleetErrorCopy.managerOnly],
+  [/business_unit_id is required/u, fleetErrorCopy.businessUnitRequired],
+];
+
+/** Spanish text for a known error message of a fleet write, or null when unknown. */
+export function fleetErrorText(message: string): string | null {
+  for (const [pattern, text] of FLEET_ERRORS) if (pattern.test(message)) return text;
+  return null;
 }

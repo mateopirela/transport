@@ -18,8 +18,9 @@ import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { buttonVariants } from '@/components/ui/button';
 import { carrierContext } from '@/lib/carrier/context';
 import { getCarrierNegotiation, listCarrierUnits } from '@/lib/carrier/loads';
+import { findCarrierTripId } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
-import { carrierLoadPath, carrierNegotiationPath, paths } from '@/lib/routing';
+import { carrierLoadPath, carrierNegotiationPath, carrierTripPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.negotiations;
 
@@ -38,11 +39,13 @@ export default async function CarrierNegotiationPage({
   const negotiation = await getCarrierNegotiation(supabase, companyId, id);
   if (!negotiation) notFound();
   const { load } = negotiation;
-  const [carrierUnits, chat] = await Promise.all([
+  const [carrierUnits, chat, tripId] = await Promise.all([
     listCarrierUnits(supabase, companyId, [negotiation.businessUnitId]),
     negotiation.conversationId
       ? getChat(supabase, negotiation.conversationId, companyId)
       : Promise.resolve(null),
+    // The company's trip of a won negotiation (G10b); RLS hides anyone else's.
+    findCarrierTripId(supabase, companyId, negotiation.loadId),
   ]);
   const unitName = units.operable.find((u) => u.id === negotiation.businessUnitId)?.name;
 
@@ -57,7 +60,14 @@ export default async function CarrierNegotiationPage({
           title={c.title2(load ? loadRoute(load) : c.unavailableLoad)}
           description={unitName ? fleetCopy.businessUnit(unitName) : undefined}
         />
-        {load && <LoadStatusBadge status={load.status} />}
+        <div className="flex items-center gap-3 text-sm">
+          {load && <LoadStatusBadge status={load.status} />}
+          {tripId && (
+            <Link href={carrierTripPath(tripId)} className="text-accent hover:underline">
+              {carrierWebCopy.trips.seeTrip}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_26rem]">

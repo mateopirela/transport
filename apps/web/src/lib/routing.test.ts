@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  carrierDocumentFilePath,
   carrierLoadPath,
   carrierNegotiationPath,
+  carrierOperatorPath,
   carrierSharedPath,
+  carrierTripPath,
+  carrierUnitPath,
   chatAttachmentHref,
   homeFor,
   paths,
   resolveRoute,
   safeNextPath,
   sharedPath,
+  tripFileHref,
   type Viewer,
 } from './routing';
 
@@ -198,6 +203,16 @@ describe('path helpers', () => {
   it('builds the carrier web paths (G10a)', () => {
     expect(carrierLoadPath('abc')).toBe('/transportista/cargas/abc');
     expect(carrierNegotiationPath('abc')).toBe('/transportista/negociaciones/abc');
+    expect(carrierTripPath('abc')).toBe('/transportista/viajes/abc');
+    expect(carrierUnitPath('abc')).toBe('/transportista/flota/unidades/abc');
+    expect(carrierOperatorPath('abc')).toBe('/transportista/flota/operadores/abc');
+    expect(carrierDocumentFilePath('abc')).toBe('/transportista/flota/documentos/abc/archivo');
+    expect(tripFileHref('documentos', 'a/b.pdf', 'transportista')).toBe(
+      '/transportista/viajes/archivo?tipo=documentos&ruta=a%2Fb.pdf',
+    );
+    expect(tripFileHref('evidencia', 'a/b.jpg')).toBe(
+      '/cliente/viajes/archivo?tipo=evidencia&ruta=a%2Fb.jpg',
+    );
   });
 
   it('builds the share link paths (G7)', () => {

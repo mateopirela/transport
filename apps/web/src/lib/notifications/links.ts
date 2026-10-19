@@ -6,6 +6,9 @@ import { uuidField, type NotificationType } from '@transport/shared';
 import {
   carrierLoadPath,
   carrierNegotiationPath,
+  carrierOperatorPath,
+  carrierTripPath,
+  carrierUnitPath,
   loadPath,
   negotiationPath,
   tripPath,
@@ -16,6 +19,24 @@ function id(data: unknown, key: string): string | null {
   if (typeof data !== 'object' || data === null) return null;
   const parsed = uuidField.safeParse((data as Record<string, unknown>)[key]);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * Screen of a document notification in the carrier web (G10b): the unit or
+ * the operator it belongs to. Company documents have no screen for an
+ * approved carrier until "Mi empresa" (G4).
+ */
+function carrierDocumentHref(data: unknown): string | null {
+  const ownerId = id(data, 'ownerId');
+  if (!ownerId || typeof data !== 'object' || data === null) return null;
+  switch ((data as Record<string, unknown>).ownerType) {
+    case 'vehicle':
+      return carrierUnitPath(ownerId);
+    case 'operator':
+      return carrierOperatorPath(ownerId);
+    default:
+      return null;
+  }
 }
 
 /** Screen of the web app for a notification, or null when the area has none. */
@@ -35,15 +56,21 @@ export function notificationHref(
         return loadId && carrierLoadPath(loadId);
       case 'load_match':
         return loadId && carrierLoadPath(loadId);
-      // Trips and fleet documents get their carrier screens with G10b; the
-      // location reminder is for the operator.
+      // Trips of the carrier web (G10b); older notifications without a trip
+      // id, to the load, which links to its trip.
       case 'trip_assigned':
       case 'trip_status_changed':
-      case 'trip_unassigned':
-      case 'trip_location_stale':
+      case 'trip_unassigned': {
+        const tripId = id(data, 'tripId');
+        if (tripId) return carrierTripPath(tripId);
+        return loadId && carrierLoadPath(loadId);
+      }
       case 'document_approved':
       case 'document_rejected':
       case 'document_expiring':
+        return carrierDocumentHref(data);
+      // The location reminder is for the operator (B09).
+      case 'trip_location_stale':
         return null;
     }
   }

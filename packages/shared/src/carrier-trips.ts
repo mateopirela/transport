@@ -3,9 +3,11 @@
 // the road (last position, progress and a schematic map that needs no Maps
 // key). Pure, so the rules are unit-tested; Postgres validates the assignment
 // again in assign_trip (B06).
+import { carrierTripsCopy } from './copy/carrier-trips';
 import type { LicenseType, SpecialRequirement, TripStatus, UnitType, VehicleKind } from './enums';
 import { haversineKm, type LatLng } from './geo';
 import { isTripActive } from './trips';
+import { toMexicoCityDate, type Requirement, type SubmittedDocument } from './verification';
 
 /** Sections of the carrier's trips tab. */
 export type CarrierTripGroup = 'to_assign' | 'upcoming' | 'active' | 'history';
@@ -28,6 +30,19 @@ export function carrierTripGroup(status: TripStatus): CarrierTripGroup {
 /** The carrier can (re)assign until the operator departs (mirrors assign_trip). */
 export function canAssignTrip(status: TripStatus): boolean {
   return status === 'pending_assignment' || status === 'assigned';
+}
+
+/**
+ * The carrier staff (and the shipper) can cancel until the operator starts
+ * loading; later only an admin can (mirrors cancel_trip, B06).
+ */
+export function canCancelTrip(status: TripStatus): boolean {
+  return (
+    status === 'pending_assignment' ||
+    status === 'assigned' ||
+    status === 'en_route_to_pickup' ||
+    status === 'at_pickup'
+  );
 }
 
 export interface GroupableTrip {
@@ -109,6 +124,36 @@ export function licenseAllowsLoad(
 ): boolean {
   if (!licenseType) return false;
   return !requirements.includes('hazmat_permit') || licenseType === HAZMAT_LICENSE_TYPE;
+}
+
+/**
+ * Whether the operator's license is current, as assign_trip checks it
+ * (operator_license_current, D16): a license date today or later on the
+ * operator, or an approved, unexpired "federal_driver_license" document.
+ */
+export function operatorLicenseCurrent(
+  operator: { id: string; license_expires_on: string | null },
+  requirements: readonly Pick<Requirement, 'id' | 'code'>[],
+  documents: readonly Pick<
+    SubmittedDocument,
+    'requirement_id' | 'owner_type' | 'owner_id' | 'status' | 'expires_at' | 'archived_at'
+  >[],
+  now: Date = new Date(),
+): boolean {
+  const today = toMexicoCityDate(now.toISOString());
+  if (operator.license_expires_on && operator.license_expires_on >= today) return true;
+  const license = requirements.find((r) => r.code === 'federal_driver_license');
+  if (!license) return false;
+  return documents.some(
+    (d) =>
+      d.requirement_id === license.id &&
+      d.owner_type === 'operator' &&
+      d.owner_id === operator.id &&
+      d.status === 'approved' &&
+      d.archived_at === null &&
+      d.expires_at !== null &&
+      Date.parse(d.expires_at) > now.getTime(),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -348,4 +393,42 @@ export function tripDocumentStoragePath({
 /** Whether trip documents can still be added (bucket policy and add_trip_document). */
 export function canAddTripDocuments(status: TripStatus): boolean {
   return status !== 'cancelled';
+}
+
+// ---------------------------------------------------------------------------
+// Errors of the carrier's trip actions
+// ---------------------------------------------------------------------------
+
+const e = carrierTripsCopy.errors;
+
+/**
+ * Errors raised by assign_trip (B06, D16), cancel_trip and add_trip_document,
+ * by the start of their fixed English message. Only known ones are mapped, so
+ * database text never reaches the user. Shared by the app and the web (G10b).
+ */
+const TRIP_ERRORS: readonly (readonly [RegExp, string | ((detail: string) => string)])[] = [
+  [/^trip not found/u, e.notFound],
+  [/^cannot assign a trip in status/u, e.notAssignable],
+  [/^cannot cancel a trip in status/u, e.notCancellable],
+  [/^a reason of at most \d+ characters is required/u, e.cancelReason],
+  [/^company is not approved/u, e.notApproved],
+  [/^operator not found or without account/u, e.operatorUnavailable],
+  // D16: the messages end with ": {operator name}", shown in the copy.
+  [/^operator license is missing or expired: /u, e.operatorLicenseExpired],
+  [/^operator license is not suitable for this vehicle: /u, e.operatorLicenseMismatch],
+  [/^operator license is not suitable for hazardous cargo: /u, e.operatorLicenseHazmat],
+  [/^vehicle not found/u, e.unitUnavailable],
+  [/^vehicle has expired documents/u, e.unitExpired],
+  [/^trip is cancelled/u, e.tripCancelled],
+  [/^the \w+ side does not upload/u, e.documentSideNotAllowed],
+  [/^invalid storage path|^file was not uploaded|mime type|exceeded the maximum/iu, e.invalidFile],
+];
+
+/** Spanish text for a known error message of a trip RPC, or null when unknown. */
+export function carrierTripErrorText(message: string): string | null {
+  for (const [pattern, text] of TRIP_ERRORS) {
+    const match = pattern.exec(message);
+    if (match) return typeof text === 'string' ? text : text(message.slice(match[0].length));
+  }
+  return null;
 }

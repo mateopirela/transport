@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { fleetCopy, vehicleReadinessLabels } from './copy/fleet';
+import { fleetCopy, fleetErrorCopy, vehicleReadinessLabels } from './copy/fleet';
 import { validationMessages as m } from './copy/validation';
 import {
   CITY_PRESETS,
   cityPreset,
   expiredRequirementIds,
   findCityPreset,
+  fleetErrorText,
+  fromEwkbPoint,
   mexicoCityDateTime,
   mexicoCityParts,
   toEwktPoint,
@@ -18,6 +20,7 @@ import {
   carrierRouteFormSchema,
   documentExpirySchema,
   operatorDraftSchema,
+  operatorDraftSchemaFor,
 } from './schemas/fleet';
 
 const NOW = new Date('2026-10-15T18:00:00Z');
@@ -223,6 +226,34 @@ describe('operatorDraftSchema', () => {
   });
 });
 
+describe('operatorDraftSchemaFor (editing)', () => {
+  const base = { fullName: 'Omar', email: 'omar@fletes.mx' };
+
+  it('keeps the saved expired license date so other fields can change', () => {
+    const schema = operatorDraftSchemaFor('2020-01-01');
+    const result = schema.parse({ ...base, phone: '8112345678', licenseExpiresOn: '2020-01-01' });
+    expect(result.licenseExpiresOn).toBe('2020-01-01');
+  });
+
+  it('still rejects a different expired date', () => {
+    const result = operatorDraftSchemaFor('2020-01-01').safeParse({
+      ...base,
+      licenseExpiresOn: '2021-06-30',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toBe(m.licenseExpired);
+  });
+
+  it('without a saved date behaves like the registration schema', () => {
+    expect(
+      operatorDraftSchemaFor(null).safeParse({ ...base, licenseExpiresOn: '2020-01-01' }).success,
+    ).toBe(false);
+    expect(
+      operatorDraftSchemaFor(null).safeParse({ ...base, licenseExpiresOn: '2099-01-31' }).success,
+    ).toBe(true);
+  });
+});
+
 describe('availabilityFormSchema', () => {
   it('returns the city and the timestamp in Mexico City', () => {
     expect(
@@ -282,5 +313,48 @@ describe('fleet copy', () => {
     expect(text).toContain('AB');
     expect(fleetCopy.onboarding.count(1)).toBe('1 registrada');
     expect(fleetCopy.onboarding.operatorsCount(3)).toBe('3 registrados');
+  });
+});
+
+describe('fleetErrorText', () => {
+  it('maps the fixed messages of the fleet writes', () => {
+    expect(
+      fleetErrorText('duplicate key value violates unique constraint "vehicles_company_plate_key"'),
+    ).toBe(fleetErrorCopy.plateTaken);
+    expect(fleetErrorText('vehicle has expired documents')).toBe(fleetErrorCopy.expiredDocuments);
+    expect(fleetErrorText('cannot archive: it is assigned to a trip in progress')).toBe(
+      fleetErrorCopy.archiveBlocked,
+    );
+    expect(fleetErrorText('only the manager can move or archive units and operators')).toBe(
+      fleetErrorCopy.managerOnly,
+    );
+    expect(fleetErrorText('business_unit_id is required')).toBe(
+      fleetErrorCopy.businessUnitRequired,
+    );
+  });
+
+  it('leaves unknown messages to the caller', () => {
+    expect(fleetErrorText('')).toBeNull();
+    expect(fleetErrorText('permission denied for table vehicles')).toBeNull();
+  });
+});
+
+describe('fromEwkbPoint', () => {
+  it('reads the point PostgREST returns for a geography column', () => {
+    // Monterrey and Saltillo as stored by the seed.
+    const mty = fromEwkbPoint('0101000020E610000000917EFB3A1459C0006F8104C5AF3940');
+    expect(mty?.lat).toBeCloseTo(25.6866, 4);
+    expect(mty?.lng).toBeCloseTo(-100.3161, 4);
+    const saltillo = fromEwkbPoint('0101000020e61000005f07ce19513e59c039d6c56d34703940');
+    expect(saltillo?.lat).toBeCloseTo(25.4383, 4);
+    expect(saltillo?.lng).toBeCloseTo(-100.9737, 4);
+  });
+
+  it('refuses anything that is not a 4326 point', () => {
+    expect(fromEwkbPoint(null)).toBeNull();
+    expect(fromEwkbPoint('SRID=4326;POINT(-100 25)')).toBeNull();
+    // Without the SRID flag (plain WKB) or with another SRID.
+    expect(fromEwkbPoint('0101000000000000000000000000000000000000000000000000')).toBeNull();
+    expect(fromEwkbPoint('0101000020E710000000917EFB3A1459C0006F8104C5AF3940')).toBeNull();
   });
 });

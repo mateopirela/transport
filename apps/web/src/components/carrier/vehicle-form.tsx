@@ -56,6 +56,9 @@ export function VehicleForm({
   // keep showing the saved values (the page's, refreshed by revalidation).
   const fieldState: FormState = { ...state, values };
   const [kind, setKind] = useState(values.kind ?? 'trailer');
+  // Controlled: React resets uncontrolled inputs after every submit, so a
+  // failed save would silently put back the saved features.
+  const [checked, setChecked] = useState<readonly string[]>(features);
   const tractor = kind === 'tractor';
   const errors = state.fieldErrors ?? {};
 
@@ -160,7 +163,14 @@ export function VehicleForm({
                       type="checkbox"
                       name="features"
                       value={feature}
-                      defaultChecked={features.includes(feature)}
+                      checked={checked.includes(feature)}
+                      onChange={(event) =>
+                        setChecked((current) =>
+                          event.target.checked
+                            ? [...current, feature]
+                            : current.filter((value) => value !== feature),
+                        )
+                      }
                       className="accent-accent"
                     />
                     {specialRequirementLabels[feature]}

@@ -7,12 +7,13 @@ import {
   UNIT_TYPES,
   unitTypeLabels,
 } from '@transport/shared';
-import { useActionState, useId } from 'react';
+import { useActionState, useId, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { addCarrierRoute, archiveCarrierRoute } from '@/lib/carrier/fleet-actions';
+import type { FormState } from '@/lib/forms';
 
 const c = fleetCopy.routes;
 const w = carrierWebCopy.fleet.routes;
@@ -21,7 +22,15 @@ const select = 'h-10 w-full rounded-md border border-input bg-background px-3 te
 /** Adds a usual route of the company between two preset cities (G10b; B18 on the app). */
 export function RouteForm() {
   const id = useId();
-  const [state, action, pending] = useActionState(addCarrierRoute, {});
+  // Controlled: React resets uncontrolled inputs after every submit, so a
+  // failed save would clear the chosen unit types (none means all of them).
+  // They are cleared only after the route is added.
+  const [unitTypes, setUnitTypes] = useState<readonly string[]>([]);
+  const [state, action, pending] = useActionState(async (prev: FormState, formData: FormData) => {
+    const next = await addCarrierRoute(prev, formData);
+    if (next.message) setUnitTypes([]);
+    return next;
+  }, {});
   const errors = state.fieldErrors ?? {};
   const values = state.values ?? {};
   return (
@@ -56,7 +65,20 @@ export function RouteForm() {
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {UNIT_TYPES.map((type) => (
               <label key={type} className="flex items-center gap-2">
-                <input type="checkbox" name="unitTypes" value={type} className="accent-accent" />
+                <input
+                  type="checkbox"
+                  name="unitTypes"
+                  value={type}
+                  checked={unitTypes.includes(type)}
+                  onChange={(event) =>
+                    setUnitTypes((current) =>
+                      event.target.checked
+                        ? [...current, type]
+                        : current.filter((value) => value !== type),
+                    )
+                  }
+                  className="accent-accent"
+                />
                 {unitTypeLabels[type]}
               </label>
             ))}

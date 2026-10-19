@@ -18,6 +18,7 @@ Runbook para llevar la plataforma a `staging` y `production`, y para regresar a 
 | Workflow                                                  | Cuándo                                    | Qué hace                                                                                                   |
 | --------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [deploy-staging.yml](../.github/workflows/deploy-staging.yml) | cada merge a `main` (o manual)            | migraciones → Edge Functions → web en staging                                                              |
+| [deploy-production.yml](../.github/workflows/deploy-production.yml) | cada merge a `main` | migraciones → Edge Functions → web en producción (D27; mientras no exista staging) |
 | [release.yml](../.github/workflows/release.yml)           | manual, desde `main` o un tag `v*`        | lo mismo en producción, después de la aprobación del environment `production`                              |
 | [mobile-release.yml](../.github/workflows/mobile-release.yml) | manual, desde `main` o un tag `v*`        | `eas build` del perfil elegido y, con `submit`, envío a TestFlight y a la pista interna de Play            |
 
@@ -86,7 +87,7 @@ El plugin es idempotente y **falla con un error claro** si el `AppDelegate` gene
 
 ## 4. Liberar una versión
 
-1. Merge a `main` → **Deploy staging** corre solo. Revisar el resumen del job (pendientes de migración, URL de la web).
+1. Merge a `main` → **Deploy staging** y **Deploy production** corren solos (D27: producción se actualiza en cada merge mientras no exista staging; si existe staging, revisar ahí antes de mergear). Revisar el resumen del job (pendientes de migración, URL de la web).
 2. Probar en staging el flujo principal: registro → verificación → publicar → ofertar → asignar → estados y GPS → entrega. Con una build `preview` de la app.
 3. Crear el tag: `git tag v2026.10.20 && git push origin v2026.10.20` (formato `vAAAA.MM.DD[-n]`).
 4. Actions → **Release production** → _Run workflow_ sobre el tag, con `migrate` activado. Aprobar el environment. El paso _List pending migrations_ muestra qué se aplicará.

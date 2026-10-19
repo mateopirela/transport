@@ -17,9 +17,10 @@ create function tests.new_user(p_id uuid, p_role text)
 returns void
 language sql
 as $$
-  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_user_meta_data, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
   values (p_id, 'authenticated', 'authenticated', p_id::text || '@g3.test', now(),
-          jsonb_build_object('role', p_role), now(), now());
+          case when p_role = 'operator' then '{"provisioned_by": "redeem-invitation"}'::jsonb end,
+          jsonb_build_object('role', p_role, 'phone', '+525500000000'), now(), now());
 $$;
 
 create function tests.login(p_id uuid)
@@ -112,6 +113,12 @@ insert into public.companies (id, type, legal_name, rfc, status) values
   ('c2900000-0000-4000-8000-000000000001', 'shipper', 'Envíos Moral SA de CV', 'EMO050505GH5', 'pending_review'),
   ('c2900000-0000-4000-8000-000000000002', 'shipper', 'Fernanda Física', 'FEFI800101AB1', 'pending_review'),
   ('c2900000-0000-4000-8000-000000000003', 'carrier', 'Fletes D16 SA de CV', 'FDS040404CD4', 'approved');
+-- The fiscal data review_company asks for since G2, so only the documents are missing.
+update public.companies
+   set fiscal_street = 'Av. Juárez', fiscal_exterior_number = '12', fiscal_neighborhood = 'Centro',
+       fiscal_postal_code = '64000', fiscal_municipality = 'Monterrey', fiscal_state = 'Nuevo León',
+       legal_representative_name = case when id = 'c2900000-0000-4000-8000-000000000001' then 'Ana Moral' end
+ where id in ('c2900000-0000-4000-8000-000000000001', 'c2900000-0000-4000-8000-000000000002');
 update public.profiles set company_id = 'c2900000-0000-4000-8000-000000000001'
 where id = 'a2900000-0000-4000-8000-000000000001';
 update public.profiles set company_id = 'c2900000-0000-4000-8000-000000000002'

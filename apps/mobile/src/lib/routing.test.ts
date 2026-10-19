@@ -108,7 +108,7 @@ describe('redirectFor: shared loads (G7)', () => {
 
   it('asks everyone else to sign in or finish joining first', () => {
     expect(redirectFor('auth', ['shared', 'abc'])).toBe('/sign-in');
-    expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invite');
+    expect(redirectFor('join', ['compartido', 'abc'])).toBe('/invitacion');
     expect(redirectFor('company_setup', ['shared', 'abc'])).toBe('/company');
     expect(redirectFor('unsupported', ['shared', 'abc'])).toBe('/unsupported');
   });
@@ -152,7 +152,7 @@ describe('resolveRedirect: a shared load survives sign-in (G7)', () => {
 
   it('waits while the user cannot open it yet and ignores malformed paths', () => {
     expect(resolveRedirect('join', ['(auth)', 'sign-in'], '/sign-in', shared)).toEqual({
-      target: '/invite',
+      target: '/invitacion',
       pending: shared,
     });
     expect(resolveRedirect('auth', ['shared', '[token]'], '/shared/nope', null)).toEqual({

@@ -8,7 +8,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(58);
+select plan(59);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -292,8 +292,14 @@ select throws_ok(
   $$ select public.authorize_shared_document_view_service(tests.val('tax_share'), 'a3400000-0000-4000-8000-000000000001') $$,
   '42501', null, 'a signed-in user cannot call the service RPC');
 reset role;
+set local role service_role;
+select throws_ok(
+  $$ select public.authorize_shared_document_view_service(tests.val('tax_share'), 'a3400000-0000-4000-8000-000000000001') $$,
+  '42501', 'service role required', 'the database role alone is not enough: the JWT must be the service role''s');
+reset role;
 
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select is(
   public.authorize_shared_document_view_service(tests.val('tax_share'), 'a3400000-0000-4000-8000-000000000001'),
   (select storage_path from public.documents where id = tests.val('tax_doc')),
@@ -352,6 +358,7 @@ select is(
      and owner_id in ('e3400000-0000-4000-8000-000000000002', 'd3400000-0000-4000-8000-000000000005')),
   4, 'and the new ones are shared');
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select throws_ok(
   $$ select public.authorize_shared_document_view_service(tests.val('v1_card'), 'a3400000-0000-4000-8000-000000000001') $$,
   '42501', 'shared document not available', 'a revoked share no longer opens');
@@ -455,6 +462,7 @@ select is(
    where trip_id = tests.val('trip') and revoked_reason not in ('reassigned', 'document_replaced', 'manager_revoked')),
   array['trip_cancelled'], 'as trip_cancelled');
 set local role service_role;
+select set_config('request.jwt.claims', '{"role": "service_role"}', true);
 select throws_ok(
   $$ select public.authorize_shared_document_view_service(tests.val('o1_license'), 'a3400000-0000-4000-8000-000000000001') $$,
   '42501', 'shared document not available', 'nothing opens after the trip ends');

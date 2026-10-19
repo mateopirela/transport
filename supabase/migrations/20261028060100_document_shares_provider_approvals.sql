@@ -515,6 +515,10 @@ declare
   v_share public.document_shares;
   v_path text;
 begin
+  -- Explicit caller check on top of the grant: only the service role key.
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service role required' using errcode = '42501';
+  end if;
   -- The share lock makes a concurrent revocation wait for the view to be logged.
   select * into v_share from public.document_shares where id = p_share_id for share;
   if not found
@@ -710,9 +714,19 @@ begin
     set status = excluded.status, notes = excluded.notes, decided_by = excluded.decided_by, decided_at = excluded.decided_at
     -- Two first decisions at once: the second one only wins if it is still a
     -- valid transition from the first.
-    where not (excluded.status = 'revoked' and a.status <> 'approved')
+    where a.status is distinct from excluded.status
+      and not (excluded.status = 'revoked' and a.status <> 'approved')
       and not (excluded.status = 'rejected' and a.status = 'approved');
   if not found then
+    -- The same first decision by two users at once: the first one stands
+    -- (its note, author, history entry and notification); nothing to redo.
+    if exists (
+      select 1 from public.provider_approvals a
+      where a.shipper_company_id = v_shipper and a.carrier_company_id = p_carrier_company_id
+        and a.status = p_status
+    ) then
+      return p_status;
+    end if;
     raise exception 'the provider status changed meanwhile' using errcode = '40001';
   end if;
 

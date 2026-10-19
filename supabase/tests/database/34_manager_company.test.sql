@@ -11,7 +11,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(59);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -282,6 +282,18 @@ select throws_ok(
 select throws_ok(
   $$ select public.move_vehicle_to_unit('e3400000-0000-4000-8000-00000000000b', tests.val('bu_x')) $$,
   '42501', 'business unit not found', 'a unit never moves to another company');
+reset role;
+-- G5: a unit waiting for its release stays in its business unit until released.
+insert into public.vehicle_release_tasks (company_id, vehicle_id, business_unit_id, trip_id)
+values ('c3400000-0000-4000-8000-000000000002', 'e3400000-0000-4000-8000-00000000000b', tests.val('bu_b'),
+        tests.val('trip1'));
+set local role authenticated;
+select throws_ok(
+  $$ select public.move_vehicle_to_unit('e3400000-0000-4000-8000-00000000000b', tests.val('bu_bajio')) $$,
+  '55000', 'cannot move: it is pending release', 'a unit pending release does not move');
+reset role;
+delete from public.vehicle_release_tasks where vehicle_id = 'e3400000-0000-4000-8000-00000000000b';
+set local role authenticated;
 select lives_ok(
   $$ select public.move_vehicle_to_unit('e3400000-0000-4000-8000-00000000000b', tests.val('bu_bajio')) $$,
   'the manager moves a free unit');

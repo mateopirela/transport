@@ -147,6 +147,8 @@ export const managerCompanyErrorCopy = {
   archived: 'Ya está dado de baja.',
   committed:
     'No se puede mover: está en un viaje, comprometido para uno o propuesto en una oferta pendiente.',
+  pendingRelease:
+    'La unidad está pendiente de liberar. Libérala antes de moverla de unidad de negocio.',
   operatorHasNoAccount: 'El operador todavía no tiene cuenta. Envíale una invitación.',
   generic: 'No pudimos guardar el cambio. Inténtalo de nuevo.',
 } as const;

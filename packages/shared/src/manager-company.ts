@@ -97,6 +97,7 @@ const MANAGER_COMPANY_ERRORS: readonly (readonly [RegExp, string])[] = [
   [/cannot remove yourself/u, e.cannotRemoveSelf],
   [/only coordinators can be removed/u, e.onlyCoordinators],
   [/cannot move: it is committed to a trip/u, e.committed],
+  [/cannot move: it is pending release/u, e.pendingRelease],
   [/^(vehicle|operator) not found$/u, e.notFound],
   [/^(vehicle|operator) is archived$/u, e.archived],
   [/operator has no account/u, e.operatorHasNoAccount],

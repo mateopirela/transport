@@ -103,6 +103,7 @@ describe('managerCompanyErrorText', () => {
       ['cannot remove yourself', e.cannotRemoveSelf],
       ['only coordinators can be removed', e.onlyCoordinators],
       ['cannot move: it is committed to a trip', e.committed],
+      ['cannot move: it is pending release', e.pendingRelease],
       ['vehicle not found', e.notFound],
       ['operator is archived', e.archived],
       ['operator has no account', e.operatorHasNoAccount],

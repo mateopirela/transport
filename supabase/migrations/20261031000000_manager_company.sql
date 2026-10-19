@@ -424,6 +424,11 @@ begin
      or exists (select 1 from public.offers o where o.vehicle_id = p_vehicle_id and o.status = 'pending') then
     raise exception 'cannot move: it is committed to a trip' using errcode = '55000';
   end if;
+  -- A unit waiting for its release (G5) is released by the business unit
+  -- that was notified first; it moves once it is released.
+  if public.vehicle_pending_release(p_vehicle_id) then
+    raise exception 'cannot move: it is pending release' using errcode = '55000';
+  end if;
 
   update public.vehicles v
   set business_unit_id = p_unit_id,

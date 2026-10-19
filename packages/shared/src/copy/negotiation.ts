@@ -45,6 +45,15 @@ export const offersCopy = {
     closed: 'La negociación está cerrada.',
     contracted: 'Contrataste esta oferta. El transportista asignará unidad y operador.',
   },
+  /**
+   * Fixed `status_reason` values the negotiation RPCs and crons write (B05,
+   * B09); anything else is a reason a person typed when rejecting.
+   */
+  statusReasons: {
+    other_offer_accepted: 'El cliente aceptó otra oferta.',
+    load_cancelled: 'El cliente canceló la carga.',
+    load_expired: 'La ventana de recolección terminó sin acuerdo.',
+  },
   actions: {
     accept: 'Aceptar',
     acceptTitle: '¿Aceptar esta oferta?',

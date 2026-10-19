@@ -373,3 +373,33 @@ Deno.test('push data carries ids only, never free text', () => {
     { documentId: 'd1', ownerId: 'o1', notificationId: 'n1', type: 'document_rejected' },
   );
 });
+
+Deno.test('emails the carrier staff with a link to the carrier web (G10a)', async () => {
+  const negotiationId = '1c7b9f1f-8a54-4a7f-8e3b-4a2f3e5d6c7b';
+  const coordinator = row('n1', {
+    type: 'counter_offer_received',
+    role: 'coordinator',
+    email: 'andrea@trn.test',
+    data: { ...ROUTE, negotiationId, amountCents: 3_700_000 },
+  });
+  const manager = row('n2', { type: 'load_match', role: 'manager', email: 'jorge@trn.test' });
+  const operator = row('n3', { type: 'trip_assigned', role: 'operator', email: 'pedro@trn.test' });
+  const { deps, of, recorded } = setup({ batches: [[coordinator, manager, operator]] });
+
+  const response = await handleDispatch(post(), deps);
+  assert.equal(response.status, 200);
+  const emails = of(RESEND_URL);
+  assert.equal(emails.length, 2, 'the operator only uses the app');
+  const [first, second] = emails.map((e) => e.body as Record<string, unknown>);
+  assert.deepEqual(first!.to, ['andrea@trn.test']);
+  assert.match(
+    String(first!.html),
+    new RegExp(`https://transport\\.test/transportista/negociaciones/${negotiationId}`, 'u'),
+  );
+  assert.deepEqual(second!.to, ['jorge@trn.test']);
+  assert.match(String(second!.html), /https:\/\/transport\.test\/transportista\/cargas\//u);
+  assert.deepEqual(
+    recorded().map((r) => r.email),
+    ['sent', 'sent', 'skipped'],
+  );
+});

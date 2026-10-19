@@ -25,7 +25,7 @@ import {
   type ChatMessage,
   type ChatRead,
 } from '@/lib/chat/messages';
-import { chatAttachmentHref } from '@/lib/routing';
+import { chatAttachmentHref, type WebArea } from '@/lib/routing';
 import { channelTopic, createBrowserSupabase, subscribeAsUser } from '@/lib/supabase/browser';
 import { cn } from '@/lib/utils';
 
@@ -51,12 +51,15 @@ export function ChatPanel({
   ownCompanyUserIds,
   initialMessages,
   initialReads,
+  area = 'cliente',
 }: {
   conversationId: string;
   viewerId: string;
   ownCompanyUserIds: readonly string[];
   initialMessages: ChatMessage[];
   initialReads: ChatRead[];
+  /** Area whose attachment route opens the files (each area guards its own). */
+  area?: WebArea;
 }) {
   // What arrived after the server render (Realtime, catch-up, own sends);
   // merged with the server data, so a refresh of the page adds to it too.
@@ -243,7 +246,7 @@ export function ChatPanel({
                 {message.attachments.map((attachment) => (
                   <a
                     key={attachment.path}
-                    href={chatAttachmentHref(attachment.path)}
+                    href={chatAttachmentHref(attachment.path, area)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block text-accent underline-offset-4 hover:underline"

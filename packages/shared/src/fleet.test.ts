@@ -10,6 +10,7 @@ import {
   mexicoCityDateTime,
   mexicoCityParts,
   toEwktPoint,
+  unitLabel,
   vehicleReadiness,
 } from './fleet';
 import {
@@ -123,6 +124,14 @@ describe('expiredRequirementIds', () => {
         NOW,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('unitLabel', () => {
+  it('prefers the fleet number and falls back to the plate', () => {
+    expect(unitLabel({ fleet_number: 'CS53-01', plate: '82UR4C' })).toBe('CS53-01');
+    expect(unitLabel({ fleet_number: null, plate: '82UR4C' })).toBe('82UR4C');
+    expect(unitLabel({ fleet_number: '', plate: '82UR4C' })).toBe('82UR4C');
   });
 });
 

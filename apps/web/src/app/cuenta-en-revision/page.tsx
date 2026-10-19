@@ -1,4 +1,10 @@
-import { onboardingCopy, progressSummary, shellCopy } from '@transport/shared';
+import {
+  carrierWebCopy,
+  isCarrierStaff,
+  onboardingCopy,
+  progressSummary,
+  shellCopy,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 
 import { AppShell, PageHeading } from '@/components/app-shell';
@@ -54,8 +60,10 @@ function Stepper({ steps }: { steps: { label: string; state: StepState }[] }) {
 }
 
 /**
- * Shipper onboarding (B12) while the company is not approved: company data,
- * upload of the required documents with the state of each one, and review.
+ * Onboarding (B12) while the company is not approved: company data, upload
+ * of the required documents with the state of each one, and review. Since
+ * G10a the carrier's Gerente lands here too; a Coordinador only reads it
+ * (company documents are the Gerente's, G1a).
  */
 export default async function AccountInReviewPage() {
   const viewer = await requireAccess(paths.review);
@@ -63,18 +71,25 @@ export default async function AccountInReviewPage() {
   const verification =
     supabase && viewer.company ? await loadCompanyVerification(supabase, viewer.company.id) : null;
   const company = verification?.company ?? null;
-  // requireAccess only lets shippers with a non-approved company through.
+  // requireAccess only lets company staff with a non-approved company through.
   const status = company && company.status !== 'approved' ? company.status : 'pending_review';
   const text = c[status];
   const progress = verification?.owners[0]?.progress ?? [];
   const summary = progressSummary(progress);
-  const editable = status === 'pending_review' || status === 'rejected';
+  const readOnly = viewer.role === 'coordinator';
+  const editable = !readOnly && (status === 'pending_review' || status === 'rejected');
   const docsDone = summary.needsAction === 0;
+  const description =
+    status === 'pending_review' && isCarrierStaff(viewer.role)
+      ? readOnly
+        ? carrierWebCopy.review.coordinator
+        : carrierWebCopy.review.description
+      : text.description;
 
   return (
     <AppShell viewer={viewer}>
       <div className="mx-auto max-w-3xl">
-        <PageHeading title={text.title} description={text.description} />
+        <PageHeading title={text.title} description={description} />
         <Stepper
           steps={[
             { label: o.steps.company, state: 'done' },
@@ -91,7 +106,7 @@ export default async function AccountInReviewPage() {
         )}
         {company && (
           <div className="space-y-6">
-            {status === 'rejected' && (
+            {status === 'rejected' && !readOnly && (
               <Card>
                 <CardHeader>
                   <CardTitle>{o.requestReview.title}</CardTitle>
@@ -118,7 +133,8 @@ export default async function AccountInReviewPage() {
                   progress={progress}
                   action={({ requirement, state }) =>
                     // Only missing, rejected or expired documents need a (new) upload;
-                    // a pending one waits for the admin.
+                    // a pending one waits for the admin. A Coordinador only reads.
+                    !readOnly &&
                     (state === 'missing' || state === 'rejected' || state === 'expired') && (
                       <DocumentUpload
                         companyId={company.id}

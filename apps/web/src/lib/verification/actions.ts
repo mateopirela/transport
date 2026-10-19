@@ -22,10 +22,13 @@ const notConfigured: FormState = { error: authErrors.notConfigured };
 
 const toExpiresAt = (date: string | undefined) => (date ? endOfDayInMexicoCity(date) : null);
 
-/** Statuses in which a shipper may still correct the company data. */
+/** Statuses in which a shipper or a Gerente may still correct the company data. */
 const EDITABLE = new Set(['pending_review', 'rejected']);
 
-/** Shipper: corrects the company's name and contact while it is in review. */
+/**
+ * Shipper or Gerente: corrects the company's name and contact while it is in
+ * review. A Coordinador only reads it (RLS refuses the update too).
+ */
 export async function updateCompanyContact(
   _prev: FormState,
   formData: FormData,
@@ -37,7 +40,8 @@ export async function updateCompanyContact(
   const viewer = await getViewer();
   if (!supabase || !viewer) return notConfigured;
   const company = viewer.company;
-  if (viewer.role !== 'shipper' || !company || !EDITABLE.has(company.status)) {
+  const canEdit = viewer.role === 'shipper' || viewer.role === 'manager';
+  if (!canEdit || !company || !EDITABLE.has(company.status)) {
     return { error: onboardingCopy.errors.notEditable, values: refillValues(entries) };
   }
 
@@ -80,7 +84,7 @@ export async function registerDocument(input: unknown): Promise<{ error?: string
   return {};
 }
 
-/** Shipper: sends a rejected company back to the review queue. */
+/** Shipper or Gerente: sends a rejected company back to the review queue. */
 export async function requestCompanyReview(): Promise<FormState> {
   const supabase = await createClient();
   if (!supabase) return notConfigured;

@@ -3,9 +3,12 @@
 // the link that opens a route in the phone's maps app. Pure, so the ordering
 // and the allowed actions are unit-tested; Postgres validates every action
 // again in the negotiation RPCs (B05).
-import type { LoadStatus, OfferSide, OfferStatus } from './enums';
+import { carrierLoadsCopy } from './copy/carrier-loads';
+import { offersCopy } from './copy/negotiation';
+import type { LoadStatus, OfferSide, OfferStatus, TripStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
+import { ACTIVE_TRIP_STATUSES } from './trips';
 
 /** One recommendation, as the Edge Function `recommendations` returns it (B08). */
 export interface Recommendation {
@@ -166,6 +169,55 @@ export function carrierNegotiationState(
 }
 
 /**
+ * Errors raised by the negotiation RPCs (make_offer, counter_offer,
+ * accept_offer, reject_offer, withdraw_offer; supabase/migrations), by the
+ * start of their fixed English message. Only known ones are mapped, so
+ * database text never reaches the user. Shared by the app and the web (G10a).
+ */
+const OFFER_ERRORS: readonly (readonly [RegExp, string])[] = [
+  [/^company is not approved|^only carriers can make offers/u, carrierLoadsCopy.errors.notApproved],
+  [/^load not found|^offer not found/u, carrierLoadsCopy.errors.loadGone],
+  [
+    /^cannot offer on a load in status|^load is no longer open/u,
+    carrierLoadsCopy.errors.loadClosed,
+  ],
+  [/^pickup window already ended/u, carrierLoadsCopy.errors.pickupEnded],
+  [/^negotiation already has a pending offer/u, carrierLoadsCopy.errors.pending],
+  [
+    /^offer is no longer pending|^offer cannot be answered by this side/u,
+    carrierLoadsCopy.errors.notPending,
+  ],
+  [/^invalid offer: amount|^invalid offer: conditions/u, carrierLoadsCopy.errors.invalidAmount],
+  [
+    /^invalid offer: vehicle not found|^business unit not found/u,
+    carrierLoadsCopy.errors.invalidUnit,
+  ],
+  [
+    /^another business unit of the company already negotiates this load/u,
+    carrierLoadsCopy.errors.otherBusinessUnit,
+  ],
+  [/^business_unit_id is required/u, carrierLoadsCopy.errors.businessUnitRequired],
+  [/^both companies must be approved/u, carrierLoadsCopy.errors.bothApproved],
+];
+
+/** Spanish text for a known error message of an offer RPC, or null when unknown. */
+export function carrierOfferErrorText(message: string): string | null {
+  for (const [pattern, text] of OFFER_ERRORS) if (pattern.test(message)) return text;
+  return null;
+}
+
+/**
+ * What to show for an offer's `status_reason`: the Spanish copy of a fixed
+ * reason written by the platform, the text itself when a person typed it, or
+ * null when there is none.
+ */
+export function offerStatusReasonText(reason: string | null): string | null {
+  if (!reason) return null;
+  const fixed = offersCopy.statusReasons;
+  return Object.hasOwn(fixed, reason) ? fixed[reason as keyof typeof fixed] : reason;
+}
+
+/**
  * Directions in the phone's maps app (Google Maps URLs work on iOS and
  * Android and need no API key): from where the unit is free, through the
  * pickup, to the delivery.
@@ -181,4 +233,69 @@ export function directionsUrl(pickup: LatLng, delivery: LatLng, start?: LatLng |
   }
   params.set('destination', point(delivery));
   return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+/** Statuses of a committed trip that has not started (F5). */
+const NOT_STARTED: ReadonlySet<TripStatus> = new Set(['pending_assignment', 'assigned']);
+
+/** Statuses in which a trip still commits its unit (vehicle_trip_chain_end, F5). */
+export const COMMITTED_TRIP_STATUSES = [
+  'pending_assignment',
+  'assigned',
+  ...ACTIVE_TRIP_STATUSES,
+] as const satisfies readonly TripStatus[];
+
+/** A trip of the carrier, to find the unit it commits and where that unit ends. */
+export interface CommittedTrip {
+  id: string;
+  status: TripStatus;
+  vehicleId: string | null;
+  /** Unit named by the accepted offer. */
+  offeredVehicleId: string | null;
+  loadId: string;
+  estimatedUnloadEndAt: string | null;
+  pickupWindowStart: string;
+  deliveryWindowEnd: string;
+}
+
+/**
+ * The unit a trip commits, as vehicle_trip_chain_end (F5) counts it: its unit
+ * once assigned or on the road, and the offered unit while it is pending
+ * assignment without one. Null when it commits none.
+ */
+export function committedUnit(
+  trip: Pick<CommittedTrip, 'status' | 'vehicleId' | 'offeredVehicleId'>,
+): string | null {
+  if (trip.status === 'pending_assignment') {
+    return trip.vehicleId === null ? trip.offeredVehicleId : null;
+  }
+  return (COMMITTED_TRIP_STATUSES as readonly TripStatus[]).includes(trip.status)
+    ? trip.vehicleId
+    : null;
+}
+
+/**
+ * The load with which each unit ends its chain of committed trips, ordered as
+ * vehicle_trip_chain_end (F5) does: started trips first by their end, then
+ * those not started by the opening of their pickup window, ties by id. The
+ * matching starts the unit at that load's destination.
+ */
+export function chainEndLoads(trips: readonly CommittedTrip[]): Map<string, string> {
+  const key = (t: CommittedTrip) =>
+    NOT_STARTED.has(t.status)
+      ? Date.parse(t.pickupWindowStart)
+      : Date.parse(t.estimatedUnloadEndAt ?? t.deliveryWindowEnd);
+  // Negative when a comes before b in the chain.
+  const order = (a: CommittedTrip, b: CommittedTrip) =>
+    Number(NOT_STARTED.has(a.status)) - Number(NOT_STARTED.has(b.status)) ||
+    key(a) - key(b) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const last = new Map<string, CommittedTrip>();
+  for (const trip of trips) {
+    const unit = committedUnit(trip);
+    if (!unit) continue;
+    const current = last.get(unit);
+    if (!current || order(current, trip) < 0) last.set(unit, trip);
+  }
+  return new Map([...last].map(([unit, trip]) => [unit, trip.loadId]));
 }

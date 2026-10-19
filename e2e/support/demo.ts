@@ -9,8 +9,12 @@ export const users = {
   ana: 'ana.garza@demo.test',
   /** Shipper of Alimentos de Occidente: owns the GDL -> MTY return load. */
   luis: 'luis.ramirez@demo.test',
-  /** Carrier of Transportes Regios del Norte. */
+  /** Gerente of Transportes Regios del Norte: operates both business units. */
   jorge: 'jorge.villarreal@demo.test',
+  /** Coordinadora of TRN's "Corredor MTY–GDL": TRN-01, CS53-01 and Pedro. */
+  andrea: 'andrea.cavazos@demo.test',
+  /** Coordinador of TRN's "Regional Monterrey": RF53-01, TT-01, Raúl and Arturo. */
+  hector: 'hector.ibarra@demo.test',
   /** Operator of Transportes Regios: drives the trip in unloading. */
   pedro: 'pedro.lopez@demo.test',
   /** Operator of Transportes Regios without an active trip. */
@@ -26,6 +30,10 @@ export const ids = {
   unloadingTrip: '5eed0008-0000-4000-8000-000000000001',
   /** Load GDL -> MTY, published: the return trip of CS53-01 (B08). */
   returnLoad: '5eed0005-0000-4000-8000-000000000002',
+  /** Load León -> Apodaca, published, dry van: nobody has offered on it. */
+  leonLoad: '5eed0005-0000-4000-8000-000000000004',
+  /** Load MTY -> Tlaquepaque, published, flatbed: nobody has offered on it. */
+  flatbedLoad: '5eed0005-0000-4000-8000-000000000005',
   /** Dry van CS53-01 of Transportes Regios, unloading in Guadalajara. */
   dryVan: '5eed0004-0000-4000-8000-000000000002',
   /** Refrigerated trailer RF53-01 of Transportes Regios (free, in Monterrey). */

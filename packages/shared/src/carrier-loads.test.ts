@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCarrierFeed,
   carrierNegotiationState,
+  chainEndLoads,
+  committedUnit,
+  type CommittedTrip,
+  carrierOfferErrorText,
   directionsUrl,
+  offerStatusReasonText,
   FEED_RECOMMENDATIONS,
   RETURN_TRIPS_PER_UNIT,
   sortOffers,
@@ -11,7 +16,9 @@ import {
   type NegotiationOffer,
   type Recommendation,
 } from './carrier-loads';
+import { carrierLoadsCopy } from './copy/carrier-loads';
 import { matchExplanation } from './copy/matching';
+import { offersCopy } from './copy/negotiation';
 import { recommend, type MatchCandidate } from './matching';
 
 const NOW = new Date('2026-10-20T12:00:00Z');
@@ -174,6 +181,54 @@ describe('carrierNegotiationState', () => {
   });
 });
 
+describe('carrierOfferErrorText', () => {
+  it('maps the fixed messages of the negotiation RPCs to Spanish copy', () => {
+    const e = carrierLoadsCopy.errors;
+    const cases: [string, string][] = [
+      ['company is not approved', e.notApproved],
+      ['only carriers can make offers', e.notApproved],
+      ['load not found', e.loadGone],
+      ['offer not found', e.loadGone],
+      ['cannot offer on a load in status contracted', e.loadClosed],
+      ['load is no longer open (status cancelled)', e.loadClosed],
+      ['pickup window already ended', e.pickupEnded],
+      ['negotiation already has a pending offer', e.pending],
+      ['offer is no longer pending (status countered)', e.notPending],
+      ['offer cannot be answered by this side', e.notPending],
+      ['invalid offer: amount must be positive', e.invalidAmount],
+      ['invalid offer: conditions too long', e.invalidAmount],
+      ['invalid offer: vehicle not found', e.invalidUnit],
+      ['business unit not found', e.invalidUnit],
+      ['another business unit of the company already negotiates this load', e.otherBusinessUnit],
+      ['business_unit_id is required', e.businessUnitRequired],
+      ['both companies must be approved', e.bothApproved],
+    ];
+    for (const [message, text] of cases) expect(carrierOfferErrorText(message)).toBe(text);
+  });
+
+  it('returns null for anything else, so database text never reaches the user', () => {
+    expect(carrierOfferErrorText('')).toBeNull();
+    expect(carrierOfferErrorText('duplicate key value violates unique constraint')).toBeNull();
+    // Only the start of the message counts.
+    expect(carrierOfferErrorText('context: load not found')).toBeNull();
+  });
+});
+
+describe('offerStatusReasonText', () => {
+  it('translates the fixed reasons and keeps the ones a person typed', () => {
+    expect(offerStatusReasonText('other_offer_accepted')).toBe(
+      offersCopy.statusReasons.other_offer_accepted,
+    );
+    expect(offerStatusReasonText('load_cancelled')).toBe(offersCopy.statusReasons.load_cancelled);
+    expect(offerStatusReasonText('load_expired')).toBe(offersCopy.statusReasons.load_expired);
+    expect(offerStatusReasonText('Muy caro para la ruta')).toBe('Muy caro para la ruta');
+    expect(offerStatusReasonText(null)).toBeNull();
+    expect(offerStatusReasonText('')).toBeNull();
+    // Object prototype keys are not reasons.
+    expect(offerStatusReasonText('constructor')).toBe('constructor');
+  });
+});
+
 describe('directionsUrl', () => {
   it('goes from the unit through the pickup to the delivery', () => {
     const url = new URL(directionsUrl(GDL_WAREHOUSE, APODACA, GDL));
@@ -188,5 +243,82 @@ describe('directionsUrl', () => {
     const url = new URL(directionsUrl(GDL_WAREHOUSE, APODACA));
     expect(url.searchParams.get('origin')).toBe('20.65600,-103.39100');
     expect(url.searchParams.has('waypoints')).toBe(false);
+  });
+});
+
+describe('committed trips (vehicle_trip_chain_end, F5)', () => {
+  const trip = (over: Partial<CommittedTrip>): CommittedTrip => ({
+    id: 't1',
+    status: 'assigned',
+    vehicleId: 'v1',
+    offeredVehicleId: null,
+    loadId: 'l1',
+    estimatedUnloadEndAt: null,
+    pickupWindowStart: '2026-10-20T14:00:00Z',
+    deliveryWindowEnd: '2026-10-21T14:00:00Z',
+    ...over,
+  });
+
+  it('counts the offered unit only while the trip is pending without one', () => {
+    expect(
+      committedUnit(
+        trip({ status: 'pending_assignment', vehicleId: null, offeredVehicleId: 'v2' }),
+      ),
+    ).toBe('v2');
+    expect(
+      committedUnit(
+        trip({ status: 'pending_assignment', vehicleId: 'v1', offeredVehicleId: 'v2' }),
+      ),
+    ).toBeNull();
+    expect(committedUnit(trip({ status: 'in_transit' }))).toBe('v1');
+    expect(committedUnit(trip({ status: 'delivered' }))).toBeNull();
+    expect(committedUnit(trip({ status: 'cancelled' }))).toBeNull();
+  });
+
+  it('ends the chain with the last trip not started, by pickup window', () => {
+    const ends = chainEndLoads([
+      trip({
+        id: 'a',
+        status: 'in_transit',
+        loadId: 'road',
+        estimatedUnloadEndAt: '2026-10-25T00:00:00Z',
+      }),
+      trip({ id: 'b', loadId: 'later', pickupWindowStart: '2026-10-23T00:00:00Z' }),
+      trip({ id: 'c', loadId: 'sooner', pickupWindowStart: '2026-10-22T00:00:00Z' }),
+      trip({
+        id: 'd',
+        status: 'pending_assignment',
+        vehicleId: null,
+        offeredVehicleId: 'v2',
+        loadId: 'other unit',
+      }),
+    ]);
+    expect(ends.get('v1')).toBe('later');
+    expect(ends.get('v2')).toBe('other unit');
+  });
+
+  it('without trips to start, ends with the started one that ends last', () => {
+    const ends = chainEndLoads([
+      trip({
+        id: 'a',
+        status: 'unloading',
+        loadId: 'late',
+        deliveryWindowEnd: '2026-10-22T00:00:00Z',
+      }),
+      trip({
+        id: 'b',
+        status: 'in_transit',
+        loadId: 'early',
+        estimatedUnloadEndAt: '2026-10-21T00:00:00Z',
+        deliveryWindowEnd: '2026-10-23T00:00:00Z',
+      }),
+      trip({
+        id: 'c',
+        status: 'delivered',
+        loadId: 'done',
+        deliveryWindowEnd: '2026-10-30T00:00:00Z',
+      }),
+    ]);
+    expect(ends.get('v1')).toBe('late');
   });
 });

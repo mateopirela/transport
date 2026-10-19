@@ -1,7 +1,8 @@
-// Route access rules for the web app (Cliente and Admin, D06). Pure, so the
-// proxy (optimistic redirects) and the layouts (authoritative checks) share
-// one definition and it can be unit-tested. Data access itself is enforced
-// by RLS in Postgres; this only decides which screens a user may open.
+// Route access rules for the web app (Cliente, Admin and, since G10a, the
+// carrier's Gerente and Coordinador; D06-E1). Pure, so the proxy (optimistic
+// redirects) and the layouts (authoritative checks) share one definition and
+// it can be unit-tested. Data access itself is enforced by RLS in Postgres;
+// this only decides which screens a user may open.
 import { LEGAL_PATHS, type UserRole, type VerificationStatus } from '@transport/shared';
 
 export const paths = {
@@ -18,6 +19,10 @@ export const paths = {
   newLoad: '/cliente/cargas/nueva',
   shipperNotifications: '/cliente/notificaciones',
   shipperTrips: '/cliente/viajes',
+  carrier: '/transportista',
+  carrierLoads: '/transportista/cargas',
+  carrierNegotiations: '/transportista/negociaciones',
+  carrierNotifications: '/transportista/notificaciones',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -45,9 +50,19 @@ export const tripPath = (tripId: string) => `/cliente/viajes/${tripId}`;
 export const tripFileHref = (kind: 'evidencia' | 'documentos', path: string) =>
   `/cliente/viajes/archivo?tipo=${kind}&ruta=${encodeURIComponent(path)}`;
 
+/** Signed-in areas that share screens (chat attachments, notifications inbox). */
+export type WebArea = 'cliente' | 'transportista';
+
 /** Redirect to a short-lived signed URL of a chat attachment (`{conversation}/{file}`). */
-export const chatAttachmentHref = (path: string) =>
-  `/cliente/adjuntos?ruta=${encodeURIComponent(path)}`;
+export const chatAttachmentHref = (path: string, area: WebArea = 'cliente') =>
+  `/${area}/adjuntos?ruta=${encodeURIComponent(path)}`;
+
+/** Carrier web (G10a): a published or negotiated load, as the carrier staff sees it. */
+export const carrierLoadPath = (loadId: string) => `/transportista/cargas/${loadId}`;
+
+/** Carrier web (G10a): one negotiation of the company (offers and chat). */
+export const carrierNegotiationPath = (negotiationId: string) =>
+  `/transportista/negociaciones/${negotiationId}`;
 
 /** Admin company detail (verification of its documents, fleet and status). */
 export const adminCompanyPath = (companyId: string) => `/admin/empresas/${companyId}`;
@@ -75,7 +90,13 @@ const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.chec
 const PUBLIC = ['/auth', paths.privacy, paths.terms];
 
 /** Areas that only one kind of user may open: their home. */
-const HOME_ONLY = [paths.shipper, paths.review, paths.completeCompany, paths.mobileOnly] as const;
+const HOME_ONLY = [
+  paths.shipper,
+  paths.carrier,
+  paths.review,
+  paths.completeCompany,
+  paths.mobileOnly,
+] as const;
 
 function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
@@ -91,9 +112,14 @@ export function homeFor(viewer: NonNullable<Viewer>): string {
       return viewer.company.status === 'approved' ? paths.shipper : paths.review;
     case 'manager':
     case 'coordinator':
+      // The Gerente and the Coordinador work on the web too (D06-E1, G10a).
+      // A Gerente without a company fills the current company form (G2
+      // replaces it with the fiscal data); a Coordinador joins a company
+      // through an invitation (G1b), so this is only a fallback for them.
+      if (!viewer.company) return paths.completeCompany;
+      return viewer.company.status === 'approved' ? paths.carrier : paths.review;
     case 'operator':
-      // Carrier staff and operators use the mobile app until the carrier web
-      // (G10a) exists (D06, D06-E1).
+      // Operators only use the mobile app (D06).
       return paths.mobileOnly;
   }
 }

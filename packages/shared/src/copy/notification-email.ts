@@ -26,16 +26,23 @@ function uuid(data: unknown, key: string): string | null {
 }
 
 /**
- * Web page a notification links to, for the roles that use the web: the trip
- * (B15) or else the load of a shipper's notification (same routes as
- * apps/web/src/lib/routing.ts).
+ * Web page a notification links to, for the roles that use the web (same
+ * routes as apps/web/src/lib/routing.ts): the shipper's trip (B15) or load;
+ * the carrier staff's negotiation or load (G10a; trips come with G10b, until
+ * then the load, which links to its trip once there is one). The operator
+ * only uses the app (D06-E1).
  */
 export function notificationWebPath(role: UserRole | null, data: unknown): string | null {
   if (role === 'admin') return '/admin';
+  const loadId = uuid(data, 'loadId');
+  if (role === 'manager' || role === 'coordinator') {
+    const negotiationId = uuid(data, 'negotiationId');
+    if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;
+    return loadId ? `/transportista/cargas/${loadId}` : '/transportista/notificaciones';
+  }
   if (role !== 'shipper') return null;
   const tripId = uuid(data, 'tripId');
   if (tripId) return `/cliente/viajes/${tripId}`;
-  const loadId = uuid(data, 'loadId');
   return loadId ? `/cliente/cargas/${loadId}` : '/cliente/notificaciones';
 }
 

@@ -36,9 +36,8 @@ export type CarrierUnit = Pick<
   'id' | 'plate' | 'fleet_number' | 'unit_type' | 'kind'
 >;
 
-/** How a unit is named in the app: its fleet number, else its plate. */
-export const unitLabel = (u: Pick<CarrierUnit, 'fleet_number' | 'plate'>) =>
-  u.fleet_number || u.plate;
+// Shared with the carrier web since G10a.
+export { unitLabel } from '@transport/shared';
 
 /** Units that can carry a load (with a body type), oldest first. */
 export async function listCarrierUnits(client: Supabase, companyId: string) {

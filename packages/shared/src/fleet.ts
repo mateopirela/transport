@@ -59,6 +59,11 @@ export function expiredRequirementIds(
     .map((r) => r.id);
 }
 
+/** How a unit (vehicle) is named in the app and the web: its fleet number, else its plate. */
+export function unitLabel(unit: { fleet_number: string | null; plate: string }): string {
+  return unit.fleet_number || unit.plate;
+}
+
 /** A city the carrier can choose for availability and usual routes. */
 export interface CityPreset {
   id: string;

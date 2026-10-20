@@ -118,6 +118,7 @@ export function SharedDocumentsSection({
         <Cell
           title={copy.provider.status}
           subtitle={provider?.notes}
+          subtitleLines={0}
           pill={{ label: providerStateLabels[state], tone: PROVIDER_TONES[state] }}
         />
       </Group>

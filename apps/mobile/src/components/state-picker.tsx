@@ -1,12 +1,18 @@
 import { mobileCompanyCopy as copy, MX_STATES, type MxState } from '@transport/shared';
-import { useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRef } from 'react';
+import { Text } from 'react-native';
 
-import { colors, spacing } from '../theme';
-import { Button } from './ui';
+import { useTheme } from '../theme';
+import { OptionSheet, type SheetHandle } from './sheet';
+import { Cell, ErrorText } from './ui';
 
-/** The fiscal state (one of the 32 federative entities): a field that opens a list. */
+const OPTIONS = MX_STATES.map((state) => ({ value: state, label: state }));
+
+/**
+ * The fiscal state (one of the 32 federative entities) as a row of a group,
+ * like the fields around it: the label small above, the state or a
+ * placeholder under it. Tapping it opens the list in a sheet.
+ */
 export function StatePicker({
   value,
   onChange,
@@ -16,74 +22,31 @@ export function StatePicker({
   onChange: (value: MxState) => void;
   error?: string | undefined;
 }) {
-  const [open, setOpen] = useState(false);
+  const { type, colors } = useTheme();
+  const sheet = useRef<SheetHandle>(null);
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{copy.stateLabel}</Text>
-      <Pressable
-        accessibilityRole="button"
+    <>
+      <Cell
+        role="button"
         accessibilityLabel={copy.stateLabel}
-        onPress={() => setOpen(true)}
-        style={[styles.input, error ? styles.inputError : null]}
+        chevron
+        onPress={() => sheet.current?.open()}
       >
-        <Text style={value ? styles.value : styles.placeholder}>
+        <Text style={[type.label, error ? { color: colors.redText } : null]}>
+          {copy.stateLabel}
+        </Text>
+        <Text style={value ? type.body : [type.body, { color: colors.textFaint }]}>
           {value || copy.statePlaceholder}
         </Text>
-      </Pressable>
-      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
-      <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <SafeAreaView style={styles.modal}>
-          <Text style={styles.modalTitle}>{copy.stateLabel}</Text>
-          <FlatList
-            data={MX_STATES}
-            keyExtractor={(name) => name}
-            renderItem={({ item }) => (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  onChange(item);
-                  setOpen(false);
-                }}
-                style={[styles.option, item === value ? styles.optionSelected : null]}
-              >
-                <Text style={styles.optionText}>{item}</Text>
-              </Pressable>
-            )}
-          />
-          <View style={styles.modalFooter}>
-            <Button label={copy.stateClose} variant="secondary" onPress={() => setOpen(false)} />
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </View>
+        {error ? <ErrorText>{error}</ErrorText> : null}
+      </Cell>
+      <OptionSheet
+        ref={sheet}
+        title={copy.stateLabel}
+        options={OPTIONS}
+        value={value || undefined}
+        onChange={onChange}
+      />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  field: { gap: spacing.xs },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-  },
-  inputError: { borderColor: colors.danger },
-  value: { fontSize: 16, color: colors.text },
-  placeholder: { fontSize: 16, color: colors.textMuted },
-  fieldError: { fontSize: 13, color: colors.danger },
-  modal: { flex: 1, backgroundColor: colors.background },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.navy,
-    padding: spacing.lg,
-  },
-  option: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
-  optionSelected: { backgroundColor: colors.infoSurface },
-  optionText: { fontSize: 16, color: colors.text },
-  modalFooter: { padding: spacing.lg },
-});

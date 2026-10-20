@@ -12,7 +12,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
-import { Body, Button, Field, Loading, Notice, Screen, Title } from '../../components/ui';
+import {
+  Button,
+  FieldCell,
+  Group,
+  groupInset,
+  Loading,
+  Notice,
+  Screen,
+  TextCell,
+} from '../../components/ui';
 import { invitationTokenParam } from '../../lib/deep-links';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { supabase } from '../../lib/supabase';
@@ -52,12 +61,17 @@ export default function InvitationScreen() {
   }, [token]);
 
   if (!token || !supabase) return <InvalidInvitation />;
-  if (preview === undefined) return <Loading label={copy.loading} />;
+  if (preview === undefined) {
+    return (
+      <Screen>
+        <Loading label={copy.loading} />
+      </Screen>
+    );
+  }
   if (!preview) return <InvalidInvitation />;
 
   return (
-    <Screen>
-      <Title subtitle={subtitleFor(preview)}>{copy.title}</Title>
+    <Screen title={copy.title} subtitle={subtitleFor(preview)}>
       <InvitationDetails preview={preview} />
       {preview.kind === 'coordinator' ? (
         <CoordinatorInvitation token={token} preview={preview} />
@@ -82,8 +96,7 @@ function subtitleFor(preview: Preview): string {
 function InvalidInvitation() {
   const router = useRouter();
   return (
-    <Screen>
-      <Title subtitle={copy.invalidBody}>{copy.invalidTitle}</Title>
+    <Screen title={copy.invalidTitle} subtitle={copy.invalidBody}>
       <Button
         label={copy.openLinkAction}
         variant="secondary"
@@ -96,13 +109,17 @@ function InvalidInvitation() {
 function InvitationDetails({ preview }: { preview: Preview }) {
   const units = preview.business_unit_names.join(', ');
   return (
-    <Notice tone="info">
-      <Body>
+    <Group inset={groupInset.icon}>
+      <TextCell icon="people">
         {`${preview.kind === 'coordinator' ? copy.coordinatorUnits : copy.operatorUnit}: ${units}`}
-      </Body>
-      {preview.inviter_name ? <Body>{copy.invitedBy(preview.inviter_name)}</Body> : null}
-      <Body>{copy.expires(formatDateTime(preview.expires_at))}</Body>
-    </Notice>
+      </TextCell>
+      {preview.inviter_name ? (
+        <TextCell icon="person">{copy.invitedBy(preview.inviter_name)}</TextCell>
+      ) : null}
+      <TextCell icon="time" tone="dim">
+        {copy.expires(formatDateTime(preview.expires_at))}
+      </TextCell>
+    </Group>
   );
 }
 
@@ -196,7 +213,7 @@ function CoordinatorSignUp({ token, inviteeName }: { token: string; inviteeName:
 
   if (sentTo) {
     return (
-      <CheckEmail email={sentTo}>
+      <CheckEmail email={sentTo} inline>
         <Notice tone="info">{copy.pendingTokenNotice}</Notice>
       </CheckEmail>
     );
@@ -205,33 +222,35 @@ function CoordinatorSignUp({ token, inviteeName }: { token: string; inviteeName:
   return (
     <>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <Field
-        label={mobileAuthCopy.fullNameLabel}
-        value={values.fullName}
-        onChangeText={set('fullName')}
-        error={errors.fullName}
-        autoComplete="name"
-        textContentType="name"
-      />
-      <Field
-        label={mobileAuthCopy.emailLabel}
-        value={values.email}
-        onChangeText={set('email')}
-        error={errors.email}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="username"
-      />
-      <Field
-        label={mobileAuthCopy.phoneLabel}
-        value={values.phone}
-        onChangeText={set('phone')}
-        error={errors.phone}
-        autoComplete="tel"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-      />
+      <Group>
+        <FieldCell
+          label={mobileAuthCopy.fullNameLabel}
+          value={values.fullName}
+          onChangeText={set('fullName')}
+          error={errors.fullName}
+          autoComplete="name"
+          textContentType="name"
+        />
+        <FieldCell
+          label={mobileAuthCopy.emailLabel}
+          value={values.email}
+          onChangeText={set('email')}
+          error={errors.email}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="username"
+        />
+        <FieldCell
+          label={mobileAuthCopy.phoneLabel}
+          value={values.phone}
+          onChangeText={set('phone')}
+          error={errors.phone}
+          autoComplete="tel"
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+        />
+      </Group>
       <PasswordFields values={values} errors={errors} set={set} />
       <Button label={copy.createAccountAction} onPress={() => void submit()} loading={submitting} />
     </>
@@ -248,8 +267,8 @@ function PasswordFields({
   set: (field: 'password' | 'passwordConfirmation') => (text: string) => void;
 }) {
   return (
-    <>
-      <Field
+    <Group>
+      <FieldCell
         label={mobileAuthCopy.passwordLabel}
         value={values.password}
         onChangeText={set('password')}
@@ -258,7 +277,7 @@ function PasswordFields({
         autoComplete="new-password"
         textContentType="newPassword"
       />
-      <Field
+      <FieldCell
         label={mobileAuthCopy.passwordConfirmLabel}
         value={values.passwordConfirmation}
         onChangeText={set('passwordConfirmation')}
@@ -267,7 +286,7 @@ function PasswordFields({
         autoComplete="new-password"
         textContentType="newPassword"
       />
-    </>
+    </Group>
   );
 }
 
@@ -336,32 +355,34 @@ function OperatorRedeem({ token }: { token: string }) {
   return (
     <>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <Field
-        label={mobileAuthCopy.fullNameLabel}
-        value={values.fullName}
-        onChangeText={set('fullName')}
-        error={errors.fullName}
-        autoComplete="name"
-        textContentType="name"
-      />
-      <Field
-        label={mobileAuthCopy.phoneLabel}
-        value={values.phone}
-        onChangeText={set('phone')}
-        error={errors.phone}
-        autoComplete="tel"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-      />
-      <Field
-        label={mobileAuthCopy.optionalEmailLabel}
-        value={values.email}
-        onChangeText={set('email')}
-        error={errors.email}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-      />
+      <Group>
+        <FieldCell
+          label={mobileAuthCopy.fullNameLabel}
+          value={values.fullName}
+          onChangeText={set('fullName')}
+          error={errors.fullName}
+          autoComplete="name"
+          textContentType="name"
+        />
+        <FieldCell
+          label={mobileAuthCopy.phoneLabel}
+          value={values.phone}
+          onChangeText={set('phone')}
+          error={errors.phone}
+          autoComplete="tel"
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+        />
+        <FieldCell
+          label={mobileAuthCopy.optionalEmailLabel}
+          value={values.email}
+          onChangeText={set('email')}
+          error={errors.email}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+        />
+      </Group>
       <PasswordFields values={values} errors={errors} set={set} />
       <Button
         label={submitting ? copy.operatorSigningIn : copy.operatorSubmit}

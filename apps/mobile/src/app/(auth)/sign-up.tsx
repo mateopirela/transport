@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { CheckEmail } from '../../components/check-email';
 import { LegalLinks } from '../../components/legal-links';
 import { OptionGroup } from '../../components/option-group';
-import { Button, Field, Notice, Screen, Title } from '../../components/ui';
+import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
 
@@ -21,7 +21,8 @@ const KINDS: { value: CarrierSignUpKind; label: string }[] = [
 
 /**
  * Carrier self sign-up: a company or a hombre-camión (D13). The company and
- * its fiscal data are registered next (app/company.tsx).
+ * its fiscal data are registered next (app/company.tsx). One group per step:
+ * what is registered, who the person is, the password.
  */
 export default function SignUp() {
   const { actions } = useSession();
@@ -57,8 +58,7 @@ export default function SignUp() {
   if (sentTo) return <CheckEmail email={sentTo} />;
 
   return (
-    <Screen>
-      <Title subtitle={copy.signUpSubtitle}>{copy.signUpTitle}</Title>
+    <Screen title={copy.signUpTitle} subtitle={copy.signUpSubtitle}>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
       <OptionGroup
         label={copy.signUpKindLabel}
@@ -68,54 +68,58 @@ export default function SignUp() {
         hint={values.kind === 'owner_operator' ? copy.signUpKindOwnerOperatorHint : undefined}
         error={errors.kind}
       />
-      <Field
-        label={copy.fullNameLabel}
-        value={values.fullName}
-        onChangeText={set('fullName')}
-        error={errors.fullName}
-        autoComplete="name"
-        textContentType="name"
-      />
-      <Field
-        label={copy.emailLabel}
-        value={values.email}
-        onChangeText={set('email')}
-        error={errors.email}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="username"
-      />
-      <Field
-        label={copy.phoneLabel}
-        value={values.phone}
-        onChangeText={set('phone')}
-        error={errors.phone}
-        autoComplete="tel"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-      />
-      <Field
-        label={copy.passwordLabel}
-        value={values.password}
-        onChangeText={set('password')}
-        error={errors.password}
-        secureTextEntry
-        autoComplete="new-password"
-        textContentType="newPassword"
-      />
-      <Field
-        label={copy.passwordConfirmLabel}
-        value={values.passwordConfirmation}
-        onChangeText={set('passwordConfirmation')}
-        error={errors.passwordConfirmation}
-        secureTextEntry
-        autoComplete="new-password"
-        textContentType="newPassword"
-      />
+      <Group>
+        <FieldCell
+          label={copy.fullNameLabel}
+          value={values.fullName}
+          onChangeText={set('fullName')}
+          error={errors.fullName}
+          autoComplete="name"
+          textContentType="name"
+        />
+        <FieldCell
+          label={copy.emailLabel}
+          value={values.email}
+          onChangeText={set('email')}
+          error={errors.email}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="username"
+        />
+        <FieldCell
+          label={copy.phoneLabel}
+          value={values.phone}
+          onChangeText={set('phone')}
+          error={errors.phone}
+          autoComplete="tel"
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+        />
+      </Group>
+      <Group>
+        <FieldCell
+          label={copy.passwordLabel}
+          value={values.password}
+          onChangeText={set('password')}
+          error={errors.password}
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+        />
+        <FieldCell
+          label={copy.passwordConfirmLabel}
+          value={values.passwordConfirmation}
+          onChangeText={set('passwordConfirmation')}
+          error={errors.passwordConfirmation}
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+        />
+      </Group>
       <Button label={copy.signUpAction} onPress={submit} loading={submitting} />
       <LegalLinks consent />
-      <Button label={copy.goToSignIn} variant="link" onPress={() => router.replace('/sign-in')} />
+      <Button label={copy.goToSignIn} variant="plain" onPress={() => router.replace('/sign-in')} />
     </Screen>
   );
 }

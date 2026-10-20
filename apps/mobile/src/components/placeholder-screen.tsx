@@ -1,9 +1,9 @@
 import { mobileNavCopy } from '@transport/shared';
 import type { ReactNode } from 'react';
 
-import { Body, Screen, Title } from './ui';
+import { Empty, Screen } from './ui';
 
-/** Tab whose content arrives in a later block (B18–B23). */
+/** Tab whose content arrives in a later block (B18–B23): its large title and an empty group. */
 export function PlaceholderScreen({
   title,
   message = mobileNavCopy.comingSoon,
@@ -14,10 +14,9 @@ export function PlaceholderScreen({
   children?: ReactNode;
 }) {
   return (
-    <Screen>
-      <Title>{title}</Title>
+    <Screen title={title}>
       {children}
-      <Body>{message}</Body>
+      <Empty title={message} />
     </Screen>
   );
 }

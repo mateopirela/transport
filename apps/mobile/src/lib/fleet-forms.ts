@@ -26,6 +26,8 @@ export interface VehicleFormState {
   capacityKg: string;
   capacityM3: string;
   features: SpecialRequirement[];
+  /** Axles of the truck (H4); blank uses the default of its kind. */
+  axleCount: string;
 }
 
 export const EMPTY_VEHICLE_FORM: VehicleFormState = {
@@ -37,6 +39,7 @@ export const EMPTY_VEHICLE_FORM: VehicleFormState = {
   capacityKg: '',
   capacityM3: '',
   features: [],
+  axleCount: '',
 };
 
 export type VehicleRow = Pick<
@@ -50,6 +53,7 @@ export type VehicleRow = Pick<
   | 'capacity_kg'
   | 'capacity_m3'
   | 'features'
+  | 'axle_count'
 >;
 
 export function vehicleFormFromRow(row: VehicleRow): VehicleFormState {
@@ -62,6 +66,7 @@ export function vehicleFormFromRow(row: VehicleRow): VehicleFormState {
     capacityKg: row.capacity_kg?.toString() ?? '',
     capacityM3: row.capacity_m3?.toString() ?? '',
     features: row.features,
+    axleCount: row.axle_count?.toString() ?? '',
   };
 }
 
@@ -77,6 +82,7 @@ export function vehicleSchemaInput(form: VehicleFormState) {
     capacityKg: tractor ? undefined : parseNumberInput(form.capacityKg),
     capacityM3: tractor ? undefined : parseNumberInput(form.capacityM3),
     features: form.features,
+    axleCount: parseNumberInput(form.axleCount),
   };
 }
 
@@ -92,6 +98,7 @@ export function vehicleColumns(
     capacity_kg: values.capacityKg ?? null,
     capacity_m3: values.capacityM3 ?? null,
     features: values.features,
+    axle_count: values.axleCount ?? null,
   };
 }
 

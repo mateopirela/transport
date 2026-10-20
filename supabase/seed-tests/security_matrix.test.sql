@@ -176,6 +176,16 @@ insert into public.share_links (id, kind, company_id, trip_id, token_hash, creat
 values ('f2400000-0000-4000-8000-000000000002', 'trip_tracking_public', tests.val('shipper_company'), tests.val('trip'),
         sha256(convert_to('B24SHARETOKEN', 'UTF8')), '5eed0001-0000-4000-8000-000000000002', now() + interval '1 day');
 insert into tests.vals values ('share_link', 'f2400000-0000-4000-8000-000000000002');
+-- H4: a road preference of the carrier and a risk on a pilot segment (the
+-- migration seeds no risks: none has a public source yet).
+insert into tests.vals select 'road_segment', id from public.road_segments where code = 'SLP-LAG';
+insert into tests.vals select 'road_corridor', id from public.road_corridors where code = 'MTY-GDL-SLP';
+insert into public.carrier_road_preferences (company_id, segment_id, preference)
+values (tests.val('carrier_company'), tests.val('road_segment'), 'avoid');
+insert into public.road_segment_risks (id, segment_id, level, from_hour, to_hour, description, source, observed_on)
+values ('e2400000-0000-4000-8000-000000000003', tests.val('road_segment'), 'medium', 22, 6, 'Prueba', 'Prueba',
+        current_date);
+insert into tests.vals values ('road_risk', 'e2400000-0000-4000-8000-000000000003');
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -195,6 +205,12 @@ insert into tests.ownership values
   ('public.trip_evidence_requirements', 'true'),
   ('public.trip_document_requirements', 'true'),
   ('public.license_unit_compatibility', 'true'),
+  -- Road catalog (H4): reference data, written only by admins.
+  ('public.road_segments', 'true'),
+  ('public.road_segment_tolls', 'true'),
+  ('public.road_segment_risks', 'true'),
+  ('public.road_corridors', 'true'),
+  ('public.road_corridor_segments', 'true'),
   -- Company data.
   ('public.companies', 't.id = $1'),
   ('public.profiles', 't.company_id = $1 or t.id = $2'),
@@ -204,6 +220,7 @@ insert into tests.ownership values
   ('public.operator_invitations', 't.company_id = $1'),
   ('public.invitations', 't.company_id = $1'),
   ('public.carrier_routes', 't.company_id = $1'),
+  ('public.carrier_road_preferences', 't.company_id = $1'),
   ('public.business_units', 't.company_id = $1'),
   ('public.business_unit_coordinators', 't.company_id = $1'),
   ('public.vehicle_availability', 't.company_id = $1'),
@@ -585,7 +602,12 @@ insert into tests.rpc_calls values
   ('revoke_share_link', $$ public.revoke_share_link(tests.val('share_link')) $$),
   ('open_internal_share', $$ public.open_internal_share('B24SHARETOKEN') $$),
   ('public_shared_load', $$ public.public_shared_load('B24SHARETOKEN') $$),
-  ('public_shared_trip', $$ public.public_shared_trip('B24SHARETOKEN') $$);
+  ('public_shared_trip', $$ public.public_shared_trip('B24SHARETOKEN') $$),
+  -- Road catalog (H4): admins only.
+  ('admin_upsert_road_segment', $$ public.admin_upsert_road_segment('SLP-LAG', 'Ajeno', 'San Luis Potosí', 'San Luis Potosí', 22.1565, -100.9855, 'Lagos de Moreno', 'Jalisco', 21.3564, -101.9356, 172, true, 'x', current_date, 'verified', tests.val('road_segment'), null, null, null) $$),
+  ('admin_set_segment_toll', $$ public.admin_set_segment_toll(tests.val('road_segment'), 'c5', 'x', current_date, 'verified', 1, null) $$),
+  ('admin_upsert_segment_risk', $$ public.admin_upsert_segment_risk(tests.val('road_segment'), 'high', 0::smallint, 24::smallint, 'x', 'x', current_date, 'verified', tests.val('road_risk'), null, true) $$),
+  ('admin_upsert_corridor', $$ public.admin_upsert_corridor('MTY-GDL-SLP', 'Ajeno', 'Monterrey', 'Nuevo León', 25.6866, -100.3161, 60, 'Guadalajara', 'Jalisco', 20.6597, -103.3496, 60, true, array[tests.val('road_segment')], tests.val('road_corridor'), true) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.

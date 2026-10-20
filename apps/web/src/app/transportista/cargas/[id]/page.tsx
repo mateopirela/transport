@@ -2,9 +2,12 @@ import {
   carrierLoadsCopy,
   carrierWebCopy,
   chatCopy,
+  defaultAxleCount,
   formatDistance,
+  suggestLoadRoad,
   unitLabel,
   uuidField,
+  vehicleAxles,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -12,6 +15,7 @@ import Link from 'next/link';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { CarrierNegotiationPanel } from '@/components/carrier/negotiation-panel';
 import { RECOMMENDED_UNIT_PARAM } from '@/components/carrier/recommendation-card';
+import { SuggestedRoute } from '@/components/carrier/suggested-route';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
@@ -27,6 +31,7 @@ import {
   getLoadNegotiation,
   listCarrierUnits,
 } from '@/lib/carrier/loads';
+import { loadRoadContext } from '@/lib/carrier/roads';
 import { findCarrierTripId } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
 import { serverRoadFactor } from '@/lib/loads/queries';
@@ -77,13 +82,21 @@ export default async function CarrierLoadPage({
   // proposed by default; an availability estimate just informs the distance.
   const defaultUnit = legs.find((leg) => leg.source === 'matching')?.vehicleId ?? null;
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
-  const [chat, tripId] = await Promise.all([
+  // H4: the suggested road for the unit that leads (its axles pick the toll class).
+  const roadUnit = carrierUnits.find((u) => u.id === (best?.vehicleId ?? preferred));
+  const [chat, tripId, roadContext] = await Promise.all([
     negotiation?.conversationId
       ? getChat(supabase, negotiation.conversationId, companyId)
       : Promise.resolve(null),
     // The company's trip of a won load (G10b); RLS hides anyone else's.
     findCarrierTripId(supabase, companyId, load.id),
+    loadRoadContext(supabase),
   ]);
+  const road = suggestLoadRoad(
+    roadContext,
+    load,
+    roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null),
+  );
 
   return (
     <>
@@ -127,6 +140,8 @@ export default async function CarrierLoadPage({
                 : c.emptyLegUnknown}
             </p>
           </PageSection>
+
+          <SuggestedRoute road={road} />
 
           <PageSection title={c.details}>
             <LoadDetails load={load} />

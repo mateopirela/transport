@@ -6,6 +6,7 @@
 // contribution, so a recommendation can always be explained and the weights
 // tuned without touching the code (MATCHING_WEIGHTS).
 import type { LatLng } from '../geo';
+import type { RoadSuggestion } from '../roads/suggest';
 
 export interface MatchingWeights {
   /** Points per MXN earned per total km (empty + loaded). In favor. */
@@ -22,6 +23,13 @@ export interface MatchingWeights {
   returnHome: number;
   /** Straight-line radius around the base for the return bonus. */
   returnHomeRadiusKm: number;
+  /**
+   * Share (0–1) of the estimated tolls of the suggested route (H4) taken off
+   * the price before pricePerKm: 1 scores the price net of tolls.
+   */
+  tolls: number;
+  /** Points subtracted per high-risk segment crossed inside its band (H4). */
+  highRisk: number;
 }
 
 export const DEFAULT_MATCHING_WEIGHTS: Readonly<MatchingWeights> = Object.freeze({
@@ -32,6 +40,8 @@ export const DEFAULT_MATCHING_WEIGHTS: Readonly<MatchingWeights> = Object.freeze
   routeMatch: 15,
   returnHome: 20,
   returnHomeRadiusKm: 75,
+  tolls: 1,
+  highRisk: 5,
 });
 
 /**
@@ -97,12 +107,28 @@ export interface CandidateDistances {
   loaded: LegDistance;
 }
 
+/** What the suggested road (H4) adds to the score of a candidate. */
+export interface RoadScoreInput {
+  /** Known tolls of the truck's class, in MXN cents. */
+  tollsCents: number;
+  /** Some toll segment has no tariff: the tolls are a floor. */
+  tollsMissing: boolean;
+  /** High-risk segments crossed inside their band. */
+  highRiskCount: number;
+}
+
 export interface MatchBreakdown {
   emptyKm: number;
   loadedKm: number;
   idleHours: number;
-  /** Proposed price per total km, in MXN cents. */
+  /** Proposed price, net of the estimated tolls (weight `tolls`), per total km, in MXN cents. */
   pricePerKmCents: number;
+  /** Estimated tolls of the suggested route (H4); null without a route in the catalog. */
+  tollsCents: number | null;
+  /** The tolls are a floor: some segment has no tariff. */
+  tollsMissing: boolean;
+  /** High-risk segments the suggested route crosses inside their band. */
+  highRiskSegments: number;
   matchedRoute: MatchCandidate['matchedRoute'];
   isReturnTrip: boolean;
   returnHome: boolean;
@@ -115,6 +141,7 @@ export interface MatchBreakdown {
     idleHours: number;
     routeMatch: number;
     returnHome: number;
+    highRisk: number;
   };
 }
 
@@ -122,6 +149,8 @@ export interface ScoredMatch {
   candidate: MatchCandidate;
   score: number;
   breakdown: MatchBreakdown;
+  /** Suggested road of the load (H4), when the pipeline was given the catalog. */
+  road?: RoadSuggestion;
 }
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -141,6 +170,7 @@ export function scoreCandidate(
   distances: CandidateDistances,
   weights: MatchingWeights = DEFAULT_MATCHING_WEIGHTS,
   now: Date = new Date(),
+  road: RoadScoreInput | null = null,
 ): ScoredMatch | null {
   const freeAt = Math.max(Date.parse(candidate.availableFrom), now.getTime());
   const arrival = freeAt + distances.empty.minutes * 60_000;
@@ -150,7 +180,14 @@ export function scoreCandidate(
 
   const idleHours = Math.max(0, pickupStart - arrival) / HOUR_MS;
   const totalKm = distances.empty.km + distances.loaded.km;
-  const pricePerKmCents = totalKm > 0 ? Math.round(candidate.proposedPriceCents / totalKm) : 0;
+  // H4: the price the carrier keeps after the tolls (never below zero).
+  const tollShare = Math.min(1, weights.tolls);
+  const netPriceCents = Math.max(
+    0,
+    candidate.proposedPriceCents - Math.round(tollShare * (road?.tollsCents ?? 0)),
+  );
+  const pricePerKmCents = totalKm > 0 ? Math.round(netPriceCents / totalKm) : 0;
+  const highRiskSegments = road?.highRiskCount ?? 0;
   const returnHome =
     candidate.isReturnTrip &&
     candidate.homeDistanceKm !== null &&
@@ -162,6 +199,7 @@ export function scoreCandidate(
     idleHours: round2(-weights.idleHours * Math.min(idleHours, weights.maxIdleHours)),
     routeMatch: candidate.matchedRoute ? weights.routeMatch : 0,
     returnHome: returnHome ? weights.returnHome : 0,
+    highRisk: round2(-weights.highRisk * highRiskSegments) || 0,
   };
   const score = round2(Object.values(points).reduce((sum, p) => sum + p, 0));
 
@@ -173,6 +211,9 @@ export function scoreCandidate(
       loadedKm: round2(distances.loaded.km),
       idleHours: round2(idleHours),
       pricePerKmCents,
+      tollsCents: road ? road.tollsCents : null,
+      tollsMissing: road?.tollsMissing ?? false,
+      highRiskSegments,
       matchedRoute: candidate.matchedRoute,
       isReturnTrip: candidate.isReturnTrip,
       returnHome,

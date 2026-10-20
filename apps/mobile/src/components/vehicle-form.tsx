@@ -1,5 +1,7 @@
 import {
+  defaultAxleCount,
   fleetCopy,
+  roadsCopy,
   fleetErrorCopy,
   SPECIAL_REQUIREMENTS,
   specialRequirementLabels,
@@ -136,6 +138,14 @@ export function useVehicleForm({
           onChangeText={(text) => set('modelYear', text)}
           error={errors.modelYear}
           keyboardType="number-pad"
+        />
+        <FieldCell
+          label={roadsCopy.axles.label}
+          value={form.axleCount}
+          onChangeText={(text) => set('axleCount', text)}
+          error={errors.axleCount}
+          keyboardType="number-pad"
+          placeholder={roadsCopy.axles.value(defaultAxleCount(form.kind, form.unitType ?? null))}
         />
         {tractor ? null : (
           <>

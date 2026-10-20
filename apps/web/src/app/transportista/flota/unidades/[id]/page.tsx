@@ -53,7 +53,7 @@ export default async function CarrierUnitPage({
     vehicle?.readiness === 'pending_release' ? await getPendingRelease(supabase, id) : null;
   const released =
     flash === 'liberada' && vehicle !== null && vehicle.readiness !== 'pending_release';
-  const recommendations = released ? await unitRecommendations(supabase, id) : null;
+  const recommendations = released && vehicle ? await unitRecommendations(supabase, vehicle) : null;
   const back = <BackLink href={paths.carrierUnits}>{c.units.back}</BackLink>;
   if (!vehicle) {
     return (

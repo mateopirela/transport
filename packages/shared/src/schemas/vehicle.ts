@@ -35,6 +35,12 @@ export const vehicleFormSchema = z
       capacityKg: positiveNumber(80_000).optional(),
       capacityM3: positiveNumber(200).optional(),
       features: enumList(SPECIAL_REQUIREMENTS).default([]),
+      /** Axles of the truck with its trailer (H4): pick the toll class; empty = the default. */
+      axleCount: z
+        .int({ error: m.axleCount })
+        .min(2, { error: m.axleCount })
+        .max(9, { error: m.axleCount })
+        .optional(),
     },
     formError,
   )

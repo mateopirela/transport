@@ -56,6 +56,7 @@ function vehicle(id: string, unitName: string | null = 'Corredor MTY–GDL'): Ve
     capacity_kg: 30000,
     capacity_m3: null,
     features: [],
+    axle_count: null,
     business_unit_id: 'bu1',
     current_operator_id: null,
     business_unit: unitName === null ? null : { name: unitName },

@@ -2,6 +2,7 @@
 // distances, resolve road distances only for the top N (bounded Maps cost),
 // re-score them and return them best first.
 import type { Database } from '../db';
+import type { RoadSuggestion } from '../roads/suggest';
 import { estimateLeg, legKey, type DistanceResolver, type Leg } from './distance';
 import {
   DEFAULT_MATCHING_WEIGHTS,
@@ -11,6 +12,7 @@ import {
   type LegDistance,
   type MatchCandidate,
   type MatchingWeights,
+  type RoadScoreInput,
   type ScoredMatch,
 } from './scoring';
 
@@ -64,6 +66,21 @@ export interface RecommendOptions {
   now?: Date;
   /** Road distances (cache + Google Routes). Without it, every leg is estimated. */
   resolveDistances?: DistanceResolver;
+  /**
+   * Suggested road of a candidate (H4, createRoadSuggester). Its tolls and
+   * high-risk crossings enter the score; without it the score ignores roads.
+   */
+  suggestRoad?: (candidate: MatchCandidate) => RoadSuggestion;
+}
+
+function roadScore(road: RoadSuggestion | undefined): RoadScoreInput | null {
+  return road && road.source === 'catalog'
+    ? {
+        tollsCents: road.tollsCents,
+        tollsMissing: road.tollsMissing,
+        highRiskCount: road.highRiskCount,
+      }
+    : null;
 }
 
 /** The top N candidates, best first, scored with road distances when available. */
@@ -75,8 +92,18 @@ export async function recommend(
   const topN = Math.min(Math.max(Math.trunc(options.topN ?? DEFAULT_TOP_N), 1), MAX_TOP_N);
   const now = options.now ?? new Date();
   const estimate = (leg: Leg) => estimateLeg(leg, options.roadFactor);
-  const score = (c: MatchCandidate, distances: CandidateDistances) =>
-    scoreCandidate(c, distances, weights, now);
+  // One road per load and unit (the unit's axles pick the toll class).
+  const roads = new Map<string, RoadSuggestion | undefined>();
+  const roadOf = (c: MatchCandidate) => {
+    const key = `${c.loadId}|${c.vehicleId}`;
+    if (!roads.has(key)) roads.set(key, options.suggestRoad?.(c));
+    return roads.get(key);
+  };
+  const score = (c: MatchCandidate, distances: CandidateDistances): ScoredMatch | null => {
+    const road = roadOf(c);
+    const scored = scoreCandidate(c, distances, weights, now, roadScore(road));
+    return scored && road ? { ...scored, road } : scored;
+  };
 
   // 1. Every candidate with estimates (no Maps calls).
   const estimated = candidates

@@ -52,6 +52,7 @@ export type VehicleRow = Pick<
   | 'capacity_kg'
   | 'capacity_m3'
   | 'features'
+  | 'axle_count'
   | 'business_unit_id'
   | 'current_operator_id'
 >;

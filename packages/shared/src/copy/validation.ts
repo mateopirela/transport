@@ -31,6 +31,13 @@ export const validationMessages = {
   outsideMexico: 'La ubicación debe estar en México.',
   plate: 'Escribe unas placas válidas (5 a 8 letras o números).',
   vehicleYear: 'Escribe un año de modelo válido.',
+  axleCount: 'Escribe un número de ejes entre 2 y 9.',
+  roadCode: 'Usa letras, números y guiones (p. ej. SLP-LAG).',
+  httpsUrl: 'Escribe un enlace que empiece con https://.',
+  coordinate: 'Escribe una coordenada válida.',
+  hourBand: 'Las horas van de 0 a 24 y el inicio no puede ser igual al fin.',
+  roadSegments: 'Escribe las claves de los tramos, separadas por comas.',
+  notFuture: 'La fecha no puede ser futura.',
   unitTypeRequired: 'Selecciona el tipo de unidad.',
   capacityRequired: 'Escribe la capacidad de carga.',
   tractorNoBody:

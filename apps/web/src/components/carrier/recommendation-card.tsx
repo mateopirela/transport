@@ -3,9 +3,12 @@ import {
   carrierWebCopy,
   formatDateTime,
   formatMxn,
+  cardRoad,
   matchingCopy,
+  roadsCopy,
   type Recommendation,
 } from '@transport/shared';
+import { TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 
 import { buttonVariants } from '@/components/ui/button';
@@ -37,6 +40,9 @@ export function RecommendationCard({
   unitLabel?: string | undefined;
 }) {
   const href = `${carrierLoadPath(r.loadId)}?${RECOMMENDED_UNIT_PARAM}=${r.vehicleId}`;
+  // H4: estimated tolls of the suggested road and a warning when it crosses a
+  // high-risk segment inside its band.
+  const { tolls, risky } = cardRoad(r.road);
   return (
     <li className={`${groupRow} flex flex-wrap items-start justify-between gap-4 px-4 py-4`}>
       <div className="min-w-0 flex-1 space-y-1">
@@ -47,11 +53,21 @@ export function RecommendationCard({
         <p className="text-subhead text-text-dim">
           {c.pickup(formatDateTime(r.pickupWindowStart))}
         </p>
-        {(r.breakdown.isReturnTrip || r.breakdown.distanceSource === 'estimate') && (
+        {(r.breakdown.isReturnTrip ||
+          r.breakdown.distanceSource === 'estimate' ||
+          tolls ||
+          risky) && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {r.breakdown.isReturnTrip && <Pill tone="ok">{matchingCopy.returnTrip}</Pill>}
             {r.breakdown.distanceSource === 'estimate' && (
               <Pill>{matchingCopy.estimatedDistance}</Pill>
+            )}
+            {tolls && <Pill>{tolls}</Pill>}
+            {risky && (
+              <Pill tone="red" aria-label={roadsCopy.cardHighRiskLabel}>
+                <TriangleAlert aria-hidden className="size-3.5" />
+                {roadsCopy.cardHighRisk}
+              </Pill>
             )}
           </div>
         )}

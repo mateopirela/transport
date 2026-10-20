@@ -4,7 +4,6 @@ import Link from 'next/link';
 
 import { AccountMenu, NavTabs, type ShellNavItem } from '@/components/app-shell-client';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/ui/page-header';
 import { signOut } from '@/lib/auth/actions';
 import { themeChoiceFromCookie, THEME_COOKIE } from '@/lib/theme';
 import type { ViewerDetails } from '@/lib/viewer';
@@ -67,7 +66,7 @@ export function SignOutButton({
   variant,
   className,
 }: {
-  variant: 'plain' | 'link' | 'ghost';
+  variant: 'plain' | 'link';
   className?: string;
 }) {
   return (
@@ -77,9 +76,4 @@ export function SignOutButton({
       </Button>
     </form>
   );
-}
-
-/** The title block of a screen: `PageHeader` by its old name, until U7 and U8 move the screens. */
-export function PageHeading({ title, description }: { title: string; description?: string }) {
-  return <PageHeader title={title} description={description} />;
 }

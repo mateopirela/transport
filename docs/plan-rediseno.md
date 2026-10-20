@@ -286,3 +286,20 @@ Formato: objetivo, alcance, fuera de alcance, tests, aceptación, E2E que probab
 1. ¿Nombre comercial (D25)? El `largeTitle` de la pantalla de acceso y el shell lo muestran; hoy "Transport".
 2. ¿Icono de la app y splash nuevos? U9 solo ajusta colores; un icono nuevo es diseño aparte.
 3. ¿Barra lateral en la web de escritorio para admin, o pestañas arriba como en cliente? Por defecto, pestañas arriba en todo y barra lateral solo en admin ≥1024 px.
+
+## 6. Estado final (U9, 2026-10-20)
+
+Los nueve bloques están en `main` (U1 #60, U6 #62, U7 #63, U8 #64, U2 #65, U4 #66, U3 #67, U5 #68 y U9).
+
+- **Del tema anterior no queda nada:** sin `Title`, `Body`, `Centered`, `SectionTitle`, `Badge`, `Card`, `Loaded`, `ChoiceChips`, `MultiChips`, `fleet-ui.tsx` ni la variante `link` del botón en la app; sin los alias `colors`/`fonts` del tema (solo tema claro); sin `--navy`, `font-serif`, `Card`, `PageHeading` ni las variantes `default`/`accent`/`outline`/`ghost`/`lg` del botón en la web. Los dos `Disclosure` de la web son uno, en el kit.
+- **Prueba de higiene:** `findHygieneViolations` (`packages/shared/src/design/hygiene.ts`, pura y probada) y un test por app (`apps/mobile/src/hygiene.test.ts`, `apps/web/src/hygiene.test.ts`) que recorre su `src`: fuera del kit, del tema y de `globals.css` no hay colores hex ni `rgba(`, tamaños de fuente ni radios numéricos, sombras ni restos del tema anterior (`navy`, `Georgia`, `serif`); en la web tampoco clases de la paleta de Tailwind, tamaños `text-sm…` ni valores arbitrarios de color o radio.
+- **Tema:** la app arranca en "Sistema" (todas las pantallas leen `useTheme()`); el splash y el icono adaptativo de Android van sobre el acento (en oscuro, el splash sobre `bg`).
+- **Tamaños táctiles:** el botón pequeño, los chips y los segmentos llegan a 44 pt con `hitSlop` (`shape.minTouch`) sin dibujarse más grandes.
+- **Capturas** claro/oscuro de todas las pantallas en la rama `assets/U9-screenshots` (enlazadas en el PR de U9 y, las de las tiendas, en [tiendas.md](tiendas.md)).
+
+### Seguimiento que queda
+
+1. Consolidar en el kit móvil `ChoiceCell`/`MultiChoiceCell`, `DetailRow`, `StatusRow` y `TabBottomBar`; pasar `option-group` y `state-picker` a `Segmented`/`PickerSheet` (hoy cumplen la higiene, pero viven fuera del kit).
+2. Web: decidir si `PageSection`, `BackLink`, `FactList`, `CheckboxList` y `status-tones` pasan al kit.
+3. Lo de §5 sigue abierto: nombre comercial, icono y splash nuevos, barra lateral del admin.
+4. `/` redirige a `/login` (no hay landing): es navegación, decisión de Mateo.

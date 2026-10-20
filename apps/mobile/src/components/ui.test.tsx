@@ -1,4 +1,4 @@
-import { palette, toneColors } from '@transport/shared';
+import { palette, shape, toneColors } from '@transport/shared';
 import { act, type ReactElement } from 'react';
 import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -7,7 +7,7 @@ import { setSavedForTest } from '../../test/stubs/secure-store';
 import { ThemeProvider } from '../theme';
 import { glyphOf } from './icons';
 import { tabAccessibilityLabel } from './tab-bar';
-import { Badge, Button, Cell, Empty, Group, Pill, Segmented } from './ui';
+import { Button, Cell, ChipTabs, Empty, Group, Pill, Segmented } from './ui';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,7 +149,7 @@ describe('Button', () => {
       byRole(await render(<Button label="Ofertar" onPress={() => undefined} />), 'button'),
     );
     expect(styleOf(primary).backgroundColor).toBe(light.accent);
-    for (const variant of ['secondary', 'plain', 'destructive', 'link'] as const) {
+    for (const variant of ['secondary', 'plain', 'destructive'] as const) {
       const root = await render(
         <Button label="Cancelar" variant={variant} onPress={() => undefined} />,
       );
@@ -157,12 +157,25 @@ describe('Button', () => {
     }
   });
 
-  it('reads the old `link` variant as plain text in the accent', async () => {
+  it('writes a plain button as text in the accent', async () => {
     const root = await render(
-      <Button label="Crear cuenta" variant="link" onPress={() => undefined} />,
+      <Button label="Crear cuenta" variant="plain" onPress={() => undefined} />,
     );
     const label = at(byType(root, 'Text'));
     expect(styleOf(label).color).toBe(palette.light.accentText);
+  });
+
+  it('is a 44-point touch target when small, without drawing it bigger', async () => {
+    const small = at(
+      byRole(await render(<Button label="Ver" size="small" onPress={() => undefined} />), 'button'),
+    );
+    expect(styleOf(small).minHeight).toBe(shape.buttonHeightSmall);
+    const slop = small.props.hitSlop as { top: number; bottom: number };
+    expect(shape.buttonHeightSmall + slop.top + slop.bottom).toBe(shape.minTouch);
+    const regular = at(
+      byRole(await render(<Button label="Entrar" onPress={() => undefined} />), 'button'),
+    );
+    expect(regular.props.hitSlop).toBeUndefined();
   });
 });
 
@@ -193,11 +206,6 @@ describe('Pill', () => {
     );
     expect(ground(root)).toBe(toneColors('dark', 'red').bg);
     expect(ink(root)).toBe(toneColors('dark', 'red').fg);
-  });
-
-  it('keeps the old Badge tones as aliases', async () => {
-    const root = await render(<Badge label="Aprobado" tone="success" />);
-    expect(ink(root)).toBe(toneColors('light', 'ok').fg);
   });
 });
 
@@ -257,6 +265,52 @@ describe('Segmented', () => {
     expect(onChange).not.toHaveBeenCalled();
     act(() => system.props.onPress());
     expect(onChange).toHaveBeenCalledExactlyOnceWith('system');
+  });
+
+  it('gives each segment a 44-point touch area inside its frame, without growing', async () => {
+    const root = await render(
+      <Segmented label="Apariencia" value="light" options={options} onChange={() => undefined} />,
+    );
+    const frame = styleOf(at(byRole(root, 'radiogroup')));
+    for (const radio of byRole(root, 'radio')) {
+      const slop = radio.props.hitSlop as { top: number; bottom: number };
+      const height = styleOf(radio).minHeight as number;
+      expect(height + slop.top + slop.bottom).toBe(shape.minTouch);
+      // The frame holds the whole touch area (Android clips a slop at the parent).
+      expect(frame.paddingVertical).toBeGreaterThanOrEqual(slop.top);
+    }
+    // On screen it takes the height of a small button, as before.
+    const outer =
+      (styleOf(at(byRole(root, 'radio'))).minHeight as number) +
+      2 * (frame.paddingVertical as number) +
+      2 * (frame.marginVertical as number);
+    expect(outer).toBe(shape.buttonHeightSmall);
+  });
+});
+
+describe('ChipTabs', () => {
+  it("leaves room in the scroller for the chips' 44-point touch areas", async () => {
+    const root = await render(
+      <ChipTabs
+        label="Estado"
+        value="all"
+        options={[
+          { value: 'all', label: 'Todas' },
+          { value: 'open', label: 'Abiertas', count: 3 },
+        ]}
+        onChange={() => undefined}
+      />,
+    );
+    const scroller = at(byType(root, 'ScrollView'));
+    const content = [scroller.props.contentContainerStyle]
+      .flat(Infinity)
+      .reduce<Record<string, unknown>>((all, s) => (s ? { ...all, ...s } : all), {});
+    for (const chip of byRole(root, 'radio')) {
+      const slop = chip.props.hitSlop as { top: number; bottom: number };
+      expect((styleOf(chip).minHeight as number) + slop.top + slop.bottom).toBe(shape.minTouch);
+      expect(content.paddingVertical).toBeGreaterThanOrEqual(slop.top);
+    }
+    expect(styleOf(scroller).marginVertical).toBe(-(content.paddingVertical as number));
   });
 });
 

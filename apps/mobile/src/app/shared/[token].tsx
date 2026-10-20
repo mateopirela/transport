@@ -9,16 +9,24 @@ import {
   unitTypeLabels,
 } from '@transport/shared';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Text } from 'react-native';
 
-import { Loaded } from '../../components/fleet-ui';
-import { Button, Notice, Screen, Title } from '../../components/ui';
+import { DetailRow } from '../../components/detail-row';
+import {
+  BottomBar,
+  Group,
+  LoadError,
+  Notice,
+  Screen,
+  Skeleton,
+  ValueRow,
+} from '../../components/ui';
 import { openTeamShareLink, shareTokenParam } from '../../lib/share-api';
 import { supabase } from '../../lib/supabase';
 import { useLoader } from '../../lib/use-loader';
 import { useSession } from '../../providers/session';
-import { colors } from '../../theme';
+import { useTheme } from '../../theme';
 
 const copy = shareLinksCopy;
 const detail = carrierLoadsCopy.detail;
@@ -34,6 +42,8 @@ export default function SharedLoad() {
   const token = shareTokenParam(params.token);
   const { area } = useSession();
   const router = useRouter();
+  const { type } = useTheme();
+  const [barHeight, setBarHeight] = useState(0);
 
   const load = useCallback(
     () => (supabase ? openTeamShareLink(supabase, token) : Promise.resolve(null)),
@@ -41,84 +51,76 @@ export default function SharedLoad() {
   );
   const { state, reload } = useLoader(load);
 
+  const header = <Stack.Screen options={{ title: copy.app.sharedTitle, headerShown: true }} />;
+  if (state.status !== 'ready' || !state.data) {
+    return (
+      <Screen belowHeader>
+        {header}
+        {state.status === 'error' ? (
+          <LoadError onRetry={() => void reload()} />
+        ) : state.status === 'ready' ? (
+          <Notice tone="warning" title={copy.internal.unavailableTitle}>
+            {copy.internal.unavailableBody}
+          </Notice>
+        ) : (
+          <Skeleton />
+        )}
+      </Screen>
+    );
+  }
+
+  const l = state.data;
+  const canOffer = l.canOffer && area === 'carrier';
   return (
-    <Screen>
-      <Stack.Screen options={{ title: copy.app.sharedTitle, headerShown: true }} />
-      <Loaded state={state} onRetry={() => void reload()}>
-        {(shared) => {
-          if (!shared) {
-            return (
-              <Notice tone="warning" title={copy.internal.unavailableTitle}>
-                {copy.internal.unavailableBody}
-              </Notice>
-            );
-          }
-          const l = shared;
-          return (
-            <>
-              <Title subtitle={copy.internal.description}>
-                {`${l.origin.city} → ${l.destination.city}`}
-              </Title>
-              <Row
-                label={detail.route}
-                value={`${l.origin.city}, ${l.origin.state} → ${l.destination.city}, ${l.destination.state}`}
-              />
-              <Row label={copy.internal.labels.status} value={loadStatusLabels[l.status]} />
-              <Row label={detail.proposedPrice} value={formatMxn(l.proposedPriceCents)} strong />
-              <Row
-                label={detail.pickupWindow}
-                value={detail.window(
-                  formatDateTime(l.pickupWindow.start),
-                  formatDateTime(l.pickupWindow.end),
-                )}
-              />
-              <Row
-                label={detail.deliveryWindow}
-                value={detail.window(
-                  formatDateTime(l.deliveryWindow.start),
-                  formatDateTime(l.deliveryWindow.end),
-                )}
-              />
-              <Row
-                label={detail.cargo}
-                value={`${cargoTypeLabels[l.cargoType]} · ${l.description}`}
-              />
-              <Row label={detail.unitType} value={unitTypeLabels[l.unitType]} />
-              {l.specialRequirements.length > 0 ? (
-                <Row
-                  label={detail.requirements}
-                  value={l.specialRequirements.map((r) => specialRequirementLabels[r]).join(', ')}
-                />
-              ) : null}
-              {l.notes ? <Row label={detail.notes} value={l.notes} /> : null}
-              {l.canOffer && area === 'carrier' ? (
-                <Button
-                  label={copy.app.openLoad}
-                  onPress={() => router.push(`/load/${l.loadId}`)}
-                />
-              ) : (
-                <Notice tone="info">{copy.internal.readOnly}</Notice>
-              )}
-            </>
-          );
-        }}
-      </Loaded>
-    </Screen>
+    <>
+      {header}
+      <Screen belowHeader bottom={canOffer ? barHeight : 0}>
+        <Text accessibilityRole="header" style={type.title2}>
+          {`${l.origin.city} → ${l.destination.city}`}
+        </Text>
+        <Text style={type.footnote}>{copy.internal.description}</Text>
+        <Group>
+          <DetailRow
+            label={detail.route}
+            value={`${l.origin.city}, ${l.origin.state} → ${l.destination.city}, ${l.destination.state}`}
+          />
+          <ValueRow label={copy.internal.labels.status} value={loadStatusLabels[l.status]} />
+          <ValueRow label={detail.proposedPrice} value={formatMxn(l.proposedPriceCents)} strong />
+          <DetailRow
+            label={detail.pickupWindow}
+            value={detail.window(
+              formatDateTime(l.pickupWindow.start),
+              formatDateTime(l.pickupWindow.end),
+            )}
+          />
+          <DetailRow
+            label={detail.deliveryWindow}
+            value={detail.window(
+              formatDateTime(l.deliveryWindow.start),
+              formatDateTime(l.deliveryWindow.end),
+            )}
+          />
+          <DetailRow
+            label={detail.cargo}
+            value={`${cargoTypeLabels[l.cargoType]} · ${l.description}`}
+          />
+          <ValueRow label={detail.unitType} value={unitTypeLabels[l.unitType]} />
+          {l.specialRequirements.length > 0 ? (
+            <DetailRow
+              label={detail.requirements}
+              value={l.specialRequirements.map((r) => specialRequirementLabels[r]).join(', ')}
+            />
+          ) : null}
+          {l.notes ? <DetailRow label={detail.notes} value={l.notes} /> : null}
+        </Group>
+        {canOffer ? null : <Notice tone="info">{copy.internal.readOnly}</Notice>}
+      </Screen>
+      {canOffer ? (
+        <BottomBar
+          action={{ label: copy.app.openLoad, onPress: () => router.push(`/load/${l.loadId}`) }}
+          onHeight={setBarHeight}
+        />
+      ) : null}
+    </>
   );
 }
-
-function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, strong ? styles.strong : null]}>{value}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  row: { gap: 2 },
-  label: { fontSize: 13, color: colors.textMuted },
-  value: { fontSize: 15, color: colors.text, lineHeight: 21 },
-  strong: { fontSize: 18, fontWeight: '700', color: colors.navy },
-});

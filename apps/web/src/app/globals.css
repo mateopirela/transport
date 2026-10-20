@@ -100,15 +100,10 @@
   --border: var(--separator);
   --input: var(--separator);
   --ring: var(--accent);
-  /* Old name of the deck's navy, until U6–U8 move the shell and U9 deletes it: the ink. */
-  --navy: var(--text);
-  --navy-foreground: var(--bg);
 }
 
 @theme inline {
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
-  /* One family (§1.2): `font-serif` is an alias of the sans until U9 removes it. */
-  --font-serif: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
 
   --color-bg: var(--bg);
   --color-cell: var(--cell);
@@ -130,8 +125,6 @@
   --color-glass: var(--glass);
   --color-glass-line: var(--glass-line);
 
-  --color-navy: var(--navy);
-  --color-navy-foreground: var(--navy-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

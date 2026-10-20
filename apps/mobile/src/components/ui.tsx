@@ -1,11 +1,5 @@
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import {
-  fleetCopy,
-  mobileAuthCopy,
-  type SelectOption,
-  type StatusTone,
-  toneColors,
-} from '@transport/shared';
+import { fleetCopy, mobileAuthCopy, type StatusTone, toneColors } from '@transport/shared';
 import { BlurView } from 'expo-blur';
 import {
   Children,
@@ -37,7 +31,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { LoaderState } from '../lib/use-loader';
 import {
   iconSize,
   lookOf,
@@ -59,10 +52,6 @@ import { Icon, type IconName } from './icons';
  * pills, chips and a segmented control, fields, and loading and empty states
  * shaped like the content they stand for. Everything reads its colours and
  * type from useTheme(), so it follows the light and the dark theme.
- *
- * The names the screens used before the redesign (Title, Body, Centered,
- * Card, Badge, SectionTitle, Loaded, ChoiceChips, MultiChips) are thin
- * aliases at the end of this file until U9 removes them.
  */
 
 // ---------------------------------------------------------------------------
@@ -515,10 +504,19 @@ export function ValueRow({
 export type ButtonVariant = 'primary' | 'secondary' | 'plain' | 'destructive';
 
 /**
+ * The hit slop that makes a control `height` high a 44-point touch target
+ * (shape.minTouch) without drawing it bigger: the small button, chips and segments.
+ */
+export function touchSlop(height: number): { top: number; bottom: number } | undefined {
+  const extra = Math.max(0, (shape.minTouch - height) / 2);
+  return extra > 0 ? { top: extra, bottom: extra } : undefined;
+}
+
+/**
  * The buttons of the system, all pills, 52 high (40 `small`): `primary` in
  * the accent, the only one per screen; `secondary` on the cell colour;
  * `plain` as text; `destructive` in red. `loading` shows a spinner and
- * disables it. (`link` is `plain` by its old name.)
+ * disables it.
  */
 export function Button({
   label,
@@ -532,7 +530,7 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  variant?: ButtonVariant | 'link';
+  variant?: ButtonVariant;
   size?: 'regular' | 'small';
   loading?: boolean;
   disabled?: boolean;
@@ -541,7 +539,7 @@ export function Button({
 }) {
   const kit = useKit();
   const { colors } = useTheme();
-  const kind: ButtonVariant = variant === 'link' ? 'plain' : variant;
+  const kind = variant;
   const off = disabled || loading;
   const ink = off
     ? colors.textFaint
@@ -559,6 +557,7 @@ export function Button({
       accessibilityState={{ disabled: off, busy: loading }}
       disabled={off}
       onPress={onPress}
+      hitSlop={touchSlop(size === 'small' ? shape.buttonHeightSmall : shape.buttonHeight)}
       style={({ pressed }) => [
         kit.button,
         size === 'small' ? kit.buttonSmall : null,
@@ -728,6 +727,17 @@ export function Checkbox({
   );
 }
 
+/** The height of a segment inside its track. */
+const SEGMENT_HEIGHT = shape.buttonHeightSmall - spacing.xs;
+
+/**
+ * A hit slop only works inside the bounds of every parent (Android clips it),
+ * so the parents of the small controls leave room for it: padding that the
+ * same negative margin takes back, so nothing moves on screen.
+ */
+const SEGMENT_SLOP = touchSlop(SEGMENT_HEIGHT)?.top ?? 0;
+const CHIP_SLOP = touchSlop(shape.buttonHeightSmall)?.top ?? 0;
+
 /** Two or three exclusive options side by side: the selected one lifted on the cell colour. */
 export function Segmented<T extends string>({
   label,
@@ -742,7 +752,9 @@ export function Segmented<T extends string>({
 }) {
   const kit = useKit();
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={kit.segmented}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={kit.segmentedFrame}>
+      {/* The track, drawn behind the segments: the frame around it holds their touch areas. */}
+      <View style={kit.segmented} />
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -753,6 +765,7 @@ export function Segmented<T extends string>({
             onPress={() => {
               if (!selected) onChange(option.value);
             }}
+            hitSlop={touchSlop(SEGMENT_HEIGHT)}
             style={[kit.segment, selected ? kit.segmentOn : null]}
           >
             <Text style={[kit.segmentText, selected ? kit.segmentTextOn : null]} numberOfLines={1}>
@@ -789,6 +802,7 @@ export function Chip({
       accessibilityRole={role}
       accessibilityState={role === 'button' ? { selected } : { checked: selected }}
       onPress={onPress}
+      hitSlop={touchSlop(shape.buttonHeightSmall)}
       style={({ pressed }) => [
         kit.chip,
         selected ? kit.chipOn : null,
@@ -1029,186 +1043,6 @@ export function ErrorText({ children }: { children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// The old names (until U9)
-// ---------------------------------------------------------------------------
-
-/** @deprecated A title1 header with a dim subtitle; new screens use Screen's `title` or LargeTitle. */
-export function Title({ children, subtitle }: { children: string; subtitle?: string }) {
-  const kit = useKit();
-  return (
-    <View style={kit.titleBlock}>
-      <Text accessibilityRole="header" style={kit.title1}>
-        {children}
-      </Text>
-      {subtitle ? <Text style={kit.dim}>{subtitle}</Text> : null}
-    </View>
-  );
-}
-
-/** @deprecated A paragraph in `subhead`. */
-export function Body({ children }: { children: ReactNode }) {
-  const kit = useKit();
-  return <Text style={kit.subheadText}>{children}</Text>;
-}
-
-/** @deprecated Content centred on the page. */
-export function Centered({ children }: { children: ReactNode }) {
-  const kit = useKit();
-  return <View style={kit.centered}>{children}</View>;
-}
-
-/** @deprecated A section title; new screens use SectionHeader. */
-export function SectionTitle({ children }: { children: string }) {
-  return <SectionHeader title={children} />;
-}
-
-export type Tone = 'neutral' | 'success' | 'info' | 'warning' | 'danger';
-
-const BADGE_TONES: Record<Tone, PillTone> = {
-  neutral: 'neutral',
-  success: 'ok',
-  info: 'accent',
-  warning: 'amber',
-  danger: 'red',
-};
-
-/** @deprecated A status pill by its old tone names; new screens use Pill. */
-export function Badge({ label, tone }: { label: string; tone: Tone }) {
-  return <Pill label={label} tone={BADGE_TONES[tone]} />;
-}
-
-/** @deprecated A card on the cell colour; pressable (with a chevron) when `onPress` is given. New screens use Group and Cell. */
-export function Card({
-  title,
-  subtitle,
-  onPress,
-  children,
-}: {
-  title: string;
-  subtitle?: string | null | undefined;
-  onPress?: () => void;
-  children?: ReactNode;
-}) {
-  const kit = useKit();
-  const { colors } = useTheme();
-  const body = (
-    <>
-      <View style={kit.cardHeader}>
-        <View style={kit.grow}>
-          <Text style={kit.headline}>{title}</Text>
-          {subtitle ? <Text style={kit.cellSubtitle}>{subtitle}</Text> : null}
-        </View>
-        {onPress ? (
-          <Icon name="chevronRight" size={iconSize.small} color={colors.textFaint} />
-        ) : null}
-      </View>
-      {children}
-    </>
-  );
-  return onPress ? (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [kit.card, pressed ? kit.cardPressed : null]}
-    >
-      {body}
-    </Pressable>
-  ) : (
-    <View style={kit.card}>{body}</View>
-  );
-}
-
-/** @deprecated Loaded data, its skeleton while it loads, or an error with a retry. */
-export function Loaded<T>({
-  state,
-  onRetry,
-  children,
-}: {
-  state: LoaderState<T>;
-  onRetry: () => void;
-  children: (data: T) => ReactNode;
-}) {
-  if (state.status === 'loading') return <Skeleton />;
-  if (state.status === 'error') return <LoadError onRetry={onRetry} />;
-  return <>{children(state.data)}</>;
-}
-
-/** @deprecated A single choice among options, as chips under a label. */
-export function ChoiceChips<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  error,
-}: {
-  label: string;
-  options: readonly SelectOption<T>[];
-  value: T | undefined;
-  onChange: (value: T) => void;
-  error?: string | undefined;
-}) {
-  return (
-    <ChipField label={label} error={error}>
-      {options.map((o) => (
-        <Chip
-          key={o.value}
-          label={o.label}
-          selected={o.value === value}
-          onPress={() => onChange(o.value)}
-        />
-      ))}
-    </ChipField>
-  );
-}
-
-/** @deprecated Several choices among options, as chips under a label. */
-export function MultiChips<T extends string>({
-  label,
-  options,
-  values,
-  onToggle,
-  error,
-}: {
-  label: string;
-  options: readonly SelectOption<T>[];
-  values: readonly T[];
-  onToggle: (value: T) => void;
-  error?: string | undefined;
-}) {
-  return (
-    <ChipField label={label} error={error}>
-      {options.map((o) => (
-        <Chip
-          key={o.value}
-          label={o.label}
-          selected={values.includes(o.value)}
-          onPress={() => onToggle(o.value)}
-        />
-      ))}
-    </ChipField>
-  );
-}
-
-function ChipField({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string | undefined;
-  children: ReactNode;
-}) {
-  const kit = useKit();
-  return (
-    <View style={kit.field}>
-      <Text style={kit.label}>{label}</Text>
-      <View style={kit.chipWrap}>{children}</View>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
@@ -1233,7 +1067,6 @@ function makeStyles({ colors, type, theme }: Look) {
     center: { textAlign: 'center' },
     num: type.num,
     largeTitleText: type.largeTitle,
-    title1: type.title1,
     title3: type.title3,
     headline: type.headline,
     body: type.body,
@@ -1253,7 +1086,6 @@ function makeStyles({ colors, type, theme }: Look) {
       alignItems: 'center',
       gap: spacing.sm,
     },
-    titleBlock: { gap: spacing.xs, marginBottom: spacing.sm },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'baseline',
@@ -1374,15 +1206,27 @@ function makeStyles({ colors, type, theme }: Look) {
       justifyContent: 'center',
     },
     checkBoxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-    segmented: {
+    // The segments sit SEGMENT_SLOP from the frame's edges (the track's padding
+    // above and below, plus room for their hit slop) and the track's padding
+    // from its sides; the negative margin keeps the control as tall as before.
+    segmentedFrame: {
       flexDirection: 'row',
-      padding: spacing.xs / 2,
+      paddingHorizontal: spacing.xs / 2,
+      paddingVertical: SEGMENT_SLOP,
+      marginVertical: spacing.xs / 2 - SEGMENT_SLOP,
+    },
+    segmented: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: SEGMENT_SLOP - spacing.xs / 2,
+      bottom: SEGMENT_SLOP - spacing.xs / 2,
       borderRadius: shape.pill,
       backgroundColor: track,
     },
     segment: {
       flex: 1,
-      minHeight: shape.buttonHeightSmall - spacing.xs,
+      minHeight: SEGMENT_HEIGHT,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: shape.pill,
@@ -1403,9 +1247,9 @@ function makeStyles({ colors, type, theme }: Look) {
     chipOn: { borderColor: colors.accentSoft, backgroundColor: colors.accentSoft },
     chipText: { ...type.subhead, color: colors.text },
     chipTextOn: { fontFamily: type.headline.fontFamily, color: colors.accentText },
-    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    chipTabs: { marginHorizontal: -spacing.md, flexGrow: 0 },
-    chipTabsRow: { gap: spacing.sm, paddingHorizontal: spacing.md },
+    // Room above and below the chips for their hit slop (a ScrollView clips).
+    chipTabs: { marginHorizontal: -spacing.md, marginVertical: -CHIP_SLOP, flexGrow: 0 },
+    chipTabsRow: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: CHIP_SLOP },
     searchBox: {
       ...hairline,
       flexDirection: 'row',
@@ -1445,29 +1289,11 @@ function makeStyles({ colors, type, theme }: Look) {
     highlightNotice: { backgroundColor: colors.highlight },
     infoNotice: { backgroundColor: colors.accentSoft },
     warningNotice: { backgroundColor: colors.highlight },
-    dangerNotice: { backgroundColor: colors.dangerSurface },
+    dangerNotice: { backgroundColor: colors.redSoft },
     highlightTitle: { color: colors.text },
     infoTitle: { color: colors.accentText },
     warningTitle: { color: colors.amberText },
     dangerTitle: { color: colors.redText },
-
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: spacing.lg,
-      gap: spacing.md,
-      backgroundColor: colors.bg,
-    },
-    card: {
-      ...hairline,
-      borderRadius: shape.card,
-      backgroundColor: colors.cell,
-      padding: spacing.md,
-      gap: spacing.sm,
-    },
-    cardPressed: { backgroundColor: colors.surfaceHigh },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   });
 }
 

@@ -8,7 +8,7 @@ import {
 import { useActionState, useId } from 'react';
 
 import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/disclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
@@ -39,7 +39,12 @@ export function TripCancelForm({
   const [state, action, pending] = useActionState(cancel, {});
   const errors = state.fieldErrors ?? {};
   return (
-    <Disclosure summary={c.open} tone="red" open={Boolean(state.error || state.fieldErrors)}>
+    <Disclosure
+      look="cell"
+      summary={c.open}
+      tone="red"
+      open={Boolean(state.error || state.fieldErrors)}
+    >
       <form action={action} className="space-y-4" noValidate>
         <div className="space-y-1">
           <p className="text-headline text-text">{c.title}</p>

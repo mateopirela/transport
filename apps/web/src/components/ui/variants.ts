@@ -9,9 +9,6 @@ import { cva, type VariantProps } from 'class-variance-authority';
  * Pill buttons (§1.3): one `primary` per screen (the accent, filled), the
  * rest `secondary` (a cell), `plain` (text) or `destructive` (a cell in red).
  * `link` is an inline text link that looks like a button's label.
- *
- * `default`, `accent`, `outline` and `ghost` are the names the screens used
- * before the redesign: aliases until U9 deletes them.
  */
 export const buttonVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-colors duration-200 outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4.5",
@@ -23,19 +20,12 @@ export const buttonVariants = cva(
         plain: 'text-text-dim hover:bg-surface-high hover:text-text',
         destructive: 'border bg-cell text-red-text hover:bg-red/10',
         link: 'rounded-sm text-accent-text underline-offset-4 hover:underline',
-        // Aliases of the old names (until U9).
-        default: 'bg-accent text-accent-ink hover:bg-accent/90',
-        accent: 'bg-accent text-accent-ink hover:bg-accent/90',
-        outline: 'border bg-cell text-text hover:bg-surface-high',
-        ghost: 'text-text-dim hover:bg-surface-high hover:text-text',
       },
       size: {
         // 44 px, and 36 the small one (§1.6).
         default: 'h-11 px-5 text-callout',
         sm: 'h-9 px-4 text-subhead',
         icon: 'size-11',
-        // Alias of the old large size (until U9).
-        lg: 'h-11 px-5 text-callout',
       },
     },
     compoundVariants: [{ variant: 'link', className: 'h-auto px-0' }],

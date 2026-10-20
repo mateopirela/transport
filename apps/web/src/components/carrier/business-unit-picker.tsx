@@ -54,7 +54,7 @@ export function BusinessUnitPicker({
           </option>
         ))}
       </select>
-      <Button type="submit" variant="ghost" size="sm" className="sr-only focus:not-sr-only">
+      <Button type="submit" variant="plain" size="sm" className="sr-only focus:not-sr-only">
         {c.apply}
       </Button>
     </form>

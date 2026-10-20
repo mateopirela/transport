@@ -4,7 +4,7 @@ import { offersCopy } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/disclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,7 @@ export function OfferResponse({
 
   return (
     <div className="space-y-3">
-      <Disclosure summary={c.accept} tone="ok">
+      <Disclosure look="cell" summary={c.accept} tone="ok">
         <form action={accept} className="space-y-4">
           <div className="space-y-1">
             <p className="text-headline text-text">{c.acceptTitle}</p>
@@ -51,7 +51,7 @@ export function OfferResponse({
         </form>
       </Disclosure>
 
-      <Disclosure summary={c.counter} open={Boolean(countered.error || amountError)}>
+      <Disclosure look="cell" summary={c.counter} open={Boolean(countered.error || amountError)}>
         <form action={counter} className="space-y-4" noValidate>
           {countered.error && <Notice tone="error">{countered.error}</Notice>}
           <input type="hidden" name="offerId" value={offerId} />
@@ -89,7 +89,7 @@ export function OfferResponse({
         </form>
       </Disclosure>
 
-      <Disclosure summary={c.reject} tone="red">
+      <Disclosure look="cell" summary={c.reject} tone="red">
         <form action={reject} className="space-y-4" noValidate>
           {rejected.error && <Notice tone="error">{rejected.error}</Notice>}
           <input type="hidden" name="offerId" value={offerId} />

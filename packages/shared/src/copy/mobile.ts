@@ -96,7 +96,6 @@ export const mobileCompanyCopy = {
   municipalityLabel: 'Municipio o alcaldía',
   stateLabel: 'Estado',
   statePlaceholder: 'Selecciona un estado',
-  stateClose: 'Cerrar',
   legalRepresentativeLabel: 'Representante legal',
   legalRepresentativeHint: 'Obligatorio para personas morales.',
   contactTitle: 'Contacto',

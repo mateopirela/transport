@@ -451,6 +451,8 @@ const steps = [
     needs: 'owner-operator-accepted',
     run: () => flow('14-owner-operator-trip'),
   },
+  // H1: Pedro reports to his coordinator; his cancelled trip comes from the seed.
+  { name: '15-operator-report', run: () => flow('15-operator-report') },
   // H3: read-only, so it runs on whatever the flows above left.
   { name: '17-manager-subscription', run: () => flow('17-manager-subscription') },
 ];

@@ -264,6 +264,8 @@ select set_eq(
     'notify_trip_document_added',
     -- Waiting times (H5): fills trip_stop_dwells from trip_events.
     'trip_events_record_dwell',
+    -- H1: a message of the internal trip chat.
+    'notify_internal_message',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

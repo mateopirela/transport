@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(42);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -261,12 +261,20 @@ select is(
 -- Pedro López, operator of the trip in unloading
 select tests.login('5eed0001-0000-4000-8000-000000000008');
 select is(
-  (select count(*)::int from public.trips), 6, 'the operator sees only the trips assigned to it'
+  (select count(*)::int from public.trips), 7,
+  'the operator sees only the trips assigned to it (one of them, cancelled)'
+);
+select results_eq(
+  $$ select c.kind::text, count(m.id)::int from public.conversations c
+     left join public.messages m on m.conversation_id = c.id
+     where c.trip_id = '5eed0008-0000-4000-8000-000000000001' group by c.kind $$,
+  $$ values ('trip_internal', 2) $$,
+  'the operator reads the internal chat of its trip, not the chat with the shipper (H1, D28)'
 );
 select is(
-  (select count(*)::int from public.messages m join public.conversations c on c.id = m.conversation_id
-   where c.trip_id = '5eed0008-0000-4000-8000-000000000001'),
-  2, 'the operator reads the chat of its trip'
+  (select count(*)::int from public.conversations
+   where trip_id = '5eed0008-0000-4000-8000-000000000005' and kind = 'trip_internal'),
+  1, 'and keeps the internal chat of its cancelled trip (D20-E1)'
 );
 select lives_ok(
   $$ select public.set_estimated_unload_end('5eed0008-0000-4000-8000-000000000001', now() + interval '1 hour') $$,

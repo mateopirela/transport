@@ -5,9 +5,13 @@ import {
   dwellCopy,
   formatDateTime,
   formatMxn,
+  hidesInternalChat,
+  internalChatCopy,
   isTripActive,
   mapPointUrl,
+  tripChatTab,
   tripStatusLabels,
+  type TripChatTab,
   type TripEndEstimate,
 } from '@transport/shared';
 import * as Linking from 'expo-linking';
@@ -33,6 +37,7 @@ import {
   Pill,
   Screen,
   SectionHeader,
+  Segmented,
   Skeleton,
   TextCell,
   ValueRow,
@@ -41,6 +46,7 @@ import { loadCarrierTrip, type CarrierTripDetail } from '../../../lib/carrier-tr
 import { tripEndEstimate } from '../../../lib/dwell-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { usePolling } from '../../../lib/use-polling';
+import { useSession } from '../../../providers/session';
 import { spacing, useTheme } from '../../../theme';
 
 const copy = carrierTripsCopy.detail;
@@ -49,11 +55,12 @@ const copy = carrierTripsCopy.detail;
  * A won trip for the carrier (B20): status, route and the map while it is on
  * the road, "Asignar operador" in the bottom bar until the operator departs,
  * the documents, what is shared with the shipper and its provider status
- * (G6), the timeline, incidents, evidence, the trip chat and the cancellation
- * with a reason (G5).
+ * (G6), the timeline, incidents, evidence, the trip chat ("Cliente" and the
+ * internal one with the operator, "Interno": H1; `?chat=interno` opens it)
+ * and the cancellation with a reason (G5).
  */
 export default function CarrierTripScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, chat } = useLocalSearchParams<{ id: string; chat?: string }>();
   const load = useCallback(
     async ({ client, companyId, isManager }: CarrierContext) => {
       // H5: the estimated end of unloading, with the times measured at the site.
@@ -87,7 +94,12 @@ export default function CarrierTripScreen() {
   return (
     <>
       {header}
-      <TripBody carrier={carrier} detail={state.data} reload={reload} />
+      <TripBody
+        carrier={carrier}
+        detail={state.data}
+        reload={reload}
+        initialChat={tripChatTab(chat)}
+      />
     </>
   );
 }
@@ -96,12 +108,26 @@ function TripBody({
   carrier,
   detail,
   reload,
+  initialChat,
 }: {
   carrier: CarrierContext;
   detail: CarrierTripDetail & { endEstimate: TripEndEstimate | null };
   reload: () => Promise<void>;
+  initialChat: TripChatTab;
 }) {
   const { type } = useTheme();
+  const isOwnerOperator = useSession().profile?.isOwnerOperator === true;
+  const internalHidden =
+    detail.internalConversationId === null ||
+    hidesInternalChat({ isOwnerOperator, staffCount: detail.staffCount });
+  const [chatTab, setChatTab] = useState<TripChatTab>(initialChat);
+  // A notification of the internal chat opened over this screen: its tab.
+  const [requested, setRequested] = useState(initialChat);
+  if (requested !== initialChat) {
+    setRequested(initialChat);
+    setChatTab(initialChat);
+  }
+  const tab: TripChatTab = internalHidden ? 'shipper' : chatTab;
   const [barHeight, setBarHeight] = useState(0);
   const { trip } = detail;
   const l = trip.load;
@@ -236,8 +262,27 @@ function TripBody({
         <IncidentList incidents={detail.incidents} />
 
         <SectionHeader title={copy.chat} />
-        {detail.conversationId ? (
-          <ChatPanel client={carrier.client} conversationId={detail.conversationId} />
+        {internalHidden ? null : (
+          <Segmented
+            label={internalChatCopy.tabs.label}
+            value={tab}
+            options={[
+              { value: 'shipper', label: internalChatCopy.tabs.shipper },
+              { value: 'internal', label: internalChatCopy.tabs.internal },
+            ]}
+            onChange={setChatTab}
+          />
+        )}
+        {tab === 'internal' && detail.internalConversationId ? (
+          <ChatPanel
+            key="internal"
+            client={carrier.client}
+            conversationId={detail.internalConversationId}
+            internal
+            description={internalChatCopy.staffDescription}
+          />
+        ) : detail.conversationId ? (
+          <ChatPanel key="shipper" client={carrier.client} conversationId={detail.conversationId} />
         ) : (
           <Group>
             <TextCell tone="dim">{copy.chatUnavailable}</TextCell>

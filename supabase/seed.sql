@@ -372,7 +372,7 @@ from (values
    array['Av. Lázaro Cárdenas 3420, Col. Jardines de San Ignacio', 'Guadalajara', 'Jalisco'], 20.6560, -103.3910,
    array['Av. Miguel Alemán 5400, Col. Valle de Huinalá', 'Monterrey', 'Nuevo León'], 25.7240, -100.2010,
    '-6 days', 6, '-126 hours', 8, 'general', 'Botanas y dulces en cajas', 9500, 40, 'torton', '{}', 2800000, null),
-  -- 12 · GDL -> MTY · cancelled by the shipper.
+  -- 12 · GDL -> MTY · contracted, then cancelled by the shipper before departure (H1).
   ('5eed0005-0000-4000-8000-000000000012', '5eed0002-0000-4000-8000-000000000002', '5eed0001-0000-4000-8000-000000000003',
    array['Av. Lázaro Cárdenas 3420, Col. Jardines de San Ignacio', 'Guadalajara', 'Jalisco'], 20.6560, -103.3910,
    array['Av. Los Ángeles 1200, Col. Nogalar', 'San Nicolás de los Garza', 'Nuevo León'], 25.7310, -100.2960,
@@ -411,7 +411,7 @@ from (values
   ('5eed0006-0000-4000-8000-000000000005', '5eed0005-0000-4000-8000-000000000009', '5eed0002-0000-4000-8000-000000000005', '5eed0001-0000-4000-8000-000000000006', '-6 hours'),
   ('5eed0006-0000-4000-8000-000000000006', '5eed0005-0000-4000-8000-000000000010', '5eed0002-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000005', '-9 days'),
   ('5eed0006-0000-4000-8000-000000000007', '5eed0005-0000-4000-8000-000000000011', '5eed0002-0000-4000-8000-000000000006', '5eed0001-0000-4000-8000-000000000007', '-7 days'),
-  ('5eed0006-0000-4000-8000-000000000008', '5eed0005-0000-4000-8000-000000000012', '5eed0002-0000-4000-8000-000000000005', '5eed0001-0000-4000-8000-000000000006', '-20 hours')
+  ('5eed0006-0000-4000-8000-000000000008', '5eed0005-0000-4000-8000-000000000012', '5eed0002-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000005', '-20 hours')
 ) as n(id, load_id, carrier, created_by, created_at)
 join public.loads l on l.id = n.load_id::uuid;
 
@@ -457,10 +457,10 @@ from (values
   ('5eed0007-0000-4000-8000-000000000009', '5eed0006-0000-4000-8000-000000000007', 'carrier', 2900000,
    null, '5eed0004-0000-4000-8000-000000000008', 'accepted', null, null,
    '5eed0001-0000-4000-8000-000000000007', '-7 days', '5eed0001-0000-4000-8000-000000000003', '-158 hours'),
-  -- Load 12: offer closed when the shipper cancelled the load.
+  -- Load 12: accepted offer of Transportes Regios; the shipper cancelled the trip later (H1).
   ('5eed0007-0000-4000-8000-000000000010', '5eed0006-0000-4000-8000-000000000008', 'carrier', 4000000,
-   null, null, 'rejected', 'load_cancelled', null,
-   '5eed0001-0000-4000-8000-000000000006', '-20 hours', '5eed0001-0000-4000-8000-000000000003', '-2 hours')
+   null, '5eed0004-0000-4000-8000-000000000002', 'accepted', null, null,
+   '5eed0001-0000-4000-8000-000000000005', '-20 hours', '5eed0001-0000-4000-8000-000000000003', '-18 hours')
 ) as o(id, negotiation_id, side, amount_cents, conditions, vehicle_id, status, status_reason, parent_offer_id,
        created_by, created_at, responded_by, responded_at)
 join public.negotiations n on n.id = o.negotiation_id::uuid
@@ -480,7 +480,8 @@ from (values
   ('5eed0005-0000-4000-8000-000000000001', 'in_progress'),
   ('5eed0005-0000-4000-8000-000000000009', 'contracted'),
   ('5eed0005-0000-4000-8000-000000000010', 'completed'),
-  ('5eed0005-0000-4000-8000-000000000011', 'completed')
+  ('5eed0005-0000-4000-8000-000000000011', 'completed'),
+  ('5eed0005-0000-4000-8000-000000000012', 'cancelled')
 ) as v(load_id, status)
 join public.offers o on o.load_id = v.load_id::uuid and o.status = 'accepted'
 where l.id = v.load_id::uuid;
@@ -512,6 +513,18 @@ from (values
    '5eed0004-0000-4000-8000-000000000008', '5eed0003-0000-4000-8000-000000000006', '-121 hours', '-150 hours', '-144 hours', '-122 hours', '-110 hours')
 ) as t(id, load_id, status, vehicle_id, operator_id, estimate, assigned_at, started_at, delivered_at, closed_at)
 join public.loads l on l.id = t.load_id::uuid;
+
+-- GDL -> MTY assigned to Pedro López and cancelled by the shipper before it
+-- departed: its internal chat stays open (H1, D20-E1).
+insert into public.trips (
+  id, load_id, offer_id, shipper_company_id, carrier_company_id, status, vehicle_id, operator_id,
+  assigned_at, cancelled_at, cancellation_reason, cancellation_reason_code, cancelled_by_side, created_at
+)
+select '5eed0008-0000-4000-8000-000000000005', l.id, l.accepted_offer_id, l.shipper_company_id, l.carrier_company_id,
+       'cancelled', '5eed0004-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-000000000001',
+       pg_temp.at('-16 hours'), l.cancelled_at, l.cancellation_reason, 'shipper_request', 'shipper', l.contracted_at
+from public.loads l
+where l.id = '5eed0005-0000-4000-8000-000000000012';
 
 -- Operator status events: (event, hours from the reset, lat, lng). The
 -- created/assigned events and the delivery confirmation have no location.
@@ -557,7 +570,11 @@ from (values
   ('5eed0008-0000-4000-8000-000000000004', 'arrived_at_delivery', 'in_transit', 'at_delivery', '-125 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
   ('5eed0008-0000-4000-8000-000000000004', 'unloading_started', 'at_delivery', 'unloading', '-124 hours', 25.7240, -100.2010, '-121 hours', null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
   ('5eed0008-0000-4000-8000-000000000004', 'unloading_finished', 'unloading', 'delivered', '-122 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
-  ('5eed0008-0000-4000-8000-000000000004', 'delivery_confirmed', 'delivered', 'closed', '-110 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper')
+  ('5eed0008-0000-4000-8000-000000000004', 'delivery_confirmed', 'delivered', 'closed', '-110 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
+  -- Trip 5 · GDL -> MTY · Pedro López, cancelled by the shipper before departure
+  ('5eed0008-0000-4000-8000-000000000005', 'created', null, 'pending_assignment', '-18 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
+  ('5eed0008-0000-4000-8000-000000000005', 'assigned', 'pending_assignment', 'assigned', '-16 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000011', 'coordinator'),
+  ('5eed0008-0000-4000-8000-000000000005', 'cancelled', 'assigned', 'cancelled', '-2 hours', null, null, null, 'El pedido del cliente se pospuso.', '5eed0001-0000-4000-8000-000000000003', 'shipper')
 ) as e(trip_id, event_type, from_status, to_status, occurred_at, lat, lng, estimate, notes, actor_id, actor_role);
 
 -- H5 (D32): older trips that measure the waiting times at two sites (loads
@@ -707,21 +724,32 @@ values
    pg_temp.at('-1 hour'), null);
 
 -- ---------------------------------------------------------------------------
--- Chat (conversations are opened by the triggers of B07)
+-- Chat (conversations are opened by the triggers of B07 and H1). Pedro's
+-- message to the shipper predates D28: operators now report to their
+-- coordinator in the internal chat of the trip.
 -- ---------------------------------------------------------------------------
 insert into public.messages (conversation_id, sender_id, sender_role, body, created_at)
 select c.id, m.sender_id::uuid, m.sender_role::public.user_role, m.body, pg_temp.at(m.at::interval)
 from (values
-  ('5eed0008-0000-4000-8000-000000000001'::uuid, null::uuid, '5eed0001-0000-4000-8000-000000000008', 'operator',
+  ('5eed0008-0000-4000-8000-000000000001'::uuid, null::uuid, false, '5eed0001-0000-4000-8000-000000000008', 'operator',
    'Ya estoy en el andén 4, empezamos a descargar.', '-55 minutes'),
-  ('5eed0008-0000-4000-8000-000000000001', null, '5eed0001-0000-4000-8000-000000000002', 'shipper',
+  ('5eed0008-0000-4000-8000-000000000001', null, false, '5eed0001-0000-4000-8000-000000000002', 'shipper',
    'Gracias, Pedro. Avísame cuando terminen.', '-50 minutes'),
-  (null, '5eed0006-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000006', 'manager',
+  (null, '5eed0006-0000-4000-8000-000000000004', false, '5eed0001-0000-4000-8000-000000000006', 'manager',
    'Podemos recoger pasado mañana temprano con plataforma y cadenas.', '-20 hours'),
-  (null, '5eed0006-0000-4000-8000-000000000004', '5eed0001-0000-4000-8000-000000000003', 'shipper',
-   'Te propongo $45,000 con las maniobras de carga incluidas.', '-3 hours')
-) as m(trip_id, negotiation_id, sender_id, sender_role, body, at)
-join public.conversations c on c.trip_id = m.trip_id or c.negotiation_id = m.negotiation_id;
+  (null, '5eed0006-0000-4000-8000-000000000004', false, '5eed0001-0000-4000-8000-000000000003', 'shipper',
+   'Te propongo $45,000 con las maniobras de carga incluidas.', '-3 hours'),
+  -- Internal chats (D28): Pedro reports to Andrea, his coordinator.
+  ('5eed0008-0000-4000-8000-000000000001', null, true, '5eed0001-0000-4000-8000-000000000008', 'operator',
+   'Ya llegué a descargar', '-62 minutes'),
+  ('5eed0008-0000-4000-8000-000000000001', null, true, '5eed0001-0000-4000-8000-000000000011', 'coordinator',
+   'Enterada, Pedro. Avísame cuando te firmen la remisión.', '-58 minutes'),
+  ('5eed0008-0000-4000-8000-000000000005', null, true, '5eed0001-0000-4000-8000-000000000011', 'coordinator',
+   'Pedro, el cliente canceló el viaje a Monterrey. Ya no tienes que pasar a cargar.', '-110 minutes')
+) as m(trip_id, negotiation_id, internal, sender_id, sender_role, body, at)
+join public.conversations c
+  on (c.trip_id = m.trip_id and c.kind = case when m.internal then 'trip_internal' else 'trip' end::public.conversation_kind)
+  or c.negotiation_id = m.negotiation_id;
 
 update public.conversations c
 set last_message_at = (select max(m.created_at) from public.messages m where m.conversation_id = c.id)

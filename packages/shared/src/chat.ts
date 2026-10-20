@@ -2,6 +2,7 @@
 // in the policies of the private `chat` bucket; this module lets the apps
 // validate before uploading and show read receipts. The message merging is
 // shared by the web (B14) and the app (B19).
+import { internalChatCopy } from './copy/internal-chat';
 import { chatCopy } from './copy/negotiation';
 import type { UserRole } from './enums';
 
@@ -104,19 +105,22 @@ export interface ChatMessage {
 
 /**
  * Who wrote a message, as the chat labels it: "Tú" for the viewer, "Cuenta
- * eliminada" when the sender's account was deleted (D18), or their role.
+ * eliminada" when the sender's account was deleted (D18), or their role. In
+ * the carrier's internal chat (H1) the staff is told apart: "Gerente" or
+ * "Coordinador".
  */
 export function chatSenderLabel(
   message: Pick<ChatMessage, 'sender_id' | 'sender_role'>,
   viewerId: string | null | undefined,
+  internal = false,
 ): string {
   if (message.sender_id === null) return chatCopy.deletedAccount;
   if (message.sender_id === viewerId) return chatCopy.you;
   const labels: Record<UserRole, string> = {
     shipper: chatCopy.shipper,
     // To the shipper, the Gerente and the Coordinador both speak for the carrier.
-    manager: chatCopy.carrier,
-    coordinator: chatCopy.carrier,
+    manager: internal ? internalChatCopy.roles.manager : chatCopy.carrier,
+    coordinator: internal ? internalChatCopy.roles.coordinator : chatCopy.carrier,
     operator: chatCopy.operator,
     admin: chatCopy.admin,
   };

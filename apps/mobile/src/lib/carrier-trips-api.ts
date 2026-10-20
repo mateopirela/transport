@@ -308,7 +308,12 @@ export interface CarrierTripDetail {
   evidence: { pickup: number; delivery: number };
   /** GPS points of the trip, oldest first (latest 300). */
   trail: { lat: number; lng: number }[];
+  /** The chat with the shipper. */
   conversationId: string | null;
+  /** The carrier's internal chat with the operator (H1, D28). */
+  internalConversationId: string | null;
+  /** Accounts of the company, to hide the internal chat from a lone hombre-camión (D13-E1). */
+  staffCount: number;
   assignment: AssignmentOptions;
   documents: TripDocument[];
   /** What the trip still needs (trip_checklist, D22). */
@@ -433,6 +438,8 @@ export async function loadCarrierTrip(
     evidence,
     trail,
     conversation,
+    internalConversation,
+    staff,
     assignment,
     documents,
     checklist,
@@ -460,7 +467,22 @@ export async function loadCarrierTrip(
       .eq('trip_id', trip.id)
       .order('recorded_at', { ascending: false })
       .limit(300),
-    client.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
+    client
+      .from('conversations')
+      .select('id')
+      .eq('trip_id', trip.id)
+      .eq('kind', 'trip')
+      .maybeSingle(),
+    client
+      .from('conversations')
+      .select('id')
+      .eq('trip_id', trip.id)
+      .eq('kind', 'trip_internal')
+      .maybeSingle(),
+    client
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId),
     assignmentOptions(client, companyId, trip, isManager),
     client
       .from('trip_documents')
@@ -479,6 +501,8 @@ export async function loadCarrierTrip(
   ]);
   if (provider.error) throw provider.error;
   if (conversation.error) throw conversation.error;
+  if (internalConversation.error) throw internalConversation.error;
+  if (staff.error) throw staff.error;
   const points = check(trail);
   const latest = points[0];
   const photos = check(evidence);
@@ -500,6 +524,8 @@ export async function loadCarrierTrip(
     },
     trail: points.map((p) => ({ lat: p.latitude, lng: p.longitude })).reverse(),
     conversationId: conversation.data?.id ?? null,
+    internalConversationId: internalConversation.data?.id ?? null,
+    staffCount: staff.count ?? 0,
     assignment,
     documents: check(documents),
     checklist: check(checklist),

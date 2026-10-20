@@ -3,32 +3,56 @@ import {
   chatCopy,
   chatSenderLabel,
   formatDateTime,
+  internalChatCopy,
+  locationMessage,
   MAX_MESSAGE_LENGTH,
   mergeMessages,
+  QUICK_REPORTS,
   type ChatMessage,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { listMessages, markRead, sendMessage, watchMessages } from '../lib/chat-api';
+import {
+  listMessages,
+  markRead,
+  sendMessage,
+  uploadChatPhoto,
+  watchMessages,
+  type OutgoingAttachment,
+} from '../lib/chat-api';
+import { takeChatPhoto } from '../lib/evidence-api';
+import { currentPosition } from '../lib/location';
 import type { Supabase } from '../lib/supabase';
 import { useSession } from '../providers/session';
 import { lookOf, shape, spacing, useTheme, type Look } from '../theme';
-import { Button, FieldCell, Footnote, Group, Notice, TextCell } from './ui';
+import { Button, Chip, FieldCell, Footnote, Group, Notice, SectionHeader, TextCell } from './ui';
+
+type Busy = 'text' | 'quick' | 'photo' | 'location' | null;
 
 /**
  * Chat of a negotiation or a trip (B07 schema): the latest messages, new ones
  * in real time, and text messages sent with send_message. Opening it or
  * receiving a message marks the conversation as read. The viewer's bubbles on
  * the accent's tint, the others' a step above the cell (§1.7).
+ *
+ * `internal`: the carrier's internal chat of the trip (H1), where the staff is
+ * told apart ("Coordinador", "Gerente"). `reportTools`: the operator's quick
+ * reports in chips, "Enviar foto" (camera only) and "Enviar mi ubicación".
  */
 export function ChatPanel({
   client,
   conversationId,
+  internal = false,
+  reportTools = false,
+  description = chatCopy.description,
 }: {
   client: Supabase;
   conversationId: string;
+  internal?: boolean;
+  reportTools?: boolean;
+  description?: string;
 }) {
   const styles = STYLES[useTheme().theme];
   const { session } = useSession();
@@ -36,8 +60,9 @@ export function ChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sendFailed, setSendFailed] = useState(false);
+  const [busy, setBusy] = useState<Busy>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const sending = busy === 'text';
   // Kept until the send succeeds, so a retry is idempotent (send_message).
   const pendingId = useRef<string | null>(null);
 
@@ -76,21 +101,89 @@ export function ChatPanel({
     };
   }, [client, conversationId, add]);
 
+  /** Sends one message; reports `failure` when it does not go. */
+  async function deliver(
+    kind: Exclude<Busy, null>,
+    body: string | null,
+    id: string,
+    attachments: OutgoingAttachment[] = [],
+  ): Promise<boolean> {
+    try {
+      add([await sendMessage(client, conversationId, body, id, attachments)]);
+      return true;
+    } catch {
+      setProblem(kind === 'photo' ? internalChatCopy.errors.photo : chatCopy.errors.send);
+      return false;
+    }
+  }
+
   async function send() {
     const body = draft.trim();
-    if (!body || sending) return;
-    setSending(true);
-    setSendFailed(false);
+    if (!body || busy) return;
+    setBusy('text');
+    setProblem(null);
     pendingId.current ??= randomUUID();
-    try {
-      const message = await sendMessage(client, conversationId, body, pendingId.current);
+    if (await deliver('text', body, pendingId.current)) {
       pendingId.current = null;
       setDraft('');
-      add([message]);
-    } catch {
-      setSendFailed(true);
+    }
+    setBusy(null);
+  }
+
+  /** A quick report goes as it reads, with one tap. */
+  async function sendQuick(text: string) {
+    if (busy) return;
+    setBusy('quick');
+    setProblem(null);
+    await deliver('quick', text, randomUUID());
+    setBusy(null);
+  }
+
+  async function sendPhoto() {
+    if (busy) return;
+    setBusy('photo');
+    setProblem(null);
+    try {
+      const photo = await takeChatPhoto();
+      if (photo.status === 'cancelled') return;
+      if (photo.status !== 'captured') {
+        setProblem(
+          photo.status === 'denied'
+            ? internalChatCopy.errors.cameraDenied
+            : internalChatCopy.errors.photo,
+        );
+        return;
+      }
+      let attachment: OutgoingAttachment;
+      try {
+        attachment = await uploadChatPhoto(client, conversationId, photo.uri);
+      } catch {
+        setProblem(internalChatCopy.errors.photo);
+        return;
+      }
+      await deliver('photo', null, randomUUID(), [attachment]);
     } finally {
-      setSending(false);
+      setBusy(null);
+    }
+  }
+
+  async function sendLocation() {
+    if (busy) return;
+    setBusy('location');
+    setProblem(null);
+    try {
+      const located = await currentPosition();
+      if (!located.ok) {
+        setProblem(
+          located.reason === 'denied'
+            ? internalChatCopy.errors.locationDenied
+            : internalChatCopy.errors.location,
+        );
+        return;
+      }
+      await deliver('location', locationMessage(located.position), randomUUID());
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -108,12 +201,14 @@ export function ChatPanel({
               return (
                 <View key={m.id} style={[styles.bubble, own ? styles.own : styles.theirs]}>
                   <Text style={styles.meta}>
-                    {`${chatSenderLabel(m, userId)} · ${formatDateTime(m.created_at)}`}
+                    {`${chatSenderLabel(m, userId, internal)} · ${formatDateTime(m.created_at)}`}
                   </Text>
                   {m.body ? <Text style={styles.body}>{m.body}</Text> : null}
                   {m.attachments.length > 0 ? (
-                    <Text style={styles.meta}>
-                      {carrierLoadsCopy.chat.attachments(m.attachments.length)}
+                    <Text style={m.body ? styles.meta : styles.body}>
+                      {internal && !m.body
+                        ? internalChatCopy.photoPreview
+                        : carrierLoadsCopy.chat.attachments(m.attachments.length)}
                     </Text>
                   ) : null}
                 </View>
@@ -136,16 +231,48 @@ export function ChatPanel({
           editable={!sending}
         />
       </Group>
-      <Footnote>{chatCopy.description}</Footnote>
-      {sendFailed ? <Notice tone="danger">{chatCopy.errors.send}</Notice> : null}
+      <Footnote>{description}</Footnote>
+      {problem ? <Notice tone="danger">{problem}</Notice> : null}
       <Button
         label={sending ? chatCopy.sending : chatCopy.send}
         variant="secondary"
         icon="send"
         onPress={() => void send()}
         loading={sending}
-        disabled={!draft.trim()}
+        disabled={!draft.trim() || (busy !== null && !sending)}
       />
+      {reportTools ? (
+        <>
+          <SectionHeader title={internalChatCopy.quickReports} />
+          <View style={styles.chips}>
+            {QUICK_REPORTS.map((text) => (
+              <Chip key={text} label={text} onPress={() => void sendQuick(text)} />
+            ))}
+          </View>
+          <View style={styles.tools}>
+            <Button
+              label={busy === 'photo' ? internalChatCopy.sendingPhoto : internalChatCopy.sendPhoto}
+              variant="secondary"
+              icon="camera"
+              onPress={() => void sendPhoto()}
+              loading={busy === 'photo'}
+              disabled={busy !== null && busy !== 'photo'}
+            />
+            <Button
+              label={
+                busy === 'location'
+                  ? internalChatCopy.sendingLocation
+                  : internalChatCopy.sendLocation
+              }
+              variant="secondary"
+              icon="locate"
+              onPress={() => void sendLocation()}
+              loading={busy === 'location'}
+              disabled={busy !== null && busy !== 'location'}
+            />
+          </View>
+        </>
+      ) : null}
     </>
   );
 }
@@ -164,6 +291,8 @@ function makeStyles({ colors, type }: Look) {
     theirs: { alignSelf: 'flex-start', backgroundColor: colors.surfaceHigh },
     meta: type.caption,
     body: type.body,
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    tools: { gap: spacing.sm },
   });
 }
 

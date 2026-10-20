@@ -77,6 +77,30 @@ async function takeCameraPhoto(): Promise<ImagePicker.ImagePickerAsset | undefin
   return result.canceled ? undefined : result.assets[0];
 }
 
+export type ChatPhotoOutcome =
+  | { status: 'captured'; uri: string }
+  | { status: 'cancelled' }
+  | { status: 'denied' }
+  | { status: 'failed' };
+
+/**
+ * A photo for the chat (H1, "Enviar foto"): from the camera only, like the
+ * evidence (the stand-in camera in E2E builds), compressed to a JPEG in the
+ * cache. Never throws.
+ */
+export async function takeChatPhoto(): Promise<ChatPhotoOutcome> {
+  try {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return { status: 'denied' };
+    const asset = await takeCameraPhoto();
+    if (!asset) return { status: 'cancelled' };
+    const compressed = await compressPhoto(asset);
+    return { status: 'captured', uri: compressed.uri };
+  } catch {
+    return { status: 'failed' };
+  }
+}
+
 export type CaptureOutcome =
   | { status: 'captured'; photo: QueuedPhoto }
   | { status: 'cancelled' }

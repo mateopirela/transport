@@ -4,6 +4,7 @@
 import type { NotificationType, TripDocumentKind, TripEventType, TripStatus } from '../enums';
 import { formatMxn } from '../formatters';
 import { tripDocumentKindLabels, tripEventTypeLabels, tripStatusLabels } from './catalogs';
+import { internalChatCopy } from './internal-chat';
 
 export interface NotificationContent {
   title: string;
@@ -163,6 +164,16 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
       return {
         title: 'Unidad liberada',
         body: `${unit ?? 'La unidad'} ya está disponible${city ? ` en ${city}` : ''} y vuelve a recibir recomendaciones.`,
+      };
+    }
+    // H1 (D28): a message of the carrier's internal trip chat. The preview is
+    // the text (Postgres cuts it at 80 characters), or "📷 Foto" when the
+    // message only carries attachments.
+    case 'internal_message': {
+      const sender = text(data, 'senderName');
+      return {
+        title: sender ? `Mensaje de ${sender}` : `Mensaje del viaje${route(data)}`,
+        body: text(data, 'preview') ?? internalChatCopy.photoPreview,
       };
     }
     case 'trip_location_stale': {

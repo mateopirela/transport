@@ -35,6 +35,15 @@ describe('notificationHref', () => {
     expect(notificationHref('trip_unassigned', { loadId: LOAD })).toBeNull();
   });
 
+  it('opens the internal chat tab of the trip for the carrier staff only (H1)', () => {
+    const data = { tripId: NEGOTIATION, conversationId: LOAD, loadId: LOAD };
+    expect(notificationHref('internal_message', data, 'transportista')).toBe(
+      `/transportista/viajes/${NEGOTIATION}?chat=interno`,
+    );
+    expect(notificationHref('internal_message', { tripId: 'x' }, 'transportista')).toBeNull();
+    expect(notificationHref('internal_message', data)).toBeNull();
+  });
+
   it('sends the carrier staff to their negotiation or load (G10a)', () => {
     const data = { loadId: LOAD, negotiationId: NEGOTIATION };
     for (const type of ['offer_received', 'counter_offer_received', 'offer_accepted'] as const) {

@@ -1,9 +1,10 @@
-import { toChatMessage, type ChatMessage } from '@transport/shared';
+import { chatAttachmentPath, toChatMessage, type ChatMessage } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
+import { File as LocalFile } from 'expo-file-system';
 
 import type { Supabase } from './supabase';
 
-// Chat of a negotiation in the app (B19), over the B07 schema: RLS limits the
+// Chat of a negotiation or a trip in the app (B19, H1), over the B07 schema: RLS limits the
 // messages to the conversation's participants, writes go through
 // send_message / mark_conversation_read, and Realtime delivers new messages
 // (it applies the messages select policy to every subscriber), and also
@@ -26,16 +27,27 @@ export async function listMessages(client: Supabase, conversationId: string) {
   return data.map(toChatMessage).reverse();
 }
 
-/** Sends a text message; idempotent if retried with the same `clientMessageId`. */
+/** An uploaded file to attach (send_message checks it was uploaded by the sender). */
+export interface OutgoingAttachment {
+  path: string;
+  name: string;
+}
+
+/**
+ * Sends a message with text and/or attachments; idempotent if retried with
+ * the same `clientMessageId`.
+ */
 export async function sendMessage(
   client: Supabase,
   conversationId: string,
-  body: string,
+  body: string | null,
   clientMessageId: string = randomUUID(),
+  attachments: readonly OutgoingAttachment[] = [],
 ): Promise<ChatMessage> {
   const { data: id, error } = await client.rpc('send_message', {
     p_conversation_id: conversationId,
-    p_body: body,
+    ...(body === null ? {} : { p_body: body }),
+    p_attachments: attachments.map((a) => ({ path: a.path, name: a.name })),
     p_client_message_id: clientMessageId,
   });
   if (error) throw error;
@@ -46,6 +58,24 @@ export async function sendMessage(
     .single();
   if (readError) throw readError;
   return toChatMessage(data);
+}
+
+/**
+ * Uploads a JPEG on the phone to the conversation's folder of the private
+ * `chat` bucket and returns it as an attachment (H1: "Enviar foto").
+ */
+export async function uploadChatPhoto(
+  client: Supabase,
+  conversationId: string,
+  uri: string,
+): Promise<OutgoingAttachment> {
+  const path = chatAttachmentPath(conversationId, randomUUID(), 'image/jpeg');
+  const bytes = await new LocalFile(uri).bytes();
+  const { error } = await client.storage
+    .from('chat')
+    .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  return { path, name: 'Foto.jpg' };
 }
 
 /** Marks the conversation read up to its latest message (best effort). */

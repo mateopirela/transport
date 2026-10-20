@@ -227,13 +227,19 @@ export const groupInset = Object.freeze({
   icon: shape.separatorInset + iconSize.cell + spacing.sm + spacing.xs,
 });
 
-/** The rows of a group: a fragment counts as the rows inside it, each with its separator. */
-function flattenRows(children: ReactNode): ReactNode[] {
-  return Children.toArray(children).flatMap((child) =>
-    isValidElement(child) && child.type === Fragment
-      ? flattenRows((child.props as { children?: ReactNode }).children)
-      : [child],
-  );
+/**
+ * The rows of a group: a fragment counts as the rows inside it, each with its
+ * separator. A row's key carries the keys of the fragments around it, so the
+ * rows of a fragment never clash with the rows next to it (`Children.toArray`
+ * numbers each level from `.0` again).
+ */
+function flattenRows(children: ReactNode, prefix = ''): { key: string; row: ReactNode }[] {
+  return Children.toArray(children).flatMap((child, i) => {
+    const key = `${prefix}${isValidElement(child) && child.key !== null ? child.key : i}`;
+    return isValidElement(child) && child.type === Fragment
+      ? flattenRows((child.props as { children?: ReactNode }).children, `${key}/`)
+      : [{ key, row: child }];
+  });
 }
 
 /**
@@ -253,8 +259,8 @@ export function Group({
   const rows = flattenRows(children);
   return (
     <View style={[kit.group, style]}>
-      {rows.map((row, i) => (
-        <View key={isValidElement(row) && row.key !== null ? row.key : i}>
+      {rows.map(({ key, row }, i) => (
+        <View key={key}>
           {i > 0 ? <View style={[kit.separator, { marginLeft: inset }]} /> : null}
           {row}
         </View>

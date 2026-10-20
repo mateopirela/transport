@@ -25,6 +25,9 @@ tags: [carrier, manager]
     env:
       LABEL: 'Nombre'
       TEXT: 'Bajío'
+# The software keyboard would cover the button: a tap on the footnote closes
+# it (hideKeyboard swipes on iOS and may hit a row).
+- tapOn: 'Cada camión y operador pertenece a una unidad de negocio.*'
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element: 'Crear unidad de negocio'
@@ -57,16 +60,15 @@ tags: [carrier, manager]
     element: '.*TT-01.*'
     centerElement: true
 - tapOn: '.*TT-01.*'
-# "Mover a…" and its chips sit at the end of the screen, clear of the bottom bar.
+# "Mover a…" and its chips sit at the end of the screen, clear of the bottom bar
+# (the end of the screen cannot be centered: scroll to it).
 - scrollUntilVisible:
-    element: 'Bajío'
-    centerElement: true
+    element: 'Mover a…'
 - tapOn:
     text: 'Bajío'
     below: 'Mover a…'
 - scrollUntilVisible:
     element: 'Mover'
-    centerElement: true
 - tapOn: 'Mover'
 - extendedWaitUntil:
     visible: 'Movido de unidad de negocio.'

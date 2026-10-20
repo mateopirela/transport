@@ -33,6 +33,8 @@ tags: [carrier]
 # The screen's primary action sits in the bottom bar, always in view (U4);
 # then the confirmation sheet.
 - tapOn: 'Aceptar'
+# The sheet slides up: tap its button once it settled.
+- waitForAnimationToEnd
 - tapOn: 'Confirmar'
 - extendedWaitUntil:
     visible: 'Contrataste la carga. El viaje quedó creado.'

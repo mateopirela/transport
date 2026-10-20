@@ -36,6 +36,8 @@ tags: [carrier, owner-operator]
     timeout: 15000
 - tapOn: 'Aceptar el precio propuesto'
 # Confirmation sheet.
+# The sheet slides up: tap its button once it settled.
+- waitForAnimationToEnd
 - tapOn: 'Confirmar'
 - extendedWaitUntil:
     visible: 'Oferta enviada.'

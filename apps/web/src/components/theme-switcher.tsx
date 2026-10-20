@@ -43,7 +43,7 @@ export function ThemeSwitcher({
       value={choice}
       onChange={(event) => choose(event.target.value)}
       className={cn(
-        'h-8 cursor-pointer rounded-full border bg-transparent px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        'h-8 cursor-pointer rounded-full border bg-transparent px-2 text-sm sm:px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
         className,
       )}
     >

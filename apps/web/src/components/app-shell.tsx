@@ -28,7 +28,7 @@ export async function AppShell({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-navy text-navy-foreground">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
           <Link href="/" className="font-serif text-xl">
             {authCopy.appName}
           </Link>
@@ -37,7 +37,7 @@ export async function AppShell({
               {area}
             </span>
           )}
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
             <span className="hidden text-navy-foreground/75 sm:inline">
               {viewer.company?.legalName ?? viewer.fullName}
             </span>

@@ -116,6 +116,7 @@ transport/
 | Comunicación | `conversations` (por negociación o viaje), `messages` (inmutables), `message_reads`, `push_tokens`, `notifications` |
 | Mapas | `route_distance_cache` (origen/destino redondeados → km, minutos) |
 | §G (2026-10-16) | `business_units`, `business_unit_coordinators`, `invitations`, `vehicle_release_tasks`, `trip_document_requirements`, `license_unit_compatibility`, `document_shares`, `document_share_views`, `provider_approvals`, `share_links` (y, cuando se retome G8, pospuesto por D24: `subscription_plans`, `company_subscriptions` y `billing_events`). Roles: `user_role` pasa a `shipper`/`manager`/`coordinator`/`operator`/`admin` (ver §G) |
+| §H (2026-10-20) | Conversación `trip_internal` (sin tabla nueva), `share_links` de tipo `trip_operator`, `platform_settings`, `subscription_plans`, `company_subscriptions`, `billing_events`, `road_segments`, `road_segment_tolls`, `road_segment_risks`, `road_corridors`, `road_corridor_segments`, `carrier_road_preferences` y `trip_stop_dwells` (ver §H) |
 
 **Máquinas de estado** (código en `packages/shared`, validación en SQL):
 - `loads`: `draft → published → negotiating → contracted → in_progress → completed`. Desde los primeros estados también puede ir a `cancelled` o `expired`.
@@ -451,7 +452,10 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 | Cuenta de Expo/EAS | B17 | Mateo |
 | Clave de Google Maps Platform con facturación (Places, Maps JS, Maps SDK y Routes) | B08, B13 y B19 | Mateo |
 | ✅ Lista oficial de documentos por perfil (D16), recibida el 2026-10-16 | G3 | JP |
-| Cuenta de Stripe (México) con un producto y un precio en MXN por plan, y el webhook apuntando a la Edge Function | G8, pospuesto (D24): no hace falta en esta ola | Mateo |
+| Cuenta de Stripe (México) con un producto y un precio en MXN por plan, y el webhook apuntando a la Edge Function | H3 (D24-E1). No hace falta para construir ni para el piloto: sin claves todo queda en "Piloto gratis" | Mateo |
+| Apple Team ID y huella SHA-256 del certificado de Android, para los enlaces universales del viaje | H2 (opcional: sin ellos el enlace abre la página web con "Abrir en la app") | Mateo |
+| Precios y planes de la suscripción, y fecha de fin del piloto | H3 (se construye con "Por definir") | Mateo / JP |
+| Corredores y tramos que usa la flota de JP, y fuentes de inseguridad que él consulta | H4 (se construye con datos semilla marcados "estimado") | JP |
 | Apple Developer ($99 USD/año) y Google Play Console ($25 USD) | B27 | Mateo / Fulmis |
 | Proyectos Supabase en la nube y Vercel | B27 | Mateo |
 | Proveedor de email transaccional (Resend o similar) y dominio | B09 y B27 | Mateo |
@@ -471,8 +475,10 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 ## 5. Después de la V1 (no se construye ahora)
 
 > **Rediseño visual (U1–U9):** [plan-rediseno.md](plan-rediseno.md). Solo presentación; se ejecuta con el workflow `transport-redesign` (`.claude/workflows/`).
+>
+> **Ola H (pendientes de JP, 2026-10-20):** [§H](#h--pendientes-de-jp-2026-10-20): chat interno operador–coordinador (H1), viaje por enlace al operador (H2), suscripción con Stripe y piloto gratis (H3, retoma G8), carreteras: costo, inseguridad y cercanía (H4) y tiempos de espera de carga y descarga (H5).
 
-Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8).
+Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8); se retoma en H3 (D24-E1). La predicción de fin de descarga empieza en H5 con estadística simple de los eventos (sin IA).
 
 ---
 
@@ -827,6 +833,8 @@ Ola GE   G9 (todos)
 
 #### G8 · Suscripción (D24) 🔒 — POSPUESTO
 > **Pospuesto por Mateo (2026-10-16).** No se implementa en esta ola: el piloto es gratis. Ningún otro bloque depende de G8 ni debe agregar pantallas o rutas de suscripción. La especificación se conserva para cuando se retome.
+>
+> **Se retoma como H3 (2026-10-20, D24-E1).** H3 parte de esta especificación; donde difieran, manda H3 (bandera global de piloto, precios "Por definir", la app no vende ni enlaza a la compra y el bloqueo futuro diseñado pero apagado).
 
 - **Objetivo:** que la empresa transportista pague su suscripción con Stripe y, sin claves, todo siga funcionando en "Piloto gratis".
 - **Depende de:** G10a.
@@ -881,7 +889,7 @@ Las decisiones de arriba se toman con un valor por defecto para no bloquear; cad
 2. ¿El **alta de proveedor** debe bloquear la asignación o la salida para ciertos clientes? En V1 es informativa (G6).
 3. ¿Se comparten con el cliente las **identificaciones** (INE del operador o del representante)? Por defecto no, por datos personales (G3/G6).
 4. Compatibilidad **licencia ↔ unidad** provisional (B, C y E); que JP la confirme (G3).
-5. ¿El operador sigue en el chat del viaje **con el cliente**, o solo en el interno con su coordinador? (G6).
+5. ¿El operador sigue en el chat del viaje **con el cliente**, o solo en el interno con su coordinador? (G6). → JP (2026-10-20): el operador reporta todo a su coordinador; el chat interno se construye en H1 (D28).
 6. ¿El enlace público de seguimiento muestra la placa completa, enmascarada (por defecto) o no la muestra? (G7).
 7. Precios de la suscripción, planes (flota y hombre-camión), fecha de fin del piloto, y si la suscripción necesita factura CFDI (G8, pospuesto: se retoma cuando se reactive).
 8. ¿OXXO es indispensable para la suscripción? (G8).
@@ -889,3 +897,292 @@ Las decisiones de arriba se toman con un valor por defecto para no bloquear; cad
 10. Nombre en la UI para las unidades de negocio: "Unidad de negocio" (por defecto) o "Grupo".
 11. ¿Se mueven una negociación o un viaje abiertos entre unidades de negocio? (G4).
 12. D18 (borrado de cuenta y chat) y D25 (nombre comercial) siguen pendientes.
+
+---
+
+## §H · Pendientes de JP (2026-10-20)
+
+El 2026-10-20, JP (socio y primer transportista del piloto) respondió cómo trabaja cada perfil, y Mateo pidió construir lo que quedó pendiente. Lo que cambia o se agrega:
+
+- **Operador:** recibe los viajes que le asigna su coordinador **por enlace**, consulta la ruta, comparte su ubicación, sube evidencias y **reporta todo a su coordinador por chat**. Hoy el operador no tiene chat en la app (aunque la RLS lo deja leer el chat del viaje con el cliente).
+- **Coordinador:** opera solo su unidad de negocio; busca cargas, negocia, asigna, supervisa, comparte cargas por enlace y chatea con el cliente. Trabaja con monitoristas que tienen el GPS del camión 24/7 (la integración sigue fuera, D17).
+- **Gerente y hombre-camión:** pagan la **suscripción**; el piloto es **gratis** (D24 se retoma: D24-E1).
+- **"Puntos importantes" de JP:** las **carreteras** por donde transitan los camiones (costo, inseguridad y cercanía) y los **tiempos de espera de descarga** para las predicciones.
+
+Decisiones: [decisiones.md](decisiones.md) (D13-E1, D16-E1, D17-E1, D20-E1, D24-E1 y D28–D32). Producto: cada bloque actualiza la parte de [producto-v1.md](producto-v1.md) que toca (§3, §6 y, en H3, quita las marcas "pospuesto, D24").
+
+Todo §G y el rediseño (U1–U9) ya están en `main`. Cada bloque H es un PR con el ciclo de §0.1, la definición de terminado de §0.3, las reglas comunes de **G.0** (enums en su propia migración, "Same as <bloque>, except …" al recrear funciones, rol literal, autorización en Postgres, notificaciones con copy y ruta, textos en `copy/`, E2E que se rompen son parte del bloque, tamaño) y el gate D14. Además, la UI usa el kit "Transport · Nativo" ([plan-rediseno.md](plan-rediseno.md)) en claro y oscuro, sin valores sueltos (lo exige la prueba de higiene), y cada bloque agrega sus flujos E2E y sus capturas. Rama `v1/<id>-<slug>` (p. ej. `v1/H1-internal-trip-chat`) y título `[H1] Chat interno operador–coordinador`.
+
+### H.0 Reglas comunes de los bloques H
+
+1. **Lo que ya existe y se reutiliza** (no se duplica):
+   - Chat (B07, `20261015200000_chat_notifications.sql`): `conversations` (`kind` `negotiation` | `trip`, creadas por el trigger `open_conversation`), `messages` inmutables con adjuntos del bucket privado `chat`, `send_message`, `mark_conversation_read`, `is_conversation_participant` (última versión en G1a.2, `20261026020100_business_unit_policies.sql`) y los `ChatPanel` de la web (`apps/web/src/components/chat/chat-panel.tsx`) y la app (`apps/mobile/src/components/chat-panel.tsx`). Hoy **no hay** aviso (`notification_type`) por mensaje nuevo: el chat se ve por Realtime y no leídos.
+   - Enlaces (G1b y G7): `invitations` y `share_links` (token de 32 bytes en base64url, solo se guarda el SHA-256, `share_link_by_token`, vigencia y revocación), las rutas `compartido/[token]` y `shared/[token]` de la app, y `resolveRedirect` (`apps/mobile/src/lib/routing.ts`), que recuerda un enlace abierto sin sesión hasta después del login.
+   - Viajes: `assign_trip` (orden de bloqueo de F5: viaje → vehículos por id), `trip_events` con `occurred_at` y ubicación (D11), `estimated_unload_end_at`, `set_trip_vehicle_availability`, liberación de la unidad (G5) y `notify_carrier_staff` (Gerentes + coordinadores de la unidad de negocio).
+   - *Matching* (B08): `match_candidates`/`match_pairs`, `packages/shared/src/matching` (puntuación explicable con `MATCHING_WEIGHTS`), la Edge Function `recommendations` y `route_distance_cache`.
+   - Datos editables por el admin con bitácora: el patrón de `trip_document_requirements` (G3) con el trigger `audit_admin_action`.
+2. **Migraciones:** con marca de tiempo posterior a la última de `main` (hoy `20261031000000_manager_company.sql`). Los bloques de una misma ola se rebasan y renombran como dice G.0.2.
+3. **pgTAP:** el siguiente número libre es `42`. Los números de abajo son orientativos; al rebasar, se renumeran sin huecos ni duplicados (como en G6).
+4. **Maestro:** el siguiente flujo libre es `15-…`. **Playwright:** un spec por bloque en `e2e/tests/`.
+5. **Datos que no conocemos:** ningún bloque inventa precios, tarifas de casetas ni niveles de inseguridad. Si un dato no se puede respaldar con una fuente pública y fechada, queda vacío ("Sin dato" / "Por definir") y la UI lo dice.
+
+### H.1 Olas y dependencias
+
+```
+Ola HA   H1 · H3 · H4          (desde main, en paralelo)
+Ola HB   H2 (H1) · H5 (H4)
+```
+
+| Bloque | Depende de | 🔒 |
+|---|---|---|
+| H1 · Chat interno operador–coordinador | `main` | Sí |
+| H2 · Viaje por enlace al operador | H1 | Sí |
+| H3 · Suscripción y pagos (Stripe, MXN) | `main` | Sí |
+| H4 · Carreteras: costo, inseguridad y cercanía | `main` | No |
+| H5 · Tiempos de espera de carga y descarga | H4 | No |
+
+- **H2 tras H1:** el enlace lleva al operador a su viaje, cuyo canal principal ("Reportar al coordinador") es el chat de H1; las dos tocan la pantalla del operador.
+- **H5 tras H4:** las dos cambian la Edge Function `recommendations`, las tarjetas de recomendación y la sección "Ruta sugerida" del detalle de la carga; en serie se evitan conflictos.
+- **Archivos que tocan varios bloques en paralelo:** `notification_type` (H1, H3), `packages/shared/src/db.ts` (todos: se regenera, no se resuelve a mano) y `supabase/seed.sql`.
+
+---
+
+#### H1 · Chat interno operador–coordinador (D28) 🔒
+- **Objetivo:** que cada viaje tenga una conversación **interna del transportista** (operador asignado + coordinadores de la unidad de negocio + Gerente), invisible para el cliente, y que sea el canal principal del operador ("Reportar al coordinador").
+- **Depende de:** `main`. Retoma el "Chat interno del viaje" que G6 tenía en su alcance y no construyó.
+- **Decisión (D28):** el operador **deja de ver el chat del viaje con el cliente**. Habla con su coordinador, y el coordinador con el cliente (así lo describe JP). Los mensajes que un operador ya escribió en el chat con el cliente se conservan (son inmutables). El hombre-camión sigue viendo el chat con el cliente porque también es Gerente.
+- **Alcance:**
+  - **Migración 1** (sola): `alter type public.conversation_kind add value 'trip_internal';` y `alter type public.notification_type add value 'internal_message';`.
+  - **Migración 2:**
+    - `conversations`: `conversations_subject` admite `trip_internal` (con `trip_id` y sin `negotiation_id`); `conversations_trip_key unique (trip_id)` se reemplaza por `unique (trip_id, kind)` (una conversación por viaje y tipo). Las llaves compuestas con las partes del viaje no cambian (`shipper_company_id` se conserva como dato, pero no da acceso a la interna).
+    - `open_conversation` ("Same as B07, except …"): con cada viaje nuevo crea las dos conversaciones (`trip` y `trip_internal`). Backfill: la interna de todos los viajes existentes.
+    - `is_conversation_participant` ("Same as G1a.2, except …"):
+      - `negotiation` y `trip`: cliente del viaje, Gerente y coordinadores de la unidad de negocio, como hoy; **sin** la rama del operador asignado.
+      - `trip_internal`: Gerente de la empresa transportista (`auth_fleet_company_id()`), coordinadores con `can_operate_unit` sobre la unidad de negocio del viaje y el operador **actualmente** asignado (`trips.operator_id = auth_operator_id()`). Nunca la empresa cliente. Un operador reasignado deja de verla al instante. Un viaje cerrado o cancelado conserva su conversación interna y se puede seguir escribiendo (como el chat de hoy); así el coordinador confirma con el operador dónde quedó la unidad antes de liberarla (D20-E1).
+      - Lo usan `conversations_select`, `messages_select`, `message_reads`, `send_message`, `mark_conversation_read` y las políticas del bucket `chat`, así que adjuntos y fotos funcionan como hoy sin código nuevo.
+    - **Aviso por mensaje:** trigger `notify_internal_message` (after insert en `messages` de una conversación `trip_internal`): una notificación `internal_message` a cada participante menos el remitente, con `data` = `{ tripId, conversationId, senderName, preview }` (vista previa de hasta 80 caracteres; "📷 Foto" si solo trae adjuntos). **Agrupación:** si el destinatario ya tiene un `internal_message` sin leer de esa conversación de los últimos 10 minutos, no se crea otro. Solo push y bandeja: `dispatch-notifications` no manda correo de este tipo.
+    - RPC `internal_chat_inbox()` (`security invoker`, por RLS): por viaje con conversación interna visible, `trip_id`, ruta, operador, último mensaje y no leídos del que llama. Alimenta la lista de pendientes del coordinador.
+  - **Hombre-camión:** si la empresa es `is_owner_operator` y no tiene otro personal, la app y la web **ocultan** el chat interno (sería consigo mismo); la conversación existe igual.
+  - **`packages/shared`:** copy de `internal_message` (título "Mensaje de {senderName}", cuerpo con la vista previa) y sus rutas: app del operador → `/chat/<tripId>`, app del transportista → `/trip/<id>?chat=interno`, web → `/transportista/viajes/<id>?chat=interno`; `QUICK_REPORTS` (mensajes rápidos del operador: "Ya llegué a cargar", "Ya llegué a descargar", "Voy con retraso", "Estoy esperando turno", "Tengo un problema en carretera", "Todo en orden") y un helper puro `locationMessage({ lat, lng })` que arma el texto "Mi ubicación: https://maps.google.com/?q=lat,lng".
+  - **Ojo, consultas que suponen una conversación por viaje:** `apps/mobile/src/lib/*-api.ts` (el `conversationId` del detalle del viaje) y `apps/web/src/lib/chat/queries.ts` buscan `conversations` por `trip_id`; ahora deben filtrar `kind`.
+- **Pantallas:**
+  - **App del operador:** en su viaje, botón principal **"Reportar al coordinador"** con contador de no leídos, que abre `(operator)/chat/[tripId]` (el `ChatPanel` de siempre, más los mensajes rápidos en fichas, "Enviar foto" y "Enviar mi ubicación"). El operador ya no ve el chat con el cliente.
+    - **La pantalla de chat no depende del viaje en curso:** busca la conversación por `trip_id` y `kind = 'trip_internal'` (la RLS decide), así que se abre también desde la notificación de un viaje cancelado o cerrado, que `loadOperatorTrip` ya no devuelve (D20-E1). En ese caso muestra el encabezado del viaje (ruta y estado "Cancelado") sin las acciones del viaje.
+  - **App del Gerente y Coordinador:** en `trip/[id]`, el chat con dos pestañas, "Cliente" e "Interno" (la que llegó por la notificación queda abierta); en el inicio, la tarjeta "Mensajes de operadores (n)" con `internal_chat_inbox()`.
+  - **Web del transportista:** en `/transportista/viajes/[id]`, las mismas dos pestañas; en `/transportista/viajes`, un distintivo de no leídos del chat interno por viaje.
+  - **Web del cliente y admin:** sin cambios. El admin ve las conversaciones internas en el detalle del viaje para disputas (como hoy las demás).
+- **Fuera de alcance:** avisos por mensaje del chat con el cliente y de la negociación (Seguimiento); mensajes de sistema automáticos (p. ej. copiar las incidencias al chat interno); notas de voz; un rol de monitorista (D17).
+- **Modelo de datos:** sin tablas nuevas (valor de enum, restricciones, trigger y RPC).
+- **RLS:** las políticas existentes de `conversations`, `messages`, `message_reads` y Storage `chat` heredan la regla nueva de `is_conversation_participant`. `notifications` sin cambio (cada quien las suyas).
+- **Tests:**
+  - pgTAP `42_trip_internal_chat.test.sql`: matriz Gerente / Coordinador de la unidad / Coordinador de otra unidad / operador asignado / operador reasignado / cliente del viaje / otra empresa / admin × leer conversación, leer mensajes, `send_message`, `mark_conversation_read`, subir y leer adjuntos del bucket `chat`. El operador ya no lee ni escribe en el chat `trip`. Dos conversaciones por viaje; backfill; agrupación de avisos (dos mensajes seguidos = una notificación; después de leerla, otra).
+  - Concurrencia: dos `send_message` simultáneos en la conversación interna generan un solo aviso por destinatario (patrón de `12_chat_concurrency`).
+  - pgTAP, además: el operador asignado de un viaje **cancelado** sigue leyendo y escribiendo en su conversación interna; el cliente sigue sin verla.
+  - Vitest: copy y rutas de `internal_message` (la del operador lleva el `tripId`), `QUICK_REPORTS`, `locationMessage`, y la carga de la conversación por `tripId` para un viaje cancelado (sin pasar por `loadOperatorTrip`).
+  - Playwright `trip-internal-chat.spec.ts`: Andrea escribe en "Interno" del viaje de Pedro; Ana (cliente) no ve ese mensaje en `/cliente/viajes/[id]`; Héctor no ve el viaje.
+  - Maestro `15-operator-report.yaml`: Pedro abre "Reportar al coordinador", manda "Ya llegué a cargar" y una foto (cámara falsa de E2E), y no hay chat con el cliente en su viaje. Después, con `openLink transport://chat/<tripId>` de un viaje cancelado de la seed, ve la conversación y responde.
+- **Aceptación:** con la seed, Pedro reporta desde la app y Andrea lo ve en la web y en la app con aviso push; el cliente no puede leer la conversación interna ni sus adjuntos por ninguna vía (API, Realtime o Storage).
+- **E2E que probablemente se rompan:** pgTAP `11_chat_notifications` y `12_chat_concurrency` (una conversación por viaje; el operador en el chat del cliente), `26_business_units_rls` (matriz de conversaciones), `seed-tests/seed.test.sql` (conteo de conversaciones), Maestro `02`, `05` y `07` (cambia la pantalla del viaje del operador), Vitest de las consultas de chat de web y app.
+- **Revisión 🔒:** que ningún camino (Realtime, Storage, `internal_chat_inbox`, notificaciones) filtre la conversación interna al cliente; que el operador reasignado pierda el acceso; que la agrupación de avisos no tenga carreras. Si crece de más: **H1a** (BD, avisos y pgTAP) y **H1b** (pantallas y E2E).
+
+#### H2 · Viaje por enlace al operador (D29) 🔒
+- **Objetivo:** que, al asignar, el coordinador mande al operador un enlace (WhatsApp, SMS o lo que elija) que abra la app directo en ese viaje.
+- **Depende de:** H1.
+- **Alcance:**
+  - **Reutiliza `share_links` (G7).** Migración sola: `alter type public.share_link_kind add value 'trip_operator';`. En la siguiente:
+    - Columna `share_links.operator_id uuid` (FK a `operators`), obligatoria para `trip_operator` y nula en los demás; `share_links_target` admite `trip_operator` con `trip_id` y `operator_id`.
+    - Índice único parcial: un enlace `trip_operator` activo (sin `revoked_at`) por viaje.
+    - `company_id` es la empresa transportista del viaje (el personal de la empresa lista y revoca, como en G7).
+  - **RPC:**
+    - `create_trip_operator_link(p_trip_id)` → `(id, token, expires_at)`. Gerente o coordinador con `can_operate_unit(trip.business_unit_id)`; el viaje debe tener operador asignado y estar entre `assigned` y `unloading`. Reemitir revoca el anterior. Vence a los 30 días (el máximo de G7) o antes, al terminar el viaje. Pasa por `consume_rate_limit('create_share_link')`. Bloquea el viaje (mismo orden que `assign_trip`).
+    - `open_trip_operator_link(p_token)` (`authenticated`, con límite de frecuencia): devuelve `{ tripId, target }`:
+      - `target = 'operator'` si quien llama es el operador del enlace **y** sigue asignado al viaje;
+      - `target = 'carrier'` si es Gerente o coordinador de la unidad de negocio (lo manda a su detalle del viaje);
+      - cualquier otro caso (token desconocido, vencido, revocado, viaje cerrado o cancelado, otro operador, otra empresa, cliente): el mismo error `22023 invalid or expired link`, sin ids.
+      - Actualiza `last_viewed_at` y `view_count`.
+    - `revoke_share_link` (G7) sirve también para este tipo.
+  - **Vencimiento automático:** trigger en `trips` (after update de `status` u `operator_id`): al pasar a `closed` o `cancelled`, o al cambiar de operador, revoca el enlace activo del viaje.
+  - **`packages/shared`:** `tripLinkUrl(siteUrl, token)` → `https://<sitio>/viaje/<token>`, `tripDeepLink(token)` → `transport://viaje/<token>`, `parseTripLink(url)` y `tripLinkMessage({ operatorName, route, url })` (texto en `copy/` para el mensaje: "Hola {nombre}, tienes un viaje asignado: {ruta}. Ábrelo en la app: {url}").
+  - **Web `/viaje/[token]`** (pública, `noindex`, `Referrer-Policy: no-referrer`, el middleware la deja pasar sin sesión): **no consulta el token ni muestra datos del viaje**. Muestra "Abre este viaje en la app de Transport" con el botón "Abrir en la app" (`transport://viaje/<token>`), los botones de las tiendas (de `NEXT_PUBLIC_IOS_APP_URL` y `NEXT_PUBLIC_ANDROID_APP_URL`; si faltan, no se muestran) y "Entra con tu teléfono y contraseña".
+  - **Enlaces universales (opcionales):** la web sirve `/.well-known/apple-app-site-association` y `/.well-known/assetlinks.json` solo para `/viaje/*`, a partir de `APPLE_TEAM_ID` y `ANDROID_CERT_SHA256` (si faltan, responde 404 y todo sigue funcionando con el botón). La app declara `associatedDomains` e `intentFilters` desde `EXPO_PUBLIC_SITE_URL` en `app.config` solo cuando hay valor. Requiere una build nueva: avisarlo en el PR.
+  - **App:** ruta `viaje/[token]` (deep link y enlace universal):
+    - Sin sesión, `resolveRedirect` recuerda el enlace (extender `SHARED_PATH` a `/viaje/<token>`), pide el login y después vuelve.
+    - Con sesión: `open_trip_operator_link`; el operador va a su viaje (si no es el viaje en curso, lo ve como "Siguiente viaje" en solo lectura hasta que le toque); el personal va a `trip/[id]`. Error: "Este enlace ya no está disponible. Pide uno nuevo a tu coordinador."
+  - **Envío (app y web del transportista):** después de `assign_trip`, y en el detalle del viaje mientras esté activo, "Enviar viaje al operador":
+    - App: hoja de compartir del sistema con `tripLinkMessage`.
+    - Web: "Enviar por WhatsApp" (`https://wa.me/<teléfono del operador sin +>?text=…`), "Enviar por SMS" (`sms:` con el cuerpo), "Copiar enlace" y "Revocar".
+  - El aviso `trip_assigned` (push) se queda: el enlace es para quien no tiene la notificación a la mano o usa otro teléfono.
+- **Fuera de alcance:** que el enlace sirva sin sesión o cree la cuenta del operador (eso es la invitación de G1b/G2); acortar enlaces.
+- **Modelo de datos:** columna `operator_id` y valor de enum en `share_links`; sin tablas nuevas.
+- **RLS:** `share_links` sin cambio (select para la empresa que lo creó, sin `token_hash`; escrituras por RPC). `anon` no ejecuta las RPC nuevas.
+- **Tests:**
+  - pgTAP `43_trip_operator_links.test.sql`: quién crea (Gerente, Coordinador de la unidad; no el de otra unidad, ni el operador, ni el cliente); `open` por el operador asignado → `operator`; por el Coordinador → `carrier`; por otro operador de la empresa, otra empresa, el cliente o `anon` → mismo error; reemitir revoca el anterior; reasignar, cerrar o cancelar revoca; vencido falla.
+  - Concurrencia: crear el enlace y reasignar el operador a la vez (patrón de `10_trip_concurrency`).
+  - Vitest: constructores y parser de enlaces, mensaje, `resolveRedirect` con `/viaje/<token>`.
+  - Playwright `trip-operator-link.spec.ts`: Andrea asigna y obtiene el enlace (WhatsApp con el teléfono de Pedro); un visitante anónimo de `/viaje/<token>` ve solo "Abrir en la app", sin datos del viaje.
+  - Maestro `16-operator-trip-link.yaml`: con la app cerrada y sin sesión, `openLink transport://viaje/<token>` → login de Pedro → su viaje; con un token revocado, el mensaje de error.
+- **Aceptación:** el coordinador asigna y en dos toques le manda el viaje a su operador por WhatsApp; el operador abre el enlace y llega a su viaje (con o sin sesión); nadie más llega a ese viaje con el enlace.
+- **E2E que probablemente se rompan:** tests del middleware de la web (ruta pública nueva) y de `routing.test.ts` de la app; `37_share_links` (nuevo tipo y columna en la matriz).
+- **Revisión 🔒:** entropía y vencimiento del token, que la página pública no consulte ni revele nada, que el enlace no dé acceso a quien no es el operador asignado o el personal de la unidad, y orden de bloqueo.
+
+#### H3 · Suscripción y pagos (Stripe, MXN) (D24-E1, D30) 🔒
+- **Objetivo:** que la empresa transportista (su Gerente, o el hombre-camión) pueda pagar su suscripción con Stripe cuando termine el piloto, y que mientras dure el piloto todo sea gratis y nada falle, con o sin claves de Stripe.
+- **Depende de:** `main`. **Parte de la especificación de G8** (modelo, RPC de servicio, Edge Functions, verificación de firma, idempotencia y mapeo de estados); aquí solo se anota lo que cambia o se agrega. Donde difieran, manda H3.
+- **Alcance:**
+  - **Bandera global de piloto.** Tabla `platform_settings` (`key text` PK, `value jsonb not null`, `description`, `updated_by`, `updated_at`), editable solo por el admin y con bitácora (`audit_admin_action`), legible por `authenticated` (no guarda secretos). Llaves que crea la migración:
+    - `billing.pilot_mode` = `true` (**activa por defecto**): todas las empresas en "Piloto gratis", sin Checkout ni bloqueos.
+    - `billing.pilot_ends_at` = `null` (sin fecha).
+    - `billing.enforcement` = `"off"` (`off` | `notice` | `block`): qué pasa sin suscripción activa **cuando el piloto termina**. `off` y `notice` no bloquean nada; `block` es el bloqueo futuro (diseñado y probado, apagado).
+  - **Planes por tipo** (`subscription_plans` de G8) con:
+    - `audience` `fleet` | `owner_operator`;
+    - `amount_cents` **nulo = "Por definir"**;
+    - `stripe_price_id` nulo = no se puede contratar.
+    - La migración crea dos planes sin precio: `owner_operator_monthly` ("Hombre camión") y `fleet_monthly` ("Empresa transportista"). El admin edita nombre, descripción, precio, `stripe_price_id` y `active` en la web (con bitácora). Un plan solo se ofrece con precio, `stripe_price_id` y `active`.
+  - **Estado por empresa:** `company_subscriptions` y `billing_events` como en G8 (fila automática por empresa transportista y backfill).
+  - **Estado efectivo:** `company_billing_state()` devuelve `effective_status`:
+    - `pilot_free` mientras `pilot_mode` esté activa (aunque la empresa tenga otra cosa guardada);
+    - si no, el estado de la empresa (`active`, `past_due`, `canceled` o `none`);
+    - además: el plan, `pilot_ends_at`, `notice` (`none`, `pilot`, `pilot_ending` si faltan ≤ 14 días, `inactive`), `checkout_available` y `billing_configured`.
+    - Espejo puro `billingState(settings, subscription, now)` en `shared`, con Vitest.
+  - **Bloqueo futuro, apagado:**
+    - `assert_billing_allows(p_company_id)` (interna, `security definer`): no hace nada salvo con `pilot_mode = false`, `enforcement = 'block'` y la empresa sin suscripción `active`; entonces, error `P0001 subscription required` (copy "Tu suscripción no está activa. El Gerente puede reactivarla en la web").
+    - Se llama **solo** al iniciar trabajo nuevo: `make_offer` ("Same as …, except") y `set_vehicle_availability`.
+    - **Nunca** bloquea viajes en curso, ubicación, evidencias, chat, cancelación ni documentos.
+  - **Edge Functions** (las tres de G8: `billing-checkout`, `billing-portal`, `stripe-webhook`):
+    - Sin `STRIPE_SECRET_KEY` responden `503 { code: 'billing_disabled' }`.
+    - `billing-checkout` además responde `409 { code: 'pilot_active' }` mientras dure el piloto.
+    - El webhook verifica la firma con `STRIPE_WEBHOOK_SECRET` sobre el cuerpo crudo, es idempotente (`billing_events`) y lee la suscripción en Stripe para tener el estado real; también funciona durante el piloto (guarda el estado, aunque el efectivo siga siendo "Piloto gratis").
+    - Fijar la versión de `npm:stripe` y de la API de Stripe.
+  - **UI:**
+    - **Web del Gerente** `/transportista/suscripcion`:
+      - En piloto: "Piloto gratis" con la explicación ("Durante la prueba piloto la plataforma es gratis. Te avisaremos antes de que termine") y los planes en solo lectura ("Por definir").
+      - Después del piloto: "Suscribirme" (Checkout) y "Administrar pago" (Customer Portal), y la vuelta con `?estado=ok|cancelado`.
+      - El Coordinador solo ve el estado.
+    - **App** ("Más → Suscripción"), Gerente y hombre-camión: estado, plan y avisos, en **solo información**. Por las reglas de las tiendas (App Store 3.1.1 y 3.1.3; la política de pagos de Google Play), la app **no vende, no muestra precios para contratar ni tiene botones o enlaces a la compra**: muestra el texto "La suscripción se administra desde la web de Transport" (sin enlace). Documentarlo en `docs/tiendas.md` (D30).
+    - **Avisos:** banner en la web y la app del transportista cuando `notice` es `pilot_ending` o `inactive` (con `enforcement = 'off'` no aparece `inactive`).
+    - **Admin:** `/admin/suscripciones` con la bandera de piloto, la fecha de fin, el modo de bloqueo (con confirmación), los planes y el estado por empresa; en el detalle de la empresa, su estado.
+  - **Variables:** `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` (secretos de Edge Functions) en `.env.example` y `docs/release.md` §3.1 con los pasos de Stripe de G8. No se crean cuentas ni productos de Stripe.
+  - **Producto:** quitar las marcas "pospuesto, D24" de `producto-v1.md` (§2, §3, §4 y §6) y describir el piloto gratis.
+- **Fuera de alcance:** cobro del flete y comisiones (D08-E1); factura CFDI de la suscripción; OXXO y transferencia; precio por camión o por usuario; cupones; activar el bloqueo (es un cambio de dato que decide Mateo).
+- **Modelo de datos:** `platform_settings`, `subscription_plans`, `company_subscriptions`, `billing_events` (columnas de G8, con `amount_cents` nulo).
+- **RLS:**
+  - `platform_settings`: select para `authenticated`; escritura solo admin (RPC `admin_set_platform_setting(p_key, p_value)` con validación por llave).
+  - `subscription_plans`: select de los activos para `authenticated`; todos para admin; escritura solo admin.
+  - `company_subscriptions`: select para el personal de la empresa y admin. `billing_events`: solo admin.
+  - Sin escrituras de clientes; las de Stripe, solo por RPC `*_service` con *service role*.
+- **Tests:**
+  - pgTAP `44_billing.test.sql`: matriz; fila por empresa nueva; `company_billing_state` en piloto, después del piloto con cada estado y con `pilot_ends_at`; idempotencia de `billing_apply_event_service`; que solo `service_role` llama las RPC de servicio; `assert_billing_allows` no bloquea con piloto ni con `off`/`notice`, bloquea `make_offer` con `block` y nunca bloquea `record_trip_event`, `send_message` ni `cancel_trip`.
+  - Deno: firma válida e inválida (`generateTestHeaderString`), evento repetido, sin claves (503), piloto activo (409), solo el Gerente de la empresa abre Checkout o el Portal.
+  - Vitest: `billingState`, formato "Por definir" del precio y copy.
+  - Playwright `subscription.spec.ts`: sin claves, Jorge ve "Piloto gratis" y los planes "Por definir"; Andrea solo ve el estado; el admin cambia la fecha de fin y Jorge ve el aviso `pilot_ending`.
+  - Maestro `17-manager-subscription.yaml`: José (hombre-camión) ve "Piloto gratis" y no hay botón de compra.
+- **Aceptación:** con la seed y sin claves, todas las empresas están en "Piloto gratis" y ninguna función cambia; con claves de prueba de Stripe (manual, documentado) y el piloto apagado, un Gerente se suscribe y el webhook la deja "Activa".
+- **E2E que probablemente se rompan:** pgTAP de `make_offer` y `set_vehicle_availability` si cambian sus firmas (no deben cambiar), `security_matrix.test.sql` (tablas nuevas), el menú "Más" de la app (Maestro `09`).
+- **Revisión 🔒:** verificación de firma sobre el cuerpo crudo, idempotencia y orden de eventos, que ningún secreto llegue al cliente, que solo el Gerente de la empresa abra Checkout o el Portal, que la bandera de piloto no se pueda cambiar fuera del admin y que el bloqueo apagado no toque ninguna RPC de viaje en curso.
+
+#### H4 · Carreteras: costo, inseguridad y cercanía (D31)
+- **Objetivo:** que la recomendación y el detalle de una carga digan **por dónde** conviene ir, cuánto cuestan las casetas (estimado) y si hay tramos inseguros a la hora en que pasaría el camión, respetando los tramos que el transportista prefiere o evita.
+- **Depende de:** `main`.
+- **Alcance:**
+  - **Catálogo** (datos editables por el admin, con bitácora; reutiliza el patrón de G3):
+    - Enum `road_data_status` (`estimated`, `verified`) y enum `road_risk_level` (`low`, `medium`, `high`).
+    - Enum `toll_vehicle_class` con las clases de camión de las tarifas de casetas: `c2` … `c9` (camión de 2 a 9 ejes).
+    - `road_segments`: `id`, `code` único, `name` ("Saltillo – San Luis Potosí"), `highway` (texto, p. ej. "57D"), `from_city`/`from_state`/`from_lat`/`from_lng`, `to_city`/`to_state`/`to_lat`/`to_lng`, `distance_km`, `is_toll`, `notes`, `source`, `source_url`, `source_date`, `data_status`, `archived_at`.
+    - `road_segment_tolls`: `segment_id`, `vehicle_class`, `amount_cents` (nulo = "Sin dato"), `source`, `source_url`, `valid_from`, `data_status`; PK `(segment_id, vehicle_class, valid_from)`.
+    - `road_segment_risks`: `id`, `segment_id`, `level`, `from_hour`/`to_hour` (0–24 en `America/Mexico_City`; si `from_hour > to_hour`, cruza la medianoche; 0–24 = todo el día), `description` (p. ej. "robo a transporte de carga"), `source`, `source_url`, `observed_on`, `data_status`, `archived_at`.
+    - `road_corridors`: `id`, `code`, `name` ("MTY–GDL por Saltillo y San Luis Potosí"), origen y destino (ciudad, estado, punto y `radius_km`, p. ej. 60 km para la zona metropolitana), `bidirectional` (por defecto `true`), `archived_at`. `road_corridor_segments`: `corridor_id`, `seq`, `segment_id`.
+  - **Ejes del camión:** columna `vehicles.axle_count smallint` (2–9, nula). Si es nula, el valor por defecto sale de una función pura `defaultAxleCount(kind, unitType)`: tractocamión 5 (T3S2), torton 3, rabón 2, 3.5 t 2; editable en el formulario de la unidad.
+  - **Preferencias del transportista:**
+    - Tabla `carrier_road_preferences`: `id`, `company_id`, `carrier_route_id` (nulo = todas sus rutas), `segment_id`, `preference` (enum `road_preference`: `prefer`, `avoid`), `notes`, `created_by`, `created_at`, `archived_at`; único activo por `(company_id, coalesce(carrier_route_id, …), segment_id)`.
+    - La leen y escriben Gerente y Coordinador, como `carrier_routes` (`auth_carrier_company_id()`).
+  - **Lógica pura** en `packages/shared/src/roads/` (Vitest):
+    - `suggestRoute({ origin, destination, departAt, axleCount, corridors, preferences })`:
+      - Corredores cuyo origen y destino caen en sus radios (en cualquier sentido si `bidirectional`).
+      - Descarta los que usan un tramo `avoid` (si todos lo usan, elige el mejor y lo marca).
+      - Ordena por `tolls + riskPenalty − preferredBonus`.
+      - Devuelve el corredor, los tramos con hora estimada de paso (`departAt` + km acumulados / `ESTIMATED_TRUCK_SPEED_KMH`), el total de casetas para la clase del camión (y si falta algún dato), los avisos de riesgo **en la franja horaria** de paso y `source: 'catalog' | 'none'`.
+    - `tollClassFor(axleCount)` y el copy de avisos ("Tramo con riesgo alto de noche: …").
+  - **RPC:**
+    - `road_catalog()` (`stable`, `authenticated`): corredores activos con tramos, casetas vigentes y riesgos; datos de referencia, sin datos de empresas.
+    - Las preferencias se leen por RLS.
+    - CRUD del admin por RPC (`admin_upsert_road_segment`, `admin_set_segment_toll`, `admin_upsert_segment_risk`, `admin_upsert_corridor`) con validación y bitácora.
+  - **Recomendaciones:**
+    - La Edge Function `recommendations` carga el catálogo (en memoria por invocación) y las preferencias del que llama, y agrega `road` a cada recomendación (`suggestRoute` desde el punto de carga, a la hora de inicio de la ventana de recolección).
+    - Pesos nuevos en `MATCHING_WEIGHTS` (con defaults en `DEFAULT_MATCHING_WEIGHTS`):
+      - `tolls` (0–1, por defecto 1): resta las casetas estimadas del precio en `pricePerKm`;
+      - `highRisk` (puntos por tramo de riesgo alto en su franja, por defecto 5).
+    - El desglose explica las dos cosas. El respaldo local de la app y de la web usa la misma función.
+  - **Pantallas:**
+    - **Detalle de la carga** (app `load/[id]` y web `/transportista/cargas/[id]`): sección "Ruta sugerida" con el corredor y sus tramos, "Casetas estimadas: $X" (con "estimado · fuente, fecha"), los avisos de riesgo y, si no hay corredor, "Sin ruta en el catálogo".
+    - **Tarjetas de recomendación:** "Casetas ~$X" y un ícono de aviso si hay riesgo alto.
+    - **Rutas habituales** (app `routes.tsx` y web `/transportista/rutas`): por ruta, "Tramos preferidos" y "Tramos a evitar" (selector con los tramos del catálogo cercanos a la ruta).
+    - **Admin** `/admin/carreteras`: tramos, casetas por clase, riesgos y corredores, con su fuente y fecha obligatorias.
+    - El cliente no ve nada de esto en V1.
+  - **Datos semilla del corredor piloto** (migración de datos, para que existan también en producción, todos con `data_status = 'estimated'`):
+    - Corredores MTY ↔ GDL: el principal por Saltillo y San Luis Potosí, y al menos una alternativa (p. ej. por Zacatecas y Aguascalientes), con sus tramos.
+    - Tarifas de caseta por clase tomadas de tarifas **publicadas** por los operadores de las autopistas (CAPUFE u otros), con `source_url` y fecha de consulta.
+    - Riesgos con fuentes públicas fechadas (p. ej. estadística oficial de robo a transportista del SESNSP o reportes de cámaras del sector).
+    - **Lo que no se pueda respaldar con fuente queda nulo** ("Sin dato"); no se inventan cifras (H.0.5). JP revisa y corrige como admin.
+- **Fuera de alcance:** trazar la ruta con la API de Google (casetas de Routes API, polilíneas por corredor) y calcular la ruta real por GPS; desvíos en vivo; catálogo nacional; riesgo por evento (bloqueos y noticias). Van a Seguimiento.
+- **RLS:**
+  - Catálogo (`road_*`): select para `authenticated` (los archivados solo para admin); escritura solo admin, por RPC y con bitácora.
+  - `carrier_road_preferences`: select, insert y update para el personal de su empresa (`auth_carrier_company_id()`) y admin; sin delete (se archiva).
+- **Tests:**
+  - pgTAP `45_road_intelligence.test.sql`: matriz del catálogo y de las preferencias (otra empresa no ve ni escribe las tuyas; un operador y un cliente no escriben); bitácora de los cambios del admin; validaciones (horas, clases, fuente obligatoria); `road_catalog` no devuelve archivados; la seed del corredor piloto existe.
+  - Vitest: `suggestRoute` (radios, sentido, tramos evitados y preferidos, franjas que cruzan la medianoche, datos faltantes), `defaultAxleCount`, el efecto de los pesos nuevos en la puntuación.
+  - Deno: `recommendations` devuelve `road` y funciona sin catálogo (`source: 'none'`).
+  - Playwright `road-intelligence.spec.ts`: Andrea ve "Ruta sugerida" y "Casetas estimadas" en la carga MTY → GDL; marca "evitar" un tramo en sus rutas y la ruta sugerida cambia a la alternativa.
+  - Maestro `18-carrier-road.yaml`: la tarjeta de recomendación muestra las casetas y el detalle, la ruta.
+- **Aceptación:** con la seed, la recomendación MTY ↔ GDL muestra la ruta sugerida, sus casetas estimadas con fuente y los avisos de riesgo por hora; el admin corrige una tarifa y se refleja; sin catálogo, nada falla.
+- **E2E que probablemente se rompan:** `carrier-web-offer.spec.ts` y `return-trip.spec.ts` si el orden de las recomendaciones cambia con el peso `tolls` (verificar con la seed; si cambia, ajustar la seed o el peso por defecto, no la intención de la prueba); Vitest de `matching` (desglose nuevo); `security_matrix.test.sql`.
+
+#### H5 · Tiempos de espera de carga y descarga (D32)
+- **Objetivo:** medir cuánto esperan de verdad los camiones en cada sitio de carga y descarga, y usarlo en el fin estimado del viaje, en la recomendación de regresos y como dato para el cliente.
+- **Depende de:** H4.
+- **Alcance:**
+  - **Medición** (de los eventos de D11, sin captura nueva):
+    - Enum `trip_stop` (`pickup`, `delivery`). Tabla derivada `trip_stop_dwells`, PK `(trip_id, stop)`:
+      - `shipper_company_id`, `carrier_company_id`;
+      - `site_lat`/`site_lng` del punto de la carga, redondeados a 3 decimales (~100 m: el "sitio");
+      - `arrived_at`, `handling_started_at`, `handling_finished_at`;
+      - `wait_minutes` y `handling_minutes` (generadas);
+      - `hour_band` (`night` 0–6, `morning` 6–12, `afternoon` 12–18, `evening` 18–24, en `America/Mexico_City`, por la llegada) y `excluded` (negativos, o espera de más de 72 h).
+    - La escribe solo el trigger `trip_events_record_dwell` (after insert en `trip_events`: `arrived_at_pickup`/`loading_started`/`loading_finished` y `arrived_at_delivery`/`unloading_started`/`unloading_finished`, con su `occurred_at`; un evento offline que llega tarde también cuenta). Backfill con los viajes existentes.
+  - **Agregado:** `site_dwell_estimate(p_stop, p_lat, p_lng, p_shipper_company_id default null, p_at default now())` (`stable security definer`):
+    - Devuelve mediana y p75 de espera y de maniobra, `sample_size` y `basis`.
+    - Escalones de `basis`, el primero con ≥ 5 mediciones válidas: mismo sitio y franja horaria → mismo sitio → mismo cliente (todas sus instalaciones) → `default`.
+    - **Privacidad:** una estadística con mediciones de otras empresas transportistas solo se devuelve si viene de ≥ 2 empresas distintas; si no, solo cuentan las del que llama. El cliente ve las de sus propios sitios.
+    - **Valor por defecto:** el actual de la app (4 h de descarga, `DEFAULT_UNLOAD_HOURS` en `trip-forms.tsx`), que pasa a `packages/shared` como `DEFAULT_DWELL_MINUTES = { pickup: 240, delivery: 240 }` (carga y descarga, incluida la espera). La respuesta dice que es el valor por defecto.
+  - **Lógica pura** en `packages/shared/src/dwell.ts` (Vitest), espejo del SQL:
+    - `hourBand(date)`, `median`/`percentile`;
+    - `dwellEstimate(samples, { minSamples, defaults })` con los mismos escalones;
+    - `estimatedStopEnd({ arrivedAt, handlingStartedAt, estimate })`;
+    - `formatDwell` (copy: "~6 h de espera (12 viajes)", "~4 h (valor por defecto)").
+  - **Dónde se usa:**
+    1. **Operador al iniciar la descarga:** el fin estimado sugerido sale del estimado del sitio y no del fijo de 4 h (el operador lo puede cambiar, como hoy).
+    2. **Fin estimado del viaje antes de descargar:** RPC `trip_estimated_end(p_trip_id)` = llegada al destino (o, antes de llegar, la hora estimada de llegada con `route_distance_cache`/estimado de H4) + espera + maniobra. Se muestra en el detalle del viaje del transportista y del cliente ("Fin estimado de descarga: 18:30 · según 12 viajes en este sitio"). Una vez iniciada la descarga, manda el `estimated_unload_end_at` del operador.
+    3. **Regresos:** la hora del modo regreso no sale de `match_candidates` (solo devuelve filas de `match_pairs`), sino de `vehicle_trip_chain_end` (F5, `20261021000000_unit_availability_restore.sql`), que encadena todos los viajes comprometidos de la unidad y arrastra sus retrasos. H5 recrea **esa** función ("Same as F5, except …"): en sus dos `coalesce(t.estimated_unload_end_at, l.delivery_window_end)`, el fin de cada viaje pasa a ser `coalesce(t.estimated_unload_end_at, trip_estimated_end(t.id), l.delivery_window_end)`, sin tocar la lógica de la cadena (orden, arrastre de retrasos). `match_pairs` y `match_candidates` no cambian. La tarjeta del regreso dice "Espera típica en descarga: ~6 h" y el detalle de la carga, "Espera típica al cargar: ~2 h" (sección "Ruta sugerida" de H4).
+    4. **Cliente:** en `/cliente/viajes/[id]` y en el detalle de su carga, "Tiempo típico en tu sitio" de carga y de descarga.
+- **Fuera de alcance:** predicción con IA (§5); pedir al operador datos nuevos (turno, andén); catálogo de instalaciones con nombre (el sitio es el punto redondeado); avisar al cliente que su sitio es lento.
+- **Modelo de datos:** `trip_stop_dwells` (derivada; inmutable para clientes).
+- **RLS:** `trip_stop_dwells`: select para el personal de la unidad de negocio del viaje (`can_operate_unit`), el cliente del viaje y admin; escrituras solo por el trigger. Los agregados entre empresas salen **solo** por `site_dwell_estimate` y `trip_estimated_end`, que aplican la regla de privacidad.
+- **Tests:**
+  - pgTAP `46_site_dwell.test.sql`: el trigger mide carga y descarga (incluido un evento offline que llega tarde); excluye los atípicos; escalones de `site_dwell_estimate` y su valor por defecto; la regla de ≥ 2 empresas; matriz de `trip_stop_dwells`; `vehicle_trip_chain_end` usa el estimado para el regreso, **también con dos o más viajes comprometidos** en la misma unidad (el retraso del primero se sigue arrastrando al segundo, como en F5); los tests de `21_unit_availability` y `20_return_trip_concurrency` siguen verdes.
+  - Vitest: `dwellEstimate` (mismos casos que el pgTAP), `hourBand` en la zona horaria de México, `formatDwell`.
+  - Playwright `site-dwell.spec.ts`: con la seed (que agrega viajes cerrados con tiempos en el sitio de GDL), el regreso GDL → MTY de Andrea dice "Espera típica en descarga" y Ana ve el tiempo típico de su sitio.
+  - Maestro `19-operator-unload-estimate.yaml`: al iniciar la descarga, el fin sugerido sale del sitio.
+- **Aceptación:** con datos suficientes, el fin estimado y los regresos usan los tiempos medidos y dicen en cuántos viajes se basan; con pocos datos, usan las 4 h de siempre y lo dicen; ninguna empresa ve los tiempos de otra por debajo del umbral.
+- **E2E que probablemente se rompan:** `return-trip.spec.ts` (la hora de disponibilidad del regreso puede cambiar), Maestro `02-operator-unloading` (fin sugerido), pgTAP `14_matching` y `21_unit_availability`, conteos de `seed-tests/seed.test.sql`.
+
+### H.2 Seguimiento (dudas abiertas para Mateo y JP)
+
+Cada bloque arranca con el valor por defecto de abajo; cambiarlo es un dato o un bloque pequeño:
+
+1. **Chat del operador con el cliente:** por defecto, el operador no lo ve (D28). ¿JP lo confirma?
+2. **Avisos de mensajes del chat con el cliente y de la negociación:** hoy no existen; H1 solo los agrega para el chat interno.
+3. **Monitoristas:** ¿se les da acceso (rol de solo lectura del viaje y del chat interno) mientras llega la integración de GPS (D17)?
+4. **Precios y planes** de la suscripción (¿por empresa, por camión o por usuario?), fecha de fin del piloto, factura CFDI y OXXO (H3).
+5. **Tiendas:** ¿se puede mencionar o enlazar la web de pago desde la app? Por defecto no (D30).
+6. **Corredores y fuentes:** qué corredores y tramos usa la flota de JP además del principal MTY–GDL, y qué fuentes de inseguridad consulta; ¿quién mantiene el catálogo?
+7. **Tiempos de espera para el cliente:** ¿se le muestran también las estadísticas generales (otras empresas) de su sitio, o solo las de sus viajes?
+8. **Enlaces universales:** dominio definitivo, Apple Team ID y huella del certificado de Android (H2).

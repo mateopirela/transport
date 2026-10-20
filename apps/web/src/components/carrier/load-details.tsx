@@ -9,13 +9,14 @@ import {
   unitTypeLabels,
 } from '@transport/shared';
 
+import { FactList } from '@/components/carrier/fact-list';
 import type { CarrierLoad } from '@/lib/carrier/loads';
 
 const c = carrierWebCopy.detail;
 const number = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 2 });
 
 /** The data of a load as the carrier sees it: windows, cargo, unit, price and notes. */
-export function LoadDetails({ load }: { load: CarrierLoad }) {
+export function LoadDetails({ load, columns }: { load: CarrierLoad; columns?: 1 | 2 }) {
   const window = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
   // Label and value; rows without a value are left out.
@@ -40,17 +41,7 @@ export function LoadDetails({ load }: { load: CarrierLoad }) {
     [c.labels.price, formatMxn(load.proposed_price_cents)],
     [c.labels.notes, load.notes],
   ];
-  const details = rows.filter((row): row is [string, string] => row[1] !== null);
-  return (
-    <dl className="grid gap-x-6 gap-y-4 rounded-xl border bg-card p-6 sm:grid-cols-2">
-      {details.map(([label, value]) => (
-        <div key={label} className="space-y-1">
-          <dt className="text-xs text-muted-foreground">{label}</dt>
-          <dd className="text-sm">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <FactList rows={rows} columns={columns} />;
 }
 
 /** "Monterrey → Guadalajara", the heading of every load screen. */

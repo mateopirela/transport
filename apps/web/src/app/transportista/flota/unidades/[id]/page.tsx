@@ -3,21 +3,23 @@ import {
   fleetCopy,
   unitLabel,
   vehicleKindLabels,
-  vehicleReadinessLabels,
   vehicleReleaseCopy,
 } from '@transport/shared';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { AvailabilityForm } from '@/components/carrier/availability-form';
 import { MoveForm } from '@/components/carrier/company-forms';
 import { FleetArchiveForm } from '@/components/carrier/fleet-archive-form';
 import { FleetDocuments } from '@/components/carrier/fleet-documents';
-import { RecommendationCard } from '@/components/carrier/recommendation-card';
+import { ReadinessPill } from '@/components/carrier/readiness-pill';
+import { RECOMMENDATION_LIST, RecommendationCard } from '@/components/carrier/recommendation-card';
 import { ReleaseForm } from '@/components/carrier/release-form';
 import { VehicleForm } from '@/components/carrier/vehicle-form';
+import { BackLink, PageSection } from '@/components/page-section';
+import { Empty } from '@/components/ui/empty';
+import { Group } from '@/components/ui/group';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { getCarrierVehicle, loadFleetContext } from '@/lib/carrier/fleet';
 import { unitRecommendations } from '@/lib/carrier/loads';
@@ -35,7 +37,8 @@ export const metadata: Metadata = { title: fleetCopy.units.editTitle };
  * (set_vehicle_availability), its D16 documents and, for the Gerente, the
  * archive. A unit whose trip was cancelled after it set off shows the release
  * form instead of the availability (G5, D20); once released, its
- * recommendations from where it is.
+ * recommendations from where it is. The release, when it waits, is the
+ * screen's primary; otherwise saving the data.
  */
 export default async function CarrierUnitPage({
   params,
@@ -51,18 +54,12 @@ export default async function CarrierUnitPage({
   const released =
     flash === 'liberada' && vehicle !== null && vehicle.readiness !== 'pending_release';
   const recommendations = released ? await unitRecommendations(supabase, id) : null;
-  const back = (
-    <Link href={paths.carrierUnits} className="text-sm text-accent hover:underline">
-      {c.units.back}
-    </Link>
-  );
+  const back = <BackLink href={paths.carrierUnits}>{c.units.back}</BackLink>;
   if (!vehicle) {
     return (
       <>
         {back}
-        <div className="mt-4">
-          <Notice tone="info">{c.units.notFound}</Notice>
-        </div>
+        <Notice tone="info">{c.units.notFound}</Notice>
       </>
     );
   }
@@ -70,110 +67,111 @@ export default async function CarrierUnitPage({
   return (
     <>
       {back}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <PageHeading
-          title={`${unitLabel(vehicle)} · ${vehicle.plate}`}
-          description={[
-            vehicleKindLabels[vehicle.kind],
-            vehicle.businessUnitName ? fleetCopy.businessUnit(vehicle.businessUnitName) : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        />
-        <span className="rounded-full border px-2.5 py-0.5 text-xs">
-          {vehicleReadinessLabels[vehicle.readiness]}
-        </span>
-      </div>
+      <PageHeader
+        title={`${unitLabel(vehicle)} · ${vehicle.plate}`}
+        status={<ReadinessPill readiness={vehicle.readiness} />}
+        description={[
+          vehicleKindLabels[vehicle.kind],
+          vehicle.businessUnitName ? fleetCopy.businessUnit(vehicle.businessUnitName) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      />
       {flash === 'alta' && (
-        <div className="mb-6">
-          <Notice tone="success">{c.units.created}</Notice>
-        </div>
+        <Notice tone="success" className="mb-8">
+          {c.units.created}
+        </Notice>
       )}
       {released && (
-        <div className="mb-6">
-          <Notice tone="success">
-            {vehicleReleaseCopy.screen.done(vehicle.availability?.city ?? vehicle.plate)}
-          </Notice>
-        </div>
+        <Notice tone="success" className="mb-8">
+          {vehicleReleaseCopy.screen.done(vehicle.availability?.city ?? vehicle.plate)}
+        </Notice>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
-        <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+        <div className="min-w-0 space-y-10">
           {release && (
-            <section className="space-y-3 rounded-xl border border-destructive/40 bg-card p-6">
-              <h2 className="text-2xl">{vehicleReleaseCopy.screen.title}</h2>
-              <ReleaseForm
-                vehicleId={vehicle.id}
-                route={`${release.origin.city} → ${release.destination.city}`}
-                context={release}
-              />
-            </section>
+            <PageSection title={vehicleReleaseCopy.screen.title}>
+              <div className="rounded-2xl border border-red/30 bg-cell p-5">
+                <ReleaseForm
+                  vehicleId={vehicle.id}
+                  route={`${release.origin.city} → ${release.destination.city}`}
+                  context={release}
+                />
+              </div>
+            </PageSection>
           )}
           {recommendations && (
-            <section className="space-y-3">
-              <h2 className="text-2xl">{vehicleReleaseCopy.screen.recommendations}</h2>
+            <PageSection title={vehicleReleaseCopy.screen.recommendations}>
               {recommendations.recommendations.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {vehicleReleaseCopy.screen.noRecommendations}
-                </p>
+                <Empty title={vehicleReleaseCopy.screen.noRecommendations} />
               ) : (
-                <ul className="space-y-2">
+                <ul className={RECOMMENDATION_LIST}>
                   {recommendations.recommendations.map((r, i) => (
                     <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
                   ))}
                 </ul>
               )}
-            </section>
+            </PageSection>
           )}
-          <section className="space-y-3 rounded-xl border bg-card p-6">
-            <h2 className="text-2xl">{c.units.data}</h2>
-            <VehicleForm
-              vehicleId={vehicle.id}
-              initial={vehicleFormValues(vehicle)}
-              features={vehicle.features}
-              businessUnits={[]}
-              defaultBusinessUnitId={null}
-            />
-          </section>
+          <PageSection title={c.units.data}>
+            <div className="rounded-2xl border bg-cell p-5">
+              <VehicleForm
+                vehicleId={vehicle.id}
+                initial={vehicleFormValues(vehicle)}
+                features={vehicle.features}
+                businessUnits={[]}
+                defaultBusinessUnitId={null}
+                primary={!release}
+              />
+            </div>
+          </PageSection>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl">{fleetCopy.units.documentsTitle}</h2>
-            <p className="text-sm text-muted-foreground">{c.documents.description}</p>
+          <PageSection title={fleetCopy.units.documentsTitle} description={c.documents.description}>
             <FleetDocuments
               companyId={companyId}
               owner={{ type: 'vehicle', id: vehicle.id }}
               progress={vehicle.progress}
             />
-          </section>
+          </PageSection>
         </div>
 
-        <aside className="space-y-6">
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="text-xl">{fleetCopy.availability.title}</h2>
-            {vehicle.readiness === 'pending_release' ? (
-              <Notice tone="error">{vehicleReleaseCopy.errors.pendingRelease}</Notice>
-            ) : (
-              <AvailabilityForm
-                vehicleId={vehicle.id}
-                current={vehicle.availability}
-                blocked={vehicle.readiness === 'expired_documents'}
-              />
-            )}
-          </section>
-          {isManager && (
-            <section className="space-y-2 rounded-xl border bg-card p-4">
-              <h2 className="text-xl">{c.businessUnitField}</h2>
+        <aside className="space-y-8">
+          <Group label={fleetCopy.availability.title}>
+            <div className="px-4 py-4">
+              {vehicle.readiness === 'pending_release' ? (
+                <Notice tone="error">{vehicleReleaseCopy.errors.pendingRelease}</Notice>
+              ) : (
+                <AvailabilityForm
+                  vehicleId={vehicle.id}
+                  current={vehicle.availability}
+                  blocked={vehicle.readiness === 'expired_documents'}
+                />
+              )}
+            </div>
+          </Group>
+          {isManager && units.operable.some((u) => u.id !== vehicle.business_unit_id) && (
+            <MoveSection>
               <MoveForm
                 kind="vehicle"
                 id={vehicle.id}
                 currentUnitId={vehicle.business_unit_id}
                 units={units.operable}
               />
-            </section>
+            </MoveSection>
           )}
           {isManager && <FleetArchiveForm kind="vehicle" id={vehicle.id} />}
         </aside>
       </div>
     </>
+  );
+}
+
+/** "Unidad de negocio" with the move form, in the side column (the Gerente). */
+function MoveSection({ children }: { children: React.ReactNode }) {
+  return (
+    <Group label={c.businessUnitField}>
+      <div className="px-4 py-4">{children}</div>
+    </Group>
   );
 }

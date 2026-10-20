@@ -9,6 +9,8 @@ import {
 import Link from 'next/link';
 
 import { buttonVariants } from '@/components/ui/button';
+import { Pill } from '@/components/ui/pill';
+import { groupRow } from '@/components/ui/variants';
 import { carrierLoadPath } from '@/lib/routing';
 
 const c = carrierLoadsCopy.card;
@@ -16,7 +18,14 @@ const c = carrierLoadsCopy.card;
 /** Query parameter with the unit a load was recommended for (preselects it when offering). */
 export const RECOMMENDED_UNIT_PARAM = 'camion';
 
-/** A recommended load with the explainable breakdown of its score (B08). */
+/** The list the cards go in: one white group, the rows split by inset hairlines. */
+export const RECOMMENDATION_LIST = 'overflow-hidden rounded-2xl border bg-cell';
+
+/**
+ * A recommended load with the explainable breakdown of its score (B08): a row
+ * of `RECOMMENDATION_LIST` with the route, the pickup and the reasons on the
+ * left, the price and "Ver carga" on the right.
+ */
 export function RecommendationCard({
   recommendation: r,
   rank,
@@ -29,31 +38,31 @@ export function RecommendationCard({
 }) {
   const href = `${carrierLoadPath(r.loadId)}?${RECOMMENDED_UNIT_PARAM}=${r.vehicleId}`;
   return (
-    <li className="flex flex-wrap items-start justify-between gap-4 rounded-xl border bg-card p-4">
-      <div className="space-y-1">
-        <p className="text-xs text-muted-foreground">{carrierWebCopy.home.rank(rank)}</p>
-        <p className="font-medium">{c.route(r.origin.city, r.destination.city)}</p>
-        <p className="text-sm text-muted-foreground">
+    <li className={`${groupRow} flex flex-wrap items-start justify-between gap-4 px-4 py-4`}>
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-footnote text-text-faint tabular-nums">
+          {carrierWebCopy.home.rank(rank)}
+        </p>
+        <p className="text-headline text-text">{c.route(r.origin.city, r.destination.city)}</p>
+        <p className="text-subhead text-text-dim">
           {c.pickup(formatDateTime(r.pickupWindowStart))}
         </p>
-        <div className="flex flex-wrap gap-2 text-xs">
-          {r.breakdown.isReturnTrip && (
-            <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-success">
-              {matchingCopy.returnTrip}
-            </span>
-          )}
-          {r.breakdown.distanceSource === 'estimate' && (
-            <span className="rounded-full border px-2 py-0.5 text-muted-foreground">
-              {matchingCopy.estimatedDistance}
-            </span>
-          )}
-        </div>
-        <p className="text-sm">{r.explanation}</p>
+        {(r.breakdown.isReturnTrip || r.breakdown.distanceSource === 'estimate') && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {r.breakdown.isReturnTrip && <Pill tone="ok">{matchingCopy.returnTrip}</Pill>}
+            {r.breakdown.distanceSource === 'estimate' && (
+              <Pill>{matchingCopy.estimatedDistance}</Pill>
+            )}
+          </div>
+        )}
+        <p className="pt-1 text-subhead text-text">{r.explanation}</p>
       </div>
-      <div className="space-y-2 text-right">
-        <p className="font-medium">{c.price(formatMxn(r.proposedPriceCents))}</p>
-        {unitLabel && <p className="text-xs text-muted-foreground">{c.unit(unitLabel)}</p>}
-        <Link href={href} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+      <div className="flex flex-col items-end gap-2 text-right">
+        <p className="text-headline text-text tabular-nums">
+          {c.price(formatMxn(r.proposedPriceCents))}
+        </p>
+        {unitLabel && <p className="text-footnote text-text-dim">{c.unit(unitLabel)}</p>}
+        <Link href={href} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
           {carrierWebCopy.home.seeLoad}
         </Link>
       </div>

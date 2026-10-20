@@ -2,11 +2,13 @@ import { adminCopy, formatDateTime, userRoleLabels } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
+import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
+import { Search } from '@/components/ui/search';
 import { Table } from '@/components/ui/table';
 import { StatusBadge } from '@/components/verification';
 import { parsePage, withParams } from '@/lib/pagination';
@@ -48,17 +50,17 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
-      <form className="mb-6 flex max-w-xl gap-2" role="search">
-        <Input
+      <PageHeader title={c.title} description={c.description} />
+      <form className="mb-6 flex max-w-xl items-center gap-2" role="search">
+        <Search
           name="q"
-          type="search"
           defaultValue={query}
           placeholder={c.searchPlaceholder}
           aria-label={c.search}
           maxLength={100}
+          className="flex-1"
         />
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="secondary">
           {c.search}
         </Button>
       </form>
@@ -67,18 +69,18 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
         <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
       ) : users.length === 0 ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{c.empty}</p>
+          <Empty title={c.empty} />
           {pager}
         </div>
       ) : (
-        <>
+        <div className="space-y-4">
           <Table
             headers={[col.user, col.email, col.role, col.company, col.status, col.lastSignIn, '']}
           >
             {users.map((user) => (
               <tr key={user.id}>
-                <td className="font-medium">{user.full_name ?? '—'}</td>
-                <td className="break-all">{user.email}</td>
+                <td className="font-semibold">{user.full_name ?? '—'}</td>
+                <td className="break-all text-text-dim">{user.email}</td>
                 <td>{userRoleLabels[user.role]}</td>
                 <td>{user.company_legal_name ?? c.noCompany}</td>
                 <td>
@@ -86,14 +88,14 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
                     <StatusBadge state={user.company_status} kind="verification" />
                   )}
                 </td>
-                <td className="whitespace-nowrap">
+                <td className="whitespace-nowrap text-text-dim tabular-nums">
                   {user.last_sign_in_at ? formatDateTime(user.last_sign_in_at) : c.never}
                 </td>
                 <td>
                   {user.company_id && (
                     <Link
                       href={adminCompanyPath(user.company_id)}
-                      className="whitespace-nowrap text-accent hover:underline"
+                      className={`whitespace-nowrap ${textLink}`}
                     >
                       {c.manage}
                     </Link>
@@ -102,8 +104,8 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
               </tr>
             ))}
           </Table>
-          <div className="mt-4">{pager}</div>
-        </>
+          {pager}
+        </div>
       )}
     </>
   );

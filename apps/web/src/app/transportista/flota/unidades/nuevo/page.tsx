@@ -1,10 +1,10 @@
 import { carrierWebCopy, fleetCopy } from '@transport/shared';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { VehicleForm } from '@/components/carrier/vehicle-form';
+import { BackLink } from '@/components/page-section';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { paths } from '@/lib/routing';
 
@@ -17,14 +17,10 @@ export default async function NewCarrierUnitPage() {
   const { isManager, units } = await carrierContext(paths.newCarrierUnit);
   return (
     <>
-      <Link href={paths.carrierUnits} className="text-sm text-accent hover:underline">
-        {c.units.back}
-      </Link>
-      <div className="mt-4">
-        <PageHeading title={c.units.newTitle} description={fleetCopy.units.saveFirst} />
-      </div>
+      <BackLink href={paths.carrierUnits}>{c.units.back}</BackLink>
+      <PageHeader title={c.units.newTitle} description={fleetCopy.units.saveFirst} />
       {isManager ? (
-        <div className="max-w-3xl rounded-xl border bg-card p-6">
+        <div className="max-w-3xl rounded-2xl border bg-cell p-5 sm:p-6">
           <VehicleForm
             vehicleId={null}
             initial={{ kind: 'trailer' }}

@@ -3,8 +3,9 @@
 import { carrierWebCopy, fleetCopy } from '@transport/shared';
 import { useActionState } from 'react';
 
-import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
+import { Notice } from '@/components/ui/notice';
 import { archiveCarrierOperator, archiveCarrierVehicle } from '@/lib/carrier/fleet-actions';
 
 const c = carrierWebCopy.fleet.archive;
@@ -21,19 +22,23 @@ export function FleetArchiveForm({ kind, id }: { kind: 'vehicle' | 'operator'; i
   );
   const copy = kind === 'vehicle' ? fleetCopy.units : fleetCopy.operators;
   return (
-    <details className="rounded-lg border p-4 open:bg-muted/40" open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-sm font-medium text-destructive">
-        {kind === 'vehicle' ? c.unit : c.operator}
-      </summary>
-      <form action={action} className="mt-3 space-y-3">
-        <p className="font-medium">{copy.archiveConfirmTitle}</p>
-        <p className="text-sm text-muted-foreground">{copy.archiveConfirmBody}</p>
+    <Disclosure
+      summary={kind === 'vehicle' ? c.unit : c.operator}
+      look="cell"
+      tone="red"
+      open={Boolean(state.error)}
+    >
+      <form action={action} className="space-y-3">
+        <div className="space-y-0.5">
+          <p className="text-headline text-text">{copy.archiveConfirmTitle}</p>
+          <p className="text-subhead text-text-dim">{copy.archiveConfirmBody}</p>
+        </div>
         {state.error && <Notice tone="error">{state.error}</Notice>}
         <input type="hidden" name={kind === 'vehicle' ? 'vehicleId' : 'operatorId'} value={id} />
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        <Button type="submit" variant="destructive" size="sm" loading={pending}>
           {pending ? c.archiving : c.confirm}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }

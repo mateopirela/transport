@@ -3,9 +3,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { FilterBar } from '@/components/admin/filter-bar';
-import { PageHeading } from '@/components/app-shell';
+import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { formatRoute, parseTripFilters } from '@/lib/admin/filters';
 import { ADMIN_PAGE_SIZE, adminContext, listAdminTrips } from '@/lib/admin/queries';
@@ -27,20 +29,20 @@ export default async function AdminTripsPage({ searchParams }: PageProps<'/admin
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
       <FilterBar action={paths.adminTrips} statuses={STATUSES} status={filters.status} />
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{total === 0 ? c.empty : ''}</p>
+        total === 0 && <Empty title={c.empty} />
       ) : (
         <Table headers={[col.route, col.shipper, col.carrier, col.pickup, col.status, '']}>
           {rows.map((trip) => {
             const openIncidents = trip.incidents.length;
             return (
               <tr key={trip.id}>
-                <td className="font-medium">{trip.load ? formatRoute(trip.load) : ''}</td>
+                <td className="font-semibold">{trip.load ? formatRoute(trip.load) : ''}</td>
                 <td>{trip.shipper?.legal_name ?? ''}</td>
                 <td>{trip.carrier?.legal_name ?? ''}</td>
-                <td className="whitespace-nowrap">
+                <td className="whitespace-nowrap tabular-nums">
                   {trip.load ? formatDate(trip.load.pickup_window_start) : ''}
                 </td>
                 <td className="space-y-1">
@@ -48,14 +50,14 @@ export default async function AdminTripsPage({ searchParams }: PageProps<'/admin
                   {openIncidents > 0 && (
                     <Link
                       href={paths.adminIncidents}
-                      className="block text-xs text-destructive hover:underline"
+                      className="block text-footnote text-red-text underline-offset-4 hover:underline"
                     >
                       {c.openIncidents(openIncidents)}
                     </Link>
                   )}
                 </td>
                 <td>
-                  <Link href={adminLoadPath(trip.load_id)} className="text-accent hover:underline">
+                  <Link href={adminLoadPath(trip.load_id)} className={textLink}>
                     {c.openLoad}
                   </Link>
                 </td>

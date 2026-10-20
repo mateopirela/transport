@@ -10,9 +10,11 @@ import {
 } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { Field, Notice } from '@/components/auth-forms';
+import { Field } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field as FormField, fieldHelpId } from '@/components/ui/field';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import { SAVED_CITY_ID } from '@/lib/carrier/availability';
 import type { Availability } from '@/lib/carrier/fleet';
 import { clearCarrierAvailability, setCarrierAvailability } from '@/lib/carrier/fleet-actions';
@@ -24,7 +26,8 @@ const w = carrierWebCopy.fleet.availability;
 /**
  * Where and from when the unit is free (set_vehicle_availability, B18) and
  * the button to mark it as not available. A unit with expired documents
- * cannot be made available; the server enforces it too.
+ * cannot be made available; the server enforces it too. It sits in the side
+ * column of the unit's screen, so its buttons are secondary.
  */
 export function AvailabilityForm({
   vehicleId,
@@ -56,10 +59,11 @@ export function AvailabilityForm({
   // After a successful save the state carries only the message: the fields
   // keep showing the saved values (the page's, refreshed by revalidation).
   const fieldState: FormState = { ...state, values };
+  const cityError = state.fieldErrors?.cityId;
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm">
+    <div className="space-y-4">
+      <p className="text-subhead text-text">
         {current
           ? c.current(current.city, current.state, formatDateTime(current.available_from))
           : c.none}
@@ -69,19 +73,18 @@ export function AvailabilityForm({
       {blocked ? (
         <Notice tone="error">{c.blocked}</Notice>
       ) : (
-        <form action={action} className="space-y-3" noValidate>
-          <p className="text-sm text-muted-foreground">{c.subtitle}</p>
+        <form action={action} className="space-y-4" noValidate>
+          <p className="text-subhead text-text-dim">{c.subtitle}</p>
           {state.error && <Notice tone="error">{state.error}</Notice>}
           {state.message && <Notice tone="success">{state.message}</Notice>}
           <input type="hidden" name="vehicleId" value={vehicleId} />
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor={`${id}-city`}>{c.cityLabel}</Label>
-              <select
+          <div className="grid gap-4">
+            <FormField label={c.cityLabel} htmlFor={`${id}-city`} error={cityError}>
+              <Select
                 id={`${id}-city`}
                 name="cityId"
                 defaultValue={values.cityId}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                aria-describedby={cityError ? fieldHelpId(`${id}-city`) : undefined}
               >
                 {savedElsewhere && (
                   <option value={SAVED_CITY_ID}>
@@ -93,21 +96,20 @@ export function AvailabilityForm({
                     {city.city}, {city.state}
                   </option>
                 ))}
-              </select>
-              {state.fieldErrors?.cityId && (
-                <p className="text-xs text-destructive">{state.fieldErrors.cityId}</p>
-              )}
+              </Select>
+            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <Field name="date" type="date" label={c.dateLabel} state={fieldState} />
+              <Field
+                name="time"
+                type="time"
+                label={c.timeLabel}
+                state={fieldState}
+                hint={w.dateTimeHint}
+              />
             </div>
-            <Field name="date" type="date" label={c.dateLabel} state={fieldState} />
-            <Field
-              name="time"
-              type="time"
-              label={c.timeLabel}
-              state={fieldState}
-              hint={w.dateTimeHint}
-            />
           </div>
-          <Button type="submit" variant="accent" size="sm" disabled={pending || clearing}>
+          <Button type="submit" variant="secondary" size="sm" loading={pending} disabled={clearing}>
             {c.save}
           </Button>
         </form>
@@ -120,7 +122,14 @@ export function AvailabilityForm({
           }}
         >
           <input type="hidden" name="vehicleId" value={vehicleId} />
-          <Button type="submit" variant="outline" size="sm" disabled={pending || clearing}>
+          <Button
+            type="submit"
+            variant="plain"
+            size="sm"
+            className="-ml-3"
+            loading={clearing}
+            disabled={pending}
+          >
             {c.clear}
           </Button>
         </form>

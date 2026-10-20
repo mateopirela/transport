@@ -12,12 +12,16 @@ import {
   type CompanyFiscalColumn,
   type SubmittedDocument,
 } from '@transport/shared';
+import { ExternalLink } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { PageHeading } from '@/components/app-shell';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BackLink, PageSection, textLink } from '@/components/page-section';
+import { ValueRow } from '@/components/ui/cell';
+import { Group } from '@/components/ui/group';
+import { PageHeader } from '@/components/ui/page-header';
+import { groupRow } from '@/components/ui/variants';
 import { RequirementList, StatusBadge } from '@/components/verification';
 import { CompanyReviewForm, DocumentReviewForm } from '@/components/verification-forms';
 import { adminDocumentFilePath, paths } from '@/lib/routing';
@@ -39,14 +43,15 @@ function DocumentControls({
   requiresExpiry: boolean;
 }) {
   return (
-    <div id={`doc-${document.id}`} className="scroll-mt-24 space-y-3">
+    <div id={`doc-${document.id}`} className="scroll-mt-32 space-y-3">
       <a
         href={adminDocumentFilePath(document.id)}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-accent hover:underline"
+        className={`inline-flex items-center gap-1 text-subhead ${textLink}`}
       >
-        {d.view} ↗
+        {d.view}
+        <ExternalLink aria-hidden className="size-3.5" />
       </a>
       {document.status === 'pending_review' && (
         <DocumentReviewForm
@@ -80,26 +85,43 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
   const [companyOwner, ...fleet] = owners;
   const summary = companyOwner ? progressSummary(companyOwner.progress) : null;
   const missing = summary ? summary.required - summary.approved : 0;
+  const address =
+    [
+      [company.fiscal_street, company.fiscal_exterior_number, company.fiscal_interior_number]
+        .filter(Boolean)
+        .join(' '),
+      company.fiscal_neighborhood,
+      company.fiscal_postal_code,
+      company.fiscal_municipality,
+      company.fiscal_state,
+    ]
+      .filter(Boolean)
+      .join(', ') || '—';
+  const contact =
+    [company.contact_name, company.contact_email, company.contact_phone]
+      .filter(Boolean)
+      .join(' · ') || '—';
 
   return (
     <>
-      <Link
-        href={paths.adminQueue}
-        className="mb-4 inline-block text-sm text-accent hover:underline"
-      >
-        ← {c.back}
-      </Link>
-      <PageHeading title={company.legal_name} />
+      <BackLink href={paths.adminQueue}>{c.back}</BackLink>
+      <PageHeader
+        title={company.legal_name}
+        status={<StatusBadge state={company.status} kind="verification" />}
+        description={companyTypeLabels[company.type]}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+        <div className="min-w-0 space-y-10">
           {owners.map((owner) => (
-            <section key={owner.ownerId} className="space-y-3">
-              <h2 className="text-xl">
-                {owner === companyOwner
+            <PageSection
+              key={owner.ownerId}
+              title={
+                owner === companyOwner
                   ? c.companyDocuments
-                  : `${documentOwnerTypeLabels[owner.ownerType]}: ${owner.label}`}
-              </h2>
+                  : `${documentOwnerTypeLabels[owner.ownerType]}: ${owner.label}`
+              }
+            >
               <RequirementList
                 progress={owner.progress}
                 action={({ requirement, document }) =>
@@ -111,18 +133,16 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                   )
                 }
               />
-            </section>
+            </PageSection>
           ))}
           {unlisted.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-xl">{c.unlisted}</h2>
-              <p className="text-sm text-muted-foreground">{c.unlistedHint}</p>
-              <ul className="divide-y rounded-lg border">
+            <PageSection title={c.unlisted} description={c.unlistedHint}>
+              <ul className="overflow-hidden rounded-2xl border bg-cell">
                 {unlisted.map((item) => (
-                  <li key={item.document.id} className="space-y-3 p-4">
-                    <p className="font-medium">
+                  <li key={item.document.id} className={`${groupRow} space-y-3 px-4 py-4`}>
+                    <p className="text-headline text-text">
                       {item.requirementName}
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      <span className="ml-2 text-subhead font-normal text-text-dim">
                         {documentOwnerTypeLabels[item.ownerType]}: {item.ownerLabel}
                       </span>
                     </p>
@@ -133,132 +153,67 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                   </li>
                 ))}
               </ul>
-            </section>
+            </PageSection>
           )}
-          {company.type === 'carrier' && (
-            <>
-              {!fleet.some((o) => o.ownerType === 'vehicle') && (
-                <p className="text-sm text-muted-foreground">{c.noVehicles}</p>
-              )}
-              {!fleet.some((o) => o.ownerType === 'operator') && (
-                <p className="text-sm text-muted-foreground">{c.noOperators}</p>
-              )}
-            </>
-          )}
+          {company.type === 'carrier' &&
+            (!fleet.some((o) => o.ownerType === 'vehicle') ||
+              !fleet.some((o) => o.ownerType === 'operator')) && (
+              <div className="space-y-1 px-1 text-subhead text-text-dim">
+                {!fleet.some((o) => o.ownerType === 'vehicle') && <p>{c.noVehicles}</p>}
+                {!fleet.some((o) => o.ownerType === 'operator') && <p>{c.noOperators}</p>}
+              </div>
+            )}
         </div>
 
-        <aside className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">{c.data}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">{adminCopy.columns.status}</dt>
-                  <dd className="pt-1">
-                    <StatusBadge state={company.status} kind="verification" />
-                  </dd>
-                </div>
-                {company.status_reason && (
-                  <div>
-                    <dt className="text-muted-foreground">{c.statusReason}</dt>
-                    <dd>{company.status_reason}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt className="text-muted-foreground">{adminCopy.columns.type}</dt>
-                  <dd>{companyTypeLabels[company.type]}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{adminCopy.columns.rfc}</dt>
-                  <dd className="font-mono">
-                    {company.rfc}
-                    {company.is_owner_operator && (
-                      <span className="ml-2 font-sans text-muted-foreground">
-                        ({c.ownerOperator})
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{c.fiscalAddress}</dt>
-                  <dd>
-                    {[
-                      [
-                        company.fiscal_street,
-                        company.fiscal_exterior_number,
-                        company.fiscal_interior_number,
-                      ]
-                        .filter(Boolean)
-                        .join(' '),
-                      company.fiscal_neighborhood,
-                      company.fiscal_postal_code,
-                      company.fiscal_municipality,
-                      company.fiscal_state,
-                    ]
-                      .filter(Boolean)
-                      .join(', ') || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{c.legalRepresentative}</dt>
-                  <dd>{company.legal_representative_name ?? '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{c.contact}</dt>
-                  <dd>
-                    {[company.contact_name, company.contact_email, company.contact_phone]
-                      .filter(Boolean)
-                      .join(' · ') || '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{c.createdAt}</dt>
-                  <dd>{formatDateTime(company.created_at)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{c.members}</dt>
-                  <dd>
-                    <ul>
-                      {(members.data ?? []).map((m) => (
-                        <li key={m.id}>
-                          {m.full_name ?? '—'}{' '}
-                          <span className="text-muted-foreground">({userRoleLabels[m.role]})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">{adminCopy.companyActions.title}</CardTitle>
-              <p className="text-sm text-muted-foreground">{c.missingDocuments(missing)}</p>
+        <aside className="space-y-8">
+          <Group label={adminCopy.companyActions.title}>
+            <div className="space-y-3 px-4 py-4">
+              <p className="text-subhead text-text-dim">{c.missingDocuments(missing)}</p>
               {missingFiscal && (
-                <p className="text-sm text-destructive">{c.missingFiscal(missingFiscal)}</p>
+                <p className="text-subhead text-red-text">{c.missingFiscal(missingFiscal)}</p>
               )}
-            </CardHeader>
-            <CardContent className="space-y-3">
               <CompanyReviewForm
                 companyId={company.id}
                 decisions={companyDecisions(company.status)}
               />
-              <p className="text-xs text-muted-foreground">
-                {adminCopy.companyActions.approveHint}
-              </p>
-            </CardContent>
-          </Card>
+              <p className="text-footnote text-text-dim">{adminCopy.companyActions.approveHint}</p>
+            </div>
+          </Group>
 
-          <Link
-            href={`${paths.adminAudit}?empresa=${company.id}`}
-            className="inline-block text-sm text-accent hover:underline"
+          <Group
+            label={c.data}
+            footer={
+              <Link href={`${paths.adminAudit}?empresa=${company.id}`} className={textLink}>
+                {c.audit}
+              </Link>
+            }
           >
-            {c.audit}
-          </Link>
+            {company.status_reason && (
+              <ValueRow label={c.statusReason}>{company.status_reason}</ValueRow>
+            )}
+            <ValueRow label={adminCopy.columns.rfc}>
+              {company.rfc}
+              {company.is_owner_operator && (
+                <span className="ml-2 text-text-dim">({c.ownerOperator})</span>
+              )}
+            </ValueRow>
+            <ValueRow label={c.fiscalAddress}>{address}</ValueRow>
+            <ValueRow label={c.legalRepresentative}>
+              {company.legal_representative_name ?? '—'}
+            </ValueRow>
+            <ValueRow label={c.contact}>{contact}</ValueRow>
+            <ValueRow label={c.createdAt}>{formatDateTime(company.created_at)}</ValueRow>
+            <ValueRow label={c.members}>
+              <ul>
+                {(members.data ?? []).map((m) => (
+                  <li key={m.id}>
+                    {m.full_name ?? '—'}{' '}
+                    <span className="text-text-dim">({userRoleLabels[m.role]})</span>
+                  </li>
+                ))}
+              </ul>
+            </ValueRow>
+          </Group>
         </aside>
       </div>
     </>

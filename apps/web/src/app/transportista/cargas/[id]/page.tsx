@@ -9,15 +9,17 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { CarrierNegotiationPanel } from '@/components/carrier/negotiation-panel';
 import { RECOMMENDED_UNIT_PARAM } from '@/components/carrier/recommendation-card';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
+import { BackLink, PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
+import { buttonVariants } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import {
   emptyLegs,
@@ -57,18 +59,12 @@ export default async function CarrierLoadPage({
     companyId,
     negotiation ? [negotiation.businessUnitId] : units.ids,
   );
-  const back = (
-    <Link href={paths.carrierLoads} className="text-sm text-accent hover:underline">
-      {c.back}
-    </Link>
-  );
+  const back = <BackLink href={paths.carrierLoads}>{c.back}</BackLink>;
   if (!load) {
     return (
       <>
         {back}
-        <div className="mt-4">
-          <Notice tone="info">{c.notFound}</Notice>
-        </div>
+        <Notice tone="info">{c.notFound}</Notice>
       </>
     );
   }
@@ -93,25 +89,25 @@ export default async function CarrierLoadPage({
     <>
       <RealtimeRefresh table="offers" column="load_id" value={load.id} />
       {back}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <PageHeading
-          title={loadRoute(load)}
-          description={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
-        />
-        <div className="flex items-center gap-3 text-sm">
-          <LoadStatusBadge status={load.status} />
-          {tripId && (
-            <Link href={carrierTripPath(tripId)} className="text-accent hover:underline">
+      <PageHeader
+        title={loadRoute(load)}
+        status={<LoadStatusBadge status={load.status} />}
+        description={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
+        action={
+          tripId && (
+            <Link
+              href={carrierTripPath(tripId)}
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+            >
               {carrierWebCopy.trips.seeTrip}
             </Link>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_26rem]">
-        <div className="space-y-6">
-          <section className="space-y-3">
-            <h2 className="text-2xl">{c.route}</h2>
+      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+        <div className="min-w-0 space-y-10">
+          <PageSection title={c.route}>
             <RouteMap
               origin={{ lat: load.origin_lat, lng: load.origin_lng, label: load.origin_city }}
               destination={{
@@ -121,7 +117,7 @@ export default async function CarrierLoadPage({
               }}
               roadFactor={serverRoadFactor()}
             />
-            <p className="text-sm text-muted-foreground">
+            <p className="px-1 text-subhead text-text-dim">
               {best
                 ? c.emptyLeg(
                     formatDistance(best.emptyKm),
@@ -130,35 +126,33 @@ export default async function CarrierLoadPage({
                   )
                 : c.emptyLegUnknown}
             </p>
-          </section>
+          </PageSection>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl">{c.details}</h2>
+          <PageSection title={c.details}>
             <LoadDetails load={load} />
-          </section>
+          </PageSection>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl">{carrierLoadsCopy.chat.title}</h2>
+          <PageSection
+            title={carrierLoadsCopy.chat.title}
+            description={chat && negotiation?.conversationId ? chatCopy.description : undefined}
+          >
             {chat && negotiation?.conversationId ? (
-              <>
-                <p className="text-sm text-muted-foreground">{chatCopy.description}</p>
-                <ChatPanel
-                  conversationId={negotiation.conversationId}
-                  viewerId={viewer.userId}
-                  ownCompanyUserIds={chat.ownCompanyUserIds}
-                  initialMessages={chat.messages}
-                  initialReads={chat.reads}
-                  area="transportista"
-                />
-              </>
+              <ChatPanel
+                conversationId={negotiation.conversationId}
+                viewerId={viewer.userId}
+                ownCompanyUserIds={chat.ownCompanyUserIds}
+                initialMessages={chat.messages}
+                initialReads={chat.reads}
+                area="transportista"
+              />
             ) : (
-              <p className="text-sm text-muted-foreground">{carrierLoadsCopy.chat.unavailable}</p>
+              <p className="px-1 text-subhead text-text-dim">{carrierLoadsCopy.chat.unavailable}</p>
             )}
-          </section>
+          </PageSection>
         </div>
 
         <aside className="space-y-3">
-          <h2 className="text-2xl">{carrierWebCopy.offer.title}</h2>
+          <h2 className="px-1 text-title3 text-text">{carrierWebCopy.offer.title}</h2>
           <CarrierNegotiationPanel
             load={{
               id: load.id,

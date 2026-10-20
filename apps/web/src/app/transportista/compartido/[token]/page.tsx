@@ -15,10 +15,15 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
+import { Link as LinkIcon } from 'lucide-react';
+
+import { FactList } from '@/components/carrier/fact-list';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
+import { BackLink, PageSection } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { carrierLoadPath, carrierSharedPath, paths } from '@/lib/routing';
 import type { Supabase } from '@/lib/viewer';
@@ -62,18 +67,12 @@ export default async function CarrierSharedPage({
   const { token } = await params;
   const { supabase } = await carrierContext(carrierSharedPath(token));
   const load = await openInternalShare(supabase, token);
-  const back = (
-    <Link href={paths.carrierLoads} className="text-sm text-accent hover:underline">
-      {carrierWebCopy.detail.back}
-    </Link>
-  );
+  const back = <BackLink href={paths.carrierLoads}>{carrierWebCopy.detail.back}</BackLink>;
   if (!load) {
     return (
       <>
         {back}
-        <div className="mt-4">
-          <PageHeading title={c.unavailableTitle} description={c.unavailableBody} />
-        </div>
+        <Empty title={c.unavailableTitle} description={c.unavailableBody} icon={LinkIcon} />
       </>
     );
   }
@@ -99,45 +98,35 @@ export default async function CarrierSharedPage({
     [c.labels.price, formatMxn(load.proposedPriceCents)],
     [c.labels.notes, load.notes],
   ];
-  const details = rows.filter((row): row is [string, string] => row[1] !== null);
 
   return (
     <>
       {back}
-      <p className="mt-4 text-sm text-muted-foreground">{c.description}</p>
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-        <PageHeading
-          title={`${load.origin.city} → ${load.destination.city}`}
-          description={`${load.origin.city}, ${load.origin.state} → ${load.destination.city}, ${load.destination.state}`}
-        />
-        <LoadStatusBadge status={load.status} />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <section className="space-y-3">
-          <h2 className="text-2xl">{c.details}</h2>
-          <dl className="grid gap-x-6 gap-y-4 rounded-xl border bg-card p-6 sm:grid-cols-2">
-            {details.map(([label, value]) => (
-              <div key={label} className="space-y-1">
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="text-sm">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-        <aside className="space-y-3">
-          {load.canOffer ? (
+      <p className="mb-1.5 text-footnote text-text-dim">{c.description}</p>
+      <PageHeader
+        title={`${load.origin.city} → ${load.destination.city}`}
+        status={<LoadStatusBadge status={load.status} />}
+        description={`${load.origin.city}, ${load.origin.state} → ${load.destination.city}, ${load.destination.state}`}
+        action={
+          load.canOffer && (
             <Link
               href={carrierLoadPath(load.loadId)}
-              className={buttonVariants({ variant: 'accent' })}
+              className={buttonVariants({ variant: 'primary' })}
             >
               {c.openLoad}
             </Link>
-          ) : (
-            <Notice tone="info">{c.readOnly}</Notice>
-          )}
-        </aside>
-      </div>
+          )
+        }
+      />
+      {!load.canOffer && (
+        <Notice tone="info" className="mb-8">
+          {c.readOnly}
+        </Notice>
+      )}
+
+      <PageSection title={c.details} className="max-w-3xl">
+        <FactList rows={rows} />
+      </PageSection>
     </>
   );
 }

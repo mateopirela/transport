@@ -9,8 +9,12 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
+import { textLink } from '@/components/page-section';
+import { buttonVariants } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
 import { Table } from '@/components/ui/table';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
@@ -91,38 +95,43 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
       {companyId && (
-        <p className="mb-4 text-sm">
-          {c.filtered}: <span className="font-medium">{names.get(companyId) ?? companyId}</span> ·{' '}
-          <Link href={paths.adminAudit} className="text-accent hover:underline">
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-subhead">
+          <span className="text-text-dim">{c.filtered}</span>
+          <Pill tone="accent">{names.get(companyId) ?? companyId}</Pill>
+          <Link
+            href={paths.adminAudit}
+            className={buttonVariants({ variant: 'plain', size: 'sm' })}
+          >
             {c.clearFilter}
           </Link>
-        </p>
+        </div>
       )}
       {loadError ? (
         <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{c.empty}</p>
+        <Empty title={c.empty} />
       ) : (
         <Table headers={[col.date, col.actor, col.action, col.record, col.company, col.changes]}>
           {entries.map((entry) => (
             <tr key={entry.id}>
-              <td className="whitespace-nowrap">{formatDateTime(entry.occurred_at)}</td>
-              <td>{(entry.actor_id && names.get(entry.actor_id)) ?? c.unknownActor}</td>
+              <td className="whitespace-nowrap text-text-dim tabular-nums">
+                {formatDateTime(entry.occurred_at)}
+              </td>
+              <td className="font-semibold">
+                {(entry.actor_id && names.get(entry.actor_id)) ?? c.unknownActor}
+              </td>
               <td>{c.actions[entry.action] ?? entry.action}</td>
               <td>{c.tables[entry.table_name] ?? entry.table_name}</td>
               <td>
                 {entry.company_id && (
-                  <Link
-                    href={adminCompanyPath(entry.company_id)}
-                    className="text-accent hover:underline"
-                  >
+                  <Link href={adminCompanyPath(entry.company_id)} className={textLink}>
                     {names.get(entry.company_id) ?? entry.company_id}
                   </Link>
                 )}
               </td>
-              <td className="text-xs">
+              <td className="text-footnote text-text-dim">
                 {entry.action === 'update' && describeChanges(entry.old_data, entry.new_data)}
               </td>
             </tr>

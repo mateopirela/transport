@@ -2,19 +2,28 @@ import { carrierWebCopy, formatDateTime, formatMxn, sortOffers } from '@transpor
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
 import { loadRoute } from '@/components/carrier/load-details';
+import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill, type PillTone } from '@/components/ui/pill';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { CARRIER_PAGE_SIZE, listCarrierNegotiations } from '@/lib/carrier/loads';
 import { parsePage, withParams } from '@/lib/pagination';
 import { carrierNegotiationPath, paths } from '@/lib/routing';
-import { cn } from '@/lib/utils';
 
 const c = carrierWebCopy.negotiations;
 
 export const metadata: Metadata = { title: c.title };
+
+/** The state's pill: the accent when it is the carrier's turn, green when won. */
+function stateTone(state: keyof typeof c.stateLabels): PillTone {
+  if (state === 'won') return 'ok';
+  if (state === 'respond') return 'accent';
+  return 'neutral';
+}
 
 /** The company's negotiations of the selected business units, most recent first (G10a). */
 export default async function CarrierNegotiationsPage({
@@ -30,9 +39,9 @@ export default async function CarrierNegotiationsPage({
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{total === 0 ? c.empty : ''}</p>
+        total === 0 && <Empty title={c.empty} />
       ) : (
         <Table
           headers={[
@@ -45,40 +54,36 @@ export default async function CarrierNegotiationsPage({
         >
           {rows.map((row) => {
             const latest = sortOffers(row.offers).at(-1);
-            const attention = row.state === 'respond' || row.state === 'won';
             return (
-              <tr key={row.id} className={cn(row.state === 'won' && 'bg-success/5')}>
-                <td className="font-medium">
+              <tr key={row.id}>
+                <td className="font-semibold">
                   {row.load ? (
                     loadRoute(row.load)
                   ) : (
-                    <span className="text-muted-foreground">{c.unavailableLoad}</span>
+                    <span className="font-normal text-text-dim">{c.unavailableLoad}</span>
                   )}
                 </td>
-                <td>{unitName.get(row.businessUnitId) ?? ''}</td>
+                <td className="text-text-dim">{unitName.get(row.businessUnitId) ?? ''}</td>
                 <td className="whitespace-nowrap">
                   {latest && (
                     <>
-                      <p className="font-medium">
+                      <p className="tabular-nums">
                         {c.lastOffer(
                           formatMxn(latest.amount_cents),
                           carrierWebCopy.offer.side[latest.side],
                         )}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-footnote text-text-dim tabular-nums">
                         {formatDateTime(latest.created_at)}
                       </p>
                     </>
                   )}
                 </td>
-                <td className={cn('whitespace-nowrap', attention && 'font-medium text-accent')}>
-                  {c.stateLabels[row.state]}
+                <td>
+                  <Pill tone={stateTone(row.state)}>{c.stateLabels[row.state]}</Pill>
                 </td>
                 <td>
-                  <Link
-                    href={carrierNegotiationPath(row.id)}
-                    className="text-accent hover:underline"
-                  >
+                  <Link href={carrierNegotiationPath(row.id)} className={textLink}>
                     {c.open}
                   </Link>
                 </td>

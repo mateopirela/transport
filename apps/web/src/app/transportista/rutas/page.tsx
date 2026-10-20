@@ -1,9 +1,11 @@
 import { carrierWebCopy, fleetCopy, unitTypeLabels } from '@transport/shared';
 import type { Metadata } from 'next';
 
-import { PageHeading } from '@/components/app-shell';
 import { FleetNav } from '@/components/carrier/fleet-nav';
 import { RemoveRouteForm, RouteForm } from '@/components/carrier/route-form';
+import { PageSection } from '@/components/page-section';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { listCarrierRoutes } from '@/lib/carrier/fleet';
@@ -20,13 +22,12 @@ export default async function CarrierRoutesPage() {
 
   return (
     <>
-      <PageHeading title={c.title} description={c.routes.description} />
+      <PageHeader title={c.title} description={c.routes.description} />
       <FleetNav current="routes" />
-      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
-        <section className="space-y-3">
-          <h2 className="text-2xl">{fleetCopy.routes.title}</h2>
+      <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+        <PageSection title={fleetCopy.routes.title} className="min-w-0">
           {routes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{fleetCopy.routes.empty}</p>
+            <Empty title={fleetCopy.routes.empty} />
           ) : (
             <Table
               headers={[
@@ -37,13 +38,15 @@ export default async function CarrierRoutesPage() {
             >
               {routes.map((route) => (
                 <tr key={route.id}>
-                  <td className="font-medium">
-                    {fleetCopy.routes.item(route.origin_city, route.destination_city)}
-                    <p className="text-xs font-normal text-muted-foreground">
+                  <td>
+                    <p className="font-semibold text-text">
+                      {fleetCopy.routes.item(route.origin_city, route.destination_city)}
+                    </p>
+                    <p className="text-footnote text-text-dim">
                       {route.origin_state} → {route.destination_state}
                     </p>
                   </td>
-                  <td className="text-sm">
+                  <td className="text-text-dim">
                     {route.unit_types.length === 0
                       ? c.routes.anyUnitType
                       : route.unit_types.map((t) => unitTypeLabels[t]).join(', ')}
@@ -55,7 +58,7 @@ export default async function CarrierRoutesPage() {
               ))}
             </Table>
           )}
-        </section>
+        </PageSection>
         <aside>
           <RouteForm />
         </aside>

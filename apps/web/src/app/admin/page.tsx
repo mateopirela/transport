@@ -8,10 +8,10 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Notice } from '@/components/auth-forms';
-import { PageHeading } from '@/components/app-shell';
+import { PageSection } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { loadPilotSummary } from '@/lib/admin/queries';
 import { serverRoadFactor } from '@/lib/loads/queries';
 import { paths } from '@/lib/routing';
@@ -25,15 +25,33 @@ const k = adminOpsCopy.kpis;
 
 export const metadata: Metadata = { title: c.title };
 
-function Tile({ value, label, hint }: { value: string | number; label: string; hint?: string }) {
+interface Stat {
+  key: string;
+  value: string | number;
+  label: string;
+  hint?: string | undefined;
+}
+
+/**
+ * Figures in one white group (§2 U8): each one a cell with the number in
+ * `title1` (tabular) and its `label`, separated by hairlines.
+ */
+function Stats({ stats }: { stats: readonly Stat[] }) {
   return (
-    <Card className="gap-2">
-      <CardContent>
-        <p className="font-serif text-4xl">{value}</p>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-separator lg:grid-cols-4">
+      {stats.map((stat) => (
+        <div key={stat.key} className="flex flex-col gap-1 bg-cell px-4 py-4">
+          <dt className="order-2 text-label text-text-dim">{stat.label}</dt>
+          <dd className="order-1 text-title1 text-text tabular-nums">{stat.value}</dd>
+          {stat.hint && <dd className="order-3 text-footnote text-text-faint">{stat.hint}</dd>}
+        </div>
+      ))}
+      {/* Blank cells close the last row, so the hairline grid never shows through. */}
+      {Array.from({ length: (4 - (stats.length % 4)) % 4 }, (_, i) => (
+        <div key={`blank-${i}`} aria-hidden className="hidden bg-cell lg:block" />
+      ))}
+      {stats.length % 2 === 1 && <div aria-hidden className="bg-cell lg:hidden" />}
+    </dl>
   );
 }
 
@@ -44,10 +62,11 @@ export default async function AdminHomePage() {
   const [counts, summary] = supabase
     ? await Promise.all([loadQueueCounts(supabase), loadPilotSummary(supabase)])
     : [null, null];
-  const tiles = counts
+  const queue: Stat[] = counts
     ? [
-        { label: a.pendingCompanies, value: counts.companies },
+        { key: 'companies', label: a.pendingCompanies, value: counts.companies },
         ...(['company', 'vehicle', 'operator'] as const).map((type) => ({
+          key: type,
           label: a.pendingDocuments(documentOwnerTypeLabels[type]),
           value: counts.documents[type],
         })),
@@ -56,31 +75,22 @@ export default async function AdminHomePage() {
   const kpis = summary ? pilotKpiTiles(summary, serverRoadFactor()) : null;
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((tile) => (
-          <Tile key={tile.label} {...tile} />
-        ))}
-      </div>
-      <Link href={paths.adminQueue} className={buttonVariants({ variant: 'accent' })}>
-        {a.openQueue}
-      </Link>
+      <PageHeader
+        title={c.title}
+        description={c.description}
+        action={
+          <Link href={paths.adminQueue} className={buttonVariants({ variant: 'primary' })}>
+            {a.openQueue}
+          </Link>
+        }
+      />
+      <div className="space-y-12">
+        {queue.length > 0 && <Stats stats={queue} />}
 
-      <section className="mt-12 space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl">{k.title}</h2>
-          <p className="text-sm text-muted-foreground">{k.description}</p>
-        </div>
-        {kpis ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {kpis.map((tile) => (
-              <Tile key={tile.key} value={tile.value} label={tile.label} hint={tile.hint} />
-            ))}
-          </div>
-        ) : (
-          <Notice tone="error">{k.unavailable}</Notice>
-        )}
-      </section>
+        <PageSection title={k.title} description={k.description}>
+          {kpis ? <Stats stats={kpis} /> : <Notice tone="error">{k.unavailable}</Notice>}
+        </PageSection>
+      </div>
     </>
   );
 }

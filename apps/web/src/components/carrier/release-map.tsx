@@ -1,6 +1,6 @@
 'use client';
 
-import { clientTripsCopy, type LatLng } from '@transport/shared';
+import { clientTripsCopy, palette, type LatLng } from '@transport/shared';
 import { useEffect, useRef, useState } from 'react';
 
 import { RouteDiagram, type RoutePoint } from '@/components/loads/route-map';
@@ -83,10 +83,11 @@ export function ReleaseMap({
         const bounds = new google.maps.LatLngBounds(origin).extend(destination);
         if (last) {
           bounds.extend(last);
+          // The map's tiles are light in both themes: the light palette's accent.
           const pin = new PinElement({
-            background: '#2f6fe4',
-            borderColor: '#13294b',
-            glyphColor: '#ffffff',
+            background: palette.light.accent,
+            borderColor: palette.light.accentText,
+            glyphColor: palette.light.accentInk,
           });
           const marker = new AdvancedMarkerElement({
             map,
@@ -139,7 +140,7 @@ export function ReleaseMap({
 
   const showMap = Boolean(key) && !failed;
   return (
-    <div className="relative h-72 overflow-hidden rounded-lg border bg-muted">
+    <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high">
       <div ref={container} className="absolute inset-0" hidden={!showMap} />
       {!showMap && (
         <RouteDiagram

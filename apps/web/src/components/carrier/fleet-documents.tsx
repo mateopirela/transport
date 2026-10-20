@@ -33,7 +33,7 @@ export function FleetDocuments({
               href={carrierDocumentFilePath(document.id)}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-accent hover:underline"
+              className="text-subhead text-accent-text underline-offset-4 hover:underline"
             >
               {c.file}
             </a>

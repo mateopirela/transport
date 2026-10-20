@@ -12,22 +12,23 @@ import {
 } from '@transport/shared';
 import { useActionState, useId, useState } from 'react';
 
-import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field } from '@/components/ui/field';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import { assignCarrierTrip } from '@/lib/carrier/trip-actions';
 import type { AssignmentOptions } from '@/lib/carrier/trips';
 
 const c = carrierWebCopy.trips.assign;
 const app = carrierTripsCopy.assign;
-const select = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /**
  * "Asignar operador" (G10b; B20 on the app): the unit and the operator of a
  * won trip, until the operator departs. assign_trip validates everything
  * again (business unit, documents, license D16) and notifies the operator;
  * the form only explains beforehand what the server would reject, with the
- * same pure rules as the app (checkAssignment).
+ * same pure rules as the app (checkAssignment). Assigning is the primary of
+ * the trip's screen.
  */
 export function TripAssignForm({
   tripId,
@@ -76,7 +77,7 @@ export function TripAssignForm({
   });
 
   if (!canAssignTrip(status)) {
-    return <p className="text-sm text-muted-foreground">{app.locked}</p>;
+    return <p className="text-subhead text-text-dim">{app.locked}</p>;
   }
 
   const tagged = (name: string, tag: string | null, businessUnit: string | null) =>
@@ -85,7 +86,7 @@ export function TripAssignForm({
   return (
     <form
       action={action}
-      className="space-y-3"
+      className="space-y-4"
       noValidate
       onSubmit={(event) => {
         // First click asks for confirmation; the second one submits.
@@ -95,18 +96,19 @@ export function TripAssignForm({
         }
       }}
     >
-      <p className="text-sm text-muted-foreground">{assigned ? app.reassignHelp : app.help}</p>
-      <p className="text-xs text-muted-foreground">
-        {isManager ? c.managerHint : c.coordinatorHint}
-      </p>
+      <div className="space-y-1">
+        <p className="text-subhead text-text-dim">{assigned ? app.reassignHelp : app.help}</p>
+        <p className="text-footnote text-text-faint">
+          {isManager ? c.managerHint : c.coordinatorHint}
+        </p>
+      </div>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       {options.units.length === 0 && <Notice tone="info">{app.noUnits}</Notice>}
       {options.operators.length === 0 && <Notice tone="info">{app.noOperators}</Notice>}
       <input type="hidden" name="tripId" value={tripId} />
-      <div className="space-y-1.5">
-        <Label htmlFor={`${id}-unit`}>{c.unit}</Label>
-        <select
+      <Field label={c.unit} htmlFor={`${id}-unit`}>
+        <Select
           id={`${id}-unit`}
           name="vehicleId"
           value={vehicleId}
@@ -114,7 +116,6 @@ export function TripAssignForm({
             setVehicleId(event.target.value);
             setConfirming(false);
           }}
-          className={select}
         >
           <option value="">{c.choose}</option>
           {options.units.map((u) => (
@@ -122,11 +123,10 @@ export function TripAssignForm({
               {tagged(u.name, u.expiredDocuments ? app.unitExpiredTag : null, u.businessUnitName)}
             </option>
           ))}
-        </select>
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor={`${id}-operator`}>{c.operator}</Label>
-        <select
+        </Select>
+      </Field>
+      <Field label={c.operator} htmlFor={`${id}-operator`}>
+        <Select
           id={`${id}-operator`}
           name="operatorId"
           value={operatorId}
@@ -134,7 +134,6 @@ export function TripAssignForm({
             setOperatorId(event.target.value);
             setConfirming(false);
           }}
-          className={select}
         >
           <option value="">{c.choose}</option>
           {options.operators.map((o) => (
@@ -150,8 +149,8 @@ export function TripAssignForm({
               )}
             </option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </Field>
       {blockers
         .filter((b) => b !== 'missingSelection')
         .map((b) => (
@@ -165,17 +164,18 @@ export function TripAssignForm({
         </Notice>
       ))}
       {confirming && unit && operator ? (
-        <div className="space-y-2 rounded-md border border-accent/30 bg-accent/5 p-3 text-sm">
-          <p className="font-medium">{c.confirmTitle}</p>
-          <p>{app.confirmBody(unit.name, operator.name)}</p>
+        <div className="space-y-3 rounded-2xl bg-accent-soft px-4 py-4">
+          <div className="space-y-0.5">
+            <p className="text-headline text-text">{c.confirmTitle}</p>
+            <p className="text-subhead text-text">{app.confirmBody(unit.name, operator.name)}</p>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" variant="accent" size="sm" disabled={pending}>
+            <Button type="submit" variant="primary" loading={pending}>
               {pending ? c.submitting : c.confirm}
             </Button>
             <Button
               type="button"
-              variant="outline"
-              size="sm"
+              variant="plain"
               disabled={pending}
               onClick={() => setConfirming(false)}
             >
@@ -186,8 +186,9 @@ export function TripAssignForm({
       ) : (
         <Button
           type="submit"
-          variant="accent"
+          variant="primary"
           disabled={pending || blockers.length > 0 || unchanged}
+          className="w-full"
         >
           {assigned ? c.resubmit : c.submit}
         </Button>

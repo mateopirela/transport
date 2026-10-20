@@ -9,9 +9,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { FilterBar } from '@/components/admin/filter-bar';
-import { PageHeading } from '@/components/app-shell';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
+import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { formatRoute, parseLoadFilters } from '@/lib/admin/filters';
 import { ADMIN_PAGE_SIZE, adminContext, listAdminLoads } from '@/lib/admin/queries';
@@ -34,7 +36,7 @@ export default async function AdminLoadsPage({ searchParams }: PageProps<'/admin
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
       <FilterBar
         action={paths.adminLoads}
         statuses={STATUSES}
@@ -42,25 +44,27 @@ export default async function AdminLoadsPage({ searchParams }: PageProps<'/admin
         city={filters.city}
       />
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{total === 0 ? c.empty : ''}</p>
+        total === 0 && <Empty title={c.empty} />
       ) : (
         <Table
           headers={[col.route, col.shipper, col.carrier, col.pickup, col.price, col.status, '']}
         >
           {rows.map((load) => (
             <tr key={load.id}>
-              <td className="font-medium">{formatRoute(load)}</td>
+              <td className="font-semibold">{formatRoute(load)}</td>
               <td>{load.shipper?.legal_name ?? ''}</td>
               <td>{load.carrier?.legal_name ?? '—'}</td>
-              <td className="whitespace-nowrap">{formatDate(load.pickup_window_start)}</td>
-              <td className="whitespace-nowrap">
+              <td className="whitespace-nowrap tabular-nums">
+                {formatDate(load.pickup_window_start)}
+              </td>
+              <td className="whitespace-nowrap tabular-nums">
                 {formatMxn(load.agreed_price_cents ?? load.proposed_price_cents)}
               </td>
               <td>
                 <LoadStatusBadge status={load.status} />
               </td>
               <td>
-                <Link href={adminLoadPath(load.id)} className="text-accent hover:underline">
+                <Link href={adminLoadPath(load.id)} className={textLink}>
                   {c.open}
                 </Link>
               </td>

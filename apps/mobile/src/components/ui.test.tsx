@@ -7,7 +7,7 @@ import { setSavedForTest } from '../../test/stubs/secure-store';
 import { ThemeProvider } from '../theme';
 import { glyphOf } from './icons';
 import { tabAccessibilityLabel } from './tab-bar';
-import { Badge, Button, Cell, Empty, Pill, Segmented } from './ui';
+import { Badge, Button, Cell, Empty, Group, Pill, Segmented } from './ui';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -95,6 +95,31 @@ describe('Cell', () => {
   it('shows its pill', async () => {
     const root = await render(<Cell title="CS53-01" pill={{ label: 'Disponible', tone: 'ok' }} />);
     expect(texts(root)).toContain('Disponible');
+  });
+});
+
+describe('Group', () => {
+  it('keeps every row of a fragment, with keys apart from the rows around it', async () => {
+    const duplicateKeys = vi.fn();
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      if (String(args[0]).includes('same key')) duplicateKeys();
+    });
+    try {
+      const root = await render(
+        <Group>
+          <Cell title="Placas" />
+          <>
+            <Cell title="Tipo de caja" />
+            <Cell title="Capacidad" />
+          </>
+          <Cell title="Equipamiento" />
+        </Group>,
+      );
+      expect(texts(root)).toEqual(['Placas', 'Tipo de caja', 'Capacidad', 'Equipamiento']);
+      expect(duplicateKeys).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

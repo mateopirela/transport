@@ -11,21 +11,31 @@ import {
   type SharedDocumentGroup,
   type SharedDocumentRow,
 } from '@transport/shared';
-import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Fragment, useRef, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { revokeDocumentShare } from '../lib/carrier-trips-api';
 import type { Supabase } from '../lib/supabase';
-import { Badge, Card, SectionTitle, type Tone } from './fleet-ui';
-import { Body, Button, Notice } from './ui';
+import { spacing, useTheme } from '../theme';
+import { ConfirmSheet, type ConfirmSheetHandle } from './sheet';
+import {
+  Button,
+  Cell,
+  Footnote,
+  Group,
+  Notice,
+  SectionHeader,
+  TextCell,
+  type PillTone,
+} from './ui';
 
 const copy = sharedDocumentsCopy;
 
-const PROVIDER_TONES: Record<ProviderState, Tone> = {
+const PROVIDER_TONES: Record<ProviderState, PillTone> = {
   pending: 'neutral',
-  approved: 'success',
-  rejected: 'danger',
-  revoked: 'danger',
+  approved: 'ok',
+  rejected: 'red',
+  revoked: 'red',
 };
 
 function ownerTitle(group: SharedDocumentGroup): string {
@@ -52,15 +62,6 @@ function rowSubtitle(row: SharedDocumentRow): string {
     .join(' · ');
 }
 
-function confirmRevoke(): Promise<boolean> {
-  return new Promise((resolve) =>
-    Alert.alert(copy.carrier.revoke, copy.carrier.revokeConfirm, [
-      { text: copy.carrier.cancel, style: 'cancel', onPress: () => resolve(false) },
-      { text: copy.carrier.revoke, style: 'destructive', onPress: () => resolve(true) },
-    ]),
-  );
-}
-
 /**
  * What the shipper of the trip sees of the carrier (G6, D21): the provider
  * status the shipper gave the company and the documents shared on the trip,
@@ -79,12 +80,13 @@ export function SharedDocumentsSection({
   canRevoke: boolean;
   onChanged: () => Promise<void>;
 }) {
+  const { type } = useTheme();
+  const confirmSheet = useRef<ConfirmSheetHandle>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
   const state = providerState(provider?.status);
 
   async function revoke(shareId: string) {
-    if (!(await confirmRevoke())) return;
     setMessage(null);
     setBusy(shareId);
     try {
@@ -98,34 +100,66 @@ export function SharedDocumentsSection({
     }
   }
 
+  function confirmRevoke(shareId: string) {
+    confirmSheet.current?.ask({
+      title: copy.carrier.revoke,
+      body: copy.carrier.revokeConfirm,
+      confirmLabel: copy.carrier.revoke,
+      cancelLabel: copy.carrier.cancel,
+      destructive: true,
+      onConfirm: () => revoke(shareId),
+    });
+  }
+
   return (
     <>
-      <SectionTitle>{copy.provider.title}</SectionTitle>
-      <Badge label={providerStateLabels[state]} tone={PROVIDER_TONES[state]} />
-      {provider?.notes ? <Body>{provider.notes}</Body> : null}
-      <SectionTitle>{copy.carrier.title}</SectionTitle>
-      <Body>{copy.carrier.description}</Body>
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
-      {rows.length === 0 ? <Body>{copy.carrier.empty}</Body> : null}
-      {groupSharedDocuments(rows).map((group) =>
-        group.rows.map((row) => (
-          <Card
-            key={row.share_id}
-            title={`${ownerTitle(group)} · ${row.requirement_name}`}
-            subtitle={rowSubtitle(row)}
-          >
-            {canRevoke && row.active ? (
-              <Button
-                label={copy.carrier.revoke}
-                variant="secondary"
-                loading={busy === row.share_id}
-                disabled={busy !== null}
-                onPress={() => void revoke(row.share_id)}
-              />
-            ) : null}
-          </Card>
-        )),
+      <SectionHeader title={copy.provider.title} />
+      <Group>
+        <Cell
+          title={copy.provider.status}
+          subtitle={provider?.notes}
+          subtitleLines={0}
+          pill={{ label: providerStateLabels[state], tone: PROVIDER_TONES[state] }}
+        />
+      </Group>
+      <SectionHeader title={copy.carrier.title} />
+      {message ? (
+        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+      ) : null}
+      {rows.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{copy.carrier.empty}</TextCell>
+        </Group>
+      ) : (
+        <Group>
+          {groupSharedDocuments(rows).map((group) => (
+            <Fragment key={`${group.ownerType}-${group.ownerLabel}`}>
+              {group.rows.map((row) => (
+                <Cell key={row.share_id}>
+                  <Text style={type.body}>{`${ownerTitle(group)} · ${row.requirement_name}`}</Text>
+                  <Text style={type.footnote}>{rowSubtitle(row)}</Text>
+                  {canRevoke && row.active ? (
+                    <View style={styles.action}>
+                      <Button
+                        label={copy.carrier.revoke}
+                        variant="secondary"
+                        size="small"
+                        loading={busy === row.share_id}
+                        disabled={busy !== null}
+                        onPress={() => confirmRevoke(row.share_id)}
+                      />
+                    </View>
+                  ) : null}
+                </Cell>
+              ))}
+            </Fragment>
+          ))}
+        </Group>
       )}
+      <Footnote>{copy.carrier.description}</Footnote>
+      <ConfirmSheet ref={confirmSheet} />
     </>
   );
 }
+
+const styles = StyleSheet.create({ action: { marginTop: spacing.sm, alignItems: 'flex-start' } });

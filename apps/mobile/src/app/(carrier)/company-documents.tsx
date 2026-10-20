@@ -2,8 +2,7 @@ import { fleetCopy } from '@transport/shared';
 import { Stack } from 'expo-router';
 
 import { DocumentList } from '../../components/document-list';
-import { Loaded } from '../../components/fleet-ui';
-import { Body, Screen } from '../../components/ui';
+import { Footnote, LoadError, Screen, Skeleton } from '../../components/ui';
 import { loadCompanyContext } from '../../lib/fleet-api';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
 
@@ -16,24 +15,24 @@ export default function CompanyDocuments() {
   return (
     <Screen belowHeader>
       <Stack.Screen options={{ title: fleetCopy.documents.companyTitle }} />
-      <Body>
+      {state.status === 'loading' ? (
+        <Skeleton />
+      ) : state.status === 'error' ? (
+        <LoadError onRetry={() => void reload()} />
+      ) : carrier ? (
+        <DocumentList
+          client={carrier.client}
+          context={state.data}
+          owner={{ type: 'company', id: carrier.companyId }}
+          onChanged={reload}
+          readOnly={!carrier.isManager}
+        />
+      ) : null}
+      <Footnote>
         {carrier && !carrier.isManager
           ? fleetCopy.documents.readOnlySubtitle
           : fleetCopy.documents.subtitle}
-      </Body>
-      <Loaded state={state} onRetry={() => void reload()}>
-        {(context) =>
-          carrier ? (
-            <DocumentList
-              client={carrier.client}
-              context={context}
-              owner={{ type: 'company', id: carrier.companyId }}
-              onChanged={reload}
-              readOnly={!carrier.isManager}
-            />
-          ) : null
-        }
-      </Loaded>
+      </Footnote>
     </Screen>
   );
 }

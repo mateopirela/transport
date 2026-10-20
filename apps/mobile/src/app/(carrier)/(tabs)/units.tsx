@@ -8,19 +8,27 @@ import {
 } from '@transport/shared';
 import { useRouter } from 'expo-router';
 
-import { Badge, Card, Loaded, type Tone } from '../../../components/fleet-ui';
-import { Body, Button, Screen, Title } from '../../../components/ui';
+import { StatusRow } from '../../../components/status-row';
+import {
+  Button,
+  Group,
+  LoadError,
+  Screen,
+  Skeleton,
+  TextCell,
+  type PillTone,
+} from '../../../components/ui';
 import { listVehicles, loadCompanyContext, type VehicleSummary } from '../../../lib/fleet-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 
 const copy = fleetCopy.units;
 
-const READINESS_TONES: Record<VehicleReadiness, Tone> = {
-  pending_release: 'warning',
-  expired_documents: 'danger',
+const READINESS_TONES: Record<VehicleReadiness, PillTone> = {
+  pending_release: 'amber',
+  expired_documents: 'red',
   unset: 'neutral',
-  scheduled: 'info',
-  available: 'success',
+  scheduled: 'accent',
+  available: 'ok',
 };
 
 async function loadVehicles({ client, companyId }: CarrierContext) {
@@ -35,50 +43,61 @@ function describe(vehicle: VehicleSummary): string {
   return parts.join(' · ');
 }
 
+/** Where and from when a unit is free, when it can take loads. */
+function whereFree(vehicle: VehicleSummary): string | null {
+  if (!vehicle.availability || vehicle.readiness === 'expired_documents') return null;
+  return fleetCopy.availability.current(
+    vehicle.availability.city,
+    vehicle.availability.state,
+    formatDateTime(vehicle.availability.available_from),
+  );
+}
+
 /** The carrier's units with their availability (B18). */
 export default function UnitsTab() {
   const router = useRouter();
   const { carrier, state, reload } = useCarrierData(loadVehicles);
 
   return (
-    <Screen>
-      <Title>{copy.title}</Title>
-      {/* Adding units is the manager's (G1a.2). */}
-      {carrier?.isManager ? (
-        <Button label={copy.add} onPress={() => router.push('/vehicle/new')} />
-      ) : null}
-      <Loaded state={state} onRetry={() => void reload()}>
-        {(vehicles) =>
-          vehicles.length === 0 ? (
-            <Body>{copy.empty}</Body>
-          ) : (
-            vehicles.map((vehicle) => (
-              <Card
-                key={vehicle.id}
-                title={vehicle.plate}
-                subtitle={describe(vehicle)}
-                onPress={() =>
-                  router.push({ pathname: '/vehicle/[id]', params: { id: vehicle.id } })
-                }
-              >
-                <Badge
-                  label={vehicleReadinessLabels[vehicle.readiness]}
-                  tone={READINESS_TONES[vehicle.readiness]}
-                />
-                {vehicle.availability && vehicle.readiness !== 'expired_documents' ? (
-                  <Body>
-                    {fleetCopy.availability.current(
-                      vehicle.availability.city,
-                      vehicle.availability.state,
-                      formatDateTime(vehicle.availability.available_from),
-                    )}
-                  </Body>
-                ) : null}
-              </Card>
-            ))
-          )
-        }
-      </Loaded>
+    <Screen
+      title={copy.title}
+      right={
+        // Adding units is the manager's (G1a.2).
+        carrier?.isManager ? (
+          <Button
+            label={copy.add}
+            size="small"
+            icon="add"
+            onPress={() => router.push('/vehicle/new')}
+          />
+        ) : null
+      }
+    >
+      {state.status === 'loading' ? (
+        <Skeleton />
+      ) : state.status === 'error' ? (
+        <LoadError onRetry={() => void reload()} />
+      ) : state.data.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{copy.empty}</TextCell>
+        </Group>
+      ) : (
+        <Group>
+          {state.data.map((vehicle) => (
+            <StatusRow
+              key={vehicle.id}
+              strong
+              title={vehicle.plate}
+              lines={[describe(vehicle), whereFree(vehicle)]}
+              pill={{
+                label: vehicleReadinessLabels[vehicle.readiness],
+                tone: READINESS_TONES[vehicle.readiness],
+              }}
+              onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: vehicle.id } })}
+            />
+          ))}
+        </Group>
+      )}
     </Screen>
   );
 }

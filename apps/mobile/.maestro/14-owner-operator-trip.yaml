@@ -32,10 +32,11 @@ tags: [carrier, owner-operator, operator]
     element: 'José Sánchez Medina.*'
     centerElement: true
 - tapOn: 'José Sánchez Medina.*'
-- scrollUntilVisible:
-    element: 'Asignar operador'
-    centerElement: true
+# The screen's primary action sits in the bottom bar, always in view (U4);
+# then the confirmation sheet.
 - tapOn: 'Asignar operador'
+# The sheet slides up: tap its button once it settled.
+- waitForAnimationToEnd
 - tapOn: 'Sí, asignar'
 - extendedWaitUntil:
     visible: 'Listo. Avisamos a .*'

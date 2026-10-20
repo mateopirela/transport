@@ -27,8 +27,9 @@ export interface MapTrip {
  * Schematic map of trips on the road: origin, destination, the trail and the
  * last position of each, numbered as in the list below it. It needs no Maps
  * SDK key (none exists yet): coordinates are projected into the box with one
- * shared scale, north up, on a tile of the page colour with the legend on
- * glass over it. The embedded Google map replaces it when the keys arrive.
+ * shared scale, north up, with the legend on glass over it. The embedded
+ * Google map replaces it when the keys arrive. It reaches the edges of the
+ * group it sits in (§1.7), which rounds and outlines it.
  */
 export function TripMap({ trips }: { trips: readonly MapTrip[] }) {
   const { theme, colors } = useTheme();
@@ -176,14 +177,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 function makeStyles({ colors, type }: Look) {
   return StyleSheet.create({
-    box: {
-      height: HEIGHT,
-      backgroundColor: colors.surfaceHigh,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.separator,
-      borderRadius: shape.card,
-      overflow: 'hidden',
-    },
+    box: { height: HEIGHT, backgroundColor: colors.surfaceHigh, overflow: 'hidden' },
     dot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
     dotLabel: { ...type.caption, fontFamily: type.headline.fontFamily, color: colors.bg },
     segment: { position: 'absolute', height: 2 },

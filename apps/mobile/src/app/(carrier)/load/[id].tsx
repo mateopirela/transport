@@ -7,29 +7,43 @@ import {
   unitTypeLabels,
 } from '@transport/shared';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Text } from 'react-native';
 
+import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
-import { Loaded, SectionTitle } from '../../../components/fleet-ui';
-import { NegotiationPanel } from '../../../components/negotiation-panel';
+import { DetailRow } from '../../../components/detail-row';
+import { useNegotiation } from '../../../components/negotiation-panel';
 import { RoutePreview } from '../../../components/route-preview';
 import { ShareWithTeamButton } from '../../../components/share-button';
-import { Body, Notice, Screen } from '../../../components/ui';
+import {
+  Group,
+  LoadError,
+  Notice,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  TextCell,
+  ValueRow,
+} from '../../../components/ui';
 import {
   emptyLegs,
   listCarrierUnits,
   loadWithNegotiation,
   watchLoadOffers,
+  type CarrierUnit,
+  type EmptyLeg,
+  type LoadNegotiation,
 } from '../../../lib/loads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
-import { colors } from '../../../theme';
+import { useTheme } from '../../../theme';
 
 const copy = carrierLoadsCopy.detail;
 
 /**
- * Load detail for the carrier (B19): route with the empty km of its nearest
- * compatible unit, the load's data, the negotiation and its chat.
+ * Load detail for the carrier (B19): the negotiation with its next step in
+ * the bottom bar, the route with the empty km of its nearest compatible unit,
+ * the load's data and the chat.
  */
 export default function LoadDetail() {
   const { id, vehicleId } = useLocalSearchParams<{ id: string; vehicleId?: string }>();
@@ -55,100 +69,131 @@ export default function LoadDetail() {
     return watchLoadOffers(carrier.client, id, () => void reload());
   }, [carrier, id, reload]);
 
+  const header = <Stack.Screen options={{ title: copy.title }} />;
+  if (state.status !== 'ready' || !carrier || !state.data.negotiation) {
+    return (
+      <Screen belowHeader>
+        {header}
+        {state.status === 'error' ? (
+          <LoadError onRetry={() => void reload()} />
+        ) : state.status === 'ready' && carrier ? (
+          <Notice tone="warning">{copy.notFound}</Notice>
+        ) : (
+          <Skeleton />
+        )}
+      </Screen>
+    );
+  }
   return (
-    <Screen belowHeader>
-      <Stack.Screen options={{ title: copy.title }} />
-      <Loaded state={state} onRetry={() => void reload()}>
-        {({ negotiation, units, legs }) => {
-          if (!negotiation || !carrier) return <Notice tone="warning">{copy.notFound}</Notice>;
-          const l = negotiation.load;
-          const best = legs[0];
-          return (
-            <>
-              <SectionTitle>{copy.route}</SectionTitle>
-              <RoutePreview
-                pickup={{
-                  city: l.origin_city,
-                  state: l.origin_state,
-                  lat: l.origin_lat,
-                  lng: l.origin_lng,
-                }}
-                delivery={{
-                  city: l.destination_city,
-                  state: l.destination_state,
-                  lat: l.destination_lat,
-                  lng: l.destination_lng,
-                }}
-                emptyLeg={best ? { km: best.emptyKm, start: best.start } : null}
-              />
-              <Row label={copy.proposedPrice} value={formatMxn(l.proposed_price_cents)} strong />
-              <Row
-                label={copy.pickupWindow}
-                value={copy.window(
-                  formatDateTime(l.pickup_window_start),
-                  formatDateTime(l.pickup_window_end),
-                )}
-              />
-              <Row
-                label={copy.deliveryWindow}
-                value={copy.window(
-                  formatDateTime(l.delivery_window_start),
-                  formatDateTime(l.delivery_window_end),
-                )}
-              />
-              <Row
-                label={copy.cargo}
-                value={`${cargoTypeLabels[l.cargo_type]} · ${l.description}`}
-              />
-              <Row label={copy.unitType} value={unitTypeLabels[l.unit_type]} />
-              {l.special_requirements.length > 0 ? (
-                <Row
-                  label={copy.requirements}
-                  value={l.special_requirements.map((r) => specialRequirementLabels[r]).join(', ')}
-                />
-              ) : null}
-              {l.notes ? <Row label={copy.notes} value={l.notes} /> : null}
-              <ShareWithTeamButton
-                client={carrier.client}
-                loadId={l.id}
-                route={`${l.origin_city} → ${l.destination_city}`}
-              />
-
-              <NegotiationPanel
-                client={carrier.client}
-                data={negotiation}
-                units={units}
-                defaultVehicleId={best?.vehicleId}
-                offerSource={vehicleId ? 'recommendation' : 'search'}
-                onChanged={reload}
-              />
-
-              <SectionTitle>{carrierLoadsCopy.chat.title}</SectionTitle>
-              {negotiation.conversationId ? (
-                <ChatPanel client={carrier.client} conversationId={negotiation.conversationId} />
-              ) : (
-                <Body>{carrierLoadsCopy.chat.unavailable}</Body>
-              )}
-            </>
-          );
-        }}
-      </Loaded>
-    </Screen>
+    <>
+      {header}
+      <LoadBody
+        carrier={carrier}
+        negotiation={state.data.negotiation}
+        units={state.data.units}
+        legs={state.data.legs}
+        offerSource={vehicleId ? 'recommendation' : 'search'}
+        reload={reload}
+      />
+    </>
   );
 }
 
-function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+function LoadBody({
+  carrier,
+  negotiation,
+  units,
+  legs,
+  offerSource,
+  reload,
+}: {
+  carrier: CarrierContext;
+  negotiation: LoadNegotiation;
+  units: readonly CarrierUnit[];
+  legs: readonly EmptyLeg[];
+  offerSource: 'recommendation' | 'search';
+  reload: () => Promise<void>;
+}) {
+  const { type } = useTheme();
+  const [barHeight, setBarHeight] = useState(0);
+  const l = negotiation.load;
+  const best = legs[0];
+  const { section, bar } = useNegotiation({
+    client: carrier.client,
+    data: negotiation,
+    units,
+    defaultVehicleId: best?.vehicleId,
+    offerSource,
+    onChanged: reload,
+  });
+  const route = `${l.origin_city} → ${l.destination_city}`;
+
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, strong ? styles.strong : null]}>{value}</Text>
-    </View>
+    <>
+      <Screen belowHeader bottom={bar ? barHeight : 0}>
+        <Text accessibilityRole="header" style={type.title2}>
+          {route}
+        </Text>
+
+        {section}
+
+        <SectionHeader title={copy.route} />
+        <RoutePreview
+          pickup={{
+            city: l.origin_city,
+            state: l.origin_state,
+            lat: l.origin_lat,
+            lng: l.origin_lng,
+          }}
+          delivery={{
+            city: l.destination_city,
+            state: l.destination_state,
+            lat: l.destination_lat,
+            lng: l.destination_lng,
+          }}
+          emptyLeg={best ? { km: best.emptyKm, start: best.start } : null}
+        />
+        <Group>
+          <ValueRow label={copy.proposedPrice} value={formatMxn(l.proposed_price_cents)} strong />
+          <DetailRow
+            label={copy.pickupWindow}
+            value={copy.window(
+              formatDateTime(l.pickup_window_start),
+              formatDateTime(l.pickup_window_end),
+            )}
+          />
+          <DetailRow
+            label={copy.deliveryWindow}
+            value={copy.window(
+              formatDateTime(l.delivery_window_start),
+              formatDateTime(l.delivery_window_end),
+            )}
+          />
+          <DetailRow
+            label={copy.cargo}
+            value={`${cargoTypeLabels[l.cargo_type]} · ${l.description}`}
+          />
+          <ValueRow label={copy.unitType} value={unitTypeLabels[l.unit_type]} />
+          {l.special_requirements.length > 0 ? (
+            <DetailRow
+              label={copy.requirements}
+              value={l.special_requirements.map((r) => specialRequirementLabels[r]).join(', ')}
+            />
+          ) : null}
+          {l.notes ? <DetailRow label={copy.notes} value={l.notes} /> : null}
+        </Group>
+        <ShareWithTeamButton client={carrier.client} loadId={l.id} route={route} />
+
+        <SectionHeader title={carrierLoadsCopy.chat.title} />
+        {negotiation.conversationId ? (
+          <ChatPanel client={carrier.client} conversationId={negotiation.conversationId} />
+        ) : (
+          <Group>
+            <TextCell tone="dim">{carrierLoadsCopy.chat.unavailable}</TextCell>
+          </Group>
+        )}
+      </Screen>
+      {bar ? <KeyboardBottomBar {...bar} onHeight={setBarHeight} /> : null}
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { gap: 2 },
-  label: { fontSize: 13, color: colors.textMuted },
-  value: { fontSize: 15, color: colors.text, lineHeight: 21 },
-  strong: { fontSize: 18, fontWeight: '700', color: colors.navy },
-});

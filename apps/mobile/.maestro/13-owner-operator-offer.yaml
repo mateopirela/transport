@@ -30,11 +30,14 @@ tags: [carrier, owner-operator]
     element: 'Compartir con mi equipo'
     centerElement: true
 - takeScreenshot: 13-3-owner-operator-share-with-team
-- scrollUntilVisible:
-    element: 'Aceptar el precio propuesto'
-    centerElement: true
+# The screen's primary action sits in the bottom bar, always in view (U4).
+- extendedWaitUntil:
+    visible: 'Aceptar el precio propuesto'
+    timeout: 15000
 - tapOn: 'Aceptar el precio propuesto'
-# Native confirmation dialog.
+# Confirmation sheet.
+# The sheet slides up: tap its button once it settled.
+- waitForAnimationToEnd
 - tapOn: 'Confirmar'
 - extendedWaitUntil:
     visible: 'Oferta enviada.'

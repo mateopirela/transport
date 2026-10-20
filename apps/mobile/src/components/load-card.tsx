@@ -12,8 +12,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { CarrierLoad } from '../lib/loads-api';
 import { track } from '../lib/track';
-import { colors, spacing } from '../theme';
-import { Badge, Card } from './fleet-ui';
+import { lookOf, spacing, useTheme, type Look } from '../theme';
+import { Cell, Pill } from './ui';
 
 const copy = carrierLoadsCopy.card;
 
@@ -27,8 +27,11 @@ function useOpenLoad() {
     });
 }
 
-/** A recommended load with the explainable breakdown of its score (B08). */
-export function RecommendationCard({
+/**
+ * A recommended load, as a row of a group: the route, the pickup, the
+ * explainable breakdown of its score (B08), its tags and the price.
+ */
+export function RecommendationCell({
   recommendation: r,
   rank,
   unitLabel,
@@ -38,6 +41,7 @@ export function RecommendationCard({
   rank: number;
   unitLabel?: string | undefined;
 }) {
+  const styles = STYLES[useTheme().theme];
   const open = useOpenLoad();
   function onPress() {
     track({
@@ -52,50 +56,57 @@ export function RecommendationCard({
     });
     open(r.loadId, r.vehicleId);
   }
+  const returnTrip = r.breakdown.isReturnTrip;
+  const estimated = r.breakdown.distanceSource === 'estimate';
   return (
-    <Card
-      title={copy.route(r.origin.city, r.destination.city)}
-      subtitle={copy.pickup(formatDateTime(r.pickupWindowStart))}
-      onPress={onPress}
-    >
-      <View style={styles.badges}>
-        {r.breakdown.isReturnTrip ? <Badge label={matchingCopy.returnTrip} tone="success" /> : null}
-        {r.breakdown.distanceSource === 'estimate' ? (
-          <Badge label={matchingCopy.estimatedDistance} tone="neutral" />
-        ) : null}
-      </View>
-      <Text style={styles.explanation}>{r.explanation}</Text>
+    <Cell role="link" onPress={onPress}>
+      <Text style={styles.title}>{copy.route(r.origin.city, r.destination.city)}</Text>
+      <Text style={styles.dim}>{copy.pickup(formatDateTime(r.pickupWindowStart))}</Text>
+      <Text style={styles.body} numberOfLines={3}>
+        {r.explanation}
+      </Text>
       <Text style={styles.price}>{copy.price(formatMxn(r.proposedPriceCents))}</Text>
-      {unitLabel ? <Text style={styles.muted}>{copy.unit(unitLabel)}</Text> : null}
-    </Card>
+      {unitLabel ? <Text style={styles.dim}>{copy.unit(unitLabel)}</Text> : null}
+      {returnTrip || estimated ? (
+        <View style={styles.pills}>
+          {returnTrip ? <Pill label={matchingCopy.returnTrip} tone="ok" /> : null}
+          {estimated ? <Pill label={matchingCopy.estimatedDistance} /> : null}
+        </View>
+      ) : null}
+    </Cell>
   );
 }
 
 const kg = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 0 });
 
-/** A load of the search results. */
-export function LoadCard({ load, footer }: { load: CarrierLoad; footer?: string }) {
+/** A load of the search or of a negotiation, as a row of a group; `footer` is the negotiation's state. */
+export function LoadCell({ load, footer }: { load: CarrierLoad; footer?: string }) {
+  const styles = STYLES[useTheme().theme];
   const open = useOpenLoad();
   return (
-    <Card
-      title={copy.route(load.origin_city, load.destination_city)}
-      subtitle={copy.pickup(formatDateTime(load.pickup_window_start))}
-      onPress={() => open(load.id)}
-    >
-      <Text style={styles.muted}>
+    <Cell role="link" onPress={() => open(load.id)}>
+      <Text style={styles.title}>{copy.route(load.origin_city, load.destination_city)}</Text>
+      <Text style={styles.dim}>{copy.pickup(formatDateTime(load.pickup_window_start))}</Text>
+      <Text style={styles.dim}>
         {[unitTypeLabels[load.unit_type], copy.weight(kg.format(Number(load.weight_kg)))].join(
           ' · ',
         )}
       </Text>
       <Text style={styles.price}>{copy.price(formatMxn(load.proposed_price_cents))}</Text>
-      {footer ? <Text style={styles.muted}>{footer}</Text> : null}
-    </Card>
+      {footer ? <Text style={styles.accent}>{footer}</Text> : null}
+    </Cell>
   );
 }
 
-const styles = StyleSheet.create({
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  explanation: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  price: { fontSize: 15, fontWeight: '600', color: colors.navy },
-  muted: { fontSize: 13, color: colors.textMuted },
-});
+function makeStyles({ colors, type }: Look) {
+  return StyleSheet.create({
+    title: type.headline,
+    body: type.subhead,
+    dim: type.footnote,
+    price: { ...type.subhead, ...type.num, fontFamily: type.headline.fontFamily },
+    accent: { ...type.subhead, color: colors.accentText },
+    pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
+  });
+}
+
+const STYLES = { light: makeStyles(lookOf('light')), dark: makeStyles(lookOf('dark')) };

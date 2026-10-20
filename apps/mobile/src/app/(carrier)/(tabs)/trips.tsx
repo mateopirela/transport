@@ -9,10 +9,19 @@ import {
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { Badge, Card, Loaded, SectionTitle } from '../../../components/fleet-ui';
+import { StatusRow } from '../../../components/status-row';
 import { TripMap } from '../../../components/trip-map';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
-import { Body, Button, Screen, Title } from '../../../components/ui';
+import {
+  Button,
+  Footnote,
+  Group,
+  LoadError,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  TextCell,
+} from '../../../components/ui';
 import {
   HISTORY_PAGE_SIZE,
   listCarrierTrips,
@@ -39,35 +48,42 @@ export default function TripsTab() {
   const open = (trip: CarrierTripSummary) =>
     router.push({ pathname: '/trip/[id]', params: { id: trip.id } });
 
+  let content;
+  if (state.status === 'loading') content = <Skeleton />;
+  else if (state.status === 'error') content = <LoadError onRetry={refresh} />;
+  else if (state.data.trips.length === 0) {
+    content = (
+      <Group>
+        <TextCell tone="dim">{copy.none}</TextCell>
+      </Group>
+    );
+  } else {
+    const groups = groupCarrierTrips(state.data.trips);
+    content = (
+      <>
+        {CARRIER_TRIP_GROUPS.map((group) => (
+          <TripGroup key={group} group={group} trips={groups[group]} onOpen={open} />
+        ))}
+        {state.data.hasMoreHistory ? (
+          <Button
+            label={copy.moreHistory}
+            variant="plain"
+            onPress={() => setHistoryLimit((limit) => limit + HISTORY_PAGE_SIZE)}
+          />
+        ) : null}
+      </>
+    );
+  }
+
   return (
-    <Screen>
-      <Title subtitle={copy.subtitle}>{copy.title}</Title>
-      <Loaded state={state} onRetry={refresh}>
-        {({ trips, hasMoreHistory }) => {
-          if (trips.length === 0) return <Body>{copy.none}</Body>;
-          const groups = groupCarrierTrips(trips);
-          return (
-            <>
-              {CARRIER_TRIP_GROUPS.map((group) => (
-                <Group key={group} group={group} trips={groups[group]} onOpen={open} />
-              ))}
-              {hasMoreHistory ? (
-                <Button
-                  label={copy.moreHistory}
-                  variant="link"
-                  onPress={() => setHistoryLimit((limit) => limit + HISTORY_PAGE_SIZE)}
-                />
-              ) : null}
-            </>
-          );
-        }}
-      </Loaded>
-      <Button label={copy.refresh} variant="secondary" onPress={refresh} />
+    <Screen title={copy.title} subtitle={copy.subtitle}>
+      {content}
+      <Button label={copy.refresh} variant="secondary" icon="refresh" onPress={refresh} />
     </Screen>
   );
 }
 
-function Group({
+function TripGroup({
   group,
   trips,
   onOpen,
@@ -78,36 +94,42 @@ function Group({
 }) {
   // Empty sections other than "por asignar" and "en curso" are left out.
   if (trips.length === 0 && (group === 'upcoming' || group === 'history')) return null;
+  const active = group === 'active' && trips.length > 0;
   return (
     <>
-      <SectionTitle>{copy.groups[group]}</SectionTitle>
-      {trips.length === 0 ? <Body>{copy.empty[group]}</Body> : null}
-      {group === 'active' && trips.length > 0 ? (
-        <>
-          <Body>{carrierTripsCopy.monitor.help}</Body>
-          <TripMap
-            trips={trips.map((t) => ({
-              key: t.id,
-              origin: { lat: t.load.origin_lat, lng: t.load.origin_lng },
-              destination: { lat: t.load.destination_lat, lng: t.load.destination_lng },
-              position: t.lastPosition,
-            }))}
-          />
-        </>
-      ) : null}
-      {trips.map((trip, index) => (
-        <TripCard
-          key={trip.id}
-          trip={trip}
-          index={group === 'active' ? index + 1 : null}
-          onPress={() => onOpen(trip)}
-        />
-      ))}
+      <SectionHeader title={copy.groups[group]} />
+      {trips.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{copy.empty[group]}</TextCell>
+        </Group>
+      ) : (
+        <Group>
+          {active ? (
+            <TripMap
+              trips={trips.map((t) => ({
+                key: t.id,
+                origin: { lat: t.load.origin_lat, lng: t.load.origin_lng },
+                destination: { lat: t.load.destination_lat, lng: t.load.destination_lng },
+                position: t.lastPosition,
+              }))}
+            />
+          ) : null}
+          {trips.map((trip, index) => (
+            <TripCell
+              key={trip.id}
+              trip={trip}
+              index={group === 'active' ? index + 1 : null}
+              onPress={() => onOpen(trip)}
+            />
+          ))}
+        </Group>
+      )}
+      {active ? <Footnote>{carrierTripsCopy.monitor.help}</Footnote> : null}
     </>
   );
 }
 
-function TripCard({
+function TripCell({
   trip,
   index,
   onPress,
@@ -118,18 +140,19 @@ function TripCard({
 }) {
   const route = copy.route(trip.load.origin_city, trip.load.destination_city);
   return (
-    <Card
+    <StatusRow
+      strong
       title={index === null ? route : carrierTripsCopy.monitor.legend(index, route)}
-      subtitle={copy.pickup(formatDateTime(trip.pickupAt))}
+      lines={[
+        copy.pickup(formatDateTime(trip.pickupAt)),
+        trip.unitName && trip.operatorName
+          ? copy.assignedTo(trip.unitName, trip.operatorName)
+          : copy.unassigned,
+      ]}
+      pill={{ label: tripStatusLabels[trip.status], tone: tripStatusTone(trip.status) }}
       onPress={onPress}
     >
-      <Badge label={tripStatusLabels[trip.status]} tone={tripStatusTone(trip.status)} />
-      <Body>
-        {trip.unitName && trip.operatorName
-          ? copy.assignedTo(trip.unitName, trip.operatorName)
-          : copy.unassigned}
-      </Body>
       {index !== null ? <PositionLine trip={trip} /> : null}
-    </Card>
+    </StatusRow>
   );
 }

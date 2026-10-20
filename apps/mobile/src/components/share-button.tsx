@@ -46,6 +46,7 @@ export function ShareWithTeamButton({
       <Button
         label={sharing ? copy.preparing : copy.shareWithTeam}
         variant="secondary"
+        icon="share"
         onPress={() => void share()}
         loading={sharing}
       />

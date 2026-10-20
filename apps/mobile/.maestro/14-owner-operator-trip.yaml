@@ -47,9 +47,17 @@ tags: [carrier, owner-operator, operator]
     element: 'Documentos compartidos con el cliente'
     centerElement: true
 - takeScreenshot: 14-2-owner-operator-shared-documents
-# Back to the tabs (the trip is a stack screen with a back button).
-- tapOn:
-    point: '9%,8%'
+# Back to the tabs (the trip is a stack screen with a back button). A tap
+# while the scroll above still glides only stops it, so wait for it first,
+# and tap again if the tabs are not there yet.
+- waitForAnimationToEnd
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          point: '9%,8%'
+      - waitForAnimationToEnd
+      - assertVisible: 'Mi viaje, tab.*'
 - tapOn: 'Mi viaje, tab.*'
 - extendedWaitUntil:
     visible: 'Avance del viaje'

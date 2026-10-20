@@ -5,6 +5,7 @@ import { LogOut, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Popover } from 'radix-ui';
+import { useState } from 'react';
 
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,8 @@ export function AccountMenu({
   theme: ThemeChoice;
 }) {
   const initials = initialsOf(name ?? company);
+  // Here and not in the switcher: the popover's content unmounts when it closes.
+  const [choice, setChoice] = useState(theme);
   return (
     <Popover.Root>
       <Popover.Trigger
@@ -87,7 +90,11 @@ export function AccountMenu({
           )}
           <div className="border-t px-3 py-3">
             <p className="mb-2 text-label text-text-dim">{appearanceCopy.title}</p>
-            <ThemeSwitcher initial={theme} className="flex w-full [&>*]:flex-1" />
+            <ThemeSwitcher
+              value={choice}
+              onChange={setChoice}
+              className="flex w-full [&>*]:flex-1"
+            />
           </div>
           <form action={signOut} className="border-t pt-2">
             <Button

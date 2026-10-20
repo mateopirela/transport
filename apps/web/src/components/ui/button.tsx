@@ -23,7 +23,8 @@ export function Button({
   return (
     <button
       className={cn(buttonVariants({ variant, size }), className)}
-      disabled={disabled}
+      // Busy means disabled too: neither a click nor Enter/Space runs it again.
+      disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...props}
     >

@@ -1,13 +1,18 @@
 import { adminOpsCopy } from '@transport/shared';
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Search } from '@/components/ui/search';
+import { Select } from '@/components/ui/select';
 
 const c = adminOpsCopy.filters;
 
-/** GET form of the supervision lists: status and, optionally, a city search. */
+/**
+ * GET form of the supervision lists: status and, optionally, a city search.
+ * One quiet row over the table: the status (a native select: there are up
+ * to ten), the search pill, "Aplicar" and, when something is chosen, "Limpiar".
+ */
 export function FilterBar({
   action,
   statuses,
@@ -23,12 +28,14 @@ export function FilterBar({
   return (
     <form action={action} className="mb-6 flex flex-wrap items-end gap-3" role="search">
       <div className="grid gap-1.5">
-        <Label htmlFor="filter-status">{c.status}</Label>
-        <select
+        <Label htmlFor="filter-status" className="px-1">
+          {c.status}
+        </Label>
+        <Select
           id="filter-status"
           name="estado"
           defaultValue={status ?? ''}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          className="w-56 max-w-full"
         >
           <option value="">{c.allStatuses}</option>
           {statuses.map((option) => (
@@ -36,26 +43,27 @@ export function FilterBar({
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       {city !== undefined && (
         <div className="grid min-w-56 flex-1 gap-1.5 sm:max-w-xs">
-          <Label htmlFor="filter-city">{c.city}</Label>
-          <Input
+          <Label htmlFor="filter-city" className="px-1">
+            {c.city}
+          </Label>
+          <Search
             id="filter-city"
             name="ciudad"
-            type="search"
             defaultValue={city}
             placeholder={c.cityPlaceholder}
             maxLength={60}
           />
         </div>
       )}
-      <Button type="submit" variant="outline">
+      <Button type="submit" variant="secondary">
         {c.apply}
       </Button>
       {(status || city) && (
-        <Link href={action} className="py-2 text-sm text-accent hover:underline">
+        <Link href={action} className={buttonVariants({ variant: 'plain' })}>
           {c.clear}
         </Link>
       )}

@@ -12,10 +12,14 @@ import {
 } from '@transport/shared';
 import { useActionState, useCallback, useId, useMemo, useState } from 'react';
 
-import { Field, Notice } from '@/components/auth-forms';
+import { Field } from '@/components/auth-forms';
 import { ReleaseMap } from '@/components/carrier/release-map';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ErrorText, Field as FormField, fieldHelpId } from '@/components/ui/field';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { groupRow } from '@/components/ui/variants';
 import { releaseCarrierUnit } from '@/lib/carrier/release-actions';
 import type { ReleaseContext } from '@/lib/carrier/release';
 import type { FormState } from '@/lib/forms';
@@ -70,8 +74,8 @@ export function ReleaseForm({
   ];
 
   return (
-    <form action={action} className="space-y-4" noValidate>
-      <p className="text-sm text-muted-foreground">{c.help(route)}</p>
+    <form action={action} className="space-y-5" noValidate>
+      <p className="text-subhead text-text-dim">{c.help(route)}</p>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       <input type="hidden" name="taskId" value={context.taskId} />
       <input type="hidden" name="vehicleId" value={vehicleId} />
@@ -86,65 +90,68 @@ export function ReleaseForm({
         onPick={onPick}
         onReady={setMapReady}
       />
-      <p className="text-sm">
+      <p className="text-footnote text-text-dim">
         {context.last ? c.lastKnown(formatDateTime(context.last.at)) : c.noLastKnown}
       </p>
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">{c.where}</legend>
-        <div className="space-y-2 text-sm">
+      <fieldset>
+        <legend className="mb-1.5 px-1 text-label text-text-dim">{c.where}</legend>
+        <div className="overflow-hidden rounded-2xl border bg-cell">
           {places.map((value) => (
-            <label key={value} className="flex items-center gap-2">
+            <label
+              key={value}
+              className={`${groupRow} flex min-h-12.5 cursor-pointer items-center gap-3 px-4 py-2.5 text-body text-text has-checked:bg-accent-soft`}
+            >
               <input
                 type="radio"
                 name="place"
                 value={value}
                 checked={place === value}
                 onChange={() => setPlace(value)}
-                className="accent-accent"
+                className="size-4 accent-accent"
               />
-              {c.places[value]}
-              {value === 'last' && near && (
-                <span className="text-muted-foreground">· {c.near(near.city, near.state)}</span>
-              )}
+              <span>
+                {c.places[value]}
+                {value === 'last' && near && (
+                  <span className="text-text-dim"> · {c.near(near.city, near.state)}</span>
+                )}
+              </span>
             </label>
           ))}
         </div>
-        {state.fieldErrors?.place && (
-          <p className="text-xs text-destructive">{state.fieldErrors.place}</p>
-        )}
-        {place === 'map' && (
-          <p className="text-xs text-muted-foreground">
-            {pickedNear ? c.mapPicked(pickedNear.city, pickedNear.state) : c.mapHint}
-          </p>
-        )}
-        {mapReady === false && <p className="text-xs text-muted-foreground">{c.mapUnavailable}</p>}
+        <div className="mt-1.5 space-y-1">
+          {state.fieldErrors?.place && <ErrorText>{state.fieldErrors.place}</ErrorText>}
+          {place === 'map' && (
+            <p className="px-1 text-footnote text-text-dim">
+              {pickedNear ? c.mapPicked(pickedNear.city, pickedNear.state) : c.mapHint}
+            </p>
+          )}
+          {mapReady === false && (
+            <p className="px-1 text-footnote text-text-dim">{c.mapUnavailable}</p>
+          )}
+        </div>
       </fieldset>
 
       {place === 'city' && (
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-city`}>{c.city}</Label>
-          <select
+        <FormField label={c.city} htmlFor={`${id}-city`} error={state.fieldErrors?.cityId}>
+          <Select
             id={`${id}-city`}
             name="cityId"
             defaultValue={values.cityId ?? near?.id ?? 'mty'}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            aria-describedby={state.fieldErrors?.cityId ? fieldHelpId(`${id}-city`) : undefined}
           >
             {CITY_PRESETS.map((city) => (
               <option key={city.id} value={city.id}>
                 {city.city}, {city.state}
               </option>
             ))}
-          </select>
-          {state.fieldErrors?.cityId && (
-            <p className="text-xs text-destructive">{state.fieldErrors.cityId}</p>
-          )}
-        </div>
+          </Select>
+        </FormField>
       )}
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">{c.when}</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <fieldset>
+        <legend className="mb-1.5 px-1 text-label text-text-dim">{c.when}</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field name="date" type="date" label={c.date} state={{ ...state, values }} />
           <Field
             name="time"
@@ -156,22 +163,19 @@ export function ReleaseForm({
         </div>
       </fieldset>
 
-      <div className="space-y-1.5">
-        <Label htmlFor={`${id}-notes`}>{c.notes}</Label>
-        <textarea
+      <FormField label={c.notes} htmlFor={`${id}-notes`} error={state.fieldErrors?.notes}>
+        <Textarea
           id={`${id}-notes`}
           name="notes"
           rows={2}
           maxLength={1000}
           defaultValue={values.notes}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          aria-describedby={state.fieldErrors?.notes ? fieldHelpId(`${id}-notes`) : undefined}
+          className="min-h-20"
         />
-        {state.fieldErrors?.notes && (
-          <p className="text-xs text-destructive">{state.fieldErrors.notes}</p>
-        )}
-      </div>
+      </FormField>
 
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" variant="primary" loading={pending}>
         {pending ? c.submitting : c.submit}
       </Button>
     </form>

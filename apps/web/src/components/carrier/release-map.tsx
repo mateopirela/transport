@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { RouteDiagram, type RoutePoint } from '@/components/loads/route-map';
 import { googleMapId, googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
+import { mapColors } from '@/lib/map-colors';
 
 const m = clientTripsCopy.map;
 
@@ -84,9 +85,9 @@ export function ReleaseMap({
         if (last) {
           bounds.extend(last);
           const pin = new PinElement({
-            background: '#2f6fe4',
-            borderColor: '#13294b',
-            glyphColor: '#ffffff',
+            background: mapColors.pin,
+            borderColor: mapColors.pinBorder,
+            glyphColor: mapColors.pinGlyph,
           });
           const marker = new AdvancedMarkerElement({
             map,
@@ -139,7 +140,7 @@ export function ReleaseMap({
 
   const showMap = Boolean(key) && !failed;
   return (
-    <div className="relative h-72 overflow-hidden rounded-lg border bg-muted">
+    <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high">
       <div ref={container} className="absolute inset-0" hidden={!showMap} />
       {!showMap && (
         <RouteDiagram

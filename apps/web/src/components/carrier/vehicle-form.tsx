@@ -13,16 +13,18 @@ import {
 } from '@transport/shared';
 import { useActionState, useId, useState } from 'react';
 
-import { Field, Notice } from '@/components/auth-forms';
+import { Field } from '@/components/auth-forms';
+import { CheckboxList } from '@/components/carrier/checkbox-list';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ErrorText, Field as FormField, fieldHelpId } from '@/components/ui/field';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import type { BusinessUnitOption } from '@/lib/carrier/business-units';
 import { saveCarrierVehicle } from '@/lib/carrier/fleet-actions';
 import type { FormState } from '@/lib/forms';
 
 const c = fleetCopy.units;
 const w = carrierWebCopy.fleet;
-const select = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /**
  * Registers a unit or edits it (G10b; B18 on the app): kind (fixed after
@@ -37,6 +39,7 @@ export function VehicleForm({
   features,
   businessUnits,
   defaultBusinessUnitId,
+  primary = true,
 }: {
   /** Null to register a new unit. */
   vehicleId: string | null;
@@ -46,6 +49,8 @@ export function VehicleForm({
   /** Business units the new unit may join (empty when editing). */
   businessUnits: readonly BusinessUnitOption[];
   defaultBusinessUnitId: string | null;
+  /** Whether "Guardar" is the screen's primary (not while a release waits on the same screen). */
+  primary?: boolean;
 }) {
   const id = useId();
   const [state, action, pending] = useActionState<FormState, FormData>(saveCarrierVehicle, {
@@ -63,45 +68,49 @@ export function VehicleForm({
   const errors = state.fieldErrors ?? {};
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form action={action} className="space-y-5" noValidate>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       {vehicleId && <input type="hidden" name="vehicleId" value={vehicleId} />}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-kind`}>{c.kindLabel}</Label>
-          {vehicleId ? (
-            <>
-              <input type="hidden" name="kind" value={kind} />
-              <p className="text-sm">{vehicleKindLabels[kind as (typeof VEHICLE_KINDS)[number]]}</p>
-              <p className="text-xs text-muted-foreground">{w.units.kindLocked}</p>
-            </>
-          ) : (
-            <select
+        {vehicleId ? (
+          <div className="space-y-1.5">
+            <p className="px-1 text-label text-text-dim">{c.kindLabel}</p>
+            <input type="hidden" name="kind" value={kind} />
+            <p className="flex h-11 items-center rounded-md bg-surface-high px-3.5 text-callout text-text">
+              {vehicleKindLabels[kind as (typeof VEHICLE_KINDS)[number]]}
+            </p>
+            <p className="px-1 text-footnote text-text-dim">{w.units.kindLocked}</p>
+          </div>
+        ) : (
+          <FormField label={c.kindLabel} htmlFor={`${id}-kind`} error={errors.kind}>
+            <Select
               id={`${id}-kind`}
               name="kind"
               value={kind}
               onChange={(event) => setKind(event.target.value)}
-              className={select}
             >
               {VEHICLE_KINDS.map((value) => (
                 <option key={value} value={value}>
                   {vehicleKindLabels[value]}
                 </option>
               ))}
-            </select>
-          )}
-          {errors.kind && <p className="text-xs text-destructive">{errors.kind}</p>}
-        </div>
+            </Select>
+          </FormField>
+        )}
         {!vehicleId && (
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-business-unit`}>{w.businessUnitField}</Label>
-            <select
+          <FormField
+            label={w.businessUnitField}
+            htmlFor={`${id}-business-unit`}
+            error={errors.businessUnitId}
+            hint={w.businessUnitHint}
+          >
+            <Select
               id={`${id}-business-unit`}
               name="businessUnitId"
               defaultValue={values.businessUnitId ?? defaultBusinessUnitId ?? ''}
               aria-invalid={errors.businessUnitId ? true : undefined}
-              className={select}
+              aria-describedby={fieldHelpId(`${id}-business-unit`)}
             >
               <option value="" disabled />
               {businessUnits.map((unit) => (
@@ -109,29 +118,21 @@ export function VehicleForm({
                   {unit.name}
                 </option>
               ))}
-            </select>
-            <p
-              className={
-                errors.businessUnitId ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'
-              }
-            >
-              {errors.businessUnitId ?? w.businessUnitHint}
-            </p>
-          </div>
+            </Select>
+          </FormField>
         )}
         <Field name="plate" label={c.plateLabel} state={fieldState} autoCapitalize="characters" />
         <Field name="fleetNumber" label={c.fleetNumberLabel} state={fieldState} />
         <Field name="modelYear" label={c.modelYearLabel} state={fieldState} inputMode="numeric" />
         {!tractor && (
           <>
-            <div className="space-y-2">
-              <Label htmlFor={`${id}-unit-type`}>{c.unitTypeLabel}</Label>
-              <select
+            <FormField label={c.unitTypeLabel} htmlFor={`${id}-unit-type`} error={errors.unitType}>
+              <Select
                 id={`${id}-unit-type`}
                 name="unitType"
                 defaultValue={values.unitType ?? ''}
                 aria-invalid={errors.unitType ? true : undefined}
-                className={select}
+                aria-describedby={errors.unitType ? fieldHelpId(`${id}-unit-type`) : undefined}
               >
                 <option value="" disabled />
                 {UNIT_TYPES.map((type) => (
@@ -139,9 +140,8 @@ export function VehicleForm({
                     {unitTypeLabels[type]}
                   </option>
                 ))}
-              </select>
-              {errors.unitType && <p className="text-xs text-destructive">{errors.unitType}</p>}
-            </div>
+              </Select>
+            </FormField>
             <Field
               name="capacityKg"
               label={c.capacityKgLabel}
@@ -154,35 +154,23 @@ export function VehicleForm({
               state={fieldState}
               inputMode="decimal"
             />
-            <fieldset className="space-y-2 sm:col-span-2">
-              <legend className="text-sm font-medium">{c.featuresLabel}</legend>
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                {SPECIAL_REQUIREMENTS.map((feature) => (
-                  <label key={feature} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="features"
-                      value={feature}
-                      checked={checked.includes(feature)}
-                      onChange={(event) =>
-                        setChecked((current) =>
-                          event.target.checked
-                            ? [...current, feature]
-                            : current.filter((value) => value !== feature),
-                        )
-                      }
-                      className="accent-accent"
-                    />
-                    {specialRequirementLabels[feature]}
-                  </label>
-                ))}
-              </div>
-              {errors.features && <p className="text-xs text-destructive">{errors.features}</p>}
-            </fieldset>
+            <div className="sm:col-span-2">
+              <CheckboxList
+                legend={c.featuresLabel}
+                name="features"
+                options={SPECIAL_REQUIREMENTS.map((feature) => ({
+                  value: feature,
+                  label: specialRequirementLabels[feature],
+                }))}
+                checked={checked}
+                onChange={setChecked}
+              />
+              {errors.features && <ErrorText className="mt-1.5">{errors.features}</ErrorText>}
+            </div>
           </>
         )}
       </div>
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" variant={primary ? 'primary' : 'secondary'} loading={pending}>
         {c.save}
       </Button>
     </form>

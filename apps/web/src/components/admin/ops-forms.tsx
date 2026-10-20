@@ -3,20 +3,24 @@
 import { adminOpsCopy, type OfferSide } from '@transport/shared';
 import { useActionState } from 'react';
 
-import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
+import { Field, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { adminAcceptOffer, adminCreateOffer, resolveIncident } from '@/lib/admin/actions';
 
-const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
-const select = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm';
-
-function FieldError({ message }: { message?: string }) {
-  return message ? <p className="text-xs text-destructive">{message}</p> : null;
+/** `aria-describedby` of a control whose field shows an error. */
+function describedBy(id: string, error?: string) {
+  return error ? fieldHelpId(id) : undefined;
 }
 
-/** Manual contract: an offer in the name of a carrier, optionally accepted at once. */
+/**
+ * Manual contract: an offer in the name of a carrier, optionally accepted at
+ * once. The only primary of the load's screen.
+ */
 export function ContractForm({
   loadId,
   carriers,
@@ -27,22 +31,23 @@ export function ContractForm({
   const c = adminOpsCopy.contract;
   const [state, action, pending] = useActionState(adminCreateOffer, {});
   const errors = state.fieldErrors ?? {};
-  if (carriers.length === 0) return <p className="text-sm text-muted-foreground">{c.noCarriers}</p>;
+  if (carriers.length === 0) return <Notice tone="info">{c.noCarriers}</Notice>;
   return (
-    <form action={action} className="space-y-3 rounded-xl border bg-card p-4" noValidate>
-      <p className="font-medium">{c.title}</p>
-      <p className="text-sm text-muted-foreground">{c.help}</p>
+    <form action={action} className="space-y-4 rounded-2xl border bg-cell p-5" noValidate>
+      <div className="space-y-1">
+        <h2 className="text-headline text-text">{c.title}</h2>
+        <p className="text-subhead text-text-dim">{c.help}</p>
+      </div>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <input type="hidden" name="loadId" value={loadId} />
-      <div className="space-y-1.5">
-        <Label htmlFor="contract-carrier">{c.carrier}</Label>
-        <select
+      <Field label={c.carrier} htmlFor="contract-carrier" error={errors.carrierCompanyId}>
+        <Select
           id="contract-carrier"
           name="carrierCompanyId"
           defaultValue={state.values?.carrierCompanyId ?? ''}
           aria-invalid={errors.carrierCompanyId ? true : undefined}
-          className={select}
+          aria-describedby={describedBy('contract-carrier', errors.carrierCompanyId)}
         >
           <option value="" disabled />
           {carriers.map((carrier) => (
@@ -50,38 +55,39 @@ export function ContractForm({
               {carrier.legal_name}
             </option>
           ))}
-        </select>
-        <FieldError message={errors.carrierCompanyId} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="contract-amount">{c.amount}</Label>
+        </Select>
+      </Field>
+      <Field label={c.amount} htmlFor="contract-amount" error={errors.amount}>
         <Input
           id="contract-amount"
           name="amount"
           inputMode="decimal"
           defaultValue={state.values?.amount}
           aria-invalid={errors.amount ? true : undefined}
+          aria-describedby={describedBy('contract-amount', errors.amount)}
         />
-        <FieldError message={errors.amount} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="contract-conditions">{c.conditions}</Label>
-        <textarea
+      </Field>
+      <Field label={c.conditions} htmlFor="contract-conditions" error={errors.conditions}>
+        <Textarea
           id="contract-conditions"
           name="conditions"
           rows={2}
           maxLength={1000}
           defaultValue={state.values?.conditions}
           aria-invalid={errors.conditions ? true : undefined}
-          className={textarea}
+          aria-describedby={describedBy('contract-conditions', errors.conditions)}
         />
-        <FieldError message={errors.conditions} />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="accept" defaultChecked={state.values?.accept === 'on'} />
+      </Field>
+      <label className="flex items-center gap-2.5 px-1 text-subhead text-text">
+        <input
+          type="checkbox"
+          name="accept"
+          defaultChecked={state.values?.accept === 'on'}
+          className="size-4 accent-accent"
+        />
         {c.accept}
       </label>
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" variant="primary" loading={pending} className="w-full">
         {pending ? c.pending : c.submit}
       </Button>
     </form>
@@ -93,17 +99,22 @@ export function AcceptOfferForm({ offerId, side }: { offerId: string; side: Offe
   const c = adminOpsCopy.load;
   const [state, action, pending] = useActionState(adminAcceptOffer, {});
   return (
-    <details className="text-sm">
-      <summary className="cursor-pointer text-accent">{c.acceptFor(side)}</summary>
-      <form action={action} className="mt-2 max-w-sm space-y-2">
-        <p className="text-muted-foreground">{c.acceptConfirm}</p>
+    <Disclosure
+      summary={c.acceptFor(side)}
+      look="inline"
+      tone="accent"
+      open={Boolean(state.error)}
+      className="max-w-xs"
+    >
+      <form action={action} className="space-y-3">
+        <p className="text-subhead text-text-dim">{c.acceptConfirm}</p>
         {state.error && <Notice tone="error">{state.error}</Notice>}
         <input type="hidden" name="offerId" value={offerId} />
-        <Button type="submit" size="sm" variant="accent" disabled={pending}>
+        <Button type="submit" size="sm" variant="secondary" loading={pending}>
           {pending ? c.accepting : c.acceptFor(side)}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -112,23 +123,25 @@ export function ResolveIncidentForm({ incidentId }: { incidentId: string }) {
   const c = adminOpsCopy.incidents;
   const [state, action, pending] = useActionState(resolveIncident, {});
   const id = `resolution-${incidentId}`;
+  const error = state.fieldErrors?.resolution;
   if (state.message) return <Notice tone="success">{state.message}</Notice>;
   return (
-    <form action={action} className="space-y-2" noValidate>
+    <form action={action} className="max-w-xl space-y-3" noValidate>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       <input type="hidden" name="incidentId" value={incidentId} />
-      <Label htmlFor={id}>{c.resolution}</Label>
-      <textarea
-        id={id}
-        name="resolution"
-        rows={2}
-        maxLength={2000}
-        defaultValue={state.values?.resolution}
-        aria-invalid={state.fieldErrors?.resolution ? true : undefined}
-        className={textarea}
-      />
-      <FieldError message={state.fieldErrors?.resolution} />
-      <Button type="submit" size="sm" variant="accent" disabled={pending}>
+      <Field label={c.resolution} htmlFor={id} error={error}>
+        <Textarea
+          id={id}
+          name="resolution"
+          rows={2}
+          maxLength={2000}
+          defaultValue={state.values?.resolution}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(id, error)}
+          className="min-h-20"
+        />
+      </Field>
+      <Button type="submit" size="sm" variant="secondary" loading={pending}>
         {pending ? c.resolving : c.resolve}
       </Button>
     </form>

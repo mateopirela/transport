@@ -14,10 +14,16 @@ import {
 } from '@transport/shared';
 import { useActionState } from 'react';
 
-import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
+import { Field, fieldHelpId } from '@/components/ui/field';
+import { Group } from '@/components/ui/group';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Pill } from '@/components/ui/pill';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { groupRow } from '@/components/ui/variants';
 import {
   acceptProposedPrice,
   acceptShipperOffer,
@@ -27,13 +33,10 @@ import {
   withdrawCarrierOffer,
 } from '@/lib/carrier/actions';
 import type { FormState } from '@/lib/forms';
-import { cn } from '@/lib/utils';
 
 const c = carrierWebCopy.offer;
 const a = carrierLoadsCopy.actions;
 const states = carrierLoadsCopy.negotiation.states;
-const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
-const select = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** A unit the viewer may propose, with the business unit it belongs to. */
 export interface PanelUnit {
@@ -59,6 +62,9 @@ function centsToPesosInput(cents: number): string {
  * offer. Every action is an RPC that validates the actor, the business unit
  * and the state again (B05, G1a). Without a visible load (contracted with
  * another carrier) only the history and the outcome are shown.
+ *
+ * The state on top, the offers as a group of rows, and the actions folded in
+ * one group: accepting is the screen's primary, the rest secondary or red.
  */
 export function CarrierNegotiationPanel({
   load,
@@ -94,54 +100,11 @@ export function CarrierNegotiationPanel({
   const proposed = load ? formatMxn(load.proposedPriceCents) : '';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Notice tone={state === 'won' ? 'success' : 'info'}>{states[state]}</Notice>
 
-      {chain.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-sm font-medium">{c.history}</h3>
-          <ol className="divide-y rounded-xl border bg-card">
-            {chain.map((offer) => {
-              const unit = offer.vehicle_id ? unitById.get(offer.vehicle_id) : undefined;
-              return (
-                <li key={offer.id} className="space-y-1 p-3 text-sm">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-medium">
-                      {c.side[offer.side]} · {formatMxn(offer.amount_cents)}
-                    </p>
-                    <span
-                      className={cn(
-                        'text-xs',
-                        offer.status === 'accepted' ? 'text-success' : 'text-muted-foreground',
-                      )}
-                    >
-                      {offerStatusLabels[offer.status]} · {formatDateTime(offer.created_at)}
-                    </span>
-                  </div>
-                  {offer.conditions && (
-                    <p className="text-muted-foreground">
-                      {c.conditions}: {offer.conditions}
-                    </p>
-                  )}
-                  {offer.side === 'carrier' && (
-                    <p className="text-xs text-muted-foreground">
-                      {c.unit}: {unit?.label ?? (offer.vehicle_id ? '—' : c.noUnit)}
-                    </p>
-                  )}
-                  {offerStatusReasonText(offer.status_reason) && (
-                    <p className="text-xs text-muted-foreground">
-                      {c.reason}: {offerStatusReasonText(offer.status_reason)}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-      )}
-
       {load && (state === 'open' || state === 'reopen') && (
-        <>
+        <div className="overflow-hidden rounded-2xl border bg-cell">
           <AcceptProposedForm
             loadId={load.id}
             proposed={proposed}
@@ -161,11 +124,11 @@ export function CarrierNegotiationPanel({
             businessUnits={chooseBusinessUnit ? businessUnits : []}
             defaultBusinessUnitId={defaultBusinessUnitId}
           />
-        </>
+        </div>
       )}
 
       {load && state === 'respond' && latest && (
-        <>
+        <div className="overflow-hidden rounded-2xl border bg-cell">
           <ConfirmForm
             action={acceptShipperOffer}
             summary={a.accept}
@@ -174,7 +137,7 @@ export function CarrierNegotiationPanel({
             confirm={c.acceptConfirm}
             pending={c.accepting}
             hidden={{ offerId: latest.id }}
-            tone="success"
+            tone="accept"
           />
           <OfferForm
             action={counterShipperOffer}
@@ -189,20 +152,63 @@ export function CarrierNegotiationPanel({
             defaultBusinessUnitId={null}
           />
           <RejectForm offerId={latest.id} />
-        </>
+        </div>
       )}
 
       {load && state === 'awaiting_shipper' && latest && (
-        <ConfirmForm
-          action={withdrawCarrierOffer}
-          summary={a.withdraw}
-          title={c.withdrawTitle}
-          help={c.withdrawHelp}
-          confirm={c.withdrawConfirm}
-          pending={c.withdrawing}
-          hidden={{ offerId: latest.id }}
-          tone="muted"
-        />
+        <div className="overflow-hidden rounded-2xl border bg-cell">
+          <ConfirmForm
+            action={withdrawCarrierOffer}
+            summary={a.withdraw}
+            title={c.withdrawTitle}
+            help={c.withdrawHelp}
+            confirm={c.withdrawConfirm}
+            pending={c.withdrawing}
+            hidden={{ offerId: latest.id }}
+            tone="withdraw"
+          />
+        </div>
+      )}
+
+      {chain.length > 0 && (
+        <Group label={c.history}>
+          <ol>
+            {chain.map((offer) => {
+              const unit = offer.vehicle_id ? unitById.get(offer.vehicle_id) : undefined;
+              const reason = offerStatusReasonText(offer.status_reason);
+              return (
+                <li key={offer.id} className={`${groupRow} space-y-1 px-4 py-3`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-headline text-text tabular-nums">
+                      {c.side[offer.side]} · {formatMxn(offer.amount_cents)}
+                    </p>
+                    <Pill tone={offer.status === 'accepted' ? 'ok' : 'neutral'}>
+                      {offerStatusLabels[offer.status]}
+                    </Pill>
+                  </div>
+                  <p className="text-footnote text-text-dim tabular-nums">
+                    {formatDateTime(offer.created_at)}
+                  </p>
+                  {offer.conditions && (
+                    <p className="text-subhead text-text-dim">
+                      {c.conditions}: {offer.conditions}
+                    </p>
+                  )}
+                  {offer.side === 'carrier' && (
+                    <p className="text-footnote text-text-dim">
+                      {c.unit}: {unit?.label ?? (offer.vehicle_id ? '—' : c.noUnit)}
+                    </p>
+                  )}
+                  {reason && (
+                    <p className="text-footnote text-text-dim">
+                      {c.reason}: {reason}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </Group>
       )}
     </div>
   );
@@ -225,7 +231,16 @@ function Feedback({ state }: { state: FormState }) {
   );
 }
 
-/** One-step offer of the proposed price, after an explicit confirmation. */
+/** The title and the line of a folded form. */
+function FormIntro({ title, help }: { title: string; help?: string }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-headline text-text">{title}</p>
+      {help && <p className="text-subhead text-text-dim">{help}</p>}
+    </div>
+  );
+}
+
 /**
  * One-step offer of the proposed price, after an explicit confirmation. The
  * unit decides the business unit; without one, and with several business
@@ -248,24 +263,23 @@ function AcceptProposedForm({
   const [state, action, pending] = useActionState(acceptProposedPrice, {});
   const askBusinessUnit = vehicleId === null && businessUnits.length > 0;
   return (
-    <details className="rounded-lg border p-4 open:bg-muted/40" open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-sm font-medium text-success">
-        {a.acceptProposed}
-      </summary>
-      <form action={action} className="mt-4 space-y-3">
-        <p className="font-medium">{c.acceptProposedTitle}</p>
-        <p className="text-sm text-muted-foreground">{a.acceptProposedHelp(proposed)}</p>
+    <Disclosure summary={a.acceptProposed} tone="accent" open={Boolean(state.error)}>
+      <form action={action} className="space-y-4">
+        <FormIntro title={c.acceptProposedTitle} help={a.acceptProposedHelp(proposed)} />
         <Feedback state={state} />
         <Hidden values={{ loadId, vehicleId }} />
         {askBusinessUnit ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="accept-business-unit">{c.businessUnitField}</Label>
-            <select
+          <Field
+            label={c.businessUnitField}
+            htmlFor="accept-business-unit"
+            hint={c.acceptProposedBusinessUnitHint}
+          >
+            <Select
               id="accept-business-unit"
               name="businessUnitId"
               required
               defaultValue={defaultBusinessUnitId ?? ''}
-              className={select}
+              aria-describedby={fieldHelpId('accept-business-unit')}
             >
               <option value="">—</option>
               {businessUnits.map((unit) => (
@@ -273,17 +287,16 @@ function AcceptProposedForm({
                   {unit.name}
                 </option>
               ))}
-            </select>
-            <p className="text-xs text-muted-foreground">{c.acceptProposedBusinessUnitHint}</p>
-          </div>
+            </Select>
+          </Field>
         ) : (
           <Hidden values={{ businessUnitId: defaultBusinessUnitId }} />
         )}
-        <Button type="submit" variant="accent" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} className="w-full">
           {pending ? c.sending : c.acceptProposedConfirm}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -315,47 +328,41 @@ function OfferForm({
   const errors = state.fieldErrors ?? {};
   const id = (field: string) => `${summary}-${field}`.replaceAll(/\s+/gu, '-').toLowerCase();
   return (
-    <details
-      className="rounded-lg border p-4 open:bg-muted/40"
-      open={Boolean(state.error || state.fieldErrors)}
-    >
-      <summary className="cursor-pointer text-sm font-medium">{summary}</summary>
-      <form action={action} className="mt-4 space-y-3" noValidate>
-        <p className="font-medium">{title}</p>
+    <Disclosure summary={summary} open={Boolean(state.error || state.fieldErrors)}>
+      <form action={action} className="space-y-4" noValidate>
+        <FormIntro title={title} />
         <Feedback state={state} />
         <Hidden values={hidden} />
-        <div className="space-y-1.5">
-          <Label htmlFor={id('amount')}>{c.amount}</Label>
+        <Field label={c.amount} htmlFor={id('amount')} error={errors.amount}>
           <Input
             id={id('amount')}
             name="amount"
             inputMode="decimal"
             defaultValue={state.values?.amount ?? defaultAmount}
             aria-invalid={errors.amount ? true : undefined}
+            aria-describedby={errors.amount ? fieldHelpId(id('amount')) : undefined}
+            className="tabular-nums"
           />
-          {errors.amount && <p className="text-xs text-destructive">{errors.amount}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={id('conditions')}>{c.conditionsField}</Label>
-          <textarea
+        </Field>
+        <Field label={c.conditionsField} htmlFor={id('conditions')} error={errors.conditions}>
+          <Textarea
             id={id('conditions')}
             name="conditions"
             rows={2}
             maxLength={1000}
             defaultValue={state.values?.conditions}
             aria-invalid={errors.conditions ? true : undefined}
-            className={textarea}
+            aria-describedby={errors.conditions ? fieldHelpId(id('conditions')) : undefined}
+            className="min-h-20"
           />
-          {errors.conditions && <p className="text-xs text-destructive">{errors.conditions}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={id('unit')}>{c.unitField}</Label>
-          <select
+        </Field>
+        <Field label={c.unitField} htmlFor={id('unit')} error={errors.vehicleId} hint={c.unitHint}>
+          <Select
             id={id('unit')}
             name="vehicleId"
             defaultValue={state.values?.vehicleId ?? defaultUnit ?? ''}
             aria-invalid={errors.vehicleId ? true : undefined}
-            className={select}
+            aria-describedby={fieldHelpId(id('unit'))}
           >
             <option value="">{c.unitNone}</option>
             {options.map((unit) => (
@@ -363,18 +370,21 @@ function OfferForm({
                 {unit.label}
               </option>
             ))}
-          </select>
-          <p className="text-xs text-muted-foreground">{errors.vehicleId ?? c.unitHint}</p>
-        </div>
+          </Select>
+        </Field>
         {businessUnits.length > 0 && (
-          <div className="space-y-1.5">
-            <Label htmlFor={id('business-unit')}>{c.businessUnitField}</Label>
-            <select
+          <Field
+            label={c.businessUnitField}
+            htmlFor={id('business-unit')}
+            error={errors.businessUnitId}
+            hint={c.businessUnitHint}
+          >
+            <Select
               id={id('business-unit')}
               name="businessUnitId"
               defaultValue={state.values?.businessUnitId ?? defaultBusinessUnitId ?? ''}
               aria-invalid={errors.businessUnitId ? true : undefined}
-              className={select}
+              aria-describedby={fieldHelpId(id('business-unit'))}
             >
               <option value="">—</option>
               {businessUnits.map((unit) => (
@@ -382,22 +392,14 @@ function OfferForm({
                   {unit.name}
                 </option>
               ))}
-            </select>
-            <p
-              className={cn(
-                'text-xs',
-                errors.businessUnitId ? 'text-destructive' : 'text-muted-foreground',
-              )}
-            >
-              {errors.businessUnitId ?? c.businessUnitHint}
-            </p>
-          </div>
+            </Select>
+          </Field>
         )}
-        <Button type="submit" variant="accent" disabled={pending}>
+        <Button type="submit" variant="secondary" loading={pending} className="w-full">
           {pending ? c.sending : submit}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -419,30 +421,30 @@ function ConfirmForm({
   confirm: string;
   pending: string;
   hidden: Record<string, string>;
-  tone: 'success' | 'muted';
+  /** `accept`: the screen's primary; `withdraw`: takes back the own offer (red). */
+  tone: 'accept' | 'withdraw';
 }) {
   const [state, action, pending] = useActionState(serverAction, {});
   return (
-    <details className="rounded-lg border p-4 open:bg-muted/40" open={Boolean(state.error)}>
-      <summary
-        className={cn('cursor-pointer text-sm font-medium', tone === 'success' && 'text-success')}
-      >
-        {summary}
-      </summary>
-      <form action={action} className="mt-4 space-y-3">
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{help}</p>
+    <Disclosure
+      summary={summary}
+      tone={tone === 'accept' ? 'accent' : 'red'}
+      open={Boolean(state.error)}
+    >
+      <form action={action} className="space-y-4">
+        <FormIntro title={title} help={help} />
         <Feedback state={state} />
         <Hidden values={hidden} />
         <Button
           type="submit"
-          variant={tone === 'success' ? 'accent' : 'outline'}
-          disabled={pending}
+          variant={tone === 'accept' ? 'primary' : 'destructive'}
+          loading={pending}
+          className="w-full"
         >
           {pending ? pendingLabel : confirm}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -450,37 +452,26 @@ function RejectForm({ offerId }: { offerId: string }) {
   const [state, action, pending] = useActionState(rejectShipperOffer, {});
   const reasonError = state.fieldErrors?.reason;
   return (
-    <details
-      className="rounded-lg border p-4 open:bg-muted/40"
-      open={Boolean(state.error || reasonError)}
-    >
-      <summary className="cursor-pointer text-sm font-medium text-destructive">{a.reject}</summary>
-      <form action={action} className="mt-4 space-y-3" noValidate>
-        <p className="font-medium">{c.rejectTitle}</p>
-        <p className="text-sm text-muted-foreground">{a.rejectHelp}</p>
+    <Disclosure summary={a.reject} tone="red" open={Boolean(state.error || reasonError)}>
+      <form action={action} className="space-y-4" noValidate>
+        <FormIntro title={c.rejectTitle} help={a.rejectHelp} />
         <Feedback state={state} />
         <Hidden values={{ offerId }} />
-        <div className="space-y-1.5">
-          <Label htmlFor="reject-reason">{c.rejectReason}</Label>
-          <textarea
+        <Field label={c.rejectReason} htmlFor="reject-reason" error={reasonError}>
+          <Textarea
             id="reject-reason"
             name="reason"
             rows={2}
             maxLength={1000}
             aria-invalid={reasonError ? true : undefined}
-            className={textarea}
+            aria-describedby={reasonError ? fieldHelpId('reject-reason') : undefined}
+            className="min-h-20"
           />
-          {reasonError && <p className="text-xs text-destructive">{reasonError}</p>}
-        </div>
-        <Button
-          type="submit"
-          variant="outline"
-          className="border-destructive/40 text-destructive"
-          disabled={pending}
-        >
+        </Field>
+        <Button type="submit" variant="destructive" loading={pending} className="w-full">
           {pending ? c.rejecting : c.rejectConfirm}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }

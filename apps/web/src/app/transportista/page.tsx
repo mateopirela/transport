@@ -8,10 +8,14 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
-import { RecommendationCard } from '@/components/carrier/recommendation-card';
+import { RECOMMENDATION_LIST, RecommendationCard } from '@/components/carrier/recommendation-card';
+import { PageSection } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
+import { Cell } from '@/components/ui/cell';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
+import { groupRow } from '@/components/ui/variants';
 import { loadSupervision, type UnitSupervision } from '@/lib/carrier/company';
 import { carrierContext } from '@/lib/carrier/context';
 import { carrierFeed, listCarrierUnits } from '@/lib/carrier/loads';
@@ -27,32 +31,27 @@ export const metadata: Metadata = { title: c.title };
 
 const s = managerCompanyCopy.supervision;
 
-/** The Gerente's supervision (G4): active and unassigned trips per business unit. */
+/** The Gerente's supervision (G4): active and unassigned trips per business unit, one row each. */
 function Supervision({ rows }: { rows: UnitSupervision[] }) {
   return (
-    <section className="mb-8 space-y-3">
-      <h2 className="text-2xl">{s.title}</h2>
-      <p className="text-sm text-muted-foreground">{s.description}</p>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <PageSection title={s.title} description={s.description}>
+      <ul className="overflow-hidden rounded-2xl border bg-cell">
         {rows.map(({ unit, active, toAssign }) => (
-          <li key={unit.id} className="space-y-1 rounded-xl border bg-card p-4">
-            <p className="font-medium">{unit.name}</p>
-            <p className="text-sm">{s.activeTrips(active)}</p>
-            <p className="text-sm text-muted-foreground">{s.toAssign(toAssign)}</p>
-            <Link
+          <li key={unit.id} className={groupRow}>
+            <Cell
               href={withParams(
                 paths.carrierTrips,
                 {},
                 { [TRIP_FILTER_PARAMS.businessUnit]: unit.id },
               )}
-              className="text-sm text-accent hover:underline"
-            >
-              {s.viewTrips}
-            </Link>
+              title={unit.name}
+              subtitle={`${s.activeTrips(active)} · ${s.toAssign(toAssign)}`}
+              value={s.viewTrips}
+            />
           </li>
         ))}
       </ul>
-    </section>
+    </PageSection>
   );
 }
 
@@ -76,77 +75,84 @@ export default async function CarrierHomePage() {
 
   return (
     <>
-      <PageHeading title={viewer.company?.legalName ?? c.title} description={c.description} />
-      {pendingReleases.length > 0 && (
-        <section className="mb-8 space-y-3 rounded-xl border border-destructive/40 bg-card p-4">
-          <h2 className="text-xl">{vehicleReleaseCopy.home.title(pendingReleases.length)}</h2>
-          <p className="text-sm text-muted-foreground">{vehicleReleaseCopy.home.help}</p>
-          <ul className="divide-y">
-            {pendingReleases.map((p) => (
-              <li key={p.taskId} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                <span className="text-sm font-medium">
-                  {vehicleReleaseCopy.home.item(p.unit, p.route)}
-                </span>
-                <Link
-                  href={carrierUnitPath(p.vehicleId)}
-                  className={buttonVariants({ variant: 'accent', size: 'sm' })}
+      <PageHeader
+        title={viewer.company?.legalName ?? c.title}
+        description={c.description}
+        action={
+          <Link href={paths.carrierLoads} className={buttonVariants({ variant: 'secondary' })}>
+            {feedCopy.searchAll}
+          </Link>
+        }
+      />
+      <div className="space-y-12">
+        {pendingReleases.length > 0 && (
+          <PageSection
+            title={vehicleReleaseCopy.home.title(pendingReleases.length)}
+            description={vehicleReleaseCopy.home.help}
+          >
+            <ul className="overflow-hidden rounded-2xl border border-red/30 bg-cell">
+              {pendingReleases.map((p) => (
+                <li
+                  key={p.taskId}
+                  className={`${groupRow} flex flex-wrap items-center justify-between gap-3 px-4 py-3`}
                 >
-                  {vehicleReleaseCopy.home.open}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {supervision.length > 0 && <Supervision rows={supervision} />}
-      {units.operable.length === 0 ? (
-        <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
-      ) : !feed ? (
-        <Notice tone="info">{units.selected ? c.noUnitsSelected : feedCopy.noUnits}</Notice>
-      ) : (
-        <div className="space-y-8">
-          {feed.returnTrips.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-2xl">{feedCopy.returnTrips}</h2>
-              <p className="text-sm text-muted-foreground">{feedCopy.returnTripsHelp}</p>
-              {feed.returnTrips.map((group) => (
-                <div key={group.vehicleId} className="space-y-2">
-                  <h3 className="text-sm font-medium">
-                    {feedCopy.returnTripFor(labels.get(group.vehicleId) ?? '', group.startCity)}
-                  </h3>
-                  <ul className="space-y-2">
-                    {group.recommendations.map((r, i) => (
-                      <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
-                    ))}
-                  </ul>
-                </div>
+                  <span className="text-body text-text">
+                    {vehicleReleaseCopy.home.item(p.unit, p.route)}
+                  </span>
+                  <Link
+                    href={carrierUnitPath(p.vehicleId)}
+                    className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+                  >
+                    {vehicleReleaseCopy.home.open}
+                  </Link>
+                </li>
               ))}
-            </section>
-          )}
-          <section className="space-y-3">
-            <h2 className="text-2xl">{feedCopy.recommended}</h2>
-            <p className="text-sm text-muted-foreground">{feedCopy.recommendedHelp}</p>
-            {feed.recommended.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{feedCopy.empty}</p>
-            ) : (
-              <ul className="space-y-2">
-                {feed.recommended.map((r, i) => (
-                  <RecommendationCard
-                    key={r.loadId}
-                    recommendation={r}
-                    rank={i + 1}
-                    unitLabel={labels.get(r.vehicleId)}
-                  />
-                ))}
-              </ul>
+            </ul>
+          </PageSection>
+        )}
+        {supervision.length > 0 && <Supervision rows={supervision} />}
+        {units.operable.length === 0 ? (
+          <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
+        ) : !feed ? (
+          <Notice tone="info">{units.selected ? c.noUnitsSelected : feedCopy.noUnits}</Notice>
+        ) : (
+          <>
+            {feed.returnTrips.length > 0 && (
+              <PageSection title={feedCopy.returnTrips} description={feedCopy.returnTripsHelp}>
+                <div className="space-y-6">
+                  {feed.returnTrips.map((group) => (
+                    <div key={group.vehicleId}>
+                      <h3 className="mb-1.5 px-4 text-label text-text-dim">
+                        {feedCopy.returnTripFor(labels.get(group.vehicleId) ?? '', group.startCity)}
+                      </h3>
+                      <ul className={RECOMMENDATION_LIST}>
+                        {group.recommendations.map((r, i) => (
+                          <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </PageSection>
             )}
-          </section>
-        </div>
-      )}
-      <div className="mt-8">
-        <Link href={paths.carrierLoads} className={buttonVariants({ variant: 'outline' })}>
-          {feedCopy.searchAll}
-        </Link>
+            <PageSection title={feedCopy.recommended} description={feedCopy.recommendedHelp}>
+              {feed.recommended.length === 0 ? (
+                <Empty title={feedCopy.empty} />
+              ) : (
+                <ul className={RECOMMENDATION_LIST}>
+                  {feed.recommended.map((r, i) => (
+                    <RecommendationCard
+                      key={r.loadId}
+                      recommendation={r}
+                      rank={i + 1}
+                      unitLabel={labels.get(r.vehicleId)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </PageSection>
+          </>
+        )}
       </div>
     </>
   );

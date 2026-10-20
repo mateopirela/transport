@@ -1,10 +1,10 @@
 import { carrierWebCopy } from '@transport/shared';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { OperatorForm } from '@/components/carrier/operator-form';
+import { BackLink } from '@/components/page-section';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { paths } from '@/lib/routing';
 
@@ -17,14 +17,10 @@ export default async function NewCarrierOperatorPage() {
   const { isManager, units } = await carrierContext(paths.newCarrierOperator);
   return (
     <>
-      <Link href={paths.carrierOperators} className="text-sm text-accent hover:underline">
-        {c.operators.back}
-      </Link>
-      <div className="mt-4">
-        <PageHeading title={c.operators.newTitle} description={c.operators.invitationHint} />
-      </div>
+      <BackLink href={paths.carrierOperators}>{c.operators.back}</BackLink>
+      <PageHeader title={c.operators.newTitle} description={c.operators.invitationHint} />
       {isManager ? (
-        <div className="max-w-3xl rounded-xl border bg-card p-6">
+        <div className="max-w-3xl rounded-2xl border bg-cell p-5 sm:p-6">
           <OperatorForm
             operatorId={null}
             initial={{}}

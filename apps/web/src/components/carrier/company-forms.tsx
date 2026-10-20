@@ -3,10 +3,12 @@
 import { fleetCopy, managerCompanyCopy } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import type { BusinessUnitOption } from '@/lib/carrier/business-units';
 import {
   archiveBusinessUnitAction,
@@ -21,7 +23,6 @@ import {
 import type { FormState } from '@/lib/forms';
 
 const c = managerCompanyCopy;
-const select = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
@@ -52,20 +53,21 @@ function ConfirmForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
-    <details className="rounded-md text-sm" open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-destructive">{summary}</summary>
-      <form action={formAction} className="mt-2 space-y-2 rounded-md border p-3">
-        <p className="font-medium">{title}</p>
-        <p className="text-muted-foreground">{body}</p>
+    <Disclosure summary={summary} look="inline" tone="red" open={Boolean(state.error)}>
+      <form action={formAction} className="space-y-3">
+        <div className="space-y-0.5">
+          <p className="text-headline text-text">{title}</p>
+          <p className="text-subhead text-text-dim">{body}</p>
+        </div>
         <StateNotice state={state} />
         {Object.entries(hidden).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        <Button type="submit" variant="destructive" size="sm" loading={pending}>
           {confirm}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -77,16 +79,18 @@ export function CreateBusinessUnitForm() {
   const id = useId();
   const [state, action, pending] = useActionState(createBusinessUnitAction, {});
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2" noValidate>
-      <div className="min-w-56 flex-1 space-y-2">
-        <Label htmlFor={`${id}-name`}>{c.businessUnits.nameLabel}</Label>
+    <form action={action} className="flex max-w-xl flex-wrap items-end gap-2" noValidate>
+      <div className="min-w-56 flex-1 space-y-1.5">
+        <Label htmlFor={`${id}-name`} className="block px-1">
+          {c.businessUnits.nameLabel}
+        </Label>
         {/* React resets the form after the action; an error refills the name. */}
         <Input id={`${id}-name`} name="name" maxLength={80} defaultValue={state.values?.name} />
       </div>
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" variant="secondary" loading={pending}>
         {c.businessUnits.create}
       </Button>
-      <div className="w-full">
+      <div className="w-full empty:hidden">
         <StateNotice state={state} />
       </div>
     </form>
@@ -97,24 +101,28 @@ export function RenameBusinessUnitForm({ unit }: { unit: BusinessUnitOption }) {
   const id = useId();
   const [state, action, pending] = useActionState(renameBusinessUnitAction, {});
   return (
-    <details className="text-sm" open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-accent">{c.businessUnits.rename}</summary>
-      <form action={action} className="mt-2 flex flex-wrap items-end gap-2" noValidate>
+    <Disclosure
+      summary={c.businessUnits.rename}
+      look="inline"
+      tone="accent"
+      open={Boolean(state.error)}
+    >
+      <form action={action} className="flex flex-wrap items-end gap-2" noValidate>
         <input type="hidden" name="businessUnitId" value={unit.id} />
-        <div className="space-y-1">
+        <div className="min-w-40 flex-1">
           <Label htmlFor={`${id}-name`} className="sr-only">
             {c.businessUnits.nameLabel}
           </Label>
           <Input id={`${id}-name`} name="name" defaultValue={unit.name} maxLength={80} />
         </div>
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        <Button type="submit" variant="secondary" size="sm" loading={pending}>
           {c.businessUnits.save}
         </Button>
-        <div className="w-full">
+        <div className="w-full empty:hidden">
           <StateNotice state={state} />
         </div>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -146,30 +154,35 @@ export function CoordinatorUnitsForm({
 }) {
   const [state, action, pending] = useActionState(setCoordinatorUnitsAction, {});
   return (
-    <details className="text-sm" open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-accent">{c.coordinators.editUnits}</summary>
-      <form action={action} className="mt-2 space-y-2" noValidate>
+    <Disclosure
+      summary={c.coordinators.editUnits}
+      look="inline"
+      tone="accent"
+      open={Boolean(state.error)}
+    >
+      <form action={action} className="space-y-3" noValidate>
         <input type="hidden" name="profileId" value={profileId} />
-        <fieldset className="space-y-1">
+        <fieldset className="space-y-2">
           <legend className="sr-only">{c.coordinators.unitsLabel}</legend>
           {units.map((unit) => (
-            <label key={unit.id} className="flex items-center gap-2">
+            <label key={unit.id} className="flex items-center gap-2.5 text-subhead text-text">
               <input
                 type="checkbox"
                 name="unitIds"
                 value={unit.id}
                 defaultChecked={selected.includes(unit.id)}
+                className="size-4 accent-accent"
               />
               {unit.name}
             </label>
           ))}
         </fieldset>
         <StateNotice state={state} />
-        <Button type="submit" variant="outline" size="sm" disabled={pending}>
+        <Button type="submit" variant="secondary" size="sm" loading={pending}>
           {c.coordinators.saveUnits}
         </Button>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -210,18 +223,23 @@ export function MoveForm({
     <form action={action} className="flex flex-wrap items-center gap-2" noValidate>
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="id" value={id} />
-      <Label htmlFor={`${formId}-unit`} className="text-xs text-muted-foreground">
+      <Label htmlFor={`${formId}-unit`} className="text-footnote">
         {c.fleet.move}
       </Label>
-      <select id={`${formId}-unit`} name="businessUnitId" defaultValue="" className={select}>
+      <Select
+        id={`${formId}-unit`}
+        name="businessUnitId"
+        defaultValue=""
+        className="w-44 max-w-full"
+      >
         <option value="" disabled />
         {others.map((unit) => (
           <option key={unit.id} value={unit.id}>
             {unit.name}
           </option>
         ))}
-      </select>
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      </Select>
+      <Button type="submit" variant="secondary" size="sm" loading={pending}>
         {c.fleet.moveSubmit}
       </Button>
       {(state.error ?? state.message) && (
@@ -253,7 +271,13 @@ export function RevokeInvitationForm({ invitationId }: { invitationId: string })
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="invitationId" value={invitationId} />
-      <Button type="submit" variant="link" size="sm" className="px-0" disabled={pending}>
+      <Button
+        type="submit"
+        variant="plain"
+        size="sm"
+        className="-ml-3 text-red-text hover:text-red-text"
+        loading={pending}
+      >
         {c.invitations.revoke}
       </Button>
       <StateNotice state={state} />

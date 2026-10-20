@@ -1,10 +1,10 @@
 import { carrierWebCopy, managerCompanyCopy } from '@transport/shared';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { InvitationLinkForm } from '@/components/carrier/invitation-link-form';
+import { BackLink } from '@/components/page-section';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { paths } from '@/lib/routing';
 
@@ -22,22 +22,19 @@ export default async function InviteCarrierOperatorPage() {
   const { viewer, units } = await carrierContext(paths.inviteCarrierOperator);
   return (
     <>
-      <Link href={paths.carrierOperators} className="text-sm text-accent hover:underline">
-        {carrierWebCopy.fleet.operators.back}
-      </Link>
-      <div className="mt-4">
-        <PageHeading title={c.inviteTitle} description={c.inviteDescription} />
-      </div>
+      <BackLink href={paths.carrierOperators}>{carrierWebCopy.fleet.operators.back}</BackLink>
+      <PageHeader title={c.inviteTitle} description={c.inviteDescription} />
       {units.operable.length === 0 ? (
         <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
       ) : (
-        <div className="max-w-xl rounded-xl border bg-card p-6">
+        <div className="max-w-xl rounded-2xl border bg-cell p-5 sm:p-6">
           <InvitationLinkForm
             kind="operator"
             label={c.invite}
             units={units.operable}
             withName
             companyName={viewer.company?.legalName ?? ''}
+            primary
           />
         </div>
       )}

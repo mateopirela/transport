@@ -9,15 +9,16 @@ import {
 } from '@transport/shared';
 import { useActionState, useId, useState } from 'react';
 
-import { Notice } from '@/components/auth-forms';
+import { CheckboxList } from '@/components/carrier/checkbox-list';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ErrorText, Field, fieldHelpId } from '@/components/ui/field';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import { addCarrierRoute, archiveCarrierRoute } from '@/lib/carrier/fleet-actions';
 import type { FormState } from '@/lib/forms';
 
 const c = fleetCopy.routes;
 const w = carrierWebCopy.fleet.routes;
-const select = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
 
 /** Adds a usual route of the company between two preset cities (G10b; B18 on the app). */
 export function RouteForm() {
@@ -34,59 +35,45 @@ export function RouteForm() {
   const errors = state.fieldErrors ?? {};
   const values = state.values ?? {};
   return (
-    <form action={action} className="space-y-4 rounded-xl border bg-card p-4" noValidate>
-      <p className="font-medium">{c.add}</p>
+    <form action={action} className="space-y-5 rounded-2xl border bg-cell p-5" noValidate>
+      <h2 className="text-headline text-text">{c.add}</h2>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         {(['originId', 'destinationId'] as const).map((field) => (
-          <div key={field} className="space-y-2">
-            <Label htmlFor={`${id}-${field}`}>
-              {field === 'originId' ? c.originLabel : c.destinationLabel}
-            </Label>
-            <select
+          <Field
+            key={field}
+            label={field === 'originId' ? c.originLabel : c.destinationLabel}
+            htmlFor={`${id}-${field}`}
+            error={errors[field]}
+          >
+            <Select
               id={`${id}-${field}`}
               name={field}
               defaultValue={values[field] ?? (field === 'originId' ? 'mty' : 'gdl')}
               aria-invalid={errors[field] ? true : undefined}
-              className={select}
+              aria-describedby={errors[field] ? fieldHelpId(`${id}-${field}`) : undefined}
             >
               {CITY_PRESETS.map((city) => (
                 <option key={city.id} value={city.id}>
                   {city.city}, {city.state}
                 </option>
               ))}
-            </select>
-            {errors[field] && <p className="text-xs text-destructive">{errors[field]}</p>}
-          </div>
+            </Select>
+          </Field>
         ))}
-        <fieldset className="space-y-2 sm:col-span-2">
-          <legend className="text-sm font-medium">{c.unitTypesLabel}</legend>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            {UNIT_TYPES.map((type) => (
-              <label key={type} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="unitTypes"
-                  value={type}
-                  checked={unitTypes.includes(type)}
-                  onChange={(event) =>
-                    setUnitTypes((current) =>
-                      event.target.checked
-                        ? [...current, type]
-                        : current.filter((value) => value !== type),
-                    )
-                  }
-                  className="accent-accent"
-                />
-                {unitTypeLabels[type]}
-              </label>
-            ))}
-          </div>
-          {errors.unitTypes && <p className="text-xs text-destructive">{errors.unitTypes}</p>}
-        </fieldset>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <CheckboxList
+            legend={c.unitTypesLabel}
+            name="unitTypes"
+            options={UNIT_TYPES.map((type) => ({ value: type, label: unitTypeLabels[type] }))}
+            checked={unitTypes}
+            onChange={setUnitTypes}
+          />
+          {errors.unitTypes && <ErrorText className="mt-1.5">{errors.unitTypes}</ErrorText>}
+        </div>
       </div>
-      <Button type="submit" variant="accent" size="sm" disabled={pending}>
+      <Button type="submit" variant="primary" loading={pending} className="w-full">
         {c.save}
       </Button>
     </form>
@@ -105,10 +92,16 @@ export function RemoveRouteForm({ routeId }: { routeId: string }) {
       }}
     >
       <input type="hidden" name="routeId" value={routeId} />
-      <Button type="submit" variant="link" size="sm" disabled={pending}>
+      <Button
+        type="submit"
+        variant="plain"
+        size="sm"
+        className="-ml-3 text-red-text hover:text-red-text"
+        loading={pending}
+      >
         {c.remove}
       </Button>
-      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+      {state.error && <ErrorText>{state.error}</ErrorText>}
     </form>
   );
 }

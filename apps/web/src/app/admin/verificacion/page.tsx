@@ -7,8 +7,10 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
+import { PageSection, textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
@@ -48,80 +50,80 @@ export default async function VerificationQueuePage({
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
 
-      <section className="mb-10 space-y-3">
-        <h2 className="text-2xl">{c.companies}</h2>
-        {companies.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {companyResult.total === 0 && companyPage === 1 ? c.emptyCompanies : ''}
-          </p>
-        ) : (
-          <Table headers={[col.company, col.type, col.rfc, col.since, col.status, '']}>
-            {companies.map((company) => (
-              <tr key={company.id}>
-                <td className="font-medium">{company.legal_name}</td>
-                <td>{companyTypeLabels[company.type]}</td>
-                <td className="font-mono text-xs">{company.rfc}</td>
-                <td className="whitespace-nowrap">{formatDateTime(company.created_at)}</td>
-                <td>{c.missing(company.missing)}</td>
-                <td>
-                  <Link href={adminCompanyPath(company.id)} className="text-accent hover:underline">
-                    {c.open}
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-        <Pager
-          page={companyPage}
-          pageSize={QUEUE_PAGE_SIZE}
-          shown={companies.length}
-          total={companyResult.total}
-          href={(n) => withParams(paths.adminQueue, current, { pe: n })}
-        />
-      </section>
+      <div className="space-y-12">
+        <PageSection title={c.companies}>
+          {companies.length === 0 ? (
+            companyResult.total === 0 && companyPage === 1 && <Empty title={c.emptyCompanies} />
+          ) : (
+            <Table headers={[col.company, col.type, col.rfc, col.since, col.status, '']}>
+              {companies.map((company) => (
+                <tr key={company.id}>
+                  <td className="font-semibold">{company.legal_name}</td>
+                  <td>{companyTypeLabels[company.type]}</td>
+                  <td className="tabular-nums">{company.rfc}</td>
+                  <td className="whitespace-nowrap tabular-nums">
+                    {formatDateTime(company.created_at)}
+                  </td>
+                  <td className="text-text-dim">{c.missing(company.missing)}</td>
+                  <td>
+                    <Link href={adminCompanyPath(company.id)} className={textLink}>
+                      {c.open}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+          <Pager
+            page={companyPage}
+            pageSize={QUEUE_PAGE_SIZE}
+            shown={companies.length}
+            total={companyResult.total}
+            href={(n) => withParams(paths.adminQueue, current, { pe: n })}
+          />
+        </PageSection>
 
-      <section className="space-y-3">
-        <h2 className="text-2xl">{c.documents}</h2>
-        {documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {documentResult.total === 0 && documentPage === 1 ? c.emptyDocuments : ''}
-          </p>
-        ) : (
-          <Table headers={[col.document, col.owner, col.company, col.since, '']}>
-            {documents.map((doc) => (
-              <tr key={doc.id}>
-                <td className="font-medium">{doc.requirementName}</td>
-                <td>
-                  <span className="text-muted-foreground">
-                    {documentOwnerTypeLabels[doc.ownerType]}:{' '}
-                  </span>
-                  {doc.ownerName}
-                </td>
-                <td>{doc.companyName}</td>
-                <td className="whitespace-nowrap">{formatDateTime(doc.createdAt)}</td>
-                <td>
-                  <Link
-                    href={`${adminCompanyPath(doc.companyId)}#doc-${doc.id}`}
-                    className="text-accent hover:underline"
-                  >
-                    {c.open}
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-        <Pager
-          page={documentPage}
-          pageSize={QUEUE_PAGE_SIZE}
-          shown={documents.length}
-          total={documentResult.total}
-          href={(n) => withParams(paths.adminQueue, current, { pd: n })}
-        />
-      </section>
+        <PageSection title={c.documents}>
+          {documents.length === 0 ? (
+            documentResult.total === 0 && documentPage === 1 && <Empty title={c.emptyDocuments} />
+          ) : (
+            <Table headers={[col.document, col.owner, col.company, col.since, '']}>
+              {documents.map((doc) => (
+                <tr key={doc.id}>
+                  <td className="font-semibold">{doc.requirementName}</td>
+                  <td>
+                    <span className="text-text-dim">
+                      {documentOwnerTypeLabels[doc.ownerType]}:{' '}
+                    </span>
+                    {doc.ownerName}
+                  </td>
+                  <td>{doc.companyName}</td>
+                  <td className="whitespace-nowrap tabular-nums">
+                    {formatDateTime(doc.createdAt)}
+                  </td>
+                  <td>
+                    <Link
+                      href={`${adminCompanyPath(doc.companyId)}#doc-${doc.id}`}
+                      className={textLink}
+                    >
+                      {c.open}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          )}
+          <Pager
+            page={documentPage}
+            pageSize={QUEUE_PAGE_SIZE}
+            shown={documents.length}
+            total={documentResult.total}
+            href={(n) => withParams(paths.adminQueue, current, { pd: n })}
+          />
+        </PageSection>
+      </div>
     </>
   );
 }

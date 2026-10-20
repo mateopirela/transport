@@ -2,9 +2,14 @@ import { carrierTripsCopy, carrierWebCopy, formatDate } from '@transport/shared'
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
+import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
+import { Segmented } from '@/components/ui/segmented';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import {
@@ -17,7 +22,6 @@ import {
 import { CARRIER_TRIPS_PAGE_SIZE, listCarrierTrips } from '@/lib/carrier/trips';
 import { parsePage, withParams } from '@/lib/pagination';
 import { carrierTripPath, paths } from '@/lib/routing';
-import { cn } from '@/lib/utils';
 
 const c = carrierWebCopy.trips;
 
@@ -54,46 +58,41 @@ export default async function CarrierTripsPage({
 
   return (
     <>
-      <PageHeading title={c.title} description={c.description} />
+      <PageHeader title={c.title} description={c.description} />
 
-      {narrowed && (
-        <p className="mb-4 text-sm">
-          <span className="font-medium">{c.forBusinessUnit(narrowed.name)}</span>{' '}
-          <Link
-            href={withParams(paths.carrierTrips, current, {
-              [TRIP_FILTER_PARAMS.businessUnit]: undefined,
-              p: undefined,
-            })}
-            className="text-accent hover:underline"
-          >
-            {c.allBusinessUnits}
-          </Link>
-        </p>
-      )}
-
-      <nav className="mb-6 flex flex-wrap gap-2 text-sm">
-        {CARRIER_TRIPS_VIEWS.map((tab) => (
-          <Link
-            key={tab}
-            href={withParams(paths.carrierTrips, current, {
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <Segmented
+          label={c.title}
+          value={view}
+          items={CARRIER_TRIPS_VIEWS.map((tab) => ({
+            value: tab,
+            label: c.tabs[tab],
+            href: withParams(paths.carrierTrips, current, {
               [TRIP_FILTER_PARAMS.view]: TRIP_VIEW_PARAMS[tab],
               p: undefined,
-            })}
-            aria-current={tab === view ? 'page' : undefined}
-            className={cn(
-              'rounded-full border px-3 py-1 hover:bg-muted',
-              tab === view && 'border-accent bg-accent/10 text-accent',
-            )}
-          >
-            {c.tabs[tab]}
-          </Link>
-        ))}
-      </nav>
+            }),
+          }))}
+        />
+        {narrowed && (
+          <div className="flex flex-wrap items-center gap-1">
+            <Pill tone="accent">{c.forBusinessUnit(narrowed.name)}</Pill>
+            <Link
+              href={withParams(paths.carrierTrips, current, {
+                [TRIP_FILTER_PARAMS.businessUnit]: undefined,
+                p: undefined,
+              })}
+              className={buttonVariants({ variant: 'plain', size: 'sm' })}
+            >
+              {c.allBusinessUnits}
+            </Link>
+          </div>
+        )}
+      </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {total === 0 ? (view === 'open' ? c.emptyOpen : carrierTripsCopy.list.empty[view]) : ''}
-        </p>
+        total === 0 && (
+          <Empty title={view === 'open' ? c.emptyOpen : carrierTripsCopy.list.empty[view]} />
+        )
       ) : (
         <Table
           headers={[
@@ -107,7 +106,7 @@ export default async function CarrierTripsPage({
         >
           {rows.map((trip) => (
             <tr key={trip.id}>
-              <td className="font-medium">
+              <td className="font-semibold">
                 {trip.load
                   ? carrierTripsCopy.list.route(
                       `${trip.load.origin_city}, ${trip.load.origin_state}`,
@@ -115,22 +114,22 @@ export default async function CarrierTripsPage({
                     )
                   : ''}
               </td>
-              <td>{trip.businessUnitName ?? ''}</td>
-              <td className="whitespace-nowrap">
+              <td className="text-text-dim">{trip.businessUnitName ?? ''}</td>
+              <td className="whitespace-nowrap tabular-nums">
                 {trip.load ? formatDate(trip.load.pickup_window_start) : ''}
               </td>
               <td>
                 {trip.unitName && trip.operatorName ? (
                   carrierTripsCopy.list.assignedTo(trip.unitName, trip.operatorName)
                 ) : (
-                  <span className="text-muted-foreground">{carrierTripsCopy.list.unassigned}</span>
+                  <span className="text-amber-text">{carrierTripsCopy.list.unassigned}</span>
                 )}
               </td>
               <td>
                 <TripStatusBadge status={trip.status} />
               </td>
               <td>
-                <Link href={carrierTripPath(trip.id)} className="text-accent hover:underline">
+                <Link href={carrierTripPath(trip.id)} className={textLink}>
                   {c.open}
                 </Link>
               </td>

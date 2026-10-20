@@ -4,35 +4,27 @@ import {
   unitLabel,
   unitTypeLabels,
   vehicleKindLabels,
-  vehicleReadinessLabels,
   vehicleReleaseCopy,
-  type VehicleReadiness,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { FleetNav } from '@/components/carrier/fleet-nav';
+import { ReadinessPill } from '@/components/carrier/readiness-pill';
+import { textLink } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { listCarrierVehicles, loadFleetContext } from '@/lib/carrier/fleet';
 import { parseFleetFlash } from '@/lib/carrier/fleet-forms';
 import { carrierUnitPath, paths } from '@/lib/routing';
-import { cn } from '@/lib/utils';
 
 const c = carrierWebCopy.fleet;
 
 export const metadata: Metadata = { title: c.units.title };
-
-const READINESS_TONES: Record<VehicleReadiness, string> = {
-  pending_release: 'bg-destructive/10 text-destructive',
-  expired_documents: 'bg-destructive/10 text-destructive',
-  unset: 'bg-muted text-muted-foreground',
-  scheduled: 'bg-accent/10 text-accent',
-  available: 'bg-success/10 text-success',
-};
 
 /** The units of the selected business units with their readiness and availability (G10b; B18 on the app). */
 export default async function CarrierUnitsPage({
@@ -45,25 +37,29 @@ export default async function CarrierUnitsPage({
 
   return (
     <>
-      <PageHeading title={c.title} description={c.units.description} />
+      <PageHeader
+        title={c.title}
+        description={c.units.description}
+        action={
+          isManager && (
+            <Link href={paths.newCarrierUnit} className={buttonVariants({ variant: 'primary' })}>
+              {c.units.add}
+            </Link>
+          )
+        }
+      />
       <FleetNav current="units" />
       {flash === 'baja' && (
-        <div className="mb-4">
-          <Notice tone="success">{c.units.archived}</Notice>
-        </div>
+        <Notice tone="success" className="mb-6">
+          {c.units.archived}
+        </Notice>
       )}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl">{c.units.title}</h2>
-        {isManager ? (
-          <Link href={paths.newCarrierUnit} className={buttonVariants({ variant: 'accent' })}>
-            {c.units.add}
-          </Link>
-        ) : (
-          <p className="text-xs text-muted-foreground">{c.managerOnly}</p>
-        )}
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-title2 text-text">{c.units.title}</h2>
+        {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}
       </div>
       {vehicles.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{c.units.empty}</p>
+        <Empty title={c.units.empty} />
       ) : (
         <Table
           headers={[
@@ -77,30 +73,21 @@ export default async function CarrierUnitsPage({
         >
           {vehicles.map((vehicle) => (
             <tr key={vehicle.id}>
-              <td className="font-medium">
-                {unitLabel(vehicle)}
-                <p className="text-xs font-normal text-muted-foreground">{vehicle.plate}</p>
+              <td>
+                <p className="font-semibold text-text">{unitLabel(vehicle)}</p>
+                <p className="text-footnote text-text-dim tabular-nums">{vehicle.plate}</p>
               </td>
               <td>
                 {vehicleKindLabels[vehicle.kind]}
                 {vehicle.unit_type && (
-                  <p className="text-xs text-muted-foreground">
-                    {unitTypeLabels[vehicle.unit_type]}
-                  </p>
+                  <p className="text-footnote text-text-dim">{unitTypeLabels[vehicle.unit_type]}</p>
                 )}
               </td>
-              <td>{vehicle.businessUnitName ?? ''}</td>
+              <td className="text-text-dim">{vehicle.businessUnitName ?? ''}</td>
               <td>
-                <span
-                  className={cn(
-                    'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
-                    READINESS_TONES[vehicle.readiness],
-                  )}
-                >
-                  {vehicleReadinessLabels[vehicle.readiness]}
-                </span>
+                <ReadinessPill readiness={vehicle.readiness} />
               </td>
-              <td className="text-sm">
+              <td className="text-text-dim">
                 {vehicle.availability && vehicle.readiness !== 'expired_documents'
                   ? c.units.availableAt(
                       vehicle.availability.city,
@@ -109,7 +96,7 @@ export default async function CarrierUnitsPage({
                   : c.units.noAvailability}
               </td>
               <td>
-                <Link href={carrierUnitPath(vehicle.id)} className="text-accent hover:underline">
+                <Link href={carrierUnitPath(vehicle.id)} className={textLink}>
                   {vehicle.readiness === 'pending_release'
                     ? vehicleReleaseCopy.home.open
                     : c.units.open}

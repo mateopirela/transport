@@ -8,10 +8,13 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { FleetNav } from '@/components/carrier/fleet-nav';
+import { textLink } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { listCarrierOperators, type OperatorSummary } from '@/lib/carrier/fleet';
@@ -22,13 +25,17 @@ const c = carrierWebCopy.fleet;
 
 export const metadata: Metadata = { title: c.operators.title };
 
-/** Whether the operator already uses the app, was invited or is not invited yet (D15). */
-function accountLabel(operator: OperatorSummary): string {
-  if (operator.profile_id) return fleetCopy.operators.linked;
+/** Whether the operator already uses the app, was invited or is not invited yet (D15), as a pill. */
+function AccountPill({ operator }: { operator: OperatorSummary }) {
+  if (operator.profile_id) return <Pill tone="ok">{fleetCopy.operators.linked}</Pill>;
   if (operator.invitation) {
-    return fleetCopy.operators.invited(formatDate(operator.invitation.expires_at));
+    return (
+      <Pill tone="accent">
+        {fleetCopy.operators.invited(formatDate(operator.invitation.expires_at))}
+      </Pill>
+    );
   }
-  return fleetCopy.operators.notInvited;
+  return <Pill>{fleetCopy.operators.notInvited}</Pill>;
 }
 
 /** The operators of the selected business units with their license and account (G10b; B18 on the app). */
@@ -41,39 +48,43 @@ export default async function CarrierOperatorsPage({
 
   return (
     <>
-      <PageHeading title={c.title} description={c.operators.description} />
+      <PageHeader
+        title={c.title}
+        description={c.operators.description}
+        action={
+          <>
+            {isManager && (
+              <Link
+                href={paths.newCarrierOperator}
+                className={buttonVariants({ variant: 'secondary' })}
+              >
+                {c.operators.add}
+              </Link>
+            )}
+            {/* G4: the Gerente and the Coordinador invite operators by link. */}
+            {units.operable.length > 0 && (
+              <Link
+                href={paths.inviteCarrierOperator}
+                className={buttonVariants({ variant: 'primary' })}
+              >
+                {managerCompanyCopy.operators.invite}
+              </Link>
+            )}
+          </>
+        }
+      />
       <FleetNav current="operators" />
       {flash === 'baja' && (
-        <div className="mb-4">
-          <Notice tone="success">{c.operators.archived}</Notice>
-        </div>
+        <Notice tone="success" className="mb-6">
+          {c.operators.archived}
+        </Notice>
       )}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl">{c.operators.title}</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* G4: the Gerente and the Coordinador invite operators by link. */}
-          {units.operable.length > 0 && (
-            <Link
-              href={paths.inviteCarrierOperator}
-              className={buttonVariants({ variant: 'accent' })}
-            >
-              {managerCompanyCopy.operators.invite}
-            </Link>
-          )}
-          {isManager ? (
-            <Link
-              href={paths.newCarrierOperator}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {c.operators.add}
-            </Link>
-          ) : (
-            <p className="text-xs text-muted-foreground">{c.managerOnly}</p>
-          )}
-        </div>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-title2 text-text">{c.operators.title}</h2>
+        {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}
       </div>
       {operators.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{c.operators.empty}</p>
+        <Empty title={c.operators.empty} />
       ) : (
         <Table
           headers={[
@@ -87,14 +98,12 @@ export default async function CarrierOperatorsPage({
         >
           {operators.map((operator) => (
             <tr key={operator.id}>
-              <td className="font-medium">{operator.full_name}</td>
-              <td className="text-sm">
-                {operator.phone}
-                {operator.email && (
-                  <p className="text-xs text-muted-foreground">{operator.email}</p>
-                )}
+              <td className="font-semibold">{operator.full_name}</td>
+              <td>
+                <p className="tabular-nums">{operator.phone}</p>
+                {operator.email && <p className="text-footnote text-text-dim">{operator.email}</p>}
               </td>
-              <td className="text-sm whitespace-nowrap">
+              <td className="whitespace-nowrap text-text-dim">
                 {operator.license_type
                   ? c.operators.license(
                       operator.license_type,
@@ -104,13 +113,12 @@ export default async function CarrierOperatorsPage({
                     )
                   : c.operators.noLicense}
               </td>
-              <td>{operator.businessUnitName ?? ''}</td>
-              <td className="text-sm">{accountLabel(operator)}</td>
+              <td className="text-text-dim">{operator.businessUnitName ?? ''}</td>
               <td>
-                <Link
-                  href={carrierOperatorPath(operator.id)}
-                  className="text-accent hover:underline"
-                >
+                <AccountPill operator={operator} />
+              </td>
+              <td>
+                <Link href={carrierOperatorPath(operator.id)} className={textLink}>
                   {c.operators.open}
                 </Link>
               </td>

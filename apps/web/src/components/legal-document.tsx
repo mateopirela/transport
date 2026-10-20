@@ -1,51 +1,53 @@
 import { authCopy, legalCopy, type LegalText } from '@transport/shared';
 import Link from 'next/link';
 
+import { Notice } from '@/components/ui/notice';
 import { paths } from '@/lib/routing';
 
-/** Public legal page (B27): privacy notice or terms, readable without a session. */
+const navLink =
+  'rounded-full px-3 py-1.5 text-subhead text-text-dim transition-colors duration-200 outline-none hover:bg-surface-high hover:text-text focus-visible:ring-[3px] focus-visible:ring-ring/40';
+
+/**
+ * Public legal page (B27): privacy notice or terms, readable without a
+ * session. The light glass bar of the shell with the name and the two
+ * documents, then one reading column on the warm page.
+ */
 export function LegalDocument({ text }: { text: LegalText }) {
   return (
-    <div className="min-h-dvh bg-background">
-      <header className="bg-navy px-4 py-6 text-navy-foreground sm:px-8">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link href={paths.home} className="text-xl">
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 border-b border-glass-line bg-glass backdrop-blur-xl backdrop-saturate-150">
+        {/* Grows with its text: on a phone the two links wrap under the name, never out of the bar. */}
+        <div className="mx-auto flex min-h-14 w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
+          <Link href={paths.home} className="text-headline whitespace-nowrap text-text">
             {authCopy.appName}
           </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link href={paths.privacy} className="hover:underline">
+          <nav className="-mx-3 flex gap-1 whitespace-nowrap">
+            <Link href={paths.privacy} className={navLink}>
               {legalCopy.privacyLink}
             </Link>
-            <Link href={paths.terms} className="hover:underline">
+            <Link href={paths.terms} className={navLink}>
               {legalCopy.termsLink}
             </Link>
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl space-y-8 px-4 py-10 sm:px-8">
-        {text.draft && (
-          <p
-            role="note"
-            className="rounded-md border border-accent/30 bg-accent/5 px-4 py-3 text-sm"
-          >
-            {legalCopy.draftBanner}
-          </p>
-        )}
+      <main className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 py-10 sm:px-6 sm:py-14">
         <div className="space-y-2">
-          <h1 className="text-3xl leading-tight">{text.title}</h1>
-          <p className="text-sm text-muted-foreground">{legalCopy.version(text.version)}</p>
+          <h1 className="text-title1 text-text sm:text-large-title">{text.title}</h1>
+          <p className="text-subhead text-text-dim">{legalCopy.version(text.version)}</p>
         </div>
-        <p className="leading-relaxed">{text.intro}</p>
+        {text.draft && <Notice tone="info">{legalCopy.draftBanner}</Notice>}
+        <p className="text-body text-text">{text.intro}</p>
         {text.sections.map((section) => (
           <section key={section.title} className="space-y-3">
-            <h2 className="text-xl">{section.title}</h2>
+            <h2 className="text-title3 text-text">{section.title}</h2>
             {section.paragraphs.map((paragraph) => (
-              <p key={paragraph} className="leading-relaxed">
+              <p key={paragraph} className="text-body text-text">
                 {paragraph}
               </p>
             ))}
             {section.items && (
-              <ul className="list-disc space-y-1 pl-6 leading-relaxed">
+              <ul className="list-disc space-y-1.5 pl-6 text-body text-text marker:text-text-faint">
                 {section.items.map((item) => (
                   <li key={item}>{item}</li>
                 ))}

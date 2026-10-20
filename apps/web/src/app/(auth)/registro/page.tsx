@@ -15,23 +15,32 @@ export default function SignUpPage() {
   return (
     <AuthCard
       title={c.title}
+      wide
       description={c.description}
       footer={
         <>
-          <p className="text-muted-foreground">
+          <p>
             {consent.before}{' '}
-            <Link href={paths.terms} target="_blank" className="text-accent hover:underline">
+            <Link
+              href={paths.terms}
+              target="_blank"
+              className="font-semibold text-accent-text hover:underline"
+            >
               {legalCopy.termsLink}
             </Link>{' '}
             {consent.middle}{' '}
-            <Link href={paths.privacy} target="_blank" className="text-accent hover:underline">
+            <Link
+              href={paths.privacy}
+              target="_blank"
+              className="font-semibold text-accent-text hover:underline"
+            >
               {legalCopy.privacyLink}
             </Link>
             {consent.after}
           </p>
-          <p className="text-muted-foreground">
+          <p>
             {c.haveAccount}{' '}
-            <Link href={paths.signIn} className="text-accent hover:underline">
+            <Link href={paths.signIn} className="font-semibold text-accent-text hover:underline">
               {c.signInLink}
             </Link>
           </p>

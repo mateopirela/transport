@@ -9,8 +9,10 @@ import {
 import { useActionState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ErrorText, Field as FieldFrame, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Notice } from '@/components/ui/notice';
+import { Select } from '@/components/ui/select';
 import {
   completeCompany,
   joinCompany,
@@ -21,7 +23,6 @@ import {
   updatePassword,
 } from '@/lib/auth/actions';
 import type { FormState } from '@/lib/forms';
-import { cn } from '@/lib/utils';
 
 const f = authCopy.fields;
 const kinds = authCopy.registrationKinds;
@@ -48,34 +49,15 @@ export function ActionForm({
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       {children(state)}
-      <Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" className="mt-2 w-full" disabled={pending} loading={pending}>
         {pending ? pendingLabel : submit}
       </Button>
     </form>
   );
 }
 
-export function Notice({
-  tone,
-  children,
-}: {
-  tone: 'error' | 'success' | 'info';
-  children: React.ReactNode;
-}) {
-  return (
-    <p
-      role={tone === 'error' ? 'alert' : 'status'}
-      className={cn(
-        'rounded-md border px-4 py-3 text-sm',
-        tone === 'error' && 'border-destructive/30 bg-destructive/5 text-destructive',
-        tone === 'success' && 'border-success/30 bg-success/5 text-success',
-        tone === 'info' && 'border-accent/30 bg-accent/5',
-      )}
-    >
-      {children}
-    </p>
-  );
-}
+/** The kit's notice, by the name the screens import it with. */
+export { Notice };
 
 export function Field({
   name,
@@ -93,29 +75,24 @@ export function Field({
   const error = state.fieldErrors?.[name];
   const id = `field-${name}`;
   return (
-    <div className={cn('space-y-2', className)}>
-      <Label htmlFor={id}>{label}</Label>
+    <FieldFrame label={label} htmlFor={id} error={error} hint={hint} className={className}>
       <Input
         id={id}
         name={name}
         defaultValue={input.type === 'password' ? undefined : state.values?.[name]}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error || hint ? `${id}-help` : undefined}
+        aria-describedby={error || hint ? fieldHelpId(id) : undefined}
         {...input}
       />
-      {(error ?? hint) && (
-        <p
-          id={`${id}-help`}
-          className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}
-        >
-          {error ?? hint}
-        </p>
-      )}
-    </div>
+    </FieldFrame>
   );
 }
 
-/** Radio group; the options are rendered as labelled cards. */
+/** A choice drawn as a cell: the native radio stays (keyboard, forms, tests), the cell follows it. */
+const choiceCell =
+  'flex cursor-pointer items-start gap-3 rounded-2xl border bg-cell px-4 py-3 transition-colors duration-200 hover:bg-surface-high/50 has-checked:border-accent has-checked:bg-accent-soft has-focus-visible:ring-[3px] has-focus-visible:ring-ring/40';
+
+/** Radio group; the options are rendered as labelled cells. */
 function RadioCards({
   name,
   label,
@@ -132,31 +109,28 @@ function RadioCards({
   const error = state.fieldErrors?.[name];
   const current = state.values?.[name] ?? defaultValue;
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{label}</legend>
+    <fieldset className="space-y-1.5">
+      <legend className="mb-1.5 px-1 text-label text-text-dim">{label}</legend>
       <div className="grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
-          <label
-            key={option.value}
-            className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm has-checked:border-accent has-checked:bg-accent/5"
-          >
+          <label key={option.value} className={choiceCell}>
             <input
               type="radio"
               name={name}
               value={option.value}
               defaultChecked={current === option.value}
-              className="mt-0.5 accent-accent"
+              className="mt-1 size-4 shrink-0 accent-accent"
             />
             <span>
-              <span className="block font-medium">{option.label}</span>
+              <span className="block text-callout font-semibold text-text">{option.label}</span>
               {option.hint && (
-                <span className="block text-xs text-muted-foreground">{option.hint}</span>
+                <span className="mt-0.5 block text-footnote text-text-dim">{option.hint}</span>
               )}
             </span>
           </label>
         ))}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <ErrorText>{error}</ErrorText>}
     </fieldset>
   );
 }
@@ -165,41 +139,40 @@ function PersonTypeField({ state }: { state: FormState }) {
   const error = state.fieldErrors?.personType;
   const current = state.values?.personType ?? 'moral';
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{f.personType}</legend>
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+    <fieldset className="space-y-1.5 sm:col-span-2">
+      <legend className="mb-1.5 px-1 text-label text-text-dim">{f.personType}</legend>
+      <div className="grid grid-cols-2 gap-2">
         {(['moral', 'fisica'] as const).map((value) => (
-          <label key={value} className="flex items-center gap-2">
+          <label key={value} className={`${choiceCell} items-center`}>
             <input
               type="radio"
               name="personType"
               value={value}
               defaultChecked={current === value}
-              className="accent-accent"
+              className="size-4 shrink-0 accent-accent"
             />
-            {value === 'moral' ? f.personTypeMoral : f.personTypeFisica}
+            <span className="text-callout text-text">
+              {value === 'moral' ? f.personTypeMoral : f.personTypeFisica}
+            </span>
           </label>
         ))}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <ErrorText>{error}</ErrorText>}
     </fieldset>
   );
 }
 
-const selectClass =
-  'h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive';
-
 function StateField({ state }: { state: FormState }) {
   const error = state.fieldErrors?.fiscalState;
+  const id = 'field-fiscalState';
   return (
-    <div className="space-y-2">
-      <Label htmlFor="field-fiscalState">{f.fiscalState}</Label>
-      <select
-        id="field-fiscalState"
+    <FieldFrame label={f.fiscalState} htmlFor={id} error={error}>
+      <Select
+        id={id}
         name="fiscalState"
         defaultValue={state.values?.fiscalState ?? ''}
         aria-invalid={error ? true : undefined}
-        className={selectClass}
+        aria-describedby={error ? fieldHelpId(id) : undefined}
       >
         <option value="">{f.fiscalStatePlaceholder}</option>
         {MX_STATES.map((name) => (
@@ -207,9 +180,8 @@ function StateField({ state }: { state: FormState }) {
             {name}
           </option>
         ))}
-      </select>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+      </Select>
+    </FieldFrame>
   );
 }
 
@@ -240,7 +212,7 @@ export function CompanyFiscalFields({
         state={state}
         className={withRfc ? undefined : 'sm:col-span-2'}
       />
-      <h4 className="pt-2 text-base font-medium sm:col-span-2">{f.fiscalAddress}</h4>
+      <h4 className="px-1 pt-3 text-headline text-text sm:col-span-2">{f.fiscalAddress}</h4>
       <Field
         name="fiscalStreet"
         autoComplete="address-line1"
@@ -298,6 +270,27 @@ const KIND_OPTIONS: { value: CompanyRegistrationKind; label: string; hint: strin
   { value: 'owner_operator', label: kinds.owner_operator, hint: kinds.ownerOperatorHint },
 ];
 
+/** A step of a long form: its title and a line under it, then its fields (§1.7). */
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 border-t pt-6">
+      <div className="space-y-1 px-1">
+        <h3 className="text-title3 text-text">{title}</h3>
+        {description && <p className="text-subhead text-text-dim">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 /** Account fields of a sign-up: name, phone, email and password. */
 function AccountFields({ state }: { state: FormState }) {
   return (
@@ -345,11 +338,12 @@ export function SignUpForm() {
             state={state}
             defaultValue="shipper"
           />
-          <h3 className="text-lg">{c.accountSection}</h3>
-          <AccountFields state={state} />
-          <h3 className="pt-2 text-lg">{c.companySection}</h3>
-          <p className="-mt-3 text-sm text-muted-foreground">{c.companyHint}</p>
-          <CompanyFiscalFields state={state} />
+          <FormSection title={c.accountSection}>
+            <AccountFields state={state} />
+          </FormSection>
+          <FormSection title={c.companySection} description={c.companyHint}>
+            <CompanyFiscalFields state={state} />
+          </FormSection>
         </>
       )}
     </ActionForm>

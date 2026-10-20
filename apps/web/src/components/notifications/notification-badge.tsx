@@ -46,7 +46,7 @@ export function NotificationBadge({
   if (count === 0) return null;
   return (
     <span
-      className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs text-accent-foreground"
+      className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-caption font-semibold text-accent-ink tabular-nums"
       aria-label={c.badgeLabel(count)}
     >
       {c.badge(count)}

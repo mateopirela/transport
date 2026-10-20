@@ -100,7 +100,8 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await page.getByLabel(f.fiscalMunicipality).fill('Monterrey');
     await page.getByLabel(f.fiscalState).selectOption('Nuevo León');
     await page.getByRole('button', { name: authCopy.signUp.submit }).click();
-    await expect(page.getByText(authCopy.checkEmail.title)).toBeVisible();
+    // The screen's title is its h1 (U6), which Next's route announcer also reads out.
+    await expect(page.getByRole('heading', { name: authCopy.checkEmail.title })).toBeVisible();
 
     await page.goto(await waitForConfirmationPath(shipper.email));
     await expect(page).toHaveURL(/\/cuenta-en-revision/u);

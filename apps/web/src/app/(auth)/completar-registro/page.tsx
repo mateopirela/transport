@@ -40,6 +40,7 @@ export default async function CompleteCompanyPage({
   return (
     <AuthCard
       title={c.title}
+      wide
       description={c.description}
       footer={<SignOutButton variant="link" className="mx-auto" />}
     >

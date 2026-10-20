@@ -28,16 +28,16 @@ export function BusinessUnitPicker({
   const pathname = usePathname();
   const form = useRef<HTMLFormElement>(null);
   if (operable.length === 0) {
-    return <p className="text-xs text-muted-foreground">{c.none}</p>;
+    return <p className="text-footnote text-text-dim">{c.none}</p>;
   }
   const [only] = operable;
   if (operable.length === 1 && only) {
-    return <p className="text-xs text-muted-foreground">{fleetCopy.businessUnit(only.name)}</p>;
+    return <p className="text-footnote text-text-dim">{fleetCopy.businessUnit(only.name)}</p>;
   }
   return (
     <form ref={form} action={selectBusinessUnit} className="flex items-center gap-2">
       <input type="hidden" name="volver" value={pathname} />
-      <label htmlFor="business-unit" className="text-xs text-muted-foreground">
+      <label htmlFor="business-unit" className="text-footnote text-text-dim">
         {c.label}
       </label>
       <select
@@ -45,7 +45,7 @@ export function BusinessUnitPicker({
         name="unidad"
         defaultValue={selectedId ?? ALL_BUSINESS_UNITS}
         onChange={() => form.current?.requestSubmit()}
-        className="h-8 max-w-56 rounded-md border border-input bg-background px-2 text-sm"
+        className="h-8 max-w-56 cursor-pointer rounded-full border bg-cell px-3 text-subhead text-text outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
       >
         <option value={ALL_BUSINESS_UNITS}>{c.all}</option>
         {operable.map((unit) => (

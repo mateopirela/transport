@@ -9,8 +9,9 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Field, Notice } from '@/components/auth-forms';
+import { Field } from '@/components/auth-forms';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
 import { formEntries, invalidForm, type FormState } from '@/lib/forms';
 import { redeemInvitation, type RedeemOutcome } from '@/lib/auth/redeem';
 
@@ -54,11 +55,8 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
     return (
       <div className="space-y-4">
         <Notice tone="success">{copy.doneTitle}</Notice>
-        <p className="text-sm">{copy.doneDescription}</p>
-        <a
-          href={OPEN_APP_LINK}
-          className={buttonVariants({ variant: 'accent', size: 'lg', className: 'w-full' })}
-        >
+        <p className="px-1 text-callout text-text-dim">{copy.doneDescription}</p>
+        <a href={OPEN_APP_LINK} className={buttonVariants({ className: 'w-full' })}>
           {c.operator.openApp}
         </a>
       </div>
@@ -99,11 +97,11 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
           state={state}
         />
       </div>
-      <Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" className="mt-2 w-full" disabled={pending} loading={pending}>
         {pending ? copy.pending : copy.submit}
       </Button>
-      <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="text-accent hover:underline">
+      <p className="text-center text-subhead">
+        <Link href="/login" className="font-semibold text-accent-text hover:underline">
           {authCopy.signUp.signInLink}
         </Link>
       </p>

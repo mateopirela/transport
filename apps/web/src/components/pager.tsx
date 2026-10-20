@@ -1,6 +1,8 @@
 import { adminCopy } from '@transport/shared';
 import Link from 'next/link';
 
+import { buttonVariants } from '@/components/ui/button';
+
 const c = adminCopy.pager;
 
 /**
@@ -22,22 +24,25 @@ export function Pager({
 }) {
   if (total <= pageSize && page === 1) return null;
   const first = (page - 1) * pageSize + 1;
+  const link = buttonVariants({ variant: 'secondary', size: 'sm' });
   return (
-    <div className="flex flex-wrap items-center gap-4 text-sm">
+    <div className="flex flex-wrap items-center gap-2">
       {shown > 0 ? (
-        <span className="text-muted-foreground">{c.range(first, first + shown - 1, total)}</span>
+        <span className="mr-auto px-1 text-footnote text-text-dim tabular-nums">
+          {c.range(first, first + shown - 1, total)}
+        </span>
       ) : (
-        <Link href={href(1)} className="text-accent hover:underline">
+        <Link href={href(1)} className={link}>
           {c.first}
         </Link>
       )}
       {page > 1 && shown > 0 && (
-        <Link href={href(page - 1)} className="text-accent hover:underline">
+        <Link href={href(page - 1)} className={link}>
           {c.previous}
         </Link>
       )}
       {page * pageSize < total && (
-        <Link href={href(page + 1)} className="text-accent hover:underline">
+        <Link href={href(page + 1)} className={link}>
           {c.next}
         </Link>
       )}

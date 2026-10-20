@@ -24,6 +24,7 @@ export * from './shared-documents';
 export * from './tracking';
 export * from './trip-documents';
 export * from './trips';
+export * from './ui';
 export * from './validation';
 export * from './vehicle-release';
 export * from './verification';

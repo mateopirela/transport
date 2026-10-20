@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { AuthCard } from '@/components/auth-card';
-import { Notice, SignInForm } from '@/components/auth-forms';
+import { SignInForm } from '@/components/auth-forms';
+import { Notice } from '@/components/ui/notice';
 import { paths, safeNextPath } from '@/lib/routing';
 
 const c = authCopy.signIn;
@@ -20,13 +21,16 @@ export default async function SignInPage({ searchParams }: PageProps<'/login'>) 
       footer={
         <>
           <p>
-            <Link href={paths.forgotPassword} className="text-accent hover:underline">
+            <Link
+              href={paths.forgotPassword}
+              className="font-semibold text-accent-text hover:underline"
+            >
               {c.forgotPassword}
             </Link>
           </p>
-          <p className="text-muted-foreground">
+          <p>
             {c.noAccount}{' '}
-            <Link href={paths.signUp} className="text-accent hover:underline">
+            <Link href={paths.signUp} className="font-semibold text-accent-text hover:underline">
               {c.signUpLink}
             </Link>
           </p>

@@ -1,6 +1,9 @@
 import type * as React from 'react';
 
-/** Bordered, horizontally scrollable table with a header row. */
+/**
+ * A table for admin (§1.6): inside a group, rows of 48 px or more, no
+ * stripes, the header in `label`. Scrolls sideways on a narrow screen.
+ */
 export function Table({
   headers,
   children,
@@ -9,18 +12,20 @@ export function Table({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b bg-muted/50 text-xs text-muted-foreground">
+    <div className="overflow-x-auto rounded-2xl border bg-cell">
+      <table className="w-full text-left text-subhead">
+        <thead className="border-b text-label text-text-dim">
           <tr>
             {headers.map((header) => (
-              <th key={header} scope="col" className="px-4 py-2.5 font-medium whitespace-nowrap">
+              <th key={header} scope="col" className="px-4 py-3 whitespace-nowrap">
                 {header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y [&_td]:px-4 [&_td]:py-3 [&_td]:align-top">{children}</tbody>
+        <tbody className="divide-y divide-separator [&_td]:h-12 [&_td]:px-4 [&_td]:py-3 [&_td]:align-middle [&_tr]:transition-colors [&_tr:hover]:bg-surface-high/40">
+          {children}
+        </tbody>
       </table>
     </div>
   );

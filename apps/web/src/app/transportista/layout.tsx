@@ -26,7 +26,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
     { href: paths.carrierLoads, label: carrierWebCopy.nav.loads },
     { href: paths.carrierNegotiations, label: carrierWebCopy.nav.negotiations },
     { href: paths.carrierTrips, label: carrierWebCopy.nav.trips },
-    { href: paths.carrierUnits, label: carrierWebCopy.nav.fleet },
+    { href: paths.carrierUnits, match: paths.carrierFleet, label: carrierWebCopy.nav.fleet },
     ...(isManager ? [{ href: paths.carrierCompany, label: managerCompanyCopy.title }] : []),
     {
       href: paths.carrierNotifications,

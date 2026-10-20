@@ -28,15 +28,17 @@ export function ErrorFallback({
   }, [error]);
 
   return (
-    <main className="mx-auto flex min-h-[60dvh] max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="font-serif text-2xl">{c.title}</h1>
-      <p className="text-muted-foreground">{body}</p>
-      {error.digest && <p className="text-xs text-muted-foreground">{c.reference(error.digest)}</p>}
-      <div className="flex gap-3">
-        <Button onClick={onRetry}>{retryLabel}</Button>
-        <Link href="/" className={buttonVariants({ variant: 'outline' })}>
+    <main className="mx-auto flex min-h-[60dvh] max-w-md flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+      <h1 className="text-title2 text-text">{c.title}</h1>
+      <p className="text-callout text-text-dim">{body}</p>
+      {error.digest && (
+        <p className="text-caption text-text-faint tabular-nums">{c.reference(error.digest)}</p>
+      )}
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <Link href="/" className={buttonVariants({ variant: 'secondary' })}>
           {c.home}
         </Link>
+        <Button onClick={onRetry}>{retryLabel}</Button>
       </div>
     </main>
   );

@@ -1,15 +1,12 @@
 'use client';
 
-import {
-  appearanceCopy,
-  THEME_CHOICES,
-  parseThemeChoice,
-  type ThemeChoice,
-} from '@transport/shared';
+import { appearanceCopy, THEME_CHOICES, type ThemeChoice } from '@transport/shared';
 import { useState } from 'react';
 
+import { Segmented } from '@/components/ui/segmented';
 import { themeClass, themeCookie } from '@/lib/theme';
-import { cn } from '@/lib/utils';
+
+const ITEMS = THEME_CHOICES.map((value) => ({ value, label: appearanceCopy[value] }));
 
 /**
  * "Apariencia" (D26) in the account menu: Sistema, Claro or Oscuro. The choice
@@ -25,9 +22,7 @@ export function ThemeSwitcher({
 }) {
   const [choice, setChoice] = useState(initial);
 
-  function choose(value: string) {
-    const next = parseThemeChoice(value);
-    if (!next) return;
+  function choose(next: ThemeChoice) {
     setChoice(next);
     // The choice is a preference of this browser, read back by the root layout.
     document.cookie = themeCookie(next, window.location.protocol === 'https:');
@@ -38,20 +33,12 @@ export function ThemeSwitcher({
   }
 
   return (
-    <select
-      aria-label={appearanceCopy.title}
+    <Segmented
+      label={appearanceCopy.title}
+      items={ITEMS}
       value={choice}
-      onChange={(event) => choose(event.target.value)}
-      className={cn(
-        'h-8 cursor-pointer rounded-full border bg-transparent px-2 text-sm sm:px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-        className,
-      )}
-    >
-      {THEME_CHOICES.map((option) => (
-        <option key={option} value={option}>
-          {appearanceCopy[option]}
-        </option>
-      ))}
-    </select>
+      onChange={choose}
+      className={className}
+    />
   );
 }

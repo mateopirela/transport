@@ -67,9 +67,10 @@ const AREA_ROUTES: Record<
 /**
  * Routes reachable in any area: the e-mail confirmation deep link lands on
  * `auth`, and an invitation link may be opened with any session (the screen
- * tells a signed-in user what to do).
+ * tells a signed-in user what to do). `dev` holds the kit's sample screen
+ * (app/dev/kit.tsx), which only renders in a development build.
  */
-const ALWAYS_ALLOWED = new Set(['auth', 'invitacion']);
+const ALWAYS_ALLOWED = new Set(['auth', 'invitacion', 'dev']);
 
 /**
  * The route to replace the current one with, or null to stay. `segments` are

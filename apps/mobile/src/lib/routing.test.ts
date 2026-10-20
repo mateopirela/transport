@@ -96,6 +96,11 @@ describe('redirectFor', () => {
     expect(redirectFor('auth', ['auth', 'callback'])).toBeNull();
     expect(redirectFor('carrier', ['auth', 'callback'])).toBeNull();
   });
+
+  it('leaves the kit sample screen alone (it only renders in development)', () => {
+    expect(redirectFor('auth', ['dev', 'kit'])).toBeNull();
+    expect(redirectFor('operator', ['dev', 'kit'])).toBeNull();
+  });
 });
 
 describe('redirectFor: shared loads (G7)', () => {

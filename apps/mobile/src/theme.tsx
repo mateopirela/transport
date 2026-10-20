@@ -47,6 +47,48 @@ export { radii, shape } from '@transport/shared';
 
 export const spacing = tokenSpacing;
 
+/** Icon sizes (§1.4): 24 in a tab or a row that navigates, 20 inside a cell, 16 for a chevron. */
+export const iconSize = Object.freeze({ regular: 24, cell: 20, small: 16 });
+
+/**
+ * The floating tab bar (§1.6): a pill `height` high, `side` from each edge,
+ * `inset` over the bottom edge where the phone has none. Screens in the tabs
+ * keep clear of it (Screen does it).
+ */
+export const tabBar = Object.freeze({
+  height: 66,
+  side: spacing.md,
+  inset: spacing.md,
+  padding: 7,
+});
+
+/** Durations of the system's motion (§1.5), in milliseconds. */
+export const motion = Object.freeze({ fast: 150, standard: 250, pulse: 700 });
+
+/**
+ * The only two shadows of the system (§1.3): the floating tab bar and the
+ * selected segment. Shadows are black in both themes.
+ */
+export const shadows = Object.freeze({
+  tabBar: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  segment: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+});
+
+/** How see-through a pressed control and a disabled one are. */
+export const opacity = Object.freeze({ pressed: 0.7, disabled: 0.5, backdrop: 0.4 });
+
 /** What useFonts loads before the splash hides. The keys are the family names. */
 export const fontFiles = {
   HankenGrotesk_400Regular,
@@ -253,23 +295,11 @@ export function useStackScreenOptions() {
   );
 }
 
-/** Colours of a tab bar until U2 brings the floating one: the page colour, a hairline, the accent on the active tab. */
+/** Tabs of every tab navigator: no header (the screens open with a large title), the page colour behind. The bar is components/tab-bar.tsx. */
 export function useTabsScreenOptions() {
-  const { colors: c, type } = useTheme();
+  const { colors: c } = useTheme();
   return useMemo(
-    () =>
-      ({
-        headerShown: false,
-        tabBarActiveTintColor: c.accentText,
-        tabBarInactiveTintColor: c.textDim,
-        tabBarStyle: {
-          backgroundColor: c.cell,
-          borderTopColor: c.separator,
-          borderTopWidth: StyleSheet.hairlineWidth,
-        },
-        tabBarLabelStyle: { fontFamily: type.caption.fontFamily },
-        sceneStyle: { backgroundColor: c.bg },
-      }) as const,
-    [c, type],
+    () => ({ headerShown: false, sceneStyle: { backgroundColor: c.bg } }) as const,
+    [c],
   );
 }

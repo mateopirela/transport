@@ -1207,7 +1207,10 @@ function ChipField({
 // ---------------------------------------------------------------------------
 
 /** The kit's styles on the colours and type of one theme. */
-function makeStyles({ colors, type }: Look) {
+function makeStyles({ colors, type, theme }: Look) {
+  // What is lifted (a selected segment) is lighter than its track in both themes.
+  const [track, lifted] =
+    theme === 'dark' ? [colors.cell, colors.surfaceHigh] : [colors.surfaceHigh, colors.cell];
   const hairline = { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.separator };
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg },
@@ -1369,7 +1372,7 @@ function makeStyles({ colors, type }: Look) {
       flexDirection: 'row',
       padding: spacing.xs / 2,
       borderRadius: shape.pill,
-      backgroundColor: colors.surfaceHigh,
+      backgroundColor: track,
     },
     segment: {
       flex: 1,
@@ -1380,7 +1383,7 @@ function makeStyles({ colors, type }: Look) {
       paddingHorizontal: spacing.sm,
     },
     // The selected segment carries one of the two shadows of the system (§1.3).
-    segmentOn: { backgroundColor: colors.cell, ...shadows.segment },
+    segmentOn: { backgroundColor: lifted, ...shadows.segment },
     segmentText: { ...type.subhead, color: colors.textDim },
     segmentTextOn: { ...type.subhead, fontFamily: type.headline.fontFamily, color: colors.text },
     chip: {

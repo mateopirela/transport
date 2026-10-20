@@ -14,8 +14,8 @@ tags: [carrier, manager]
     visible: 'Más, tab.*'
     timeout: 30000
 - tapOn: 'Más, tab.*'
-# Menu rows read "<label>, <description>".
-- tapOn: 'Mi empresa,.*'
+# A menu row reads its title (the kit's icons are hidden from accessibility, U2).
+- tapOn: 'Mi empresa'
 - extendedWaitUntil:
     visible: 'Regional Monterrey'
     timeout: 15000

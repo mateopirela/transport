@@ -131,7 +131,7 @@ export function TabBar({
   );
 }
 
-function makeStyles({ colors, type }: Look) {
+function makeStyles({ colors, type, theme }: Look) {
   const inner = tabBar.height - tabBar.padding * 2;
   return StyleSheet.create({
     float: { position: 'absolute', left: tabBar.side, right: tabBar.side },
@@ -155,7 +155,11 @@ function makeStyles({ colors, type }: Look) {
       justifyContent: 'center',
       gap: 2,
     },
-    tabOn: { backgroundColor: colors.cell, ...shadows.segment },
+    // On the dark glass the cell colour would not show: the selected tab takes a step up.
+    tabOn: {
+      backgroundColor: theme === 'dark' ? colors.surfaceHigh : colors.cell,
+      ...shadows.segment,
+    },
     label: { ...type.caption, fontFamily: font[500] },
     labelOn: { fontFamily: font[600] },
     badge: {

@@ -172,17 +172,21 @@ interface ThemeValue extends Look {
   /** What the person chose: a theme, or to follow the phone. */
   readonly choice: ThemeChoice;
   readonly setChoice: (choice: ThemeChoice) => void;
+  /** False until the saved choice was read, so the first screen is already in the right theme. */
+  readonly ready: boolean;
 }
 
 const ThemeContext = createContext<ThemeValue>({
   ...LOOKS.light,
   choice: APP_DEFAULT_THEME_CHOICE,
   setChoice: () => undefined,
+  ready: true,
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const scheme = useColorScheme();
   const [choice, setStoredChoice] = useState<ThemeChoice>(APP_DEFAULT_THEME_CHOICE);
+  const [ready, setReady] = useState(false);
   // A choice made while the saved one is still being read wins over it.
   const chosen = useRef(false);
 
@@ -193,7 +197,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const parsed = parseThemeChoice(saved);
         if (!cancelled && !chosen.current && parsed) setStoredChoice(parsed);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      // Read or not, the app opens: without a saved choice it is the default.
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -207,8 +215,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<ThemeValue>(
-    () => ({ ...LOOKS[resolveTheme(choice, scheme)], choice, setChoice }),
-    [choice, scheme, setChoice],
+    () => ({ ...LOOKS[resolveTheme(choice, scheme)], choice, setChoice, ready }),
+    [choice, scheme, setChoice, ready],
   );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

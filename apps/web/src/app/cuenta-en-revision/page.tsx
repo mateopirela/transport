@@ -43,7 +43,7 @@ function Stepper({ steps }: { steps: { label: string; state: StepState }[] }) {
           <span
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-              step.state === 'done' ? 'bg-success text-white' : 'bg-muted',
+              step.state === 'done' ? 'bg-success text-success-foreground' : 'bg-muted',
               step.state === 'current' && 'bg-accent text-accent-foreground',
             )}
           >

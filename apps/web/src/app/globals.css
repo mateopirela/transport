@@ -95,6 +95,8 @@
   --destructive: var(--red);
   /* Success is mostly small text ("Verificada", "Entregado"): its AA tone. */
   --success: var(--ok-text);
+  /* Ink on a success fill: white on the deep green, dark on the pale one. */
+  --success-foreground: var(--cell);
   --border: var(--separator);
   --input: var(--separator);
   --ring: var(--accent);
@@ -142,6 +144,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

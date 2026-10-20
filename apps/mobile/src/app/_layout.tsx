@@ -28,10 +28,11 @@ function RootLayout() {
 }
 
 function ThemedRoot() {
-  const { theme, box } = useTheme();
+  const { theme, box, ready: themeReady } = useTheme();
   const [fontsLoaded, fontError] = useFonts(fontFiles);
-  // Without the font (a failed load) the app still opens, on the system font.
-  const ready = fontsLoaded || fontError !== null;
+  // The splash stays until the font and the saved theme are in. Without the
+  // font (a failed load) the app still opens, on the system font.
+  const ready = themeReady && (fontsLoaded || fontError !== null);
 
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync().catch(() => undefined);

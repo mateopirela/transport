@@ -1,0 +1,79 @@
+# Temporary (U1 screenshots, not committed).
+appId: ${APP_ID}
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+    permissions:
+      location: always
+      camera: allow
+      notifications: deny
+- openLink: ${DEV_CLIENT_URL}
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd
+- takeScreenshot: u1-signin-light
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+- extendedWaitUntil:
+    visible: 'Más, tab.*'
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: u1-home-light
+- tapOn: 'Más, tab.*'
+- extendedWaitUntil:
+    visible: 'Operadores.*'
+    timeout: 15000
+- takeScreenshot: u1-more-light
+- tapOn: 'Operadores.*'
+- waitForAnimationToEnd
+- takeScreenshot: u1-operators-light
+- swipe:
+    start: 2%, 50%
+    end: 90%, 50%
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: 'Oscuro'
+    centerElement: true
+- takeScreenshot: u1-appearance-light
+- tapOn: 'Oscuro'
+- waitForAnimationToEnd
+- takeScreenshot: u1-appearance-dark
+- scrollUntilVisible:
+    element: 'Operadores.*'
+    direction: UP
+- takeScreenshot: u1-more-dark
+- tapOn: 'Operadores.*'
+- waitForAnimationToEnd
+- takeScreenshot: u1-operators-dark
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - swipe:
+          start: 2%, 50%
+          end: 90%, 50%
+- waitForAnimationToEnd
+- tapOn: 'Inicio, tab.*'
+- waitForAnimationToEnd
+- takeScreenshot: u1-home-dark
+- tapOn: 'Más, tab.*'
+- scrollUntilVisible:
+    element: 'Cerrar sesión'
+    centerElement: true
+- tapOn: 'Cerrar sesión'
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 15000
+- takeScreenshot: u1-signin-dark

@@ -18,6 +18,7 @@ Runbook para llevar la plataforma a `staging` y `production`, y para regresar a 
 | Workflow                                                  | Cuándo                                    | Qué hace                                                                                                   |
 | --------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [deploy-staging.yml](../.github/workflows/deploy-staging.yml) | cada merge a `main` (o manual)            | migraciones → Edge Functions → web en staging                                                              |
+| [deploy-production.yml](../.github/workflows/deploy-production.yml) | cada merge a `main` | migraciones → Edge Functions → web en producción (D27; mientras no exista staging) |
 | [release.yml](../.github/workflows/release.yml)           | manual, desde `main` o un tag `v*`        | lo mismo en producción, después de la aprobación del environment `production`                              |
 | [mobile-release.yml](../.github/workflows/mobile-release.yml) | manual, desde `main` o un tag `v*`        | `eas build` del perfil elegido y, con `submit`, envío a TestFlight y a la pista interna de Play            |
 
@@ -58,7 +59,7 @@ Crear los environments `staging` y `production` con estos **secretos** (los mism
 | `VERCEL_PROJECT_ID`     | igual que el anterior                                                |
 | `EXPO_TOKEN`            | expo.dev → Access tokens (robot user)                                |
 
-En `production`: **Required reviewers** (Mateo) y _Deployment branches and tags_ limitado a `main` y `v*`. Variables (no secretas): `EAS_PROJECT_ID` a nivel repositorio (ver §3.4), `ASC_APP_ID` en `production` (id numérico de la app en App Store Connect) y, si se usa, `WEB_STAGING_ALIAS` en `staging` (p. ej. `staging.<dominio>`).
+En `production`: _Deployment branches and tags_ limitado a `main` y `v*`, **sin** _Required reviewers_ mientras rija D27 (un revisor obligatorio dejaría cada despliegue automático esperando aprobación). Cuando exista staging y se revise D27, volver a exigir a Mateo como revisor. Variables (no secretas): `EAS_PROJECT_ID` a nivel repositorio (ver §3.4), `ASC_APP_ID` en `production` (id numérico de la app en App Store Connect) y, si se usa, `WEB_STAGING_ALIAS` en `staging` (p. ej. `staging.<dominio>`).
 
 ### 3.3 Vercel (web)
 
@@ -86,12 +87,15 @@ El plugin es idempotente y **falla con un error claro** si el `AppDelegate` gene
 
 ## 4. Liberar una versión
 
-1. Merge a `main` → **Deploy staging** corre solo. Revisar el resumen del job (pendientes de migración, URL de la web).
-2. Probar en staging el flujo principal: registro → verificación → publicar → ofertar → asignar → estados y GPS → entrega. Con una build `preview` de la app.
-3. Crear el tag: `git tag v2026.10.20 && git push origin v2026.10.20` (formato `vAAAA.MM.DD[-n]`).
-4. Actions → **Release production** → _Run workflow_ sobre el tag, con `migrate` activado. Aprobar el environment. El paso _List pending migrations_ muestra qué se aplicará.
-5. Actions → **Mobile release** sobre el mismo tag, perfil `production`, `submit` activado. Al terminar el procesamiento de Apple/Google, habilitar la build para los grupos de prueba.
-6. Verificar en producción: iniciar sesión en la web, abrir `/aviso-de-privacidad`, y en la app el inicio de sesión y una notificación de prueba. Revisar Sentry (`production`).
+Mientras rija D27 (sin staging), producción se actualiza sola:
+
+1. Merge a `main` (con el gate D14) → **Deploy production** corre solo: migraciones → Edge Functions → web. **Deploy staging** también corre, y se salta mientras no existan sus secretos. Revisar el resumen del job (migraciones aplicadas, URL de la web).
+2. Verificar en producción: iniciar sesión en la web, abrir `/aviso-de-privacidad` y recorrer el flujo que cambió.
+3. App móvil (cuando haya cambios para las tiendas): crear el tag (`git tag v2026.10.20 && git push origin v2026.10.20`, formato `vAAAA.MM.DD[-n]`) y correr Actions → **Mobile release** sobre él, perfil `production`, `submit` activado. Al terminar el procesamiento de Apple/Google, habilitar la build para los grupos de prueba. Revisar Sentry (`production`).
+
+**Release production** (manual) queda como camino de recuperación: volver a desplegar un tag anterior con `migrate` desactivado (ver §5), o repetir un despliegue que falló a medias.
+
+Cuando exista staging y se revise D27, el flujo vuelve a ser: merge → staging → probar ahí el flujo principal (registro → verificación → publicar → ofertar → asignar → estados y GPS → entrega) con una build `preview` → tag → **Release production** con aprobación.
 
 ### Reglas para migraciones en producción
 

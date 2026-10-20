@@ -1,0 +1,20 @@
+name: Deploy production
+
+# Every merge to main goes to production (migrations, Edge Functions and the
+# web app), decided by Mateo on 2026-10-19 while there is no staging project.
+# Release production (release.yml) stays for manual runs: re-deploying an
+# older v* tag, or a run without migrations. docs/release.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+    secrets: inherit

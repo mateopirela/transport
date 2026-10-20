@@ -12,9 +12,12 @@ import Link from 'next/link';
 
 import { ProviderBadge } from '@/components/shared-documents/provider-status';
 import { buttonVariants } from '@/components/ui/button';
-import { Table } from '@/components/ui/table';
+import { Group } from '@/components/ui/group';
+import { Pill } from '@/components/ui/pill';
+import { groupRow } from '@/components/ui/variants';
 import { formatDelta, type BoardRow, type BoardVehicle } from '@/lib/offers/board';
 import { negotiationPath } from '@/lib/routing';
+import { negotiationTone, verificationTone } from '@/lib/status-tones';
 import { cn } from '@/lib/utils';
 
 const c = offersCopy.board;
@@ -22,36 +25,30 @@ const number = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
 
 /** Carrier verification status (companies, B03), as the shipper sees it. */
 export function VerificationBadge({ status }: { status: VerificationStatus }) {
-  return (
-    <span
-      className={cn(
-        'inline-block rounded-full border px-2 py-0.5 text-xs whitespace-nowrap',
-        status === 'approved'
-          ? 'border-success/30 bg-success/10 text-success'
-          : 'border-destructive/30 bg-destructive/5 text-destructive',
-      )}
-    >
-      {offersCopy.verification[status]}
-    </span>
-  );
+  return <Pill tone={verificationTone(status)}>{offersCopy.verification[status]}</Pill>;
 }
 
 export function UnitSummary({ vehicle }: { vehicle: BoardVehicle | null }) {
-  if (!vehicle) return <span className="text-muted-foreground">{c.noUnit}</span>;
+  if (!vehicle) return <span className="text-text-dim">{c.noUnit}</span>;
   const type = vehicle.unit_type
     ? unitTypeLabels[vehicle.unit_type]
     : vehicleKindLabels[vehicle.kind];
   const capacity =
     vehicle.capacity_kg === null ? null : c.unitCapacity(number.format(vehicle.capacity_kg));
   return (
-    <div className="space-y-1">
-      <p>{[type, capacity, vehicle.model_year].filter(Boolean).join(' · ')}</p>
-      <p
-        className={cn('text-xs', vehicle.documents_complete ? 'text-success' : 'text-destructive')}
+    <span className="block space-y-0.5">
+      <span className="block text-text">
+        {[type, capacity, vehicle.model_year].filter(Boolean).join(' · ')}
+      </span>
+      <span
+        className={cn(
+          'block text-footnote',
+          vehicle.documents_complete ? 'text-ok-text' : 'text-red-text',
+        )}
       >
         {vehicle.documents_complete ? c.unitDocsComplete : c.unitDocsIncomplete}
-      </p>
-    </div>
+      </span>
+    </span>
   );
 }
 
@@ -63,8 +60,9 @@ export function negotiationLabel(row: BoardRow): string {
 }
 
 /**
- * Comparator of the offers of a load: one row per carrier, with its
- * verification and its provider status with the shipper (G6).
+ * Comparator of the offers of a load: one cell per carrier with its offer
+ * against the proposed price, its unit, its verification and its provider
+ * status with the shipper (G6), and the way into the negotiation.
  */
 export function OfferBoard({
   loadId,
@@ -77,61 +75,59 @@ export function OfferBoard({
   providerStates?: Readonly<Record<string, ProviderState>>;
 }) {
   return (
-    <Table
-      headers={[
-        c.columns.carrier,
-        c.columns.amount,
-        c.columns.vsProposed,
-        c.columns.unit,
-        c.columns.status,
-        c.columns.actions,
-      ]}
-    >
+    <Group>
       {rows.map((row) => (
-        <tr key={row.negotiationId} className={cn(row.state === 'accepted' && 'bg-success/5')}>
-          <td>
-            <p className="font-medium">{row.carrierName}</p>
-            <div className="mt-1 flex flex-wrap gap-1">
+        <div
+          key={row.negotiationId}
+          className={cn(
+            groupRow,
+            'flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-4 py-3.5',
+          )}
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-headline text-text">{row.carrierName}</p>
               <VerificationBadge status={row.carrierStatus} />
               <ProviderBadge state={providerStates[row.carrierCompanyId] ?? 'pending'} />
             </div>
-          </td>
-          <td className="whitespace-nowrap">
-            <p className="font-medium">{formatMxn(row.latest.amount_cents)}</p>
-            {row.latest.side === 'shipper' && (
-              <p className="text-xs text-muted-foreground">{c.yourOffer}</p>
-            )}
-            <p className="text-xs text-muted-foreground">{formatDateTime(row.latest.created_at)}</p>
-          </td>
-          <td
-            className={cn(
-              'whitespace-nowrap',
-              row.deltaCents > 0 && 'text-destructive',
-              row.deltaCents < 0 && 'text-success',
-            )}
-          >
-            {formatDelta(row.deltaCents, c.same)}
-          </td>
-          <td>
-            <UnitSummary vehicle={row.vehicle} />
-          </td>
-          <td className="whitespace-nowrap">{negotiationLabel(row)}</td>
-          <td>
+            <p className="flex flex-wrap items-baseline gap-x-2 text-subhead text-text-dim">
+              <span className="text-title3 text-text tabular-nums">
+                {formatMxn(row.latest.amount_cents)}
+              </span>
+              <span
+                className={cn(
+                  'tabular-nums',
+                  row.deltaCents > 0 && 'text-red-text',
+                  row.deltaCents < 0 && 'text-ok-text',
+                )}
+              >
+                {c.columns.vsProposed}: {formatDelta(row.deltaCents, c.same)}
+              </span>
+            </p>
+            <p className="text-footnote text-text-dim">
+              {row.latest.side === 'shipper' && <>{c.yourOffer} · </>}
+              {formatDateTime(row.latest.created_at)}
+            </p>
+            <div className="text-subhead">
+              <UnitSummary vehicle={row.vehicle} />
+            </div>
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-col sm:items-end">
+            <Pill tone={negotiationTone(row.state)}>{negotiationLabel(row)}</Pill>
             <Link
               href={negotiationPath(loadId, row.negotiationId)}
-              className={buttonVariants({
-                variant: row.state === 'respond' ? 'accent' : 'outline',
-                size: 'sm',
-              })}
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
             >
               {c.open}
             </Link>
             {row.unreadMessages > 0 && (
-              <p className="mt-1 text-xs text-accent">{c.unread(row.unreadMessages)}</p>
+              <p className="text-footnote font-semibold text-accent-text">
+                {c.unread(row.unreadMessages)}
+              </p>
             )}
-          </td>
-        </tr>
+          </div>
+        </div>
       ))}
-    </Table>
+    </Group>
   );
 }

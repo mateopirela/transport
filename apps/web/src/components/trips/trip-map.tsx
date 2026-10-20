@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { RouteDiagram, type RoutePoint } from '@/components/loads/route-map';
 import { googleMapId, googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
+import { mapColors } from '@/lib/map-colors';
 
 const c = clientTripsCopy.map;
 
@@ -72,7 +73,7 @@ export function TripMap({
           const line = new google.maps.Polyline({
             map,
             path: [...trail],
-            strokeColor: '#13294b',
+            strokeColor: mapColors.trail,
             strokeWeight: 4,
           });
           cleanup.push(() => line.setMap(null));
@@ -80,9 +81,9 @@ export function TripMap({
         const last = trail.at(-1);
         if (last) {
           const pin = new PinElement({
-            background: '#2f6fe4',
-            borderColor: '#13294b',
-            glyphColor: '#ffffff',
+            background: mapColors.pin,
+            borderColor: mapColors.pinBorder,
+            glyphColor: mapColors.pinGlyph,
           });
           const marker = new AdvancedMarkerElement({
             map,
@@ -108,7 +109,7 @@ export function TripMap({
 
   const showMap = Boolean(key) && !failed;
   return (
-    <div className="relative h-72 overflow-hidden rounded-lg border bg-muted">
+    <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high lg:h-96">
       <div ref={container} className="absolute inset-0" hidden={!showMap} />
       {!showMap && (
         <RouteDiagram

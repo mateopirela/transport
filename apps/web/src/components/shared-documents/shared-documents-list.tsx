@@ -7,6 +7,9 @@ import {
   type SharedDocumentRow,
 } from '@transport/shared';
 
+import { buttonVariants } from '@/components/ui/button';
+import { Group } from '@/components/ui/group';
+import { groupRow } from '@/components/ui/variants';
 import { sharedDocumentHref } from '@/lib/shared-documents/links';
 import { cn } from '@/lib/utils';
 
@@ -27,9 +30,11 @@ function ownerTitle(group: SharedDocumentGroup): string {
 
 function RowDetails({ row }: { row: SharedDocumentRow }) {
   return (
-    <div className="space-y-0.5">
-      <p className="font-medium">{row.requirement_name}</p>
-      <p className="text-xs text-muted-foreground">
+    <div className="min-w-0 flex-1 space-y-0.5">
+      <p className={cn('text-body', row.active ? 'text-text' : 'text-text-dim')}>
+        {row.requirement_name}
+      </p>
+      <p className="text-footnote text-text-dim">
         {[
           row.expires_at ? c.expires(formatDateTime(row.expires_at)) : null,
           c.sharedAt(formatDateTime(row.granted_at)),
@@ -59,55 +64,66 @@ export function SharedDocumentsList({
   const copy = mode === 'client' ? c.client : c.carrier;
   const groups = groupSharedDocuments(rows);
   return (
-    <section className="space-y-3" aria-labelledby={`shared-documents-${mode}`}>
-      <h2 id={`shared-documents-${mode}`} className="text-2xl">
-        {copy.title}
-      </h2>
-      <p className="text-sm text-muted-foreground">{copy.description}</p>
+    <section className="space-y-4" aria-labelledby={`shared-documents-${mode}`}>
+      <div className="space-y-1 px-1">
+        <h2 id={`shared-documents-${mode}`} className="text-title2 text-text">
+          {copy.title}
+        </h2>
+        <p className="text-subhead text-text-dim">{copy.description}</p>
+      </div>
       {groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{copy.empty}</p>
+        <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
+          {copy.empty}
+        </p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {groups.map((group) => (
-            <div key={`${group.ownerType}:${group.ownerLabel ?? ''}`} className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">{ownerTitle(group)}</h3>
-              <ul className="divide-y rounded-xl border bg-card text-sm">
-                {group.rows.map((row) => (
-                  <li
-                    key={row.share_id}
-                    className={cn(
-                      'flex flex-wrap items-center justify-between gap-3 p-4',
-                      !row.active && 'text-muted-foreground',
-                    )}
-                  >
-                    <RowDetails row={row} />
-                    {mode === 'client' ? (
-                      <a
-                        href={sharedDocumentHref(row.share_id)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={c.client.viewLabel(row.requirement_name)}
-                        className="font-medium text-accent hover:underline"
-                      >
-                        {c.client.view}
-                      </a>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className={cn('text-xs', row.active && 'text-success')}>
-                          {row.active
-                            ? c.carrier.active
-                            : c.carrier.revoked(
-                                row.revoked_reason
-                                  ? documentShareRevokeReasonLabels[row.revoked_reason]
-                                  : c.revokeFallback,
-                              )}
-                        </span>
-                        {canRevoke && row.active && <RevokeShareButton shareId={row.share_id} />}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            <div key={`${group.ownerType}:${group.ownerLabel ?? ''}`}>
+              <h3 className="mb-1.5 px-4 text-label text-text-dim">{ownerTitle(group)}</h3>
+              <Group>
+                <ul>
+                  {group.rows.map((row) => (
+                    <li
+                      key={row.share_id}
+                      className={cn(
+                        groupRow,
+                        'flex min-h-12.5 flex-wrap items-center justify-between gap-3 px-4 py-2.5',
+                      )}
+                    >
+                      <RowDetails row={row} />
+                      {mode === 'client' ? (
+                        <a
+                          href={sharedDocumentHref(row.share_id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={c.client.viewLabel(row.requirement_name)}
+                          className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+                        >
+                          {c.client.view}
+                        </a>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span
+                            className={cn(
+                              'text-footnote',
+                              row.active ? 'text-ok-text' : 'text-text-dim',
+                            )}
+                          >
+                            {row.active
+                              ? c.carrier.active
+                              : c.carrier.revoked(
+                                  row.revoked_reason
+                                    ? documentShareRevokeReasonLabels[row.revoked_reason]
+                                    : c.revokeFallback,
+                                )}
+                          </span>
+                          {canRevoke && row.active && <RevokeShareButton shareId={row.share_id} />}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Group>
             </div>
           ))}
         </div>

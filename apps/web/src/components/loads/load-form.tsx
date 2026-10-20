@@ -15,12 +15,15 @@ import { useActionState, useState } from 'react';
 
 import { Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { ErrorText, Field as FieldFrame, fieldHelpId } from '@/components/ui/field';
+import { Group } from '@/components/ui/group';
+import { Select as SelectControl } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { formEntries, type FormState } from '@/lib/forms';
 import { saveLoad } from '@/lib/loads/actions';
 import { parseLoadForm, placeFromValues, type PlaceValue } from '@/lib/loads/form';
 
-import { PlaceField, selectClass } from './place-field';
+import { PlaceField } from './place-field';
 import { RouteMap, type RoutePoint } from './route-map';
 
 const c = loadsCopy.form;
@@ -31,9 +34,6 @@ const requirementOptions = toOptions(SPECIAL_REQUIREMENTS, specialRequirementLab
 
 const toPoint = (place: PlaceValue | null): RoutePoint | null =>
   place && { lat: Number(place.lat), lng: Number(place.lng), label: place.city };
-
-const textareaClass =
-  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive';
 
 /**
  * Create or edit a load. Validates in the browser with the same schema as the
@@ -128,24 +128,24 @@ export function LoadForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field name="price" label={c.price} hint={c.priceHint} inputMode="decimal" state={view} />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="field-notes">{c.notes}</Label>
-          <textarea
+        <FieldFrame label={c.notes} htmlFor="field-notes" error={errors.notes}>
+          <Textarea
             id="field-notes"
             name="notes"
             rows={3}
             maxLength={1000}
             defaultValue={view.values?.notes}
             aria-invalid={errors.notes ? true : undefined}
-            className={textareaClass}
+            aria-describedby={errors.notes ? fieldHelpId('field-notes') : undefined}
           />
-          {errors.notes && <p className="text-xs text-destructive">{errors.notes}</p>}
-        </div>
+        </FieldFrame>
       </Section>
 
-      <div className="flex flex-wrap gap-3">
+      {/* The one primary of the screen, at the end on the right (§1.7). It stays
+          first in the form, so Enter still publishes. */}
+      <div className="flex flex-col gap-2 sm:flex-row-reverse">
         {loadId ? (
-          <Button type="submit" variant="accent" size="lg" disabled={pending}>
+          <Button type="submit" disabled={pending} loading={pending}>
             {pending ? c.pending : c.saveChanges}
           </Button>
         ) : (
@@ -154,9 +154,8 @@ export function LoadForm({
               type="submit"
               name="intent"
               value="publish"
-              variant="accent"
-              size="lg"
               disabled={pending}
+              loading={pending}
             >
               {pending ? c.pending : c.publish}
             </Button>
@@ -164,8 +163,7 @@ export function LoadForm({
               type="submit"
               name="intent"
               value="draft"
-              variant="outline"
-              size="lg"
+              variant="secondary"
               disabled={pending}
             >
               {c.saveDraft}
@@ -187,11 +185,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="space-y-4 rounded-xl border bg-card p-5 sm:p-6">
-      <legend className="px-1 font-serif text-xl">{title}</legend>
-      {hint && <p className="-mt-2 text-xs text-muted-foreground">{hint}</p>}
-      {children}
-    </fieldset>
+    <Group label={title} footer={hint}>
+      <div className="space-y-4 p-4 sm:p-5">{children}</div>
+    </Group>
   );
 }
 
@@ -207,15 +203,15 @@ function Select({
   state: FormState;
 }) {
   const error = state.fieldErrors?.[name];
+  const id = `field-${name}`;
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`field-${name}`}>{label}</Label>
-      <select
-        id={`field-${name}`}
+    <FieldFrame label={label} htmlFor={id} error={error}>
+      <SelectControl
+        id={id}
         name={name}
         defaultValue={state.values?.[name] ?? ''}
         aria-invalid={error ? true : undefined}
-        className={selectClass}
+        aria-describedby={error ? fieldHelpId(id) : undefined}
       >
         <option value="">{c.select}</option>
         {options.map((option) => (
@@ -223,9 +219,8 @@ function Select({
             {option.label}
           </option>
         ))}
-      </select>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+      </SelectControl>
+    </FieldFrame>
   );
 }
 
@@ -233,23 +228,26 @@ function Requirements({ state }: { state: FormState }) {
   const selected = new Set(state.values?.specialRequirements?.split(',') ?? []);
   const error = state.fieldErrors?.specialRequirements;
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{c.specialRequirements}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <fieldset className="space-y-1.5">
+      <legend className="mb-1.5 px-1 text-label text-text-dim">{c.specialRequirements}</legend>
+      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
         {requirementOptions.map((option) => (
-          <label key={option.value} className="flex items-center gap-2 text-sm">
+          <label
+            key={option.value}
+            className="flex min-h-11 cursor-pointer items-center gap-3 px-1 text-callout text-text"
+          >
             <input
               type="checkbox"
               name="specialRequirements"
               value={option.value}
               defaultChecked={selected.has(option.value)}
-              className="accent-accent"
+              className="size-4 shrink-0 accent-accent"
             />
             {option.label}
           </label>
         ))}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <ErrorText>{error}</ErrorText>}
     </fieldset>
   );
 }

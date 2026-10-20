@@ -15,9 +15,14 @@ import {
 } from '@transport/shared';
 import Link from 'next/link';
 
+import { PAGE_CONTAINER } from '@/components/app-shell';
 import { PositionMap } from '@/components/share/position-map';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
+import { ValueRow } from '@/components/ui/cell';
+import { Group } from '@/components/ui/group';
+import { groupRow } from '@/components/ui/variants';
 import { paths } from '@/lib/routing';
+import { cn } from '@/lib/utils';
 
 const c = shareLinksCopy.public;
 const number = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 2 });
@@ -25,16 +30,21 @@ const number = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 2 });
 /** Frame of the public pages (G7): no session, no navigation, just the brand. */
 export function PublicShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <header className="bg-navy px-4 py-5 text-navy-foreground sm:px-8">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <Link href={paths.home} className="font-serif text-xl">
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 border-b border-glass-line bg-glass backdrop-blur-xl backdrop-saturate-150">
+        <div
+          className={cn(
+            PAGE_CONTAINER,
+            'flex min-h-14 max-w-3xl items-center justify-between gap-4 py-2',
+          )}
+        >
+          <Link href={paths.home} className="text-headline text-text">
             {authCopy.appName}
           </Link>
-          <span className="text-xs text-navy-foreground/75">{c.sharedBy}</span>
+          <span className="text-right text-footnote text-text-dim">{c.sharedBy}</span>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8 sm:px-8">
+      <main className={cn(PAGE_CONTAINER, 'max-w-3xl flex-1 space-y-8 py-8 sm:py-10')}>
         {children}
       </main>
     </div>
@@ -44,9 +54,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
 /** What a visitor sees for an unknown, expired or revoked link: all alike. */
 export function ShareUnavailable() {
   return (
-    <section className="space-y-2 rounded-xl border bg-card p-6">
-      <h1 className="text-2xl">{c.unavailableTitle}</h1>
-      <p className="text-muted-foreground">{c.unavailableBody}</p>
+    <section className="flex flex-col items-center gap-1 rounded-2xl border bg-cell px-6 py-12 text-center">
+      <h1 className="text-title3 text-text">{c.unavailableTitle}</h1>
+      <p className="max-w-sm text-subhead text-text-dim">{c.unavailableBody}</p>
     </section>
   );
 }
@@ -54,14 +64,13 @@ export function ShareUnavailable() {
 function Details({ rows }: { rows: [string, string | null][] }) {
   const details = rows.filter((row): row is [string, string] => row[1] !== null);
   return (
-    <dl className="grid gap-x-6 gap-y-4 rounded-xl border bg-card p-6 sm:grid-cols-2">
+    <Group>
       {details.map(([label, value]) => (
-        <div key={label} className="space-y-1">
-          <dt className="text-xs text-muted-foreground">{label}</dt>
-          <dd className="text-sm">{value}</dd>
-        </div>
+        <ValueRow key={label} label={label}>
+          {value}
+        </ValueRow>
       ))}
-    </dl>
+    </Group>
   );
 }
 
@@ -76,10 +85,10 @@ const window = (w: { start: string; end: string }) =>
 export function SharedLoad({ data }: { data: PublicSharedLoad }) {
   return (
     <>
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">{c.title.load}</p>
-        <h1 className="text-3xl sm:text-4xl">{route(data)}</h1>
-        <p className="text-muted-foreground">{places(data)}</p>
+      <div className="space-y-1.5">
+        <p className="text-label text-text-dim">{c.title.load}</p>
+        <h1 className="text-title1 text-text sm:text-large-title">{route(data)}</h1>
+        <p className="text-callout text-text-dim">{places(data)}</p>
       </div>
       <Details
         rows={[
@@ -97,7 +106,9 @@ export function SharedLoad({ data }: { data: PublicSharedLoad }) {
           ],
         ]}
       />
-      <p className="text-xs text-muted-foreground">{c.expires(formatDateTime(data.expiresAt))}</p>
+      <p className="px-1 text-footnote text-text-dim">
+        {c.expires(formatDateTime(data.expiresAt))}
+      </p>
     </>
   );
 }
@@ -107,30 +118,33 @@ export function SharedTrip({ data }: { data: PublicSharedTrip }) {
   const active = isTripActive(data.status);
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{c.title.trip}</p>
-          <h1 className="text-3xl sm:text-4xl">{route(data)}</h1>
-          <p className="text-muted-foreground">{places(data)}</p>
+      <div className="space-y-1.5">
+        <p className="text-label text-text-dim">{c.title.trip}</p>
+        <h1 className="text-title1 text-text sm:text-large-title">{route(data)}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <TripStatusBadge status={data.status} />
+          <p className="text-callout text-text-dim">{places(data)}</p>
         </div>
-        <TripStatusBadge status={data.status} />
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-2xl">{c.position}</h2>
+        <h2 className="px-1 text-title2 text-text">{c.position}</h2>
         {data.lastPosition ? (
           <>
             <PositionMap position={{ lat: data.lastPosition.lat, lng: data.lastPosition.lng }} />
-            <p className="text-sm" role="status">
+            <p className="px-1 text-subhead text-text" role="status">
               {c.positionAt(formatDateTime(data.lastPosition.recordedAt))}
             </p>
           </>
         ) : (
-          <p className="text-sm text-muted-foreground" role="status">
+          <p
+            className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim"
+            role="status"
+          >
             {active ? c.positionWaiting : c.positionUnavailable}
           </p>
         )}
-        <p className="text-xs text-muted-foreground">{c.refreshes}</p>
+        <p className="px-1 text-footnote text-text-dim">{c.refreshes}</p>
       </section>
 
       <Details
@@ -153,26 +167,38 @@ export function SharedTrip({ data }: { data: PublicSharedTrip }) {
       />
 
       <section className="space-y-3">
-        <h2 className="text-2xl">{c.timeline}</h2>
+        <h2 className="px-1 text-title2 text-text">{c.timeline}</h2>
         {data.timeline.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{c.timelineEmpty}</p>
+          <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
+            {c.timelineEmpty}
+          </p>
         ) : (
-          <ol className="divide-y rounded-xl border bg-card">
-            {data.timeline.map((event, index) => (
-              <li
-                key={`${event.type}-${event.occurredAt}-${index}`}
-                className="flex flex-wrap items-baseline justify-between gap-2 p-4 text-sm"
-              >
-                <p className="font-medium">{tripEventTypeLabels[event.type]}</p>
-                <time className="text-xs text-muted-foreground" dateTime={event.occurredAt}>
-                  {formatDateTime(event.occurredAt)}
-                </time>
-              </li>
-            ))}
-          </ol>
+          <Group>
+            <ol>
+              {data.timeline.map((event, index) => (
+                <li
+                  key={`${event.type}-${event.occurredAt}-${index}`}
+                  className={cn(
+                    groupRow,
+                    'flex min-h-12.5 flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-4 py-2.5',
+                  )}
+                >
+                  <p className="text-body text-text">{tripEventTypeLabels[event.type]}</p>
+                  <time
+                    className="text-footnote text-text-dim tabular-nums"
+                    dateTime={event.occurredAt}
+                  >
+                    {formatDateTime(event.occurredAt)}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          </Group>
         )}
       </section>
-      <p className="text-xs text-muted-foreground">{c.expires(formatDateTime(data.expiresAt))}</p>
+      <p className="px-1 text-footnote text-text-dim">
+        {c.expires(formatDateTime(data.expiresAt))}
+      </p>
     </>
   );
 }

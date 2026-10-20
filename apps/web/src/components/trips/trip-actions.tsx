@@ -4,13 +4,14 @@ import { clientTripsCopy, INCIDENT_KINDS, incidentKindLabels } from '@transport/
 import { useActionState, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
+import { Disclosure } from '@/components/disclosure';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field, fieldHelpId } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { nextAttemptKey } from '@/lib/attempt-key';
 import type { FormState } from '@/lib/forms';
 import { confirmDelivery, reportIncident } from '@/lib/trips/actions';
-
-const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 /**
  * Confirms the delivery of a delivered trip, with optional notes. Every submit
@@ -30,26 +31,26 @@ export function ConfirmDeliveryForm({
   const attemptKey = useAttemptKey(clientEventId, state);
   const notesError = state.fieldErrors?.notes;
   return (
-    <form action={action} className="space-y-3 rounded-xl border bg-card p-4" noValidate>
-      <p className="font-medium">{c.title}</p>
-      <p className="text-sm text-muted-foreground">{c.help}</p>
+    <form action={action} className="space-y-4 rounded-2xl border bg-cell p-4" noValidate>
+      <div className="space-y-1">
+        <p className="text-headline text-text">{c.title}</p>
+        <p className="text-subhead text-text-dim">{c.help}</p>
+      </div>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="clientEventId" value={attemptKey} />
-      <div className="space-y-1.5">
-        <Label htmlFor="delivery-notes">{c.notes}</Label>
-        <textarea
+      <Field label={c.notes} htmlFor="delivery-notes" error={notesError}>
+        <Textarea
           id="delivery-notes"
           name="notes"
           rows={2}
           maxLength={1000}
           aria-invalid={notesError ? true : undefined}
-          className={textarea}
+          aria-describedby={notesError ? fieldHelpId('delivery-notes') : undefined}
         />
-        {notesError && <p className="text-xs text-destructive">{notesError}</p>}
-      </div>
-      <Button type="submit" variant="accent" disabled={pending}>
+      </Field>
+      <Button type="submit" className="w-full" disabled={pending} loading={pending}>
         {pending ? c.confirming : c.confirm}
       </Button>
     </form>
@@ -93,23 +94,18 @@ export function ReportIncidentForm({
   const descriptionError = state.fieldErrors?.description;
   return (
     <div className="space-y-2">
-      <details
-        className="rounded-lg border p-4 open:bg-muted/40"
-        open={Boolean(state.error || kindError || descriptionError)}
-      >
-        <summary className="cursor-pointer text-sm font-medium">{c.report}</summary>
-        <form action={action} className="mt-4 space-y-3" noValidate>
+      <Disclosure summary={c.report} open={Boolean(state.error || kindError || descriptionError)}>
+        <form action={action} className="space-y-4" noValidate>
           {state.error && <Notice tone="error">{state.error}</Notice>}
           <input type="hidden" name="tripId" value={tripId} />
           <input type="hidden" name="clientEventId" value={attemptKey} />
-          <div className="space-y-1.5">
-            <Label htmlFor="incident-kind">{c.kind}</Label>
-            <select
+          <Field label={c.kind} htmlFor="incident-kind" error={kindError}>
+            <Select
               id="incident-kind"
               name="kind"
               defaultValue={state.values?.kind ?? ''}
               aria-invalid={kindError ? true : undefined}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              aria-describedby={kindError ? fieldHelpId('incident-kind') : undefined}
             >
               <option value="" disabled />
               {INCIDENT_KINDS.map((kind) => (
@@ -117,27 +113,30 @@ export function ReportIncidentForm({
                   {incidentKindLabels[kind]}
                 </option>
               ))}
-            </select>
-            {kindError && <p className="text-xs text-destructive">{kindError}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="incident-description">{c.description}</Label>
-            <textarea
+            </Select>
+          </Field>
+          <Field label={c.description} htmlFor="incident-description" error={descriptionError}>
+            <Textarea
               id="incident-description"
               name="description"
               rows={3}
               maxLength={2000}
               defaultValue={state.values?.description}
               aria-invalid={descriptionError ? true : undefined}
-              className={textarea}
+              aria-describedby={descriptionError ? fieldHelpId('incident-description') : undefined}
             />
-            {descriptionError && <p className="text-xs text-destructive">{descriptionError}</p>}
-          </div>
-          <Button type="submit" variant="outline" disabled={pending}>
+          </Field>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full"
+            disabled={pending}
+            loading={pending}
+          >
             {pending ? c.submitting : c.submit}
           </Button>
         </form>
-      </details>
+      </Disclosure>
       {state.message && <Notice tone="success">{state.message}</Notice>}
     </div>
   );

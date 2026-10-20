@@ -13,25 +13,30 @@ import {
   tripEventTypeLabels,
   unitTypeLabels,
 } from '@transport/shared';
+import { ChevronLeft, FileText } from 'lucide-react';
 import type { Metadata } from 'next';
 import { randomUUID } from 'node:crypto';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { VerificationBadge } from '@/components/offers/offer-board';
 import { ShareDialog } from '@/components/share/share-dialog';
+import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
+import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripCancelForm } from '@/components/trips/trip-cancel-form';
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
-import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
-import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
+import { buttonVariants } from '@/components/ui/button';
+import { ValueRow } from '@/components/ui/cell';
+import { Group } from '@/components/ui/group';
+import { PageHeader } from '@/components/ui/page-header';
+import { groupRow } from '@/components/ui/variants';
 import { getChat } from '@/lib/chat/queries';
 import { shipperContext } from '@/lib/loads/queries';
 import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
@@ -41,6 +46,7 @@ import { getProviderDecisions, getSharedDocuments } from '@/lib/shared-documents
 import { cancelShipperTrip } from '@/lib/trips/actions';
 import { getCompanyTrip } from '@/lib/trips/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
+import { cn } from '@/lib/utils';
 
 const c = clientTripsCopy;
 
@@ -61,7 +67,28 @@ function mapMessage(state: MapState, now: Date): string {
   }
 }
 
-/** One trip of the shipper: live map, timeline, evidence, documents, actions and chat (B15). */
+/** The title of a section of the page and the line under it. */
+function SectionTitle({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="space-y-1 px-1">
+      <h2 className="text-title2 text-text">{title}</h2>
+      {description && <p className="text-subhead text-text-dim">{description}</p>}
+    </div>
+  );
+}
+
+/** A line of text where a list would be (nothing yet). */
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">{children}</p>
+  );
+}
+
+/**
+ * One trip of the shipper (B15): the live map with the timeline beside it,
+ * then the evidence, documents and chat, and on the side the parties and the
+ * actions (confirm the delivery, the provider status, incidents, cancel).
+ */
 export default async function TripPage({ params }: PageProps<'/cliente/viajes/[id]'>) {
   const { id } = await params;
   const { supabase, companyId } = await shipperContext(tripPath(id));
@@ -102,43 +129,50 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   return (
     <>
       {refreshMs !== null && <AutoRefresh intervalMs={refreshMs} />}
-      <Link href={paths.shipperTrips} className="text-sm text-accent hover:underline">
+      <Link
+        href={paths.shipperTrips}
+        className={cn(buttonVariants({ variant: 'link' }), 'mb-4 gap-1 text-subhead')}
+      >
+        <ChevronLeft aria-hidden className="size-4" />
         {d.back}
       </Link>
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <PageHeading
-          title={`${load.origin_city} → ${load.destination_city}`}
-          description={
-            load.agreed_price_cents === null
-              ? undefined
-              : d.agreedPrice(formatMxn(load.agreed_price_cents))
-          }
-        />
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <TripStatusBadge status={trip.status} />
-          <Link href={loadPath(trip.load_id)} className="text-accent hover:underline">
-            {d.load}
-          </Link>
-          {(shareable || shareLinks.length > 0) && (
-            <ShareDialog
-              kind="trip_tracking_public"
-              targetId={trip.id}
-              links={shareLinks}
-              canCreate={shareable}
-            />
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title={`${load.origin_city} → ${load.destination_city}`}
+        status={<TripStatusBadge status={trip.status} />}
+        description={
+          load.agreed_price_cents === null
+            ? undefined
+            : d.agreedPrice(formatMxn(load.agreed_price_cents))
+        }
+        action={
+          <>
+            <Link
+              href={loadPath(trip.load_id)}
+              className={buttonVariants({ variant: 'secondary' })}
+            >
+              {d.load}
+            </Link>
+            {(shareable || shareLinks.length > 0) && (
+              <ShareDialog
+                kind="trip_tracking_public"
+                targetId={trip.id}
+                links={shareLinks}
+                canCreate={shareable}
+              />
+            )}
+          </>
+        }
+      />
       {cancellation && (
-        <div className="mb-6">
-          <Notice tone="info">{d.cancelled(cancellation)}</Notice>
-        </div>
+        <Notice tone="info" className="mb-8">
+          {d.cancelled(cancellation)}
+        </Notice>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="space-y-8">
+      <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-10">
           <section className="space-y-3">
-            <h2 className="text-2xl">{c.map.title}</h2>
+            <SectionTitle title={c.map.title} />
             <TripMap
               origin={{ lat: load.origin_lat, lng: load.origin_lng, label: c.map.origin }}
               destination={{
@@ -148,71 +182,34 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
               }}
               trail={locations.map((p) => ({ lat: p.latitude, lng: p.longitude }))}
             />
-            <p
-              className={state.kind === 'noSignal' ? 'text-sm text-destructive' : 'text-sm'}
-              role="status"
-            >
-              {mapMessage(state, now)}
-            </p>
-            {live && <p className="text-xs text-muted-foreground">{c.map.live}</p>}
+            <div className="space-y-0.5 px-1">
+              <p
+                className={cn(
+                  'text-subhead',
+                  state.kind === 'noSignal' ? 'text-red-text' : 'text-text',
+                )}
+                role="status"
+              >
+                {mapMessage(state, now)}
+              </p>
+              {live && <p className="text-footnote text-text-dim">{c.map.live}</p>}
+            </div>
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-2xl">{c.timeline.title}</h2>
-            {events.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{c.timeline.empty}</p>
-            ) : (
-              <ol className="divide-y rounded-xl border bg-card">
-                {events.map((event) => {
-                  const incident = event.incident_id ? incidentsById.get(event.incident_id) : null;
-                  return (
-                    <li key={event.id} className="space-y-1 p-4 text-sm">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="font-medium">{tripEventTypeLabels[event.event_type]}</p>
-                        <time
-                          className="text-xs text-muted-foreground"
-                          dateTime={event.occurred_at}
-                        >
-                          {formatDateTime(event.occurred_at)}
-                        </time>
-                      </div>
-                      {event.estimated_unload_end_at && (
-                        <p>{c.timeline.estimate(formatDateTime(event.estimated_unload_end_at))}</p>
-                      )}
-                      {incident && event.event_type === 'incident_reported' && (
-                        <p className="text-muted-foreground">
-                          {c.timeline.incident(
-                            incidentKindLabels[incident.kind],
-                            incident.description,
-                          )}
-                        </p>
-                      )}
-                      {event.received_by_name && (
-                        <p>{c.timeline.receivedBy(event.received_by_name)}</p>
-                      )}
-                      {event.notes && <p className="text-muted-foreground">{event.notes}</p>}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-2xl">{c.evidence.title}</h2>
-            <p className="text-sm text-muted-foreground">{c.evidence.description}</p>
+            <SectionTitle title={c.evidence.title} description={c.evidence.description} />
             {evidence.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{c.evidence.empty}</p>
+              <EmptyLine>{c.evidence.empty}</EmptyLine>
             ) : (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {evidence.map((photo) => (
-                  <li key={photo.id} className="overflow-hidden rounded-lg border bg-card text-xs">
+                  <li key={photo.id} className="overflow-hidden rounded-2xl border bg-cell">
                     <a
                       href={tripFileHref('evidencia', photo.storage_path)}
                       target="_blank"
                       rel="noreferrer"
                       aria-label={c.evidence.open}
-                      className="block aspect-[4/3] bg-muted"
+                      className="block aspect-4/3 bg-surface-high"
                     >
                       {/* The viewer route redirects to a short-lived signed URL of the private
                           bucket, so the src stays stable across refreshes; next/image cannot cache it. */}
@@ -224,10 +221,11 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
                         loading="lazy"
                       />
                     </a>
-                    <p className="p-2">
-                      <span className="font-medium">{evidenceStageLabels[photo.stage]}</span>
-                      <br />
-                      <span className="text-muted-foreground">
+                    <p className="space-y-0.5 px-3 py-2.5">
+                      <span className="block text-subhead font-semibold text-text">
+                        {evidenceStageLabels[photo.stage]}
+                      </span>
+                      <span className="block text-caption text-text-dim">
                         {c.evidence.capturedAt(formatDateTime(photo.captured_at))}
                       </span>
                     </p>
@@ -237,46 +235,52 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
             )}
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-2xl">{c.documents.title}</h2>
-            <p className="text-sm text-muted-foreground">{c.documents.description}</p>
+          <section className="space-y-4">
+            <SectionTitle title={c.documents.title} description={c.documents.description} />
             <TripChecklist rows={data.checklist} />
             {trip.status !== 'cancelled' && (
               <TripDocumentUpload tripId={trip.id} kinds={data.uploadableKinds} />
             )}
-            <h3 className="text-lg">{c.documents.files}</h3>
-            {documents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{c.documents.empty}</p>
-            ) : (
-              <ul className="divide-y rounded-xl border bg-card text-sm">
-                {documents.map((doc) => (
-                  <li
-                    key={doc.id}
-                    className="flex flex-wrap items-baseline justify-between gap-2 p-4"
-                  >
-                    <a
-                      href={tripFileHref('documentos', doc.storage_path)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium text-accent hover:underline"
-                    >
-                      {tripDocumentKindLabels[doc.kind]} · {doc.file_name}
-                    </a>
-                    <span className="text-xs text-muted-foreground">
-                      {c.documents.uploadedAt(formatDateTime(doc.created_at))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div>
+              <h3 className="mb-1.5 px-4 text-label text-text-dim">{c.documents.files}</h3>
+              {documents.length === 0 ? (
+                <EmptyLine>{c.documents.empty}</EmptyLine>
+              ) : (
+                <Group>
+                  <ul>
+                    {documents.map((doc) => (
+                      <li key={doc.id} className={groupRow}>
+                        <a
+                          href={tripFileHref('documentos', doc.storage_path)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex min-h-12.5 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-high/60"
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-high text-text-dim">
+                            <FileText aria-hidden className="size-4.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-body text-accent-text">
+                              {tripDocumentKindLabels[doc.kind]} · {doc.file_name}
+                            </span>
+                            <span className="block text-footnote text-text-dim">
+                              {c.documents.uploadedAt(formatDateTime(doc.created_at))}
+                            </span>
+                          </span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </Group>
+              )}
+            </div>
           </section>
 
           <SharedDocumentsList rows={sharedDocuments} mode="client" />
 
           {chat && data.conversationId && (
             <section className="space-y-3">
-              <h2 className="text-2xl">{c.chat.title}</h2>
-              <p className="text-sm text-muted-foreground">{c.chat.description}</p>
+              <SectionTitle title={c.chat.title} description={c.chat.description} />
               <ChatPanel
                 conversationId={data.conversationId}
                 viewerId={viewer.userId}
@@ -288,37 +292,137 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
           )}
         </div>
 
-        <aside className="space-y-4">
-          <dl className="space-y-3 rounded-xl border bg-card p-4 text-sm">
-            <div>
-              <dt className="text-xs text-muted-foreground">{d.carrier}</dt>
-              <dd className="flex flex-wrap items-center gap-2 font-medium">
+        <aside className="space-y-8">
+          {trip.status === 'delivered' && (
+            <ConfirmDeliveryForm tripId={trip.id} clientEventId={randomUUID()} />
+          )}
+
+          <Group>
+            <ValueRow label={d.carrier}>
+              <span className="inline-flex flex-wrap items-center justify-end gap-2">
                 {parties?.carrierName}
                 {parties && <VerificationBadge status={parties.carrierStatus} />}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">{d.unit}</dt>
-              <dd>
-                {parties?.plate
-                  ? d.unitValue(
-                      parties.unitType ? unitTypeLabels[parties.unitType] : '',
-                      parties.plate,
-                    )
-                  : d.notAssigned}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">{d.operator}</dt>
-              <dd>{parties?.operatorName ?? d.notAssigned}</dd>
-            </div>
+              </span>
+            </ValueRow>
+            <ValueRow label={d.unit}>
+              {parties?.plate
+                ? d.unitValue(
+                    parties.unitType ? unitTypeLabels[parties.unitType] : '',
+                    parties.plate,
+                  )
+                : d.notAssigned}
+            </ValueRow>
+            <ValueRow label={d.operator}>{parties?.operatorName ?? d.notAssigned}</ValueRow>
             {trip.estimated_unload_end_at && (
-              <div>
-                <dt className="text-xs text-muted-foreground">{d.unloadEstimate}</dt>
-                <dd className="font-medium">{formatDateTime(trip.estimated_unload_end_at)}</dd>
-              </div>
+              <ValueRow label={d.unloadEstimate}>
+                {formatDateTime(trip.estimated_unload_end_at)}
+              </ValueRow>
             )}
-          </dl>
+          </Group>
+
+          <section className="space-y-3">
+            <SectionTitle title={c.timeline.title} />
+            {events.length === 0 ? (
+              <EmptyLine>{c.timeline.empty}</EmptyLine>
+            ) : (
+              <Group>
+                <ol className="p-4">
+                  {events.map((event, index) => {
+                    const incident = event.incident_id
+                      ? incidentsById.get(event.incident_id)
+                      : null;
+                    // The latest event is where the trip is now (§1.7).
+                    const current = index === events.length - 1;
+                    return (
+                      <li key={event.id} className="relative pb-5 pl-6 last:pb-0">
+                        {!current && (
+                          <span
+                            aria-hidden
+                            className="absolute top-4 -bottom-0.5 left-0.75 w-px bg-separator"
+                          />
+                        )}
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'absolute top-1.5 left-0 size-2 rounded-full',
+                            current ? 'bg-accent' : 'bg-text-faint',
+                          )}
+                        />
+                        <div className="space-y-0.5">
+                          <p
+                            className={cn(
+                              'text-body',
+                              current ? 'font-semibold text-text' : 'text-text',
+                            )}
+                          >
+                            {tripEventTypeLabels[event.event_type]}
+                          </p>
+                          <time
+                            className="block text-footnote text-text-dim tabular-nums"
+                            dateTime={event.occurred_at}
+                          >
+                            {formatDateTime(event.occurred_at)}
+                          </time>
+                          {event.estimated_unload_end_at && (
+                            <p className="text-subhead text-text">
+                              {c.timeline.estimate(formatDateTime(event.estimated_unload_end_at))}
+                            </p>
+                          )}
+                          {incident && event.event_type === 'incident_reported' && (
+                            <p className="text-subhead text-text-dim">
+                              {c.timeline.incident(
+                                incidentKindLabels[incident.kind],
+                                incident.description,
+                              )}
+                            </p>
+                          )}
+                          {event.received_by_name && (
+                            <p className="text-subhead text-text">
+                              {c.timeline.receivedBy(event.received_by_name)}
+                            </p>
+                          )}
+                          {event.notes && (
+                            <p className="text-subhead text-text-dim">{event.notes}</p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </Group>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <SectionTitle title={c.incidents.title} />
+            {incidents.length === 0 ? (
+              <EmptyLine>{c.incidents.empty}</EmptyLine>
+            ) : (
+              <Group>
+                <ul>
+                  {incidents.map((incident) => (
+                    <li key={incident.id} className={cn(groupRow, 'space-y-0.5 px-4 py-3')}>
+                      <p className="text-body text-text">
+                        {incidentKindLabels[incident.kind]} ·{' '}
+                        <span className="text-text-dim">
+                          {incidentStatusLabels[incident.status]}
+                        </span>
+                      </p>
+                      <p className="text-subhead text-text-dim">{incident.description}</p>
+                      {incident.resolution && (
+                        <p className="text-subhead text-text">
+                          {c.incidents.resolution(incident.resolution)}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Group>
+            )}
+            {trip.status !== 'cancelled' && (
+              <ReportIncidentForm tripId={trip.id} clientEventId={randomUUID()} />
+            )}
+          </section>
 
           <ProviderStatusForm
             carrierCompanyId={trip.carrier_company_id}
@@ -326,9 +430,6 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
             decidedAt={decision?.decidedAt ?? null}
           />
 
-          {trip.status === 'delivered' && (
-            <ConfirmDeliveryForm tripId={trip.id} clientEventId={randomUUID()} />
-          )}
           {canCancelTrip(trip.status) && (
             <TripCancelForm
               tripId={trip.id}
@@ -336,28 +437,6 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
               onTheWay={cancelLeavesUnitPending(trip.status, trip.vehicle_id !== null)}
             />
           )}
-
-          <section className="space-y-3">
-            <h2 className="text-xl">{c.incidents.title}</h2>
-            {incidents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{c.incidents.empty}</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {incidents.map((incident) => (
-                  <li key={incident.id} className="space-y-1 rounded-lg border bg-card p-3">
-                    <p className="font-medium">
-                      {incidentKindLabels[incident.kind]} · {incidentStatusLabels[incident.status]}
-                    </p>
-                    <p className="text-muted-foreground">{incident.description}</p>
-                    {incident.resolution && <p>{c.incidents.resolution(incident.resolution)}</p>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {trip.status !== 'cancelled' && (
-              <ReportIncidentForm tripId={trip.id} clientEventId={randomUUID()} />
-            )}
-          </section>
         </aside>
       </div>
     </>

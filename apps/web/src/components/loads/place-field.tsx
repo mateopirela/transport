@@ -3,16 +3,15 @@
 import { CITY_PRESETS, cityPreset, findCityPreset, loadsCopy } from '@transport/shared';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 
+import { ErrorText } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
 import { PLACE_FIELDS, type PlaceKey, type PlaceValue } from '@/lib/loads/form';
 import { placeFromGoogle, placeFromPreset } from '@/lib/loads/places';
 
 const c = loadsCopy.form;
-
-export const selectClass =
-  'h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive';
 
 /**
  * Origin or destination. With a Maps key it is Google Places Autocomplete
@@ -102,8 +101,10 @@ export function PlaceField({
 
   const message = issue ?? error;
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="block px-1">
+        {label}
+      </Label>
       {PLACE_FIELDS.map((field) => (
         <input key={field} type="hidden" name={`${name}.${field}`} value={value?.[field] ?? ''} />
       ))}
@@ -112,8 +113,10 @@ export function PlaceField({
       ) : (
         <PresetPlace id={id} value={value} onChange={onChange} invalid={Boolean(message)} />
       )}
-      {value && <p className="text-xs text-muted-foreground">{c.placeSelected(value.address)}</p>}
-      {message && <p className="text-xs text-destructive">{message}</p>}
+      {value && (
+        <p className="px-1 text-footnote text-text-dim">{c.placeSelected(value.address)}</p>
+      )}
+      {message && <ErrorText>{message}</ErrorText>}
     </div>
   );
 }
@@ -146,13 +149,12 @@ function PresetPlace({
 
   return (
     <div className="grid gap-2 sm:grid-cols-[14rem_1fr]">
-      <select
+      <Select
         id={id}
         aria-label={c.city}
         value={presetId}
         onChange={(e) => update(e.target.value, street)}
         aria-invalid={invalid || undefined}
-        className={selectClass}
       >
         <option value="">{c.cityPlaceholder}</option>
         {CITY_PRESETS.map((preset) => (
@@ -160,7 +162,7 @@ function PresetPlace({
             {preset.city}, {preset.state}
           </option>
         ))}
-      </select>
+      </Select>
       <Input
         aria-label={c.street}
         placeholder={c.street}
@@ -168,7 +170,7 @@ function PresetPlace({
         maxLength={200}
         onChange={(e) => update(presetId, e.target.value)}
       />
-      <p className="text-xs text-muted-foreground sm:col-span-2">{c.presetHint}</p>
+      <p className="px-1 text-footnote text-text-dim sm:col-span-2">{c.presetHint}</p>
     </div>
   );
 }

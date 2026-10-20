@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 
 import { SignOutButton } from '@/components/app-shell';
 import { AuthCard } from '@/components/auth-card';
-import { CoordinatorSignUpForm, JoinCompanyForm, Notice } from '@/components/auth-forms';
+import { CoordinatorSignUpForm, JoinCompanyForm } from '@/components/auth-forms';
 import { RedeemForm } from '@/components/invitation-forms';
+import { Notice } from '@/components/ui/notice';
 import { getViewer } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 
@@ -37,20 +38,26 @@ export default async function InvitationPage({ params }: PageProps<'/invitacion/
     );
   }
 
+  // The facts of the invitation, as rows of a group (label left, value right).
+  const row = 'flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-4 py-3';
   const details = (
-    <dl className="grid gap-1 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-4">
-      <dt className="text-muted-foreground">
-        {preview.kind === 'coordinator' ? c.coordinator.units : c.operator.unit}
-      </dt>
-      <dd>{preview.business_unit_names.join(', ')}</dd>
+    <dl className="divide-y divide-separator rounded-2xl bg-bg text-subhead">
+      <div className={row}>
+        <dt className="text-text-dim">
+          {preview.kind === 'coordinator' ? c.coordinator.units : c.operator.unit}
+        </dt>
+        <dd className="text-text">{preview.business_unit_names.join(', ')}</dd>
+      </div>
       {preview.inviter_name && (
-        <>
-          <dt className="text-muted-foreground">{c.inviterLabel}</dt>
-          <dd>{preview.inviter_name}</dd>
-        </>
+        <div className={row}>
+          <dt className="text-text-dim">{c.inviterLabel}</dt>
+          <dd className="text-text">{preview.inviter_name}</dd>
+        </div>
       )}
-      <dt className="text-muted-foreground">{c.expiresLabel}</dt>
-      <dd>{formatDateTime(preview.expires_at)}</dd>
+      <div className={row}>
+        <dt className="text-text-dim">{c.expiresLabel}</dt>
+        <dd className="text-text tabular-nums">{formatDateTime(preview.expires_at)}</dd>
+      </div>
     </dl>
   );
 
@@ -60,6 +67,7 @@ export default async function InvitationPage({ params }: PageProps<'/invitacion/
     return (
       <AuthCard
         title={c.title}
+        wide={!viewer}
         description={
           canJoin
             ? c.coordinator.joinDescription(preview.company_legal_name)
@@ -83,6 +91,7 @@ export default async function InvitationPage({ params }: PageProps<'/invitacion/
   return (
     <AuthCard
       title={c.title}
+      wide={kind === 'operator'}
       description={
         kind === 'operator'
           ? c.operator.description(preview.company_legal_name)

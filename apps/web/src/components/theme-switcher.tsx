@@ -1,57 +1,46 @@
 'use client';
 
-import {
-  appearanceCopy,
-  THEME_CHOICES,
-  parseThemeChoice,
-  type ThemeChoice,
-} from '@transport/shared';
-import { useState } from 'react';
+import { appearanceCopy, THEME_CHOICES, type ThemeChoice } from '@transport/shared';
 
+import { Segmented } from '@/components/ui/segmented';
 import { themeClass, themeCookie } from '@/lib/theme';
-import { cn } from '@/lib/utils';
+
+const ITEMS = THEME_CHOICES.map((value) => ({ value, label: appearanceCopy[value] }));
+
+/** Keeps a choice in the `theme` cookie (read by the root layout) and applies it on `<html>` at once. */
+function applyTheme(choice: ThemeChoice) {
+  // The choice is a preference of this browser, read back by the root layout.
+  document.cookie = themeCookie(choice, window.location.protocol === 'https:');
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  const cls = themeClass(choice);
+  if (cls) root.classList.add(cls);
+}
 
 /**
- * "Apariencia" (D26) in the account menu: Sistema, Claro or Oscuro. The choice
- * goes to the `theme` cookie (read by the root layout on the next request) and
- * applies at once on `<html>`.
+ * "Apariencia" (D26) in the account menu: Sistema, Claro or Oscuro. It is
+ * controlled: the menu that holds it keeps the choice, so closing and
+ * reopening the menu shows the theme in use.
  */
 export function ThemeSwitcher({
-  initial,
+  value,
+  onChange,
   className,
 }: {
-  initial: ThemeChoice;
+  value: ThemeChoice;
+  onChange: (choice: ThemeChoice) => void;
   className?: string;
 }) {
-  const [choice, setChoice] = useState(initial);
-
-  function choose(value: string) {
-    const next = parseThemeChoice(value);
-    if (!next) return;
-    setChoice(next);
-    // The choice is a preference of this browser, read back by the root layout.
-    document.cookie = themeCookie(next, window.location.protocol === 'https:');
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    const cls = themeClass(next);
-    if (cls) root.classList.add(cls);
-  }
-
   return (
-    <select
-      aria-label={appearanceCopy.title}
-      value={choice}
-      onChange={(event) => choose(event.target.value)}
-      className={cn(
-        'h-8 cursor-pointer rounded-full border bg-transparent px-2 text-sm sm:px-3 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-        className,
-      )}
-    >
-      {THEME_CHOICES.map((option) => (
-        <option key={option} value={option}>
-          {appearanceCopy[option]}
-        </option>
-      ))}
-    </select>
+    <Segmented
+      label={appearanceCopy.title}
+      items={ITEMS}
+      value={value}
+      onChange={(next) => {
+        applyTheme(next);
+        onChange(next);
+      }}
+      className={className}
+    />
   );
 }

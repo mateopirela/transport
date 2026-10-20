@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
       title={c.title}
       description={c.description}
       footer={
-        <Link href={paths.signIn} className="text-accent hover:underline">
+        <Link href={paths.signIn} className="font-semibold text-accent-text hover:underline">
           {c.back}
         </Link>
       }

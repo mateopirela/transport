@@ -5,36 +5,51 @@ import {
   formatDateTime,
   formatMxn,
   isTripActive,
+  mapPointUrl,
   tripStatusLabels,
 } from '@transport/shared';
+import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ChatPanel } from '../../../components/chat-panel';
-import { Badge, Loaded, SectionTitle } from '../../../components/fleet-ui';
-import { TripAssignForm } from '../../../components/trip-assign-form';
+import { DetailRow } from '../../../components/detail-row';
+import { SharedDocumentsSection } from '../../../components/shared-documents-section';
+import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
 import { TripDocumentsSection } from '../../../components/trip-documents-section';
 import { TripMap } from '../../../components/trip-map';
-import { SharedDocumentsSection } from '../../../components/shared-documents-section';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
-import { Body, Notice, Screen } from '../../../components/ui';
-import { loadCarrierTrip } from '../../../lib/carrier-trips-api';
+import {
+  BottomBar,
+  Cell,
+  Group,
+  LoadError,
+  Notice,
+  Pill,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  TextCell,
+  ValueRow,
+} from '../../../components/ui';
+import { loadCarrierTrip, type CarrierTripDetail } from '../../../lib/carrier-trips-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { usePolling } from '../../../lib/use-polling';
-import { colors } from '../../../theme';
+import { spacing, useTheme } from '../../../theme';
 
 const copy = carrierTripsCopy.detail;
 
 /**
  * A won trip for the carrier (B20): status, route and the map while it is on
- * the road, "Asignar operador" until the operator departs, the documents, what
- * is shared with the shipper and its provider status (G6), the timeline,
- * incidents, evidence, the trip chat and the cancellation with a reason (G5).
+ * the road, "Asignar operador" in the bottom bar until the operator departs,
+ * the documents, what is shared with the shipper and its provider status
+ * (G6), the timeline, incidents, evidence, the trip chat and the cancellation
+ * with a reason (G5).
  */
-export default function CarrierTripDetail() {
+export default function CarrierTripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const load = useCallback(
     ({ client, companyId, isManager }: CarrierContext) =>
@@ -45,160 +60,199 @@ export default function CarrierTripDetail() {
   const refresh = useCallback(() => void reload(), [reload]);
   usePolling(refresh);
 
+  const header = <Stack.Screen options={{ title: copy.title }} />;
+  if (state.status !== 'ready' || !carrier || !state.data) {
+    return (
+      <Screen belowHeader>
+        {header}
+        {state.status === 'error' ? (
+          <LoadError onRetry={refresh} />
+        ) : state.status === 'ready' && carrier ? (
+          <Notice tone="warning">{copy.notFound}</Notice>
+        ) : (
+          <Skeleton />
+        )}
+      </Screen>
+    );
+  }
   return (
-    <Screen belowHeader>
-      <Stack.Screen options={{ title: copy.title }} />
-      <Loaded state={state} onRetry={refresh}>
-        {(detail) => {
-          if (!detail || !carrier) return <Notice tone="warning">{copy.notFound}</Notice>;
-          const { trip } = detail;
-          const l = trip.load;
-          const onRoad = isTripActive(trip.status);
-          return (
-            <>
-              <Text accessibilityRole="header" style={styles.route}>
-                {carrierTripsCopy.list.route(
-                  `${l.origin_city}, ${l.origin_state}`,
-                  `${l.destination_city}, ${l.destination_state}`,
-                )}
-              </Text>
-              <Badge label={tripStatusLabels[trip.status]} tone={tripStatusTone(trip.status)} />
-              {trip.status === 'cancelled' ? (
-                <Notice tone="danger">{copy.cancelled(detail.cancellationReason)}</Notice>
-              ) : null}
-              {trip.status === 'delivered' ? <Notice tone="info">{copy.delivered}</Notice> : null}
-
-              {onRoad ? (
-                <>
-                  <TripMap
-                    trips={[
-                      {
-                        key: trip.id,
-                        origin: { lat: l.origin_lat, lng: l.origin_lng },
-                        destination: { lat: l.destination_lat, lng: l.destination_lng },
-                        trail: detail.trail,
-                        position: trip.lastPosition,
-                      },
-                    ]}
-                  />
-                  <PositionLine trip={trip} withLink />
-                </>
-              ) : null}
-
-              <SectionTitle>{copy.route}</SectionTitle>
-              <Row
-                label={copy.pickupWindow}
-                value={copy.window(
-                  formatDateTime(l.pickup_window_start),
-                  formatDateTime(l.pickup_window_end),
-                )}
-              />
-              <Row
-                label={copy.deliveryWindow}
-                value={copy.window(
-                  formatDateTime(l.delivery_window_start),
-                  formatDateTime(l.delivery_window_end),
-                )}
-              />
-              <Row
-                label={copy.cargo}
-                value={`${cargoTypeLabels[l.cargo_type]} · ${l.description}`}
-              />
-              {l.agreed_price_cents !== null ? (
-                <Row label={copy.agreedPrice} value={formatMxn(l.agreed_price_cents)} />
-              ) : null}
-              {trip.estimatedUnloadEndAt ? (
-                <Row
-                  label={copy.unloadEstimate}
-                  value={formatDateTime(trip.estimatedUnloadEndAt)}
-                />
-              ) : null}
-
-              {trip.status === 'cancelled' ? null : (
-                <TripAssignForm
-                  client={carrier.client}
-                  tripId={trip.id}
-                  status={trip.status}
-                  loadUnitType={l.unit_type}
-                  loadRequirements={l.special_requirements}
-                  current={{ vehicleId: trip.vehicleId, operatorId: trip.operatorId }}
-                  options={detail.assignment}
-                  onAssigned={reload}
-                />
-              )}
-              {trip.unitName && trip.operatorName ? (
-                <Body>{carrierTripsCopy.assign.current(trip.unitName, trip.operatorName)}</Body>
-              ) : null}
-
-              <TripDocumentsSection
-                client={carrier.client}
-                tripId={trip.id}
-                status={trip.status}
-                documents={detail.documents}
-                checklist={detail.checklist}
-                uploadableKinds={detail.uploadableKinds}
-                onChanged={reload}
-              />
-
-              <SharedDocumentsSection
-                client={carrier.client}
-                rows={detail.sharedDocuments}
-                provider={detail.provider}
-                canRevoke={carrier.isManager}
-                onChanged={reload}
-              />
-
-              <TimelineSection
-                entries={detail.events.map((e) => ({
-                  key: e.id,
-                  type: e.event_type,
-                  occurredAt: e.occurred_at,
-                  pending: false,
-                }))}
-              />
-
-              <SectionTitle>{copy.evidence}</SectionTitle>
-              <Body>{copy.evidenceCount(detail.evidence.pickup, detail.evidence.delivery)}</Body>
-
-              <SectionTitle>{copy.incidents}</SectionTitle>
-              <IncidentList incidents={detail.incidents} />
-
-              <SectionTitle>{copy.chat}</SectionTitle>
-              {detail.conversationId ? (
-                <ChatPanel client={carrier.client} conversationId={detail.conversationId} />
-              ) : (
-                <Body>{copy.chatUnavailable}</Body>
-              )}
-
-              {canCancelTrip(trip.status) ? (
-                <TripCancelSection
-                  client={carrier.client}
-                  tripId={trip.id}
-                  status={trip.status}
-                  hasUnit={trip.vehicleId !== null}
-                  onCancelled={reload}
-                />
-              ) : null}
-            </>
-          );
-        }}
-      </Loaded>
-    </Screen>
+    <>
+      {header}
+      <TripBody carrier={carrier} detail={state.data} reload={reload} />
+    </>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function TripBody({
+  carrier,
+  detail,
+  reload,
+}: {
+  carrier: CarrierContext;
+  detail: CarrierTripDetail;
+  reload: () => Promise<void>;
+}) {
+  const { type } = useTheme();
+  const [barHeight, setBarHeight] = useState(0);
+  const { trip } = detail;
+  const l = trip.load;
+  const onRoad = isTripActive(trip.status);
+  const cancelled = trip.status === 'cancelled';
+  const assignment = useTripAssignment({
+    client: carrier.client,
+    tripId: trip.id,
+    status: trip.status,
+    loadUnitType: l.unit_type,
+    loadRequirements: l.special_requirements,
+    current: { vehicleId: trip.vehicleId, operatorId: trip.operatorId },
+    options: detail.assignment,
+    onAssigned: reload,
+  });
+  const action = cancelled ? null : assignment.action;
+  const position = trip.lastPosition;
+
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
-    </View>
+    <>
+      <Screen belowHeader bottom={action ? barHeight : 0}>
+        <View style={styles.head}>
+          <Text accessibilityRole="header" style={type.title2}>
+            {carrierTripsCopy.list.route(
+              `${l.origin_city}, ${l.origin_state}`,
+              `${l.destination_city}, ${l.destination_state}`,
+            )}
+          </Text>
+          <Pill label={tripStatusLabels[trip.status]} tone={tripStatusTone(trip.status)} />
+        </View>
+        {cancelled ? (
+          <Notice tone="danger">{copy.cancelled(detail.cancellationReason)}</Notice>
+        ) : null}
+        {trip.status === 'delivered' ? <Notice tone="info">{copy.delivered}</Notice> : null}
+
+        {onRoad ? (
+          <Group>
+            <TripMap
+              trips={[
+                {
+                  key: trip.id,
+                  origin: { lat: l.origin_lat, lng: l.origin_lng },
+                  destination: { lat: l.destination_lat, lng: l.destination_lng },
+                  trail: detail.trail,
+                  position,
+                },
+              ]}
+            />
+            <Cell>
+              <PositionLine trip={trip} />
+            </Cell>
+            {position ? (
+              <Cell
+                icon="locate"
+                title={carrierTripsCopy.monitor.openPosition}
+                onPress={() => void Linking.openURL(mapPointUrl(position))}
+              />
+            ) : null}
+          </Group>
+        ) : null}
+
+        <SectionHeader title={copy.route} />
+        <Group>
+          <DetailRow
+            label={copy.pickupWindow}
+            value={copy.window(
+              formatDateTime(l.pickup_window_start),
+              formatDateTime(l.pickup_window_end),
+            )}
+          />
+          <DetailRow
+            label={copy.deliveryWindow}
+            value={copy.window(
+              formatDateTime(l.delivery_window_start),
+              formatDateTime(l.delivery_window_end),
+            )}
+          />
+          <DetailRow
+            label={copy.cargo}
+            value={`${cargoTypeLabels[l.cargo_type]} · ${l.description}`}
+          />
+          {l.agreed_price_cents !== null ? (
+            <ValueRow label={copy.agreedPrice} value={formatMxn(l.agreed_price_cents)} strong />
+          ) : null}
+          {trip.estimatedUnloadEndAt ? (
+            <ValueRow
+              label={copy.unloadEstimate}
+              value={formatDateTime(trip.estimatedUnloadEndAt)}
+            />
+          ) : null}
+        </Group>
+
+        {cancelled ? null : assignment.section}
+        {trip.unitName && trip.operatorName ? (
+          <Group>
+            <TextCell icon="person">
+              {carrierTripsCopy.assign.current(trip.unitName, trip.operatorName)}
+            </TextCell>
+          </Group>
+        ) : null}
+
+        <TripDocumentsSection
+          client={carrier.client}
+          tripId={trip.id}
+          status={trip.status}
+          documents={detail.documents}
+          checklist={detail.checklist}
+          uploadableKinds={detail.uploadableKinds}
+          onChanged={reload}
+        />
+
+        <SharedDocumentsSection
+          client={carrier.client}
+          rows={detail.sharedDocuments}
+          provider={detail.provider}
+          canRevoke={carrier.isManager}
+          onChanged={reload}
+        />
+
+        <TimelineSection
+          entries={detail.events.map((e) => ({
+            key: e.id,
+            type: e.event_type,
+            occurredAt: e.occurred_at,
+            pending: false,
+          }))}
+        />
+
+        <SectionHeader title={copy.evidence} />
+        <Group>
+          <TextCell icon="camera">
+            {copy.evidenceCount(detail.evidence.pickup, detail.evidence.delivery)}
+          </TextCell>
+        </Group>
+
+        <SectionHeader title={copy.incidents} />
+        <IncidentList incidents={detail.incidents} />
+
+        <SectionHeader title={copy.chat} />
+        {detail.conversationId ? (
+          <ChatPanel client={carrier.client} conversationId={detail.conversationId} />
+        ) : (
+          <Group>
+            <TextCell tone="dim">{copy.chatUnavailable}</TextCell>
+          </Group>
+        )}
+
+        {canCancelTrip(trip.status) ? (
+          <TripCancelSection
+            client={carrier.client}
+            tripId={trip.id}
+            status={trip.status}
+            hasUnit={trip.vehicleId !== null}
+            onCancelled={reload}
+          />
+        ) : null}
+      </Screen>
+      {action ? <BottomBar action={action} onHeight={setBarHeight} /> : null}
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  route: { fontSize: 20, fontWeight: '700', color: colors.navy },
-  row: { gap: 2 },
-  label: { fontSize: 13, color: colors.textMuted },
-  value: { fontSize: 15, color: colors.text, lineHeight: 21 },
-});
+const styles = StyleSheet.create({ head: { gap: spacing.sm, alignItems: 'flex-start' } });

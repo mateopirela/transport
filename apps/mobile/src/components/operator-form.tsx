@@ -8,15 +8,16 @@ import {
   type BusinessUnitRef,
   type LicenseType,
 } from '@transport/shared';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { saveOperator, type OperatorRow } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
 import { BusinessUnitChoice } from './business-unit-fields';
-import { ChoiceChips } from './fleet-ui';
-import { Button, Field, Notice } from './ui';
+import { ChoiceCell } from './choice-cell';
+import { FieldCell, Group, Notice } from './ui';
+import type { FormSave } from './vehicle-form';
 
 const copy = fleetCopy.operators;
 const LICENSE_OPTIONS = toOptions(LICENSE_TYPES, licenseTypeLabels);
@@ -42,11 +43,13 @@ function initialState(row: OperatorRow | null): OperatorFormState {
 }
 
 /**
- * Registers an operator to invite it, or edits it. Calls `onSaved` with its
- * id. A new operator goes to the business unit chosen among `businessUnits`
- * (those the user operates, G4); the email is optional (G2).
+ * Registers an operator to invite it, or edits it: the fields in a group and
+ * the save, which the screen shows as its primary action or as a secondary
+ * button. Calls `onSaved` with its id. A new operator goes to the business
+ * unit chosen among `businessUnits` (those the user operates, G4); the email
+ * is optional (G2).
  */
-export function OperatorForm({
+export function useOperatorForm({
   client,
   companyId,
   operator,
@@ -58,7 +61,7 @@ export function OperatorForm({
   operator: OperatorRow | null;
   businessUnits?: readonly BusinessUnitRef[];
   onSaved: (id: string) => void;
-}) {
+}): { section: ReactNode; save: FormSave } {
   const [form, setForm] = useState(() => initialState(operator));
   const [businessUnitId, setBusinessUnitId] = useState<string | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -95,70 +98,72 @@ export function OperatorForm({
     }
   }
 
-  return (
+  const section = (
     <>
-      <Field
-        label={copy.fullNameLabel}
-        value={form.fullName}
-        onChangeText={set('fullName')}
-        error={errors.fullName}
-        autoComplete="name"
-      />
-      {operator ? null : (
-        <BusinessUnitChoice
-          units={businessUnits}
-          value={businessUnitId}
-          onChange={setBusinessUnitId}
-          error={errors.businessUnitId}
+      <Group>
+        <FieldCell
+          label={copy.fullNameLabel}
+          value={form.fullName}
+          onChangeText={set('fullName')}
+          error={errors.fullName}
+          autoComplete="name"
         />
-      )}
-      <Field
-        label={copy.emailLabel}
-        value={form.email}
-        onChangeText={set('email')}
-        error={errors.email}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        editable={!emailLocked}
-      />
-      <Field
-        label={copy.phoneLabel}
-        value={form.phone}
-        onChangeText={set('phone')}
-        error={errors.phone}
-        keyboardType="phone-pad"
-      />
-      <Field
-        label={copy.licenseNumberLabel}
-        value={form.licenseNumber}
-        onChangeText={set('licenseNumber')}
-        error={errors.licenseNumber}
-        autoCapitalize="characters"
-        autoCorrect={false}
-      />
-      <ChoiceChips
-        label={copy.licenseTypeLabel}
-        options={LICENSE_OPTIONS}
-        value={form.licenseType}
-        // Tapping the selected type again clears it (the field is optional).
-        onChange={(licenseType) =>
-          setForm((current) => ({
-            ...current,
-            licenseType: current.licenseType === licenseType ? undefined : licenseType,
-          }))
-        }
-        error={errors.licenseType}
-      />
-      <Field
-        label={copy.licenseExpiresOnLabel}
-        value={form.licenseExpiresOn}
-        onChangeText={set('licenseExpiresOn')}
-        error={errors.licenseExpiresOn}
-        keyboardType="numbers-and-punctuation"
-        placeholder="2028-06-30"
-      />
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
-      <Button label={copy.save} onPress={() => void save()} loading={saving} />
+        {operator ? null : (
+          <BusinessUnitChoice
+            units={businessUnits}
+            value={businessUnitId}
+            onChange={setBusinessUnitId}
+            error={errors.businessUnitId}
+          />
+        )}
+        <FieldCell
+          label={copy.emailLabel}
+          value={form.email}
+          onChangeText={set('email')}
+          error={errors.email}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          editable={!emailLocked}
+        />
+        <FieldCell
+          label={copy.phoneLabel}
+          value={form.phone}
+          onChangeText={set('phone')}
+          error={errors.phone}
+          keyboardType="phone-pad"
+        />
+      </Group>
+      <Group>
+        <FieldCell
+          label={copy.licenseNumberLabel}
+          value={form.licenseNumber}
+          onChangeText={set('licenseNumber')}
+          error={errors.licenseNumber}
+          autoCapitalize="characters"
+          autoCorrect={false}
+        />
+        <ChoiceCell
+          label={copy.licenseTypeLabel}
+          options={LICENSE_OPTIONS}
+          value={form.licenseType}
+          // Tapping the selected type again clears it (the field is optional).
+          clearable
+          onChange={(licenseType) => setForm((current) => ({ ...current, licenseType }))}
+          error={errors.licenseType}
+        />
+        <FieldCell
+          label={copy.licenseExpiresOnLabel}
+          value={form.licenseExpiresOn}
+          onChangeText={set('licenseExpiresOn')}
+          error={errors.licenseExpiresOn}
+          keyboardType="numbers-and-punctuation"
+          placeholder="2028-06-30"
+        />
+      </Group>
+      {message ? (
+        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+      ) : null}
     </>
   );
+  return { section, save: { label: copy.save, onPress: () => void save(), loading: saving } };
 }

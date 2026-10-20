@@ -16,16 +16,17 @@ import { carrierTripErrorMessage } from '../lib/carrier-trip-errors';
 import { tripDocumentUrl, uploadTripDocument, type TripDocument } from '../lib/carrier-trips-api';
 import { pickDocument, type PickOutcome, type PickSource } from '../lib/document-upload';
 import type { Supabase } from '../lib/supabase';
-import { Card, ChoiceChips, SectionTitle } from './fleet-ui';
+import { ChoiceCell } from './choice-cell';
+import type { IconName } from './icons';
 import { TripChecklist } from './trip-checklist';
-import { Body, Button, Notice } from './ui';
+import { Cell, Footnote, Group, groupInset, Notice, SectionHeader, TextCell } from './ui';
 
 const copy = carrierTripsCopy.documents;
 
-const SOURCES: { source: PickSource; label: string }[] = [
-  { source: 'pdf', label: copy.uploadPdf },
-  { source: 'camera', label: copy.uploadCamera },
-  { source: 'library', label: copy.uploadLibrary },
+const SOURCES: { source: PickSource; label: string; icon: IconName }[] = [
+  { source: 'pdf', label: copy.uploadPdf, icon: 'document' },
+  { source: 'camera', label: copy.uploadCamera, icon: 'camera' },
+  { source: 'library', label: copy.uploadLibrary, icon: 'image' },
 ];
 
 /**
@@ -100,41 +101,56 @@ export function TripDocumentsSection({
   const canAdd = canAddTripDocuments(status) && uploadableKinds.length > 0;
   return (
     <>
-      <SectionTitle>{copy.title}</SectionTitle>
-      <Body>{copy.help}</Body>
+      <SectionHeader title={copy.title} />
+      <Footnote>{copy.help}</Footnote>
       <TripChecklist rows={checklist} />
-      <SectionTitle>{copy.files}</SectionTitle>
-      {documents.length === 0 ? <Body>{copy.empty}</Body> : null}
-      {documents.map((d) => (
-        <Card
-          key={d.id}
-          title={tripDocumentKindLabels[d.kind]}
-          subtitle={`${d.file_name} · ${copy.uploadedAt(formatDateTime(d.created_at))}`}
-          onPress={() => void open(d)}
-        />
-      ))}
+      <SectionHeader title={copy.files} />
+      {documents.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{copy.empty}</TextCell>
+        </Group>
+      ) : (
+        <Group inset={groupInset.icon}>
+          {documents.map((d) => (
+            <Cell
+              key={d.id}
+              role="link"
+              icon="document"
+              title={tripDocumentKindLabels[d.kind]}
+              subtitle={`${d.file_name} · ${copy.uploadedAt(formatDateTime(d.created_at))}`}
+              onPress={() => void open(d)}
+            />
+          ))}
+        </Group>
+      )}
       {canAdd ? (
-        <>
-          <ChoiceChips
+        <Group inset={groupInset.icon}>
+          <ChoiceCell
             label={copy.kind}
             options={toOptions(uploadableKinds, tripDocumentKindLabels)}
             value={kind}
-            onChange={setKind}
+            onChange={(next) => {
+              if (next) setKind(next);
+            }}
           />
-          {SOURCES.map(({ source, label }) => (
-            <Button
+          {SOURCES.map(({ source, label, icon }) => (
+            <Cell
               key={source}
-              label={busy ? copy.uploading : label}
-              variant="secondary"
+              icon={icon}
+              title={busy ? copy.uploading : label}
               disabled={busy || !kind}
               onPress={() => void upload(source)}
             />
           ))}
-        </>
+        </Group>
       ) : canAddTripDocuments(status) ? null : (
-        <Body>{copy.cancelled}</Body>
+        <Group>
+          <TextCell tone="dim">{copy.cancelled}</TextCell>
+        </Group>
       )}
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
+      {message ? (
+        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+      ) : null}
     </>
   );
 }

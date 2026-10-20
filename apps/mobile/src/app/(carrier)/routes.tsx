@@ -10,8 +10,20 @@ import {
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 
-import { Card, ChoiceChips, Loaded, MultiChips, SectionTitle } from '../../components/fleet-ui';
-import { Body, Button, Notice, Screen } from '../../components/ui';
+import { ChoiceCell, MultiChoiceCell } from '../../components/choice-cell';
+import {
+  BottomBar,
+  Button,
+  Cell,
+  Footnote,
+  Group,
+  LoadError,
+  Notice,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  TextCell,
+} from '../../components/ui';
 import { addRoute, archiveRoute, listRoutes } from '../../lib/fleet-api';
 import { fleetErrorMessage } from '../../lib/fleet-errors';
 import { toggleItem } from '../../lib/fleet-forms';
@@ -27,6 +39,7 @@ const loadRoutes = ({ client, companyId }: CarrierContext) => listRoutes(client,
 /** Usual routes of the carrier, used for recommendations and return trips (B18). */
 export default function Routes() {
   const { carrier, state, reload } = useCarrierData(loadRoutes);
+  const [barHeight, setBarHeight] = useState(0);
   const [values, setValues] = useState<{
     originId: string | undefined;
     destinationId: string | undefined;
@@ -57,55 +70,71 @@ export default function Routes() {
   }
 
   return (
-    <Screen belowHeader>
-      <Stack.Screen options={{ title: copy.title }} />
-      <Body>{copy.subtitle}</Body>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Loaded state={state} onRetry={() => void reload()}>
-        {(routes) =>
-          routes.length === 0 ? (
-            <Body>{copy.empty}</Body>
-          ) : (
-            routes.map((route) => (
-              <Card
+    <>
+      <Screen belowHeader bottom={barHeight}>
+        <Stack.Screen options={{ title: copy.title }} />
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+        {state.status === 'loading' ? (
+          <Skeleton />
+        ) : state.status === 'error' ? (
+          <LoadError onRetry={() => void reload()} />
+        ) : state.data.length === 0 ? (
+          <Group>
+            <TextCell tone="dim">{copy.empty}</TextCell>
+          </Group>
+        ) : (
+          <Group>
+            {state.data.map((route) => (
+              <Cell
                 key={route.id}
                 title={copy.item(route.origin_city, route.destination_city)}
                 subtitle={route.unit_types.map((t) => unitTypeLabels[t]).join(', ') || null}
-              >
-                <Button
-                  label={copy.remove}
-                  variant="link"
-                  disabled={busy || !carrier}
-                  onPress={() => carrier && void run(() => archiveRoute(carrier.client, route.id))}
-                />
-              </Card>
-            ))
-          )
-        }
-      </Loaded>
-      <SectionTitle>{copy.add}</SectionTitle>
-      <ChoiceChips
-        label={copy.originLabel}
-        options={CITY_OPTIONS}
-        value={values.originId}
-        onChange={(originId) => setValues((v) => ({ ...v, originId }))}
-        error={errors.originId}
+                trailing={
+                  <Button
+                    label={copy.remove}
+                    variant="plain"
+                    size="small"
+                    disabled={busy || !carrier}
+                    onPress={() =>
+                      carrier && void run(() => archiveRoute(carrier.client, route.id))
+                    }
+                  />
+                }
+              />
+            ))}
+          </Group>
+        )}
+        <Footnote>{copy.subtitle}</Footnote>
+
+        <SectionHeader title={copy.add} />
+        <Group>
+          <ChoiceCell
+            label={copy.originLabel}
+            options={CITY_OPTIONS}
+            value={values.originId}
+            onChange={(originId) => setValues((v) => ({ ...v, originId }))}
+            error={errors.originId}
+          />
+          <ChoiceCell
+            label={copy.destinationLabel}
+            options={CITY_OPTIONS}
+            value={values.destinationId}
+            onChange={(destinationId) => setValues((v) => ({ ...v, destinationId }))}
+            error={errors.destinationId}
+          />
+          <MultiChoiceCell
+            label={copy.unitTypesLabel}
+            options={UNIT_TYPE_OPTIONS}
+            values={values.unitTypes}
+            onToggle={(t) => setValues((v) => ({ ...v, unitTypes: toggleItem(v.unitTypes, t) }))}
+            error={errors.unitTypes}
+          />
+        </Group>
+      </Screen>
+      <BottomBar
+        action={{ label: copy.save, onPress: add, loading: busy, disabled: !carrier }}
+        onHeight={setBarHeight}
       />
-      <ChoiceChips
-        label={copy.destinationLabel}
-        options={CITY_OPTIONS}
-        value={values.destinationId}
-        onChange={(destinationId) => setValues((v) => ({ ...v, destinationId }))}
-        error={errors.destinationId}
-      />
-      <MultiChips
-        label={copy.unitTypesLabel}
-        options={UNIT_TYPE_OPTIONS}
-        values={values.unitTypes}
-        onToggle={(t) => setValues((v) => ({ ...v, unitTypes: toggleItem(v.unitTypes, t) }))}
-        error={errors.unitTypes}
-      />
-      <Button label={copy.save} onPress={add} loading={busy} disabled={!carrier} />
-    </Screen>
+    </>
   );
 }

@@ -1,14 +1,13 @@
 import { fleetCopy, formatDateTime } from '@transport/shared';
 import { useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text } from 'react-native';
 
 import { createInvitation, revokeInvitation, type OperatorSummary } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { shareableLink } from '../lib/invitation-share';
 import type { Supabase } from '../lib/supabase';
-import { colors, spacing } from '../theme';
-import { SectionTitle } from './fleet-ui';
-import { Body, Button, Notice } from './ui';
+import { lookOf, useTheme, type Look } from '../theme';
+import { Button, ControlCell, Footnote, Group, Notice, SectionHeader, TextCell } from './ui';
 
 const copy = fleetCopy.invitation;
 
@@ -30,6 +29,7 @@ export function InvitationSection({
   operator: OperatorSummary;
   onChanged: () => Promise<void>;
 }) {
+  const styles = STYLES[useTheme().theme];
   const pending = operator.invitation;
   const [created, setCreated] = useState<{
     invitationId: string;
@@ -79,28 +79,27 @@ export function InvitationSection({
   }
 
   return (
-    <View style={styles.section}>
-      <SectionTitle>{copy.title}</SectionTitle>
-      <Body>{copy.subtitle}</Body>
+    <>
+      <SectionHeader title={copy.title} />
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {issued ? (
         <>
-          <View style={styles.codeBox}>
-            <Text style={styles.codeLabel}>{copy.link}</Text>
-            <Text selectable style={styles.code} testID="invitation-link">
-              {shareableLink(issued.token)}
-            </Text>
-            <Text style={styles.codeLabel}>
-              {copy.validUntil(formatDateTime(issued.expiresAt))}
-            </Text>
-          </View>
-          <Button label={copy.share} onPress={() => share(issued.token)} />
+          <Group>
+            <ControlCell label={copy.link}>
+              <Text selectable style={styles.code} testID="invitation-link">
+                {shareableLink(issued.token)}
+              </Text>
+            </ControlCell>
+            <TextCell tone="dim">{copy.validUntil(formatDateTime(issued.expiresAt))}</TextCell>
+          </Group>
+          <Button label={copy.share} icon="share" onPress={() => share(issued.token)} />
         </>
       ) : pending ? (
         <Notice tone="info" title={copy.validUntil(formatDateTime(pending.expires_at))}>
           {copy.pendingNoLink}
         </Notice>
       ) : null}
+      <Footnote>{copy.subtitle}</Footnote>
       <Button
         label={issued || pending ? copy.recreate : copy.create}
         variant={issued ? 'secondary' : 'primary'}
@@ -111,27 +110,18 @@ export function InvitationSection({
       {pending ? (
         <Button
           label={copy.revoke}
-          variant="link"
+          variant="plain"
           onPress={() => void revoke(pending.id)}
           loading={busy === 'revoke'}
           disabled={busy !== null}
         />
       ) : null}
-    </View>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  section: { gap: spacing.md },
-  codeBox: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  codeLabel: { fontSize: 13, color: colors.textMuted },
-  code: { fontSize: 14, fontWeight: '600', color: colors.navy, textAlign: 'center' },
-});
+function makeStyles({ type }: Look) {
+  return StyleSheet.create({ code: { ...type.body, fontFamily: type.headline.fontFamily } });
+}
+
+const STYLES = { light: makeStyles(lookOf('light')), dark: makeStyles(lookOf('dark')) };

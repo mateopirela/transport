@@ -8,32 +8,55 @@ import {
   type DocumentOwnerType,
   type RequirementState,
 } from '@transport/shared';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
 
 import { pickDocument, uploadDocument, type PickSource } from '../lib/document-upload';
 import { ownerProgress, type CompanyContext } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { validateForm } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
-import { spacing } from '../theme';
-import { Badge, Card, type Tone } from './fleet-ui';
-import { Body, Button, Field, Notice } from './ui';
+import type { IconName } from './icons';
+import { Sheet, type SheetHandle } from './sheet';
+import { StatusRow } from './status-row';
+import {
+  Cell,
+  ErrorText,
+  FieldCell,
+  Group,
+  groupInset,
+  Notice,
+  TextCell,
+  type PillTone,
+} from './ui';
 
-const STATE_TONES: Record<RequirementState, Tone> = {
-  missing: 'warning',
-  pending_review: 'info',
-  approved: 'success',
-  rejected: 'danger',
-  expired: 'danger',
-  suspended: 'danger',
+const STATE_TONES: Record<RequirementState, PillTone> = {
+  missing: 'amber',
+  pending_review: 'accent',
+  approved: 'ok',
+  rejected: 'red',
+  expired: 'red',
+  suspended: 'red',
 };
 
 const copy = fleetCopy.documents;
 
+const SOURCES: [PickSource, string, IconName][] = [
+  ['camera', copy.takePhoto, 'camera'],
+  ['library', copy.choosePhoto, 'image'],
+  ['pdf', copy.chooseFile, 'document'],
+];
+
+/** The requirement a sheet sends a file for. */
+interface Target {
+  requirementId: string;
+  name: string;
+  requiresExpiry: boolean;
+}
+
 /**
- * Required documents of one owner (company, unit or operator) with their
- * state, and the actions to photograph or pick each one and send it.
+ * Required documents of one owner (company, unit or operator) as a group,
+ * each with its state; tapping one that can be sent opens a sheet to
+ * photograph or pick it (and write its expiry date) and send it.
  */
 export function DocumentList({
   client,
@@ -49,36 +72,71 @@ export function DocumentList({
   /** Shows the state only, without the upload actions. */
   readOnly?: boolean;
 }) {
+  const sheet = useRef<SheetHandle>(null);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [sent, setSent] = useState(false);
   const progress = ownerProgress(context, owner);
-  if (progress.length === 0) return <Body>{copy.empty}</Body>;
+  if (progress.length === 0) {
+    return (
+      <Group>
+        <TextCell tone="dim">{copy.empty}</TextCell>
+      </Group>
+    );
+  }
   return (
-    <View style={styles.list}>
-      {progress.map(({ requirement, document, state }) => (
-        <Card
-          key={requirement.id}
-          title={requirement.name}
-          subtitle={requirement.is_required ? copy.required : copy.optional}
-        >
-          <Badge label={requirementStateLabels[state]} tone={STATE_TONES[state]} />
-          {state === 'rejected' && document?.review_notes ? (
-            <Body>{copy.rejectionReason(document.review_notes)}</Body>
-          ) : null}
-          {state === 'approved' && document?.expires_at ? (
-            <Body>{copy.validUntil(formatDate(document.expires_at))}</Body>
-          ) : null}
-          {!readOnly && state !== 'pending_review' ? (
-            <UploadActions
-              client={client}
-              companyId={context.company.id}
-              owner={owner}
-              requirementId={requirement.id}
-              requiresExpiry={requirement.requires_expiry}
-              onUploaded={onChanged}
+    <>
+      {sent ? <Notice>{copy.uploaded}</Notice> : null}
+      <Group>
+        {progress.map(({ requirement, document, state }) => {
+          const uploadable = !readOnly && state !== 'pending_review';
+          return (
+            <StatusRow
+              key={requirement.id}
+              title={requirement.name}
+              lines={[
+                requirement.is_required ? copy.required : copy.optional,
+                state === 'rejected' && document?.review_notes
+                  ? copy.rejectionReason(document.review_notes)
+                  : null,
+                state === 'approved' && document?.expires_at
+                  ? copy.validUntil(formatDate(document.expires_at))
+                  : null,
+              ]}
+              pill={{ label: requirementStateLabels[state], tone: STATE_TONES[state] }}
+              onPress={
+                uploadable
+                  ? () => {
+                      setSent(false);
+                      setTarget({
+                        requirementId: requirement.id,
+                        name: requirement.name,
+                        requiresExpiry: requirement.requires_expiry,
+                      });
+                      sheet.current?.open();
+                    }
+                  : undefined
+              }
             />
-          ) : null}
-        </Card>
-      ))}
-    </View>
+          );
+        })}
+      </Group>
+      <Sheet ref={sheet} title={target?.name} onClose={() => setTarget(null)}>
+        {target ? (
+          <UploadActions
+            key={target.requirementId}
+            client={client}
+            companyId={context.company.id}
+            owner={owner}
+            target={target}
+            onUploaded={async () => {
+              sheet.current?.close();
+              setSent(true);
+              await onChanged();
+            }}
+          />
+        ) : null}
+      </Sheet>
+    </>
   );
 }
 
@@ -86,96 +144,79 @@ function UploadActions({
   client,
   companyId,
   owner,
-  requirementId,
-  requiresExpiry,
+  target,
   onUploaded,
 }: {
   client: Supabase;
   companyId: string;
   owner: { type: DocumentOwnerType; id: string };
-  requirementId: string;
-  requiresExpiry: boolean;
+  target: Target;
   onUploaded: () => Promise<void>;
 }) {
   const [expiresOn, setExpiresOn] = useState('');
   const [busy, setBusy] = useState<PickSource | null>(null);
-  const [message, setMessage] = useState<{ tone: 'info' | 'danger'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function upload(source: PickSource) {
-    setMessage(null);
+    setError(null);
     const expiry = validateForm(documentExpirySchema, expiresOn);
     if (!expiry.ok) {
-      setMessage({ tone: 'danger', text: Object.values(expiry.errors)[0] ?? copy.expiryRequired });
+      setError(Object.values(expiry.errors)[0] ?? copy.expiryRequired);
       return;
     }
-    if (requiresExpiry && !expiry.data) {
-      setMessage({ tone: 'danger', text: copy.expiryRequired });
+    if (target.requiresExpiry && !expiry.data) {
+      setError(copy.expiryRequired);
       return;
     }
     setBusy(source);
     try {
       const picked = await pickDocument(source);
-      if (picked.status === 'denied') setMessage({ tone: 'danger', text: copy.cameraDenied });
-      if (picked.status === 'invalid') {
-        setMessage({ tone: 'danger', text: documentFileIssueMessages[picked.issue] });
-      }
+      if (picked.status === 'denied') setError(copy.cameraDenied);
+      if (picked.status === 'invalid') setError(documentFileIssueMessages[picked.issue]);
       if (picked.status !== 'picked') return;
       await uploadDocument(client, {
         companyId,
         ownerType: owner.type,
         ownerId: owner.id,
-        requirementId,
+        requirementId: target.requirementId,
         file: picked.file,
         expiresOn: expiry.data,
       });
-      setMessage({ tone: 'info', text: copy.uploaded });
       await onUploaded();
-    } catch (error) {
-      setMessage({ tone: 'danger', text: fleetErrorMessage(error, fleetErrorCopy.uploadFailed) });
+    } catch (e) {
+      setError(fleetErrorMessage(e, fleetErrorCopy.uploadFailed));
     } finally {
       setBusy(null);
     }
   }
 
-  const sources: [PickSource, string][] = [
-    ['camera', copy.takePhoto],
-    ['library', copy.choosePhoto],
-    ['pdf', copy.chooseFile],
-  ];
-
   return (
-    <View style={styles.actions}>
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
-      {requiresExpiry ? (
-        <Field
-          label={copy.expiresOnLabel}
-          placeholder="2027-12-31"
-          value={expiresOn}
-          onChangeText={setExpiresOn}
-          keyboardType="numbers-and-punctuation"
-          autoCorrect={false}
-        />
+    <>
+      {target.requiresExpiry ? (
+        <Group>
+          <FieldCell
+            inSheet
+            label={copy.expiresOnLabel}
+            placeholder="2027-12-31"
+            value={expiresOn}
+            onChangeText={setExpiresOn}
+            keyboardType="numbers-and-punctuation"
+            autoCorrect={false}
+          />
+        </Group>
       ) : null}
-      <View style={styles.row}>
-        {sources.map(([source, label]) => (
-          <View key={source} style={styles.flex}>
-            <Button
-              label={label}
-              variant="secondary"
-              loading={busy === source}
-              disabled={busy !== null}
-              onPress={() => void upload(source)}
-            />
-          </View>
+      <Group inset={groupInset.icon}>
+        {SOURCES.map(([source, label, icon]) => (
+          <Cell
+            key={source}
+            icon={icon}
+            title={busy === source ? copy.uploading : label}
+            disabled={busy !== null}
+            onPress={() => void upload(source)}
+          />
         ))}
-      </View>
-    </View>
+      </Group>
+      {error ? <ErrorText>{error}</ErrorText> : null}
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  list: { gap: spacing.md },
-  actions: { gap: spacing.sm },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  flex: { flex: 1 },
-});

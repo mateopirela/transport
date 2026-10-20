@@ -5,8 +5,8 @@ import {
   managerCompanyCopy,
   type BusinessUnitRef,
 } from '@transport/shared';
-import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Fragment, useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import {
   archiveBusinessUnit,
@@ -21,10 +21,21 @@ import {
 import { revokeInvitation } from '../lib/fleet-api';
 import { companyErrorMessage } from '../lib/fleet-errors';
 import type { CarrierContext } from '../lib/use-carrier';
-import { spacing } from '../theme';
-import { Badge, Card, MultiChips, SectionTitle } from './fleet-ui';
+import { spacing, useTheme } from '../theme';
+import { MultiChoiceCell } from './choice-cell';
 import { InvitationLinkIssuer } from './invitation-link';
-import { Body, Button, Field, Notice } from './ui';
+import { ConfirmSheet, type ConfirmSheetHandle } from './sheet';
+import {
+  Button,
+  Cell,
+  FieldCell,
+  Footnote,
+  Group,
+  GroupLabel,
+  Notice,
+  SectionHeader,
+  TextCell,
+} from './ui';
 
 const copy = managerCompanyCopy;
 
@@ -51,16 +62,31 @@ function useWrite(onChanged: () => Promise<void>) {
       setBusy(null);
     }
   }
-  const notice = message ? <Notice tone={message.tone}>{message.text}</Notice> : null;
+  const notice = message ? (
+    <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+  ) : null;
   return { busy, run, notice };
 }
 
-/** Asks before a destructive write (archive, remove). */
-function confirm(title: string, body: string, action: string, onConfirm: () => void) {
-  Alert.alert(title, body, [
-    { text: copy.businessUnits.cancel, style: 'cancel' },
-    { text: action, style: 'destructive', onPress: onConfirm },
-  ]);
+/** Asks in a sheet before a destructive write (archive, remove); the sheet goes in the section. */
+function useConfirm() {
+  const sheet = useRef<ConfirmSheetHandle>(null);
+  function confirm(title: string, body: string, action: string, onConfirm: () => Promise<void>) {
+    sheet.current?.ask({
+      title,
+      body,
+      confirmLabel: action,
+      cancelLabel: copy.businessUnits.cancel,
+      destructive: true,
+      onConfirm,
+    });
+  }
+  return { confirm, sheet: <ConfirmSheet ref={sheet} /> };
+}
+
+/** The text actions of a row, side by side under it. */
+function RowActions({ children, inCell = false }: { children: ReactNode; inCell?: boolean }) {
+  return <View style={[styles.actions, inCell ? styles.inCell : null]}>{children}</View>;
 }
 
 const toggle = (list: readonly string[], id: string) =>
@@ -71,7 +97,9 @@ const toggle = (list: readonly string[], id: string) =>
 // ---------------------------------------------------------------------------
 
 export function BusinessUnitsSection({ carrier, company, onChanged }: SectionProps) {
+  const { type } = useTheme();
   const { busy, run, notice } = useWrite(onChanged);
+  const { confirm, sheet } = useConfirm();
   const [name, setName] = useState('');
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const c = copy.businessUnits;
@@ -84,66 +112,89 @@ export function BusinessUnitsSection({ carrier, company, onChanged }: SectionPro
     );
 
   return (
-    <View style={{ gap: spacing.md }}>
-      <SectionTitle>{copy.sections.businessUnits}</SectionTitle>
-      <Body>{c.description}</Body>
+    <>
+      <SectionHeader title={copy.sections.businessUnits} />
       {notice}
-      {company.units.map((unit) =>
-        renaming?.id === unit.id ? (
-          <Card key={unit.id} title={unit.name}>
-            <Field
-              label={c.nameLabel}
-              value={renaming.name}
-              onChangeText={(text) => setRenaming({ id: unit.id, name: text })}
-            />
-            <Button
-              label={c.save}
-              loading={busy === `rename-${unit.id}`}
-              onPress={() =>
-                void run(
-                  `rename-${unit.id}`,
-                  async () => {
-                    await renameBusinessUnit(carrier.client, unit.id, renaming.name);
-                    setRenaming(null);
-                  },
-                  c.renamed,
-                )
-              }
-            />
-            <Button label={c.cancel} variant="link" onPress={() => setRenaming(null)} />
-          </Card>
-        ) : (
-          <Card key={unit.id} title={unit.name} subtitle={count(unit.id)}>
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <Button
-                label={c.rename}
-                variant="link"
-                onPress={() => setRenaming({ id: unit.id, name: unit.name })}
+      <Group>
+        {company.units.map((unit) =>
+          renaming?.id === unit.id ? (
+            <Fragment key={unit.id}>
+              <FieldCell
+                label={c.nameLabel}
+                value={renaming.name}
+                onChangeText={(text) => setRenaming({ id: unit.id, name: text })}
               />
-              {company.units.length > 1 ? (
+              <RowActions>
                 <Button
-                  label={c.archive}
-                  variant="link"
-                  loading={busy === `archive-${unit.id}`}
+                  label={c.save}
+                  variant="secondary"
+                  size="small"
+                  loading={busy === `rename-${unit.id}`}
                   onPress={() =>
-                    confirm(c.archiveConfirmTitle, c.archiveConfirmBody, c.archive, () => {
-                      void run(
-                        `archive-${unit.id}`,
-                        () => archiveBusinessUnit(carrier.client, unit.id),
-                        c.archived,
-                      );
-                    })
+                    void run(
+                      `rename-${unit.id}`,
+                      async () => {
+                        await renameBusinessUnit(carrier.client, unit.id, renaming.name);
+                        setRenaming(null);
+                      },
+                      c.renamed,
+                    )
                   }
                 />
-              ) : null}
-            </View>
-          </Card>
-        ),
-      )}
-      <Field label={c.nameLabel} value={name} onChangeText={setName} testID="new-business-unit" />
+                <Button
+                  label={c.cancel}
+                  variant="plain"
+                  size="small"
+                  onPress={() => setRenaming(null)}
+                />
+              </RowActions>
+            </Fragment>
+          ) : (
+            <Cell key={unit.id}>
+              <Text style={type.headline}>{unit.name}</Text>
+              <Text style={type.footnote}>{count(unit.id)}</Text>
+              <RowActions inCell>
+                <Button
+                  label={c.rename}
+                  variant="plain"
+                  size="small"
+                  onPress={() => setRenaming({ id: unit.id, name: unit.name })}
+                />
+                {company.units.length > 1 ? (
+                  <Button
+                    label={c.archive}
+                    variant="plain"
+                    size="small"
+                    loading={busy === `archive-${unit.id}`}
+                    onPress={() =>
+                      confirm(c.archiveConfirmTitle, c.archiveConfirmBody, c.archive, () =>
+                        run(
+                          `archive-${unit.id}`,
+                          () => archiveBusinessUnit(carrier.client, unit.id),
+                          c.archived,
+                        ),
+                      )
+                    }
+                  />
+                ) : null}
+              </RowActions>
+            </Cell>
+          ),
+        )}
+      </Group>
+      <Footnote>{c.description}</Footnote>
+      <Group>
+        <FieldCell
+          label={c.nameLabel}
+          value={name}
+          onChangeText={setName}
+          testID="new-business-unit"
+        />
+      </Group>
       <Button
         label={c.create}
         variant="secondary"
+        icon="add"
         disabled={name.trim() === ''}
         loading={busy === 'create'}
         onPress={() =>
@@ -157,7 +208,8 @@ export function BusinessUnitsSection({ carrier, company, onChanged }: SectionPro
           )
         }
       />
-    </View>
+      {sheet}
+    </>
   );
 }
 
@@ -176,68 +228,84 @@ function CoordinatorCard({
   carrier: CarrierContext;
   onChanged: () => Promise<void>;
 }) {
+  const { type } = useTheme();
   const { busy, run, notice } = useWrite(onChanged);
+  const { confirm, sheet } = useConfirm();
   const [editing, setEditing] = useState<string[] | null>(null);
   const c = copy.coordinators;
   const names = businessUnitNames(coordinator.unitIds, units);
   return (
-    <Card
-      title={coordinator.fullName ?? copy.invitations.invitee(null)}
-      subtitle={names.length > 0 ? names.join(' · ') : c.noUnits}
-    >
+    <>
       {notice}
-      {editing ? (
-        <>
-          <MultiChips
-            label={c.unitsLabel}
-            options={units.map((u) => ({ value: u.id, label: u.name }))}
-            values={editing}
-            onToggle={(id) => setEditing(toggle(editing, id))}
-          />
-          <Button
-            label={c.saveUnits}
-            loading={busy === 'units'}
-            onPress={() =>
-              void run(
-                'units',
-                async () => {
-                  await setCoordinatorUnits(carrier.client, coordinator.id, editing);
-                  setEditing(null);
-                },
-                c.unitsSaved,
-              )
-            }
-          />
-          <Button
-            label={copy.businessUnits.cancel}
-            variant="link"
-            onPress={() => setEditing(null)}
-          />
-        </>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <Button
-            label={c.editUnits}
-            variant="link"
-            onPress={() => setEditing(coordinator.unitIds)}
-          />
-          <Button
-            label={c.remove}
-            variant="link"
-            loading={busy === 'remove'}
-            onPress={() =>
-              confirm(c.removeConfirmTitle, c.removeConfirmBody, c.remove, () => {
-                void run(
-                  'remove',
-                  () => removeCoordinator(carrier.client, coordinator.id),
-                  c.removed,
-                );
-              })
-            }
-          />
-        </View>
-      )}
-    </Card>
+      <Group>
+        <Cell>
+          <Text style={type.headline}>
+            {coordinator.fullName ?? copy.invitations.invitee(null)}
+          </Text>
+          <Text style={type.footnote}>{names.length > 0 ? names.join(' · ') : c.noUnits}</Text>
+          {editing ? null : (
+            <RowActions inCell>
+              <Button
+                label={c.editUnits}
+                variant="plain"
+                size="small"
+                onPress={() => setEditing(coordinator.unitIds)}
+              />
+              <Button
+                label={c.remove}
+                variant="plain"
+                size="small"
+                loading={busy === 'remove'}
+                onPress={() =>
+                  confirm(c.removeConfirmTitle, c.removeConfirmBody, c.remove, () =>
+                    run(
+                      'remove',
+                      () => removeCoordinator(carrier.client, coordinator.id),
+                      c.removed,
+                    ),
+                  )
+                }
+              />
+            </RowActions>
+          )}
+        </Cell>
+        {editing ? (
+          <>
+            <MultiChoiceCell
+              label={c.unitsLabel}
+              options={units.map((u) => ({ value: u.id, label: u.name }))}
+              values={editing}
+              onToggle={(id) => setEditing(toggle(editing, id))}
+            />
+            <RowActions>
+              <Button
+                label={c.saveUnits}
+                variant="secondary"
+                size="small"
+                loading={busy === 'units'}
+                onPress={() =>
+                  void run(
+                    'units',
+                    async () => {
+                      await setCoordinatorUnits(carrier.client, coordinator.id, editing);
+                      setEditing(null);
+                    },
+                    c.unitsSaved,
+                  )
+                }
+              />
+              <Button
+                label={copy.businessUnits.cancel}
+                variant="plain"
+                size="small"
+                onPress={() => setEditing(null)}
+              />
+            </RowActions>
+          </>
+        ) : null}
+      </Group>
+      {sheet}
+    </>
   );
 }
 
@@ -246,10 +314,13 @@ export function CoordinatorsSection({ carrier, company, onChanged }: SectionProp
   const [name, setName] = useState('');
   const c = copy.coordinators;
   return (
-    <View style={{ gap: spacing.md }}>
-      <SectionTitle>{copy.sections.coordinators}</SectionTitle>
-      <Body>{c.description}</Body>
-      {company.coordinators.length === 0 ? <Body>{c.empty}</Body> : null}
+    <>
+      <SectionHeader title={copy.sections.coordinators} />
+      {company.coordinators.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{c.empty}</TextCell>
+        </Group>
+      ) : null}
       {company.coordinators.map((coordinator) => (
         <CoordinatorCard
           key={coordinator.id}
@@ -259,27 +330,29 @@ export function CoordinatorsSection({ carrier, company, onChanged }: SectionProp
           onChanged={onChanged}
         />
       ))}
-      <Card title={c.invite}>
-        <MultiChips
+      <Footnote>{c.description}</Footnote>
+      <GroupLabel>{c.invite}</GroupLabel>
+      <Group>
+        <MultiChoiceCell
           label={c.inviteUnitsLabel}
           options={company.units.map((u) => ({ value: u.id, label: u.name }))}
           values={unitIds}
           onToggle={(id) => setUnitIds(toggle(unitIds, id))}
         />
-        <Field label={c.inviteeLabel} value={name} onChangeText={setName} autoComplete="name" />
-        <InvitationLinkIssuer
-          label={c.invite}
-          disabled={unitIds.length === 0}
-          issue={() =>
-            issueInvitation(carrier.client, { kind: 'coordinator', unitIds, inviteeName: name })
-          }
-          onIssued={() => void onChanged()}
-          shareMessage={(link) =>
-            copy.invitationLink.coordinatorShareMessage(carrier.companyName, link)
-          }
-        />
-      </Card>
-    </View>
+        <FieldCell label={c.inviteeLabel} value={name} onChangeText={setName} autoComplete="name" />
+      </Group>
+      <InvitationLinkIssuer
+        label={c.invite}
+        disabled={unitIds.length === 0}
+        issue={() =>
+          issueInvitation(carrier.client, { kind: 'coordinator', unitIds, inviteeName: name })
+        }
+        onIssued={() => void onChanged()}
+        shareMessage={(link) =>
+          copy.invitationLink.coordinatorShareMessage(carrier.companyName, link)
+        }
+      />
+    </>
   );
 }
 
@@ -313,27 +386,31 @@ export function FleetByUnitSection({
         }));
   const groups = groupByBusinessUnit(company.units, rows, (row) => row.unitId);
   return (
-    <View style={{ gap: spacing.md }}>
-      <SectionTitle>
-        {kind === 'vehicles' ? copy.sections.units : copy.sections.operators}
-      </SectionTitle>
+    <>
+      <SectionHeader title={kind === 'vehicles' ? copy.sections.units : copy.sections.operators} />
       {groups.map((group) => (
-        <View key={group.unit?.id ?? 'none'} style={{ gap: spacing.sm }}>
-          <Badge label={group.unit?.name ?? copy.fleet.noBusinessUnit} tone="neutral" />
-          {group.items.length === 0 ? (
-            <Body>{kind === 'vehicles' ? copy.fleet.unitsEmpty : copy.fleet.operatorsEmpty}</Body>
-          ) : null}
-          {group.items.map((row) => (
-            <Card
-              key={row.id}
-              title={row.title}
-              subtitle={row.subtitle}
-              onPress={() => onOpen(row.id)}
-            />
-          ))}
-        </View>
+        <Fragment key={group.unit?.id ?? 'none'}>
+          <GroupLabel>{group.unit?.name ?? copy.fleet.noBusinessUnit}</GroupLabel>
+          <Group>
+            {group.items.length === 0 ? (
+              <TextCell tone="dim">
+                {kind === 'vehicles' ? copy.fleet.unitsEmpty : copy.fleet.operatorsEmpty}
+              </TextCell>
+            ) : null}
+            {group.items.map((row) => (
+              <Cell
+                key={row.id}
+                role="link"
+                icon={kind === 'vehicles' ? 'units' : 'person'}
+                title={row.title}
+                subtitle={row.subtitle}
+                onPress={() => onOpen(row.id)}
+              />
+            ))}
+          </Group>
+        </Fragment>
       ))}
-    </View>
+    </>
   );
 }
 
@@ -345,36 +422,52 @@ export function InvitationsSection({ carrier, company, onChanged }: SectionProps
   const { busy, run, notice } = useWrite(onChanged);
   const c = copy.invitations;
   return (
-    <View style={{ gap: spacing.md }}>
-      <SectionTitle>{copy.sections.invitations}</SectionTitle>
-      <Body>{c.description}</Body>
+    <>
+      <SectionHeader title={copy.sections.invitations} />
       {notice}
-      {company.invitations.length === 0 ? <Body>{c.empty}</Body> : null}
-      {company.invitations.map((invitation) => (
-        <Card
-          key={invitation.id}
-          title={`${c.kind[invitation.kind]} · ${c.invitee(invitation.invitee_name)}`}
-          subtitle={[
-            businessUnitNames(invitation.business_unit_ids, company.units).join(' · '),
-            copy.invitationLink.validUntil(formatDateTime(invitation.expires_at)),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        >
-          <Button
-            label={c.revoke}
-            variant="link"
-            loading={busy === invitation.id}
-            onPress={() =>
-              void run(
-                invitation.id,
-                () => revokeInvitation(carrier.client, invitation.id),
-                c.revoked,
-              )
+      <Group>
+        {company.invitations.length === 0 ? <TextCell tone="dim">{c.empty}</TextCell> : null}
+        {company.invitations.map((invitation) => (
+          <Cell
+            key={invitation.id}
+            title={`${c.kind[invitation.kind]} · ${c.invitee(invitation.invitee_name)}`}
+            lines={2}
+            subtitle={[
+              businessUnitNames(invitation.business_unit_ids, company.units).join(' · '),
+              copy.invitationLink.validUntil(formatDateTime(invitation.expires_at)),
+            ]
+              .filter(Boolean)
+              .join('\n')}
+            trailing={
+              <Button
+                label={c.revoke}
+                variant="plain"
+                size="small"
+                loading={busy === invitation.id}
+                onPress={() =>
+                  void run(
+                    invitation.id,
+                    () => revokeInvitation(carrier.client, invitation.id),
+                    c.revoked,
+                  )
+                }
+              />
             }
           />
-        </Card>
-      ))}
-    </View>
+        ))}
+      </Group>
+      <Footnote>{c.description}</Footnote>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  inCell: { paddingHorizontal: 0, paddingVertical: 0, marginLeft: -spacing.sm },
+});

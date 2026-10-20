@@ -6,16 +6,15 @@ import {
   formatDateTime,
   mexicoCityParts,
 } from '@transport/shared';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
 
 import { clearAvailability, setAvailability, type Availability } from '../lib/fleet-api';
 import { fleetErrorMessage } from '../lib/fleet-errors';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
-import { spacing } from '../theme';
-import { ChoiceChips, SectionTitle } from './fleet-ui';
-import { Body, Button, Field, Notice } from './ui';
+import { ChoiceCell } from './choice-cell';
+import type { FormSave } from './vehicle-form';
+import { Button, FieldCell, Footnote, Group, Notice, SectionHeader, TextCell } from './ui';
 
 const copy = fleetCopy.availability;
 const CITY_OPTIONS = CITY_PRESETS.map((c) => ({ value: c.id, label: c.city }));
@@ -23,9 +22,10 @@ const CITY_OPTIONS = CITY_PRESETS.map((c) => ({ value: c.id, label: c.city }));
 /**
  * Where and from when the unit is free (set_vehicle_availability). A unit
  * with expired documents cannot be made available (B18); the server enforces
- * it too.
+ * it too. Returns the section and, unless it is blocked, its save for the
+ * screen's bottom bar.
  */
-export function AvailabilitySection({
+export function useAvailability({
   client,
   vehicleId,
   current,
@@ -37,7 +37,7 @@ export function AvailabilitySection({
   current: Availability | null;
   blocked: boolean;
   onChanged: () => Promise<void>;
-}) {
+}): { section: ReactNode; save: FormSave | null } {
   // Editing keeps the saved moment unless the carrier changes it.
   const initial = mexicoCityParts(current ? new Date(current.available_from) : new Date());
   const [values, setValues] = useState({
@@ -69,53 +69,49 @@ export function AvailabilitySection({
     if (parsed.ok) void run('save', () => setAvailability(client, vehicleId, parsed.data));
   }
 
-  return (
-    <View style={styles.section}>
-      <SectionTitle>{copy.title}</SectionTitle>
-      <Body>
-        {current
-          ? copy.current(current.city, current.state, formatDateTime(current.available_from))
-          : copy.none}
-      </Body>
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
+  const section = (
+    <>
+      <SectionHeader title={copy.title} />
+      <Group>
+        <TextCell icon="location">
+          {current
+            ? copy.current(current.city, current.state, formatDateTime(current.available_from))
+            : copy.none}
+        </TextCell>
+      </Group>
+      {message ? (
+        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+      ) : null}
       {blocked ? (
         <Notice tone="danger">{copy.blocked}</Notice>
       ) : (
         <>
-          <Body>{copy.subtitle}</Body>
-          <ChoiceChips
-            label={copy.cityLabel}
-            options={CITY_OPTIONS}
-            value={values.cityId}
-            onChange={(cityId) => setValues((v) => ({ ...v, cityId }))}
-            error={errors.cityId}
-          />
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <Field
-                label={copy.dateLabel}
-                value={values.date}
-                onChangeText={(date) => setValues((v) => ({ ...v, date }))}
-                error={errors.date}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
-            <View style={styles.flex}>
-              <Field
-                label={copy.timeLabel}
-                value={values.time}
-                onChangeText={(time) => setValues((v) => ({ ...v, time }))}
-                error={errors.time}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
-          </View>
-          <Button
-            label={copy.save}
-            onPress={save}
-            loading={busy === 'save'}
-            disabled={busy !== null}
-          />
+          <Group>
+            <ChoiceCell
+              label={copy.cityLabel}
+              options={CITY_OPTIONS}
+              value={values.cityId}
+              onChange={(cityId) => {
+                if (cityId) setValues((v) => ({ ...v, cityId }));
+              }}
+              error={errors.cityId}
+            />
+            <FieldCell
+              label={copy.dateLabel}
+              value={values.date}
+              onChangeText={(date) => setValues((v) => ({ ...v, date }))}
+              error={errors.date}
+              keyboardType="numbers-and-punctuation"
+            />
+            <FieldCell
+              label={copy.timeLabel}
+              value={values.time}
+              onChangeText={(time) => setValues((v) => ({ ...v, time }))}
+              error={errors.time}
+              keyboardType="numbers-and-punctuation"
+            />
+          </Group>
+          <Footnote>{copy.subtitle}</Footnote>
         </>
       )}
       {current ? (
@@ -127,12 +123,12 @@ export function AvailabilitySection({
           disabled={busy !== null}
         />
       ) : null}
-    </View>
+    </>
   );
+  return {
+    section,
+    save: blocked
+      ? null
+      : { label: copy.save, onPress: save, loading: busy === 'save', disabled: busy !== null },
+  };
 }
-
-const styles = StyleSheet.create({
-  section: { gap: spacing.md },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  flex: { flex: 1 },
-});

@@ -1,12 +1,12 @@
 import { formatDateTime, managerCompanyCopy } from '@transport/shared';
 import { useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text } from 'react-native';
 
 import type { IssuedInvitation } from '../lib/company-api';
 import { companyErrorMessage } from '../lib/fleet-errors';
 import { shareableLink } from '../lib/invitation-share';
-import { colors, spacing } from '../theme';
-import { Body, Button, Notice } from './ui';
+import { lookOf, useTheme, type Look } from '../theme';
+import { Button, ControlCell, Footnote, Group, Notice, TextCell } from './ui';
 
 const copy = managerCompanyCopy.invitationLink;
 
@@ -32,6 +32,7 @@ export function InvitationLinkIssuer({
   disabled?: boolean;
   onIssued?: () => void;
 }) {
+  const styles = STYLES[useTheme().theme];
   const [issued, setIssued] = useState<IssuedInvitation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,20 +52,22 @@ export function InvitationLinkIssuer({
 
   const link = issued ? shareableLink(issued.token) : null;
   return (
-    <View style={styles.section}>
+    <>
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {issued && link ? (
         <>
-          <View style={styles.box}>
-            <Text style={styles.caption}>{copy.link}</Text>
-            <Text selectable style={styles.link} testID="invitation-link">
-              {link}
-            </Text>
-            <Text style={styles.caption}>{copy.validUntil(formatDateTime(issued.expiresAt))}</Text>
-          </View>
-          <Body>{replacesPrevious ? copy.onlyOnceReplaces : copy.onlyOnce}</Body>
+          <Group>
+            <ControlCell label={copy.link}>
+              <Text selectable style={styles.link} testID="invitation-link">
+                {link}
+              </Text>
+            </ControlCell>
+            <TextCell tone="dim">{copy.validUntil(formatDateTime(issued.expiresAt))}</TextCell>
+          </Group>
+          <Footnote>{replacesPrevious ? copy.onlyOnceReplaces : copy.onlyOnce}</Footnote>
           <Button
             label={copy.share}
+            icon="share"
             onPress={() => void Share.share({ message: shareMessage(link) })}
           />
         </>
@@ -76,21 +79,12 @@ export function InvitationLinkIssuer({
         loading={busy}
         disabled={disabled || busy}
       />
-    </View>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  section: { gap: spacing.md },
-  box: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  caption: { fontSize: 13, color: colors.textMuted },
-  link: { fontSize: 14, fontWeight: '600', color: colors.navy, textAlign: 'center' },
-});
+function makeStyles({ type }: Look) {
+  return StyleSheet.create({ link: { ...type.body, fontFamily: type.headline.fontFamily } });
+}
+
+const STYLES = { light: makeStyles(lookOf('light')), dark: makeStyles(lookOf('dark')) };

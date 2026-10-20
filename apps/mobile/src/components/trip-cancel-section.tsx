@@ -7,15 +7,15 @@ import {
   type TripCancellationReason,
   type TripStatus,
 } from '@transport/shared';
-import { useState } from 'react';
-import { Alert } from 'react-native';
+import { useRef, useState } from 'react';
 
 import { carrierTripErrorMessage } from '../lib/carrier-trip-errors';
 import { cancelTrip } from '../lib/carrier-trips-api';
 import { validateForm, type FieldErrors } from '../lib/forms';
 import type { Supabase } from '../lib/supabase';
-import { ChoiceChips, SectionTitle } from './fleet-ui';
-import { Body, Button, Field, Notice } from './ui';
+import { ChoiceCell } from './choice-cell';
+import { ConfirmSheet, type ConfirmSheetHandle } from './sheet';
+import { Button, FieldCell, Footnote, Group, Notice, SectionHeader } from './ui';
 
 const copy = tripCancelCopy;
 const REASONS = TRIP_CANCELLATION_REASONS.map((value) => ({
@@ -26,7 +26,7 @@ const REASONS = TRIP_CANCELLATION_REASONS.map((value) => ({
 /**
  * Cancels the trip before the operator starts loading (cancel_trip, G5): a
  * reason from the list and notes (required for "Otro"), confirmed in a
- * dialog. If the unit already set off, it warns that the unit will wait for
+ * sheet. If the unit already set off, it warns that the unit will wait for
  * its release (D20).
  */
 export function TripCancelSection({
@@ -42,6 +42,7 @@ export function TripCancelSection({
   hasUnit: boolean;
   onCancelled: () => Promise<void>;
 }) {
+  const confirmSheet = useRef<ConfirmSheetHandle>(null);
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<{ reasonCode: TripCancellationReason | ''; notes: string }>({
     reasonCode: '',
@@ -52,61 +53,70 @@ export function TripCancelSection({
   const [busy, setBusy] = useState(false);
 
   if (!open) {
-    return <Button label={copy.open} variant="link" onPress={() => setOpen(true)} />;
+    return <Button label={copy.open} variant="plain" onPress={() => setOpen(true)} />;
   }
 
   function confirm() {
     const parsed = validateForm(cancelTripSchema, values);
     setErrors(parsed.ok ? {} : parsed.errors);
     if (!parsed.ok) return;
-    Alert.alert(copy.title, copy.help, [
-      { text: copy.keep, style: 'cancel' },
-      {
-        text: copy.confirm,
-        style: 'destructive',
-        onPress: () => {
-          setBusy(true);
-          setError(null);
-          cancelTrip(client, tripId, parsed.data)
-            .then(onCancelled)
-            .catch((cause: unknown) => setError(carrierTripErrorMessage(cause)))
-            .finally(() => setBusy(false));
-        },
+    confirmSheet.current?.ask({
+      title: copy.title,
+      body: copy.help,
+      confirmLabel: copy.confirm,
+      cancelLabel: copy.keep,
+      destructive: true,
+      onConfirm: async () => {
+        setBusy(true);
+        setError(null);
+        try {
+          await cancelTrip(client, tripId, parsed.data);
+          await onCancelled();
+        } catch (cause) {
+          setError(carrierTripErrorMessage(cause));
+        } finally {
+          setBusy(false);
+        }
       },
-    ]);
+    });
   }
 
   return (
     <>
-      <SectionTitle>{copy.title}</SectionTitle>
-      <Body>{copy.help}</Body>
+      <SectionHeader title={copy.title} />
       {cancelLeavesUnitPending(status, hasUnit) ? (
         <Notice tone="info">{copy.onTheWay}</Notice>
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <ChoiceChips
-        label={copy.reason}
-        options={REASONS}
-        value={values.reasonCode || undefined}
-        onChange={(reasonCode) => setValues((v) => ({ ...v, reasonCode }))}
-        error={errors.reasonCode}
-      />
-      <Field
-        label={copy.notes}
-        value={values.notes}
-        onChangeText={(notes) => setValues((v) => ({ ...v, notes }))}
-        error={errors.notes}
-        placeholder={copy.notesHint}
-        multiline
-        maxLength={1000}
-      />
+      <Group>
+        <ChoiceCell
+          label={copy.reason}
+          options={REASONS}
+          value={values.reasonCode || undefined}
+          onChange={(reasonCode) => {
+            if (reasonCode) setValues((v) => ({ ...v, reasonCode }));
+          }}
+          error={errors.reasonCode}
+        />
+        <FieldCell
+          label={copy.notes}
+          value={values.notes}
+          onChangeText={(notes) => setValues((v) => ({ ...v, notes }))}
+          error={errors.notes}
+          placeholder={copy.notesHint}
+          multiline
+          maxLength={1000}
+        />
+      </Group>
+      <Footnote>{copy.help}</Footnote>
       <Button
         label={copy.confirm}
-        variant="secondary"
+        variant="destructive"
         onPress={confirm}
         loading={busy}
         disabled={busy}
       />
+      <ConfirmSheet ref={confirmSheet} />
     </>
   );
 }

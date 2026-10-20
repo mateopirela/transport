@@ -1,16 +1,14 @@
 import { carrierWebCopy, managerCompanyCopy, type BusinessUnitRef } from '@transport/shared';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import { companyErrorMessage } from '../lib/fleet-errors';
-import { spacing } from '../theme';
-import { ChoiceChips } from './fleet-ui';
-import { Button, Notice } from './ui';
+import { ChoiceCell } from './choice-cell';
+import { Button, Group, Notice } from './ui';
 
 /**
- * Business unit of a new unit or operator (G4): the units the user operates,
- * as chips. With a single one there is nothing to choose (the
- * default_business_unit trigger takes it), so nothing is shown.
+ * Business unit of a new unit or operator (G4), as a row of the form's group:
+ * the units the user operates, as chips. With a single one there is nothing
+ * to choose (the default_business_unit trigger takes it), so nothing is shown.
  */
 export function BusinessUnitChoice({
   units,
@@ -25,11 +23,13 @@ export function BusinessUnitChoice({
 }) {
   if (units.length < 2) return null;
   return (
-    <ChoiceChips
+    <ChoiceCell
       label={carrierWebCopy.fleet.businessUnitField}
       options={units.map((u) => ({ value: u.id, label: u.name }))}
       value={value}
-      onChange={onChange}
+      onChange={(id) => {
+        if (id) onChange(id);
+      }}
       error={error}
     />
   );
@@ -74,14 +74,18 @@ export function MoveToBusinessUnit({
   }
 
   return (
-    <View style={{ gap: spacing.sm }}>
-      <ChoiceChips
-        label={managerCompanyCopy.fleet.move}
-        options={others.map((u) => ({ value: u.id, label: u.name }))}
-        value={target}
-        onChange={setTarget}
-      />
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
+    <>
+      <Group>
+        <ChoiceCell
+          label={managerCompanyCopy.fleet.move}
+          options={others.map((u) => ({ value: u.id, label: u.name }))}
+          value={target}
+          onChange={setTarget}
+        />
+      </Group>
+      {message ? (
+        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+      ) : null}
       {target ? (
         <Button
           label={managerCompanyCopy.fleet.moveSubmit}
@@ -90,6 +94,6 @@ export function MoveToBusinessUnit({
           loading={busy}
         />
       ) : null}
-    </View>
+    </>
   );
 }

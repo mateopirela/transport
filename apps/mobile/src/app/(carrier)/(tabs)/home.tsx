@@ -9,9 +9,21 @@ import {
 import { useRouter, type Href } from 'expo-router';
 
 import { CompanyStatus } from '../../../components/company-status';
-import { Card, Loaded, SectionTitle } from '../../../components/fleet-ui';
-import { RecommendationCard } from '../../../components/load-card';
-import { Body, Button, Screen, Title } from '../../../components/ui';
+import type { IconName } from '../../../components/icons';
+import { RecommendationCell } from '../../../components/load-card';
+import { StatusRow } from '../../../components/status-row';
+import {
+  Button,
+  Cell,
+  Footnote,
+  Group,
+  groupInset,
+  LoadError,
+  Screen,
+  SectionHeader,
+  Skeleton,
+  TextCell,
+} from '../../../components/ui';
 import {
   listOperators,
   listRoutes,
@@ -76,7 +88,7 @@ async function loadFeed({ client, companyId }: CarrierContext) {
   };
 }
 
-/** Units waiting for their release (G5, D20), for the card on top of the home. */
+/** Units waiting for their release (G5, D20), for the group on top of the home. */
 async function loadPendingReleases({ client, companyId }: CarrierContext) {
   return listPendingReleases(client, companyId);
 }
@@ -87,39 +99,20 @@ async function loadPendingReleases({ client, companyId }: CarrierContext) {
  */
 export default function HomeTab() {
   const { profile } = useSession();
-  const router = useRouter();
   const approved = profile?.companyStatus === 'approved';
-  const onboarding = useCarrierData(loadOnboarding);
 
   return (
-    <Screen>
-      <Title>{profile?.companyName ?? mobileNavCopy.home}</Title>
+    <Screen title={profile?.companyName ?? mobileNavCopy.home}>
       {profile ? <CompanyStatus profile={profile} /> : null}
       {approved ? <PendingReleases /> : null}
-      {approved ? <Feed /> : <Body>{feedCopy.notApproved}</Body>}
-      <SectionTitle>{approved ? feedCopy.onboarding : copy.title}</SectionTitle>
-      <Body>{copy.subtitle}</Body>
-      <Loaded state={onboarding.state} onRetry={() => void onboarding.reload()}>
-        {(data) => {
-          const steps: [string, string, Href][] = [
-            [
-              copy.companyDocuments,
-              copy.documentsProgress(data.documents.approved, data.documents.required),
-              '/company-documents',
-            ],
-            [copy.units, data.vehicles ? copy.count(data.vehicles) : copy.pending, '/units'],
-            [
-              copy.operators,
-              data.operators ? copy.operatorsCount(data.operators) : copy.pending,
-              '/operators',
-            ],
-            [copy.routes, data.routes ? copy.count(data.routes) : copy.pending, '/routes'],
-          ];
-          return steps.map(([title, subtitle, href]) => (
-            <Card key={title} title={title} subtitle={subtitle} onPress={() => router.push(href)} />
-          ));
-        }}
-      </Loaded>
+      {approved ? (
+        <Feed />
+      ) : (
+        <Group>
+          <TextCell tone="dim">{feedCopy.notApproved}</TextCell>
+        </Group>
+      )}
+      <Onboarding title={approved ? feedCopy.onboarding : copy.title} />
     </Screen>
   );
 }
@@ -127,48 +120,56 @@ export default function HomeTab() {
 function Feed() {
   const router = useRouter();
   const { state, reload } = useCarrierData(loadFeed);
+  if (state.status === 'loading') return <Skeleton />;
+  if (state.status === 'error') return <LoadError onRetry={() => void reload()} />;
+  const { units, feed, hasUnits } = state.data;
   return (
-    <Loaded state={state} onRetry={() => void reload()}>
-      {({ units, feed, hasUnits }) => (
+    <>
+      {feed.returnTrips.length > 0 ? (
         <>
-          {feed.returnTrips.length > 0 ? (
-            <>
-              <SectionTitle>{feedCopy.returnTrips}</SectionTitle>
-              <Body>{feedCopy.returnTripsHelp}</Body>
-              {feed.returnTrips.map((group) => (
-                <Card
-                  key={group.vehicleId}
-                  title={feedCopy.returnTripFor(units.get(group.vehicleId) ?? '', group.startCity)}
-                >
-                  {group.recommendations.map((r, i) => (
-                    <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
-                  ))}
-                </Card>
+          <SectionHeader title={feedCopy.returnTrips} />
+          {feed.returnTrips.map((group) => (
+            <Group key={group.vehicleId}>
+              <Cell
+                icon="units"
+                strong
+                title={feedCopy.returnTripFor(units.get(group.vehicleId) ?? '', group.startCity)}
+              />
+              {group.recommendations.map((r, i) => (
+                <RecommendationCell key={r.loadId} recommendation={r} rank={i + 1} />
               ))}
-            </>
-          ) : null}
-          <SectionTitle>{feedCopy.recommended}</SectionTitle>
-          <Body>{feedCopy.recommendedHelp}</Body>
-          {feed.recommended.length === 0 ? (
-            <Body>{hasUnits ? feedCopy.empty : feedCopy.noUnits}</Body>
-          ) : (
-            feed.recommended.map((r, i) => (
-              <RecommendationCard
+            </Group>
+          ))}
+          <Footnote>{feedCopy.returnTripsHelp}</Footnote>
+        </>
+      ) : null}
+      <SectionHeader title={feedCopy.recommended} />
+      {feed.recommended.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{hasUnits ? feedCopy.empty : feedCopy.noUnits}</TextCell>
+        </Group>
+      ) : (
+        <>
+          <Group>
+            {feed.recommended.map((r, i) => (
+              <RecommendationCell
                 key={r.loadId}
                 recommendation={r}
                 rank={i + 1}
                 unitLabel={units.get(r.vehicleId)}
               />
-            ))
-          )}
-          <Button
-            label={feedCopy.searchAll}
-            variant="secondary"
-            onPress={() => router.push('/loads')}
-          />
+            ))}
+          </Group>
+          <Footnote>{feedCopy.recommendedHelp}</Footnote>
         </>
       )}
-    </Loaded>
+      <Button
+        label={feedCopy.searchAll}
+        variant="secondary"
+        icon="search"
+        onPress={() => router.push('/loads')}
+      />
+    </>
   );
 }
 
@@ -180,16 +181,79 @@ function PendingReleases() {
   const pending = state.data;
   return (
     <>
-      <SectionTitle>{vehicleReleaseCopy.home.title(pending.length)}</SectionTitle>
-      <Body>{vehicleReleaseCopy.home.help}</Body>
-      {pending.map((p) => (
-        <Card
-          key={p.taskId}
-          title={vehicleReleaseCopy.home.item(p.unit, p.route)}
-          subtitle={vehicleReleaseCopy.badge}
-          onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: p.vehicleId } })}
-        />
-      ))}
+      <SectionHeader title={vehicleReleaseCopy.home.title(pending.length)} />
+      <Group>
+        {pending.map((p) => (
+          <StatusRow
+            key={p.taskId}
+            title={vehicleReleaseCopy.home.item(p.unit, p.route)}
+            pill={{ label: vehicleReleaseCopy.badge, tone: 'amber' }}
+            onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: p.vehicleId } })}
+          />
+        ))}
+      </Group>
+      <Footnote>{vehicleReleaseCopy.home.help}</Footnote>
+    </>
+  );
+}
+
+/** The onboarding steps (B18): each opens its screen and says how far it is. */
+function Onboarding({ title }: { title: string }) {
+  const router = useRouter();
+  const onboarding = useCarrierData(loadOnboarding);
+  const state = onboarding.state;
+  return (
+    <>
+      <SectionHeader title={title} />
+      {state.status === 'loading' ? (
+        <Skeleton rows={4} />
+      ) : state.status === 'error' ? (
+        <LoadError onRetry={() => void onboarding.reload()} />
+      ) : (
+        <Group inset={groupInset.icon}>
+          {(
+            [
+              [
+                'document',
+                copy.companyDocuments,
+                copy.documentsProgress(
+                  state.data.documents.approved,
+                  state.data.documents.required,
+                ),
+                '/company-documents',
+              ],
+              [
+                'units',
+                copy.units,
+                state.data.vehicles ? copy.count(state.data.vehicles) : copy.pending,
+                '/units',
+              ],
+              [
+                'people',
+                copy.operators,
+                state.data.operators ? copy.operatorsCount(state.data.operators) : copy.pending,
+                '/operators',
+              ],
+              [
+                'route',
+                copy.routes,
+                state.data.routes ? copy.count(state.data.routes) : copy.pending,
+                '/routes',
+              ],
+            ] satisfies [IconName, string, string, Href][]
+          ).map(([icon, stepTitle, value, href]) => (
+            <Cell
+              key={stepTitle}
+              role="link"
+              icon={icon}
+              title={stepTitle}
+              subtitle={value}
+              onPress={() => router.push(href)}
+            />
+          ))}
+        </Group>
+      )}
+      <Footnote>{copy.subtitle}</Footnote>
     </>
   );
 }

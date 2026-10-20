@@ -9,11 +9,13 @@ import {
   userRoleLabels,
 } from '@transport/shared';
 import { useState, type ReactNode } from 'react';
+import { Text } from 'react-native';
 
 import { useSession } from '../providers/session';
+import { useTheme } from '../theme';
 import { AppearancePicker } from './appearance-picker';
 import { LegalLinks } from './legal-links';
-import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader, ValueRow } from './ui';
+import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader } from './ui';
 
 /**
  * "Más" tab, as the phone's own settings: what the screen adds (`children`,
@@ -22,6 +24,7 @@ import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader, ValueRow
  */
 export function AccountScreen({ children }: { children?: ReactNode }) {
   const { session, profile, actions } = useSession();
+  const { type } = useTheme();
   const [signingOut, setSigningOut] = useState(false);
 
   const email = session?.user.email;
@@ -47,8 +50,14 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
         {profile?.companyName ? (
           <Cell icon="company" title={profile.companyName} strong lines={2} />
         ) : null}
+        {/* Stacked, as the fields of the forms: a long name or e-mail wraps inside the row. */}
         {rows.map(([label, value]) =>
-          value ? <ValueRow key={label} label={label} value={value} /> : null,
+          value ? (
+            <Cell key={label}>
+              <Text style={type.label}>{label}</Text>
+              <Text style={type.body}>{value}</Text>
+            </Cell>
+          ) : null,
         )}
       </Group>
       <AppearancePicker />

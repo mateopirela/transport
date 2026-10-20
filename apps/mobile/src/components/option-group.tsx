@@ -1,9 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
-import { Button } from './ui';
+import { spacing } from '../theme';
+import { Cell, ErrorText, Footnote, Group, GroupLabel } from './ui';
 
-/** A labelled row of exclusive options rendered as buttons (person type, registration kind). */
+/**
+ * A labelled choice among a few exclusive options (the registration kind),
+ * as the phone's own settings: a group of rows, the chosen one with a check,
+ * and the hint of the choice (or the error) under it.
+ */
 export function OptionGroup<T extends string>({
   label,
   options,
@@ -20,33 +24,34 @@ export function OptionGroup<T extends string>({
   error?: string | undefined;
 }) {
   return (
-    <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.row}>
-        {options.map((option) => (
-          <View key={option.value} style={styles.flex}>
-            <Button
-              label={option.label}
-              variant={value === option.value ? 'primary' : 'secondary'}
+    <>
+      <GroupLabel>{label}</GroupLabel>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label}>
+        <Group>
+          {options.map((option) => (
+            <Cell
+              key={option.value}
+              role="radio"
+              title={option.label}
+              lines={2}
+              checked={value === option.value}
               onPress={() => onChange(option.value)}
             />
-          </View>
-        ))}
+          ))}
+        </Group>
       </View>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <View style={styles.error}>
+          <ErrorText>{error}</ErrorText>
+        </View>
       ) : hint ? (
-        <Text style={styles.hint}>{hint}</Text>
+        <Footnote>{hint}</Footnote>
       ) : null}
-    </View>
+    </>
   );
 }
 
+/** The error lines up with the Footnote it takes the place of. */
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  group: { gap: spacing.xs },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text },
-  hint: { fontSize: 13, color: colors.textMuted },
-  error: { fontSize: 13, color: colors.danger },
+  error: { paddingHorizontal: spacing.md, marginTop: -spacing.xs },
 });

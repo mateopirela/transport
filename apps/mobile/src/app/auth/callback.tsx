@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Button, Centered, Loading, Notice } from '../../components/ui';
+import { Button, Loading, Notice, Screen } from '../../components/ui';
 import { parseAuthRedirect } from '../../lib/deep-links';
 import { useSession } from '../../providers/session';
 
@@ -35,11 +35,16 @@ export default function AuthCallback() {
   }, [url, redirect, actions, router]);
 
   const failed = exchangeFailed || redirect.kind === 'error';
-  if (!failed) return <Loading label={copy.confirmingEmail} />;
   return (
-    <Centered>
-      <Notice tone="danger">{copy.confirmEmailFailed}</Notice>
-      <Button label={copy.goToSignIn} onPress={() => router.replace('/')} />
-    </Centered>
+    <Screen>
+      {failed ? (
+        <>
+          <Notice tone="danger">{copy.confirmEmailFailed}</Notice>
+          <Button label={copy.goToSignIn} onPress={() => router.replace('/')} />
+        </>
+      ) : (
+        <Loading label={copy.confirmingEmail} />
+      )}
+    </Screen>
   );
 }

@@ -1,7 +1,9 @@
 import { mobileCompanyCopy as copy } from '@transport/shared';
+import { Text } from 'react-native';
 
 import type { ProfileDetails } from '../lib/profile';
-import { Body, Notice } from './ui';
+import { useTheme } from '../theme';
+import { Notice } from './ui';
 
 const TITLES = {
   rejected: copy.rejectedTitle,
@@ -11,6 +13,7 @@ const TITLES = {
 
 /** Verification state of the carrier's company (product §2: "en revisión"). */
 export function CompanyStatus({ profile }: { profile: ProfileDetails }) {
+  const { type } = useTheme();
   switch (profile.companyStatus) {
     case 'pending_review':
       return (
@@ -23,8 +26,10 @@ export function CompanyStatus({ profile }: { profile: ProfileDetails }) {
     case 'expired':
       return (
         <Notice tone="danger" title={TITLES[profile.companyStatus]}>
-          {profile.companyStatusReason ? <Body>{profile.companyStatusReason}</Body> : null}
-          <Body>{copy.contactSupport}</Body>
+          {profile.companyStatusReason ? (
+            <Text style={type.subhead}>{profile.companyStatusReason}</Text>
+          ) : null}
+          <Text style={type.subhead}>{copy.contactSupport}</Text>
         </Notice>
       );
     default:

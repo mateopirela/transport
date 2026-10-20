@@ -9,15 +9,17 @@ import {
   userRoleLabels,
 } from '@transport/shared';
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '../providers/session';
-import { colors, spacing } from '../theme';
 import { AppearancePicker } from './appearance-picker';
 import { LegalLinks } from './legal-links';
-import { Body, Button, Field, Notice, Screen, Title } from './ui';
+import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader, ValueRow } from './ui';
 
-/** "Más" tab: who is signed in, and sign-out. `children` go above the account card. */
+/**
+ * "Más" tab, as the phone's own settings: what the screen adds (`children`,
+ * e.g. the carrier's links), then the account in groups: who is signed in,
+ * the appearance, the legal documents and, last, signing out.
+ */
 export function AccountScreen({ children }: { children?: ReactNode }) {
   const { session, profile, actions } = useSession();
   const [signingOut, setSigningOut] = useState(false);
@@ -37,29 +39,29 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <Screen>
-      {children}
+    <Screen title={nav.more}>
       {profile && !profile.phone && session ? <CompletePhone userId={session.user.id} /> : null}
-      <Title>{nav.account}</Title>
-      {profile?.companyName ? <Text style={styles.company}>{profile.companyName}</Text> : null}
-      <View style={styles.card}>
+      {children}
+      <SectionHeader title={nav.account} />
+      <Group>
+        {profile?.companyName ? (
+          <Cell icon="company" title={profile.companyName} strong lines={2} />
+        ) : null}
         {rows.map(([label, value]) =>
-          value ? (
-            <View key={label} style={styles.row}>
-              <Text style={styles.label}>{label}</Text>
-              <Text style={styles.value}>{value}</Text>
-            </View>
-          ) : null,
+          value ? <ValueRow key={label} label={label} value={value} /> : null,
         )}
-      </View>
+      </Group>
       <AppearancePicker />
-      <Button
-        label={mobileAuthCopy.signOut}
-        variant="secondary"
-        onPress={signOut}
-        loading={signingOut}
-      />
       <LegalLinks />
+      <Group>
+        <Cell
+          icon="signOut"
+          title={mobileAuthCopy.signOut}
+          destructive
+          disabled={signingOut}
+          onPress={() => void signOut()}
+        />
+      </Group>
     </Screen>
   );
 }
@@ -86,33 +88,22 @@ function CompletePhone({ userId }: { userId: string }) {
   }
 
   return (
-    <Notice tone="warning" title={mobilePhoneCopy.title}>
-      <Body>{mobilePhoneCopy.body}</Body>
-      <Field
-        label={mobilePhoneCopy.label}
-        value={phone}
-        onChangeText={setPhone}
-        error={error}
-        autoComplete="tel"
-        keyboardType="phone-pad"
-        textContentType="telephoneNumber"
-      />
+    <>
+      <Notice tone="warning" title={mobilePhoneCopy.title}>
+        {mobilePhoneCopy.body}
+      </Notice>
+      <Group>
+        <FieldCell
+          label={mobilePhoneCopy.label}
+          value={phone}
+          onChangeText={setPhone}
+          error={error}
+          autoComplete="tel"
+          keyboardType="phone-pad"
+          textContentType="telephoneNumber"
+        />
+      </Group>
       <Button label={mobilePhoneCopy.save} onPress={() => void save()} loading={saving} />
-    </Notice>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  company: { fontSize: 16, fontWeight: '600', color: colors.text },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  row: { gap: 2 },
-  label: { fontSize: 13, color: colors.textMuted },
-  value: { fontSize: 16, color: colors.text },
-});

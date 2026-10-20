@@ -1,12 +1,18 @@
 import { mobileAuthCopy as copy, mobileErrorCopy, signInSchema } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Button, Field, Notice, Screen, Title } from '../../components/ui';
+import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
+import { spacing } from '../../theme';
 
-/** Sign-in with "Correo o teléfono" (G2): a phone-only operator types their phone. */
+/**
+ * Sign-in with "Correo o teléfono" (G2): a phone-only operator types their
+ * phone. The two fields in one group and "Entrar" as the only primary; the
+ * ways to sign up or to open an invitation as text.
+ */
 export default function SignIn() {
   const { actions } = useSession();
   const router = useRouter();
@@ -29,33 +35,42 @@ export default function SignIn() {
   }
 
   return (
-    <Screen>
-      <Title subtitle={copy.tagline}>{copy.appName}</Title>
+    <Screen title={copy.appName} subtitle={copy.tagline}>
       {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <Field
-        label={copy.identifierLabel}
-        value={identifier}
-        onChangeText={setIdentifier}
-        error={errors.identifier}
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="username"
-        keyboardType="email-address"
-        textContentType="username"
-      />
-      <Field
-        label={copy.passwordLabel}
-        value={password}
-        onChangeText={setPassword}
-        error={errors.password}
-        secureTextEntry
-        autoComplete="current-password"
-        textContentType="password"
-        onSubmitEditing={submit}
-      />
+      <Group>
+        <FieldCell
+          label={copy.identifierLabel}
+          value={identifier}
+          onChangeText={setIdentifier}
+          error={errors.identifier}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="username"
+          keyboardType="email-address"
+          textContentType="username"
+        />
+        <FieldCell
+          label={copy.passwordLabel}
+          value={password}
+          onChangeText={setPassword}
+          error={errors.password}
+          secureTextEntry
+          autoComplete="current-password"
+          textContentType="password"
+          onSubmitEditing={submit}
+        />
+      </Group>
       <Button label={copy.signInAction} onPress={submit} loading={submitting} />
-      <Button label={copy.goToSignUp} variant="secondary" onPress={() => router.push('/sign-up')} />
-      <Button label={copy.goToInvite} variant="link" onPress={() => router.push('/invitacion')} />
+      <View style={styles.links}>
+        <Button label={copy.goToSignUp} variant="plain" onPress={() => router.push('/sign-up')} />
+        <Button
+          label={copy.goToInvite}
+          variant="plain"
+          onPress={() => router.push('/invitacion')}
+        />
+      </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({ links: { marginTop: spacing.sm } });

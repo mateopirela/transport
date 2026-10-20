@@ -2,7 +2,7 @@ import { mobileAuthCopy, mobileInviteCopy as copy, parseInvitationLink } from '@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
-import { Body, Button, Field, Loading, Screen, Title } from '../../components/ui';
+import { Button, FieldCell, Footnote, Group, Loading, Screen } from '../../components/ui';
 import { useSession } from '../../providers/session';
 
 /**
@@ -40,37 +40,45 @@ export default function InvitationIndex() {
     router.replace({ pathname: '/invitacion/[token]', params: { token } });
   }
 
-  if (checking) return <Loading label={copy.loading} />;
+  if (checking) {
+    return (
+      <Screen>
+        <Loading label={copy.loading} />
+      </Screen>
+    );
+  }
 
   const signedIn = area === 'join';
   return (
-    <Screen>
-      <Title subtitle={signedIn ? copy.noLinkBody : copy.subtitle}>
-        {signedIn ? copy.noLinkTitle : copy.title}
-      </Title>
-      <Field
-        label={copy.linkLabel}
-        value={link}
-        onChangeText={setLink}
-        error={error}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-      />
+    <Screen
+      title={signedIn ? copy.noLinkTitle : copy.title}
+      subtitle={signedIn ? copy.noLinkBody : copy.subtitle}
+    >
+      <Group>
+        <FieldCell
+          label={copy.linkLabel}
+          value={link}
+          onChangeText={setLink}
+          error={error}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
+      </Group>
       <Button label={copy.openLinkAction} onPress={open} />
       {signedIn ? (
         <>
-          <Body>{copy.signOutHint}</Body>
+          <Footnote>{copy.signOutHint}</Footnote>
           <Button
             label={mobileAuthCopy.signOut}
-            variant="link"
+            variant="plain"
             onPress={() => void actions.signOut()}
           />
         </>
       ) : (
         <Button
           label={mobileAuthCopy.goToSignIn}
-          variant="link"
+          variant="plain"
           onPress={() => router.replace('/sign-in')}
         />
       )}

@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(115);
+select plan(116);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -59,7 +59,8 @@ language sql
 stable
 as $$ select id from tests.vals where name = p_name $$;
 
--- Conversation of a negotiation or trip, bypassing RLS (fixture lookup only).
+-- Conversation of a negotiation, or of a trip with the shipper (not the
+-- carrier's internal one, H1), bypassing RLS (fixture lookup only).
 create function tests.conversation_of(p_subject uuid)
 returns uuid
 language sql
@@ -67,7 +68,8 @@ stable
 security definer
 set search_path = ''
 as $$
-  select c.id from public.conversations c where c.negotiation_id = p_subject or c.trip_id = p_subject;
+  select c.id from public.conversations c
+  where (c.negotiation_id = p_subject or c.trip_id = p_subject) and c.kind <> 'trip_internal';
 $$;
 
 -- Notifications of a user by type and data (bypassing RLS, to check recipients).
@@ -461,7 +463,8 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
--- Trip conversation: the assigned operator joins it.
+-- Trip conversation: the assigned operator does not join it (H1, D28: they
+-- report to their coordinator in the internal one, 42_trip_internal_chat).
 -- ---------------------------------------------------------------------------
 set local role authenticated;
 select tests.login('a7000000-0000-4000-8000-000000000006');
@@ -491,10 +494,13 @@ select is(tests.notified('a7000000-0000-4000-8000-000000000007', 'trip_assigned'
 
 set local role authenticated;
 select tests.login('a7000000-0000-4000-8000-000000000006');
-select is((select array_agg(id) from public.conversations), array[tests.val('convTrip')],
-  'the assigned operator sees only the trip conversation');
-select lives_ok($$ select public.send_message(tests.val('convTrip'), 'Voy en camino.') $$,
-  'and writes in it');
+select is((select array_agg(kind::text) from public.conversations), array['trip_internal'],
+  'the assigned operator sees only the internal conversation of the trip (D28)');
+select throws_ok($$ select public.send_message(tests.val('convTrip'), 'Voy en camino.') $$, '42501', null,
+  'and does not write in the chat with the shipper');
+select tests.login('a7000000-0000-4000-8000-000000000004');
+select lives_ok($$ select public.send_message(tests.val('convTrip'), 'Vamos en camino.') $$,
+  'the carrier writes in it');
 select tests.login('a7000000-0000-4000-8000-000000000007');
 select is((select count(*) from public.conversations), 0::bigint, 'another operator does not see it');
 select throws_ok($$ select public.send_message(tests.val('convTrip'), 'hola') $$, '42501', null,

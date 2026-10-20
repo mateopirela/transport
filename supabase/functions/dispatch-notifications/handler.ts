@@ -27,7 +27,10 @@ import {
   notificationContent,
   type NotificationContent,
 } from '../../../packages/shared/src/copy/notifications.ts';
-import { notificationEmail } from '../../../packages/shared/src/copy/notification-email.ts';
+import {
+  notificationEmail,
+  PUSH_ONLY_NOTIFICATION_TYPES,
+} from '../../../packages/shared/src/copy/notification-email.ts';
 import type { NotificationType, UserRole } from '../../../packages/shared/src/enums.ts';
 import { createLogger, type Logger } from '../../../packages/shared/src/observability/logger.ts';
 
@@ -261,7 +264,12 @@ interface EmailOutcome {
 const EMAIL_ROLES: readonly (UserRole | null)[] = ['shipper', 'admin', 'manager', 'coordinator'];
 
 async function sendEmail(row: ClaimedNotification, deps: Dependencies): Promise<EmailOutcome> {
-  if (!row.email_pending || !row.email || !EMAIL_ROLES.includes(row.role)) {
+  if (
+    !row.email_pending ||
+    !row.email ||
+    !EMAIL_ROLES.includes(row.role) ||
+    PUSH_ONLY_NOTIFICATION_TYPES.includes(row.type)
+  ) {
     return { outcome: 'skipped' };
   }
   const message = notificationEmail(row.type, row.data, {

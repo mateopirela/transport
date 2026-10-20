@@ -54,6 +54,7 @@ export function ChatPanel({
   initialMessages,
   initialReads,
   area = 'cliente',
+  internal = false,
 }: {
   conversationId: string;
   viewerId: string;
@@ -62,6 +63,8 @@ export function ChatPanel({
   initialReads: ChatRead[];
   /** Area whose attachment route opens the files (each area guards its own). */
   area?: WebArea;
+  /** The carrier's internal chat of a trip (H1): the staff is told apart by role. */
+  internal?: boolean;
 }) {
   // What arrived after the server render (Realtime, catch-up, own sends);
   // merged with the server data, so a refresh of the page adds to it too.
@@ -242,7 +245,8 @@ export function ChatPanel({
                 )}
               >
                 <p className="text-caption text-text-dim">
-                  {chatSenderLabel(message, viewerId)} · {formatDateTime(message.created_at)}
+                  {chatSenderLabel(message, viewerId, internal)} ·{' '}
+                  {formatDateTime(message.created_at)}
                 </p>
                 {message.body && <p className="break-words whitespace-pre-wrap">{message.body}</p>}
                 {message.attachments.map((attachment) => (

@@ -11,6 +11,7 @@ export * from './catalogs';
 export * from './client-trips';
 export * from './errors';
 export * from './fleet';
+export * from './internal-chat';
 export * from './legal';
 export * from './loads';
 export * from './manager-company';

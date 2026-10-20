@@ -147,7 +147,13 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
       .eq('trip_id', trip.id)
       .order('recorded_at', { ascending: false })
       .limit(MAP_POINTS_LIMIT),
-    supabase.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
+    // The chat with the carrier; never the carrier's internal one (H1, which RLS hides too).
+    supabase
+      .from('conversations')
+      .select('id')
+      .eq('trip_id', trip.id)
+      .eq('kind', 'trip')
+      .maybeSingle(),
     tripParties(supabase, [trip.id]),
     supabase.rpc('trip_checklist', { p_trip_id: trip.id }),
     supabase.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),

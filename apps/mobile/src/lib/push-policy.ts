@@ -1,3 +1,5 @@
+import { INTERNAL_CHAT_PARAM } from '@transport/shared';
+
 export type PushSkipReason = 'no_project_id' | 'not_a_device' | 'permission_denied';
 
 /**
@@ -30,7 +32,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 /** Screen a tapped push opens. */
 export type PushTarget =
   | { pathname: '/trip' }
-  | { pathname: '/trip/[id]'; params: { id: string } }
+  | { pathname: '/chat/[tripId]'; params: { tripId: string } }
+  | { pathname: '/trip/[id]'; params: { id: string; chat?: string } }
   | { pathname: '/vehicle/[id]'; params: { id: string } };
 
 /**
@@ -54,6 +57,15 @@ export function pushTarget(data: unknown, area: string): PushTarget | null {
   }
   const tripId = ids.tripId;
   if (typeof tripId !== 'string' || !UUID.test(tripId)) return null;
+  // A message of the internal trip chat (H1): the operator's chat screen (it
+  // opens for a cancelled or closed trip too), or the trip's internal tab.
+  if (ids.type === 'internal_message') {
+    if (area === 'operator') return { pathname: '/chat/[tripId]', params: { tripId } };
+    if (area === 'carrier') {
+      return { pathname: '/trip/[id]', params: { id: tripId, chat: INTERNAL_CHAT_PARAM } };
+    }
+    return null;
+  }
   if (area === 'operator') return { pathname: '/trip' };
   if (area === 'carrier') return { pathname: '/trip/[id]', params: { id: tripId } };
   return null;

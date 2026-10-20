@@ -12,8 +12,11 @@ import {
   fleetCopy,
   formatDateTime,
   formatMxn,
+  INTERNAL_CHAT_PARAM,
   incidentKindLabels,
+  internalChatCopy,
   incidentStatusLabels,
+  tripChatTab,
   tripDocumentKindLabels,
   tripEventTypeLabels,
 } from '@transport/shared';
@@ -41,6 +44,7 @@ import { Empty } from '@/components/ui/empty';
 import { Group, GroupLabel } from '@/components/ui/group';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { Segmented } from '@/components/ui/segmented';
 import { groupRow } from '@/components/ui/variants';
 import { carrierContext } from '@/lib/carrier/context';
 import {
@@ -81,9 +85,15 @@ function mapMessage(state: MapState, now: Date): string {
  * and operator (until the operator departs), the live map, the timeline, the
  * evidence, the documents checklist (D22) with upload, the incidents, the
  * trip chat and the cancellation. Access is the business unit's (RLS, G1a).
+ * The chat has two tabs (H1): "Cliente" and the internal one with the
+ * operator, "Interno" (`?chat=interno`, where its notifications lead).
  */
-export default async function CarrierTripPage({ params }: PageProps<'/transportista/viajes/[id]'>) {
+export default async function CarrierTripPage({
+  params,
+  searchParams,
+}: PageProps<'/transportista/viajes/[id]'>) {
   const { id } = await params;
+  const requestedTab = tripChatTab((await searchParams).chat);
   const { supabase, viewer, companyId, isManager, units } = await carrierContext(
     carrierTripPath(id),
   );
@@ -101,8 +111,10 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
     );
   }
   const { trip, load, events, incidents, evidence, documents, locations } = data;
+  const chatTab = data.internalConversationId ? requestedTab : 'shipper';
+  const chatId = chatTab === 'internal' ? data.internalConversationId : data.conversationId;
   const [chat, sharedDocuments, decision] = await Promise.all([
-    data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
+    chatId ? getChat(supabase, chatId, companyId) : null,
     getSharedDocuments(supabase, trip.id),
     getProviderDecisionForCarrier(supabase, {
       shipperCompanyId: trip.shipper_company_id,
@@ -331,16 +343,45 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
 
           <PageSection
             title={d.chat}
-            description={chat && data.conversationId ? chatCopy.description : undefined}
+            description={
+              chat && chatId
+                ? chatTab === 'internal'
+                  ? internalChatCopy.staffDescription
+                  : chatCopy.description
+                : undefined
+            }
           >
-            {chat && data.conversationId ? (
+            {data.internalConversationId && (
+              <Segmented
+                label={internalChatCopy.tabs.label}
+                value={chatTab}
+                items={[
+                  {
+                    value: 'shipper',
+                    label: internalChatCopy.tabs.shipper,
+                    href: carrierTripPath(trip.id),
+                  },
+                  {
+                    value: 'internal',
+                    label: internalChatCopy.tabs.internal,
+                    href: `${carrierTripPath(trip.id)}?chat=${INTERNAL_CHAT_PARAM}`,
+                  },
+                ]}
+              />
+            )}
+            {chat && chatId ? (
               <ChatPanel
-                conversationId={data.conversationId}
+                key={chatId}
+                conversationId={chatId}
                 viewerId={viewer.userId}
-                ownCompanyUserIds={chat.ownCompanyUserIds}
+                // In the internal chat everyone is of the company: any other reader counts.
+                ownCompanyUserIds={
+                  chatTab === 'internal' ? [viewer.userId] : chat.ownCompanyUserIds
+                }
                 initialMessages={chat.messages}
                 initialReads={chat.reads}
                 area="transportista"
+                internal={chatTab === 'internal'}
               />
             ) : (
               <p className="px-1 text-subhead text-text-dim">{d.chatUnavailable}</p>

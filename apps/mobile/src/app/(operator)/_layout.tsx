@@ -8,7 +8,7 @@ import { useTabsScreenOptions } from '../../theme';
 
 const ICONS: Record<string, IconName> = { trip: 'navigate', account: 'more' };
 
-/** Operator view: the assigned trip (B21–B23) and the account. */
+/** Operator view: the assigned trip (B21–B23), its chat with the coordinator (H1) and the account. */
 export default function OperatorTabs() {
   const screenOptions = useTabsScreenOptions();
   return (
@@ -18,6 +18,8 @@ export default function OperatorTabs() {
         <Tabs.Screen name="account" options={{ title: nav.more }} />
         {/* Opened from the trip and the account (B22); not a tab. */}
         <Tabs.Screen name="location-consent" options={{ href: null }} />
+        {/* "Reportar al coordinador" (H1): from the trip or a notification; not a tab. */}
+        <Tabs.Screen name="chat/[tripId]" options={{ href: null }} />
       </Tabs>
     </TabScreens>
   );

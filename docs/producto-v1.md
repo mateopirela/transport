@@ -83,7 +83,8 @@
 - Confirmar camión y operador del viaje ganado; ver si el cliente ya lo dio de alta como proveedor.
 - Subir los documentos del viaje (D22): orden de servicio, CFDI con Carta Porte y factura.
 - **Compartir** una carga por enlace con operadores u otros coordinadores de la empresa (D23).
-- Monitorear viajes activos en el mapa, chatear con el operador y consultar el historial.
+- Monitorear viajes activos en el mapa y consultar el historial.
+- **Chat interno del viaje** con el operador (D28): en el detalle del viaje, el chat tiene dos pestañas, "Cliente" e "Interno". El cliente nunca ve el interno. En el inicio de la app, la tarjeta "Mensajes de operadores (n)" con los viajes que tienen mensajes sin leer; en la web, un distintivo de no leídos en la lista de viajes.
 - Cuando un viaje que ya salió se cancela: confirmar dónde quedó el camión y **liberarlo** (D20).
 - Invitar operadores a sus unidades de negocio y restablecerles el acceso.
 
@@ -100,10 +101,13 @@
   - fin de descarga
 - **Ubicación compartida en segundo plano**, con consentimiento explícito y solo durante viajes activos. La app le pide activar la **ubicación precisa** y el permiso **"Siempre"** (D17).
 - Evidencia de recolección y evidencia firmada de entrega (fotos con hora y ubicación, y quién recibe). Funciona sin señal y sube después.
-- Reportar incidencias (con fotos) y escribir al coordinador por chat.
+- Reportar incidencias (con fotos).
+- **"Reportar al coordinador"** (D28): el botón principal de su viaje abre el chat interno con su coordinador (y el Gerente), con mensajes rápidos ("Ya llegué a cargar", "Ya llegué a descargar", "Voy con retraso", "Estoy esperando turno", "Tengo un problema en carretera", "Todo en orden"), "Enviar foto" y "Enviar mi ubicación". Avisa por push. Sigue abierto si el viaje se cancela o termina (D20-E1).
+- El operador **no ve el chat con el cliente** (D28): habla con su coordinador y el coordinador con el cliente.
 
 ### Hombre-camión (app y web)
 - En el registro elige "Hombre camión": una sola cuenta crea la empresa, su perfil de Gerente y su perfil de Operador (D13).
+- Mientras trabaje solo, la app y la web le ocultan el chat interno del viaje, que sería consigo mismo; sigue en el chat con el cliente (D13-E1, D28).
 - Sube sus documentos fiscales, personales (identificación y licencia) y del camión.
 - Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación y subir evidencias. Paga la suscripción como Gerente, en la web (D13-E1, D30).
 
@@ -127,6 +131,7 @@
   - un documento del viaje nuevo, o documentos compartidos
   - una unidad pendiente de liberar
   - un documento aprobado, rechazado o por vencer
+  - un mensaje del chat interno del viaje (solo push y bandeja, nunca correo; los mensajes seguidos se agrupan en un aviso, D28)
   - la prueba piloto por terminar (14 días antes) o una suscripción no activa después del piloto (banner en la web y la app del transportista, D30)
 - Alertas de **documentos por vencer** (licencias, seguros y demás documentos con vigencia).
 - Aviso de privacidad (LFPDPPP) y términos, con consentimiento de ubicación registrado.
@@ -174,6 +179,8 @@ Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o
 | Disponibilidad de camiones | — | ✅ | 🔸 | — | — |
 | Ver cargas publicadas, recomendaciones | — | ✅ | 🔸 (con sus camiones) | — | ✅ |
 | Ofertar, contraofertar y chatear en negociaciones | ✅ | ✅ | 🔸 | — | 👁 |
+| Chat del viaje con el cliente | ✅ | ✅ | 🔸 | — | 👁 |
+| Chat interno del viaje (D28) | — | ✅ | 🔸 | ✅ (su viaje actual) | 👁 |
 | Asignar camión y operador | — | ✅ | 🔸 | — | ✅ |
 | Ver viajes | ✅ (los suyos) | ✅ (todos) | 🔸 | ✅ (el asignado) | ✅ |
 | Subir documentos del viaje | ✅ orden de servicio | ✅ | 🔸 | 👁 | 👁 |

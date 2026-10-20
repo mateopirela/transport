@@ -16,11 +16,12 @@ export function LegalDocument({ text }: { text: LegalText }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-glass-line bg-glass backdrop-blur-xl backdrop-saturate-150">
-        <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href={paths.home} className="text-headline text-text">
+        {/* Grows with its text: on a phone the two links wrap under the name, never out of the bar. */}
+        <div className="mx-auto flex min-h-14 w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
+          <Link href={paths.home} className="text-headline whitespace-nowrap text-text">
             {authCopy.appName}
           </Link>
-          <nav className="-mr-3 flex gap-1">
+          <nav className="-mx-3 flex gap-1 whitespace-nowrap">
             <Link href={paths.privacy} className={navLink}>
               {legalCopy.privacyLink}
             </Link>

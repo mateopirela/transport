@@ -2,18 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { mobileNavCopy as nav } from '@transport/shared';
 import { Tabs } from 'expo-router/js-tabs';
 
-import { colors } from '../../theme';
+import { useTabsScreenOptions } from '../../theme';
 
 /** Operator view: the assigned trip (B21–B23) and the account. */
 export default function OperatorTabs() {
+  const screenOptions = useTabsScreenOptions();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-      }}
-    >
+    <Tabs screenOptions={screenOptions}>
       <Tabs.Screen
         name="trip"
         options={{

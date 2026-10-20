@@ -1,12 +1,15 @@
 import { authCopy, shellCopy } from '@transport/shared';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
+import { themeChoiceFromCookie, THEME_COOKIE } from '@/lib/theme';
 import type { ViewerDetails } from '@/lib/viewer';
 
 /** Header and frame of the signed-in area (Cliente, Gerente or Coordinador, or Admin). */
-export function AppShell({
+export async function AppShell({
   area,
   nav,
   toolbar,
@@ -21,10 +24,11 @@ export function AppShell({
   viewer: ViewerDetails;
   children: React.ReactNode;
 }) {
+  const theme = themeChoiceFromCookie((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-navy text-navy-foreground">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
           <Link href="/" className="font-serif text-xl">
             {authCopy.appName}
           </Link>
@@ -33,10 +37,11 @@ export function AppShell({
               {area}
             </span>
           )}
-          <div className="ml-auto flex items-center gap-3 text-sm">
+          <div className="ml-auto flex items-center gap-1 text-sm sm:gap-3">
             <span className="hidden text-navy-foreground/75 sm:inline">
               {viewer.company?.legalName ?? viewer.fullName}
             </span>
+            <ThemeSwitcher initial={theme} className="border-navy-foreground/25" />
             <SignOutButton variant="ghost" className="hover:bg-white/10" />
           </div>
         </div>

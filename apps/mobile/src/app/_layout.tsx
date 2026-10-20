@@ -1,5 +1,7 @@
 import { errorBoundaryCopy, mobileAuthCopy, mobileSystemCopy } from '@transport/shared';
+import { useFonts } from 'expo-font';
 import { Stack, usePathname, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -12,13 +14,36 @@ import { resolveRedirect } from '../lib/routing';
 import { reportError, withSentry } from '../lib/sentry';
 import { envResult, supabase } from '../lib/supabase';
 import { SessionProvider, useSession } from '../providers/session';
-import { colors } from '../theme';
+import { fontFiles, ThemeProvider, useStackScreenOptions, useTheme } from '../theme';
+
+// Hanken Grotesk loads before the first screen shows (D26).
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootLayout() {
   return (
+    <ThemeProvider>
+      <ThemedRoot />
+    </ThemeProvider>
+  );
+}
+
+function ThemedRoot() {
+  const { theme, box, ready: themeReady } = useTheme();
+  const [fontsLoaded, fontError] = useFonts(fontFiles);
+  // The splash stays until the font and the saved theme are in. Without the
+  // font (a failed load) the app still opens, on the system font.
+  const ready = themeReady && (fontsLoaded || fontError !== null);
+
+  useEffect(() => {
+    if (ready) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [ready]);
+
+  if (!ready) return null;
+  return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Dark icons on the light page, light icons on the dark one. */}
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <View style={box.page}>
         <OfflineBanner />
         {supabase && envResult.ok ? (
           <SessionProvider client={supabase} easProjectId={envResult.env.easProjectId}>
@@ -73,6 +98,7 @@ function GuardedStack() {
   const segments = useSegments();
   const pathname = usePathname();
   const router = useRouter();
+  const screenOptions = useStackScreenOptions();
   const [pendingShared, setPendingShared] = useState<string | null>(null);
   const { target, pending } = resolveRedirect(area, segments, pathname, pendingShared);
   // Adjusting state while rendering (React's pattern for derived state).
@@ -86,7 +112,7 @@ function GuardedStack() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ ...screenOptions, headerShown: false }} />
       {area === 'loading' ? (
         <View style={StyleSheet.absoluteFill}>
           <Loading label={mobileAuthCopy.loading} />

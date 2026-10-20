@@ -140,7 +140,9 @@ export interface ConfirmSheetHandle {
 /**
  * A confirmation in a sheet, in place of an alert: what will happen, the
  * step's own label and the way back. Nothing runs until the person confirms;
- * the sheet closes once the step went through.
+ * the sheet closes once the step went through. A step still running when its
+ * sheet is dismissed (or another confirmation is asked) no longer touches the
+ * sheet: only the confirmation on screen reacts to its own result.
  */
 export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
   const styles = STYLES[useTheme().theme];
@@ -148,12 +150,16 @@ export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
   const [pending, setPending] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Which confirmation is on screen: bumped on every ask and every dismissal.
+  const current = useRef(0);
 
   useImperativeHandle(
     ref,
     () => ({
       ask: (confirmation) => {
+        current.current += 1;
         setPending(confirmation);
+        setBusy(false);
         setFailed(false);
         sheet.current?.open();
       },
@@ -163,18 +169,21 @@ export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
 
   async function confirm() {
     if (!pending || busy) return;
+    const id = current.current;
     setBusy(true);
     setFailed(false);
+    let ok = true;
     try {
       await pending.onConfirm();
     } catch {
-      // The step did not go through: stay open, say so, and let the person retry.
-      setBusy(false);
-      setFailed(true);
-      return;
+      ok = false;
     }
+    // Dismissed or replaced meanwhile: the result is not this sheet's any more.
+    if (id !== current.current) return;
     setBusy(false);
-    sheet.current?.close();
+    // The step did not go through: stay open, say so, and let the person retry.
+    if (!ok) setFailed(true);
+    else sheet.current?.close();
   }
 
   return (
@@ -182,7 +191,9 @@ export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
       ref={sheet}
       title={pending?.title}
       onClose={() => {
+        current.current += 1;
         setPending(null);
+        setBusy(false);
         setFailed(false);
       }}
     >

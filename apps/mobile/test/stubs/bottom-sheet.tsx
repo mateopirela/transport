@@ -16,9 +16,11 @@ export function BottomSheetTextInput(props: Record<string, unknown>) {
 export function BottomSheetModal({
   ref,
   children,
+  onDismiss,
 }: {
   ref?: Ref<{ present: () => void; dismiss: () => void }>;
   children?: ReactNode;
+  onDismiss?: () => void;
 }) {
   useImperativeHandle(ref, () => ({
     present: () => {
@@ -26,6 +28,7 @@ export function BottomSheetModal({
     },
     dismiss: () => {
       sheetCalls.dismiss += 1;
+      onDismiss?.();
     },
   }));
   return createElement('BottomSheetModal', null, children);

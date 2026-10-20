@@ -42,12 +42,28 @@ function confirmButton(root: ReactTestInstance, label: string): ReactTestInstanc
   return button;
 }
 
-async function ask(confirmation: Confirmation) {
+async function open() {
   const ref = createRef<ConfirmSheetHandle>();
   const made = await act(async () => create(<ConfirmSheet ref={ref} />));
   renderer = made;
-  act(() => ref.current?.ask(confirmation));
-  return made.root;
+  return { root: made.root, ask: (c: Confirmation) => act(() => ref.current?.ask(c)) };
+}
+
+async function ask(confirmation: Confirmation) {
+  const { root, ask: askNow } = await open();
+  askNow(confirmation);
+  return root;
+}
+
+/** A promise the test settles by hand. */
+function deferred() {
+  let resolve: () => void = () => undefined;
+  let reject: (error: Error) => void = () => undefined;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 const base = {
@@ -97,5 +113,41 @@ describe('ConfirmSheet', () => {
     await act(async () => confirmButton(root, base.confirmLabel).props.onPress());
     expect(texts(root)).toContain('No pudimos dar de baja la unidad.');
     expect(sheetCalls.dismiss).toBe(0);
+  });
+
+  it('ignores the result of a step whose sheet was dismissed and replaced', async () => {
+    for (const outcome of ['resolve', 'reject'] as const) {
+      resetSheetCalls();
+      const first = deferred();
+      const { root, ask: askNow } = await open();
+      askNow({ ...base, onConfirm: () => first.promise });
+      act(() => {
+        void confirmButton(root, base.confirmLabel).props.onPress();
+      });
+      act(() => confirmButton(root, base.cancelLabel).props.onPress());
+      expect(sheetCalls.dismiss).toBe(1);
+
+      const next = {
+        ...base,
+        title: '¿Liberar la unidad?',
+        confirmLabel: 'Liberar',
+        onConfirm: vi.fn(),
+      };
+      askNow(next);
+      await act(async () => {
+        if (outcome === 'resolve') first.resolve();
+        else first.reject(new Error('late'));
+        await first.promise.catch(() => undefined);
+      });
+
+      expect(sheetCalls.dismiss).toBe(1);
+      expect(texts(root)).toContain('¿Liberar la unidad?');
+      expect(texts(root)).not.toContain(mobileErrorCopy.unknown);
+      expect(confirmButton(root, 'Liberar').props.accessibilityState).toEqual({
+        disabled: false,
+        busy: false,
+      });
+      act(() => renderer?.unmount());
+    }
   });
 });

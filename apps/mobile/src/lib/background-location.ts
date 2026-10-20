@@ -1,4 +1,5 @@
 import {
+  palette,
   shouldFlush,
   thinPoints,
   toTrackPoint,
@@ -10,7 +11,6 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { useEffect, useState } from 'react';
 
-import { colors } from '../theme';
 import { flushPoints, toRpcPoints } from './location-queue';
 import {
   addPoints,
@@ -60,7 +60,8 @@ const TASK_OPTIONS: Location.LocationTaskOptions = {
   foregroundService: {
     notificationTitle: trackingCopy.notificationTitle,
     notificationBody: trackingCopy.notificationBody,
-    notificationColor: colors.accent,
+    // The system tints the notification; it has no theme, so the light accent.
+    notificationColor: palette.light.accent,
     killServiceOnDestroy: false,
   },
 };

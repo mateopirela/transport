@@ -4,7 +4,7 @@ import { clientTripsCopy, INCIDENT_KINDS, incidentKindLabels } from '@transport/
 import { useActionState, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/disclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
@@ -94,7 +94,11 @@ export function ReportIncidentForm({
   const descriptionError = state.fieldErrors?.description;
   return (
     <div className="space-y-2">
-      <Disclosure summary={c.report} open={Boolean(state.error || kindError || descriptionError)}>
+      <Disclosure
+        look="cell"
+        summary={c.report}
+        open={Boolean(state.error || kindError || descriptionError)}
+      >
         <form action={action} className="space-y-4" noValidate>
           {state.error && <Notice tone="error">{state.error}</Notice>}
           <input type="hidden" name="tripId" value={tripId} />

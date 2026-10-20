@@ -172,6 +172,8 @@ export const shape = Object.freeze({
   fieldHeight: 48,
   /** Left inset of the separator between cells. */
   separatorInset: 16,
+  /** The smallest touch target (Apple HIG): smaller controls reach it with a hit slop. */
+  minTouch: 44,
 });
 
 /** sRGB channels (0–255) of `#RRGGBB`. */

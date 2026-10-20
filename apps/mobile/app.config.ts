@@ -3,6 +3,8 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 // Permission prompts are UI copy. Imported by path with its extension because
 // the config is loaded by Node, outside Metro and the workspace package.
 import { permissionCopy } from '../../packages/shared/src/copy/permissions.ts';
+// The splash and the adaptive icon sit on the accent (D26): the mark is white.
+import { palette } from '../../packages/shared/src/design/tokens.ts';
 // iOS 27 SDK: the app must adopt the UIScene life cycle (F11, docs/release.md).
 import withIosSceneLifecycle from './plugins/with-ios-scene-lifecycle.ts';
 
@@ -49,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
     android: {
       package: bundleId,
       adaptiveIcon: {
-        backgroundColor: '#0B1F3A',
+        backgroundColor: palette.light.accent,
         foregroundImage: './assets/android-icon-foreground.png',
         backgroundImage: './assets/android-icon-background.png',
         monochromeImage: './assets/android-icon-monochrome.png',
@@ -89,7 +91,12 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       'expo-sqlite',
       [
         'expo-splash-screen',
-        { backgroundColor: '#0B1F3A', image: './assets/splash-icon.png', imageWidth: 96 },
+        {
+          backgroundColor: palette.light.accent,
+          image: './assets/splash-icon.png',
+          imageWidth: 96,
+          dark: { backgroundColor: palette.dark.bg, image: './assets/splash-icon.png' },
+        },
       ],
       ...sentryUpload,
     ],

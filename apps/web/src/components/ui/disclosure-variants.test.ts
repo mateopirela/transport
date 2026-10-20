@@ -9,7 +9,7 @@ import { groupRow } from './variants';
 
 const classes = (value: string) => value.split(/\s+/u);
 const LOOKS = ['row', 'cell', 'inline'] as const;
-const TONES = ['neutral', 'accent', 'red'] as const;
+const TONES = ['neutral', 'accent', 'ok', 'red'] as const;
 
 describe('disclosureVariants', () => {
   it('is a row of a group by default, with its inset separator', () => {
@@ -45,6 +45,7 @@ describe('disclosureSummaryVariants', () => {
   it('gives each tone its AA text token', () => {
     expect(classes(disclosureSummaryVariants({ tone: 'neutral' }))).toContain('text-text');
     expect(classes(disclosureSummaryVariants({ tone: 'accent' }))).toContain('text-accent-text');
+    expect(classes(disclosureSummaryVariants({ tone: 'ok' }))).toContain('text-ok-text');
     expect(classes(disclosureSummaryVariants({ tone: 'red' }))).toContain('text-red-text');
   });
 
@@ -66,5 +67,10 @@ describe('disclosureBodyVariants', () => {
   it('insets the content like the summary, flush when inline', () => {
     expect(classes(disclosureBodyVariants())).toContain('px-4');
     expect(classes(disclosureBodyVariants({ look: 'inline' }))).not.toContain('px-4');
+  });
+
+  it('opens a cell on its own under a hairline', () => {
+    expect(classes(disclosureBodyVariants({ look: 'cell' }))).toContain('border-t');
+    expect(classes(disclosureBodyVariants())).not.toContain('border-t');
   });
 });

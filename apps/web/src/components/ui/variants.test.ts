@@ -28,16 +28,6 @@ describe('buttonVariants', () => {
     }
   });
 
-  it('keeps the old names as aliases of the new looks', () => {
-    const look = (variant: Parameters<typeof buttonVariants>[0]) =>
-      classes(buttonVariants(variant)).sort();
-    expect(look({ variant: 'accent' })).toEqual(look({ variant: 'primary' }));
-    expect(look({ variant: 'default' })).toEqual(look({ variant: 'primary' }));
-    expect(look({ variant: 'outline' })).toEqual(look({ variant: 'secondary' }));
-    expect(look({ variant: 'ghost' })).toEqual(look({ variant: 'plain' }));
-    expect(look({ size: 'lg' })).toEqual(look({ size: 'default' }));
-  });
-
   it('is 36 px when small', () => {
     expect(classes(buttonVariants({ size: 'sm' }))).toContain('h-9');
   });

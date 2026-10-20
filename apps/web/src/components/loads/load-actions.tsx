@@ -4,7 +4,7 @@ import { loadsCopy } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/disclosure';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +31,7 @@ export function CancelLoadForm({ loadId }: { loadId: string }) {
   const [state, action, pending] = useActionState(cancelLoad, {});
   const reasonError = state.fieldErrors?.reason;
   return (
-    <Disclosure summary={c.cancel} tone="red">
+    <Disclosure look="cell" summary={c.cancel} tone="red">
       <form action={action} className="space-y-4" noValidate>
         <div className="space-y-1">
           <p className="text-headline text-text">{c.cancelTitle}</p>

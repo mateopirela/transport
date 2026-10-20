@@ -3,8 +3,8 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { groupRow } from './variants';
 
 /*
- * The recipe of `Disclosure` (U8), apart from the component so Vitest can
- * check it as data, like variants.ts. U9 may fold it into variants.ts.
+ * The recipe of `Disclosure`, apart from the component so Vitest can check it
+ * as data, like variants.ts.
  */
 
 /**
@@ -26,8 +26,8 @@ export const disclosureVariants = cva('group/disclosure', {
 /**
  * The summary line: 50 px like a cell (a short line when `inline`), the label
  * in its tone and a chevron that turns when it opens. `red` for what
- * archives, removes or rejects; `accent` for a positive step (accept);
- * `neutral` for the rest.
+ * archives, cancels, removes or rejects; `ok` or `accent` for a positive step
+ * (accept); `neutral` for the rest.
  */
 export const disclosureSummaryVariants = cva(
   'flex cursor-pointer list-none items-center gap-3 transition-colors duration-150 outline-none select-none [&::-webkit-details-marker]:hidden',
@@ -42,6 +42,7 @@ export const disclosureSummaryVariants = cva(
       tone: {
         neutral: 'text-text',
         accent: 'text-accent-text',
+        ok: 'text-ok-text',
         red: 'text-red-text',
       },
     },
@@ -49,13 +50,16 @@ export const disclosureSummaryVariants = cva(
   },
 );
 
-/** The content under the summary: inset like the summary, flush when `inline`. */
-export const disclosureBodyVariants = cva('space-y-3', {
+/**
+ * The content under the summary: inset like the summary, flush when `inline`.
+ * A cell on its own opens under a hairline, like the next row of a group.
+ */
+export const disclosureBodyVariants = cva('', {
   variants: {
     look: {
-      row: 'px-4 pt-1 pb-4',
-      cell: 'px-4 pt-1 pb-4',
-      inline: 'pt-2 pb-1',
+      row: 'space-y-3 px-4 pt-1 pb-4',
+      cell: 'space-y-4 border-t p-4',
+      inline: 'space-y-3 pt-2 pb-1',
     },
   },
   defaultVariants: { look: 'row' },

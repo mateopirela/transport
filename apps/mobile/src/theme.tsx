@@ -6,17 +6,13 @@
  *
  * The colours come from @transport/shared (design/tokens.ts). Components read
  * them through useTheme(), so the whole app changes theme at once.
- *
- * `colors`, `spacing` and `fonts` are the names the screens used before the
- * redesign, mapped onto the LIGHT theme. Screens that capture them in a
- * module-level StyleSheet keep the light look until U3–U5 move them to
- * useTheme(); U9 deletes these aliases.
  */
 import { HankenGrotesk_400Regular } from '@expo-google-fonts/hanken-grotesk/400Regular';
 import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
 import { HankenGrotesk_600SemiBold } from '@expo-google-fonts/hanken-grotesk/600SemiBold';
 import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';
 import {
+  DEFAULT_THEME_CHOICE,
   mixColors,
   palette,
   parseThemeChoice,
@@ -108,44 +104,18 @@ export const font: Record<FontWeight, keyof typeof fontFiles> = {
 /** Where the person's choice is kept (SecureStore keys take letters, digits, ".", "-" and "_"). */
 const THEME_STORE_KEY = 'transport.theme';
 
-/**
- * What the app shows before the person chooses. Light until every screen
- * reads the theme (U3–U5); U9 moves it to "system".
- */
-export const APP_DEFAULT_THEME_CHOICE: ThemeChoice = 'light';
+/** What the app shows before the person chooses: the phone's theme (every screen reads it). */
+export const APP_DEFAULT_THEME_CHOICE: ThemeChoice = DEFAULT_THEME_CHOICE;
 
-/** The colours of one theme, with the names the screens used before the redesign. */
-function withAliases(theme: Theme) {
+/** The colours of one theme, with the soft red of a danger notice (the tone at 14 % on `cell`). */
+function colorsOf(theme: Theme) {
   const c = palette[theme];
-  return Object.freeze({
-    ...c,
-    navy: c.text,
-    background: c.bg,
-    surface: c.cell,
-    border: c.separator,
-    textMuted: c.textDim,
-    accentPressed: c.accentText,
-    onAccent: c.accentInk,
-    danger: c.redText,
-    dangerSurface: mixColors(c.red, c.cell, SOFT_ALPHA),
-    warning: c.amberText,
-    warningSurface: mixColors(c.amber, c.cell, SOFT_ALPHA),
-    success: c.okText,
-    successSurface: mixColors(c.ok, c.cell, SOFT_ALPHA),
-    info: c.accentText,
-    infoSurface: c.accentSoft,
-  });
+  return Object.freeze({ ...c, redSoft: mixColors(c.red, c.cell, SOFT_ALPHA) });
 }
 
-export type AppColors = ReturnType<typeof withAliases>;
+export type AppColors = ReturnType<typeof colorsOf>;
 
-const COLORS: Record<Theme, AppColors> = { light: withAliases('light'), dark: withAliases('dark') };
-
-/** The light theme under the old names (see the header). */
-export const colors = COLORS.light;
-
-/** The old title font, now Hanken Grotesk bold (see the header). */
-export const fonts = { title: font[700] } as const;
+const COLORS: Record<Theme, AppColors> = { light: colorsOf('light'), dark: colorsOf('dark') };
 
 function textStyle(name: TypeName, color: string): TextStyle {
   const s = typeScale[name];

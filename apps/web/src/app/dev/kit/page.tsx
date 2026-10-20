@@ -1,5 +1,6 @@
 import {
   adminCopy,
+  devKitCopy as k,
   authCopy,
   carrierWebCopy,
   clientTripsCopy,
@@ -45,7 +46,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 
-export const metadata: Metadata = { title: 'Kit' };
+export const metadata: Metadata = { title: k.title };
 
 const f = authCopy.fields;
 const lf = loadsCopy.form;
@@ -92,14 +93,14 @@ export default async function KitPage({ searchParams }: PageProps<'/dev/kit'>) {
             <Cell
               href="/dev/kit"
               icon={Truck}
-              title="Monterrey → Guadalajara"
+              title={k.route}
               subtitle={lf.sections.cargo}
               trailing={<Pill tone="accent">{loadStatusLabels.negotiating}</Pill>}
             />
             <Cell
               href="/dev/kit"
               icon={Truck}
-              title="Guadalajara → Monterrey"
+              title={k.returnRoute}
               subtitle={tripStatusLabels.in_transit}
               trailing={<Pill tone="ok">{tripStatusLabels.delivered}</Pill>}
             />
@@ -112,13 +113,13 @@ export default async function KitPage({ searchParams }: PageProps<'/dev/kit'>) {
             <Cell
               icon={UserRound}
               title={shellCopy.managerArea}
-              value="$38,000"
+              value={k.price}
               trailing={<Tag>{shellCopy.coordinatorArea}</Tag>}
             />
           </Group>
 
           <Group label={lf.sections.price}>
-            <ValueRow label={lf.weightKg}>15,000</ValueRow>
+            <ValueRow label={lf.weightKg}>{k.weight}</ValueRow>
             <ValueRow label={lf.cargoType}>{loadStatusLabels.published}</ValueRow>
             <Cell
               title={verificationStatusLabels.rejected}
@@ -148,7 +149,7 @@ export default async function KitPage({ searchParams }: PageProps<'/dev/kit'>) {
               <Field label={lf.city} htmlFor="kit-city" error={lf.placeIncomplete}>
                 <Select id="kit-city" defaultValue="" aria-invalid>
                   <option value="">{lf.cityPlaceholder}</option>
-                  <option>Monterrey, Nuevo León</option>
+                  <option>{k.city}</option>
                 </Select>
               </Field>
               <Field label={lf.description} htmlFor="kit-description">
@@ -208,10 +209,10 @@ export default async function KitPage({ searchParams }: PageProps<'/dev/kit'>) {
             <TabsContent value="loads">
               <Table headers={Object.values(loadsCopy.list.columns)}>
                 <tr>
-                  <td>Monterrey → Guadalajara</td>
-                  <td className="tabular-nums">20/10/2026</td>
+                  <td>{k.route}</td>
+                  <td className="tabular-nums">{k.date}</td>
                   <td>{lf.sections.unit}</td>
-                  <td className="tabular-nums">$38,000</td>
+                  <td className="tabular-nums">{k.price}</td>
                   <td>
                     <Pill tone="accent">{loadStatusLabels.published}</Pill>
                   </td>

@@ -197,11 +197,16 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                 <span className="ml-2 text-text-dim">({c.ownerOperator})</span>
               )}
             </ValueRow>
-            <ValueRow label={c.fiscalAddress}>{address}</ValueRow>
+            <ValueRow label={c.fiscalAddress}>
+              <span className="wrap-anywhere">{address}</span>
+            </ValueRow>
             <ValueRow label={c.legalRepresentative}>
               {company.legal_representative_name ?? '—'}
             </ValueRow>
-            <ValueRow label={c.contact}>{contact}</ValueRow>
+            <ValueRow label={c.contact}>
+              {/* An email has no spaces: let it break anywhere rather than be clipped. */}
+              <span className="wrap-anywhere">{contact}</span>
+            </ValueRow>
             <ValueRow label={c.createdAt}>{formatDateTime(company.created_at)}</ValueRow>
             <ValueRow label={c.members}>
               <ul>

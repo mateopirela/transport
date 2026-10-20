@@ -13,6 +13,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '../providers/session';
 import { colors, spacing } from '../theme';
+import { AppearancePicker } from './appearance-picker';
 import { LegalLinks } from './legal-links';
 import { Body, Button, Field, Notice, Screen, Title } from './ui';
 
@@ -51,6 +52,7 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
           ) : null,
         )}
       </View>
+      <AppearancePicker />
       <Button
         label={mobileAuthCopy.signOut}
         variant="secondary"

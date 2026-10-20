@@ -4,7 +4,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 
 import { useSession } from '../../../providers/session';
-import { colors } from '../../../theme';
+import { useTabsScreenOptions } from '../../../theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -20,14 +20,9 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
 export default function CarrierTabs() {
   // A hombre-camión (D13) also drives: the operator's trip screen as "Mi viaje".
   const ownerOperator = useSession().profile?.isOwnerOperator === true;
+  const screenOptions = useTabsScreenOptions();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-      }}
-    >
+    <Tabs screenOptions={screenOptions}>
       {TABS.map(({ name, title, icon }) => (
         <Tabs.Screen
           key={name}

@@ -38,7 +38,8 @@ export default ({ config }: ConfigContext): ExpoConfig =>
     version: '0.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
-    userInterfaceStyle: 'light',
+    // Light, dark or the phone's (D26): the app follows the theme the person picks.
+    userInterfaceStyle: 'automatic',
     runtimeVersion: { policy: 'appVersion' },
     ios: {
       bundleIdentifier: bundleId,

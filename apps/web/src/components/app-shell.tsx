@@ -1,12 +1,15 @@
 import { authCopy, shellCopy } from '@transport/shared';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
+import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
+import { themeChoiceFromCookie, THEME_COOKIE } from '@/lib/theme';
 import type { ViewerDetails } from '@/lib/viewer';
 
 /** Header and frame of the signed-in area (Cliente, Gerente or Coordinador, or Admin). */
-export function AppShell({
+export async function AppShell({
   area,
   nav,
   toolbar,
@@ -21,6 +24,7 @@ export function AppShell({
   viewer: ViewerDetails;
   children: React.ReactNode;
 }) {
+  const theme = themeChoiceFromCookie((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="bg-navy text-navy-foreground">
@@ -37,6 +41,7 @@ export function AppShell({
             <span className="hidden text-navy-foreground/75 sm:inline">
               {viewer.company?.legalName ?? viewer.fullName}
             </span>
+            <ThemeSwitcher initial={theme} className="border-navy-foreground/25" />
             <SignOutButton variant="ghost" className="hover:bg-white/10" />
           </div>
         </div>

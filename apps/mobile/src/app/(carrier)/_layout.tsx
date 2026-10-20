@@ -1,18 +1,12 @@
 import { Stack } from 'expo-router';
 
-import { colors } from '../../theme';
+import { useStackScreenOptions } from '../../theme';
 
 /** Carrier area: the tabs plus the fleet detail screens pushed over them (B18). */
 export default function CarrierStack() {
+  const screenOptions = useStackScreenOptions();
   return (
-    <Stack
-      screenOptions={{
-        headerTintColor: colors.accent,
-        headerTitleStyle: { color: colors.navy },
-        headerBackButtonDisplayMode: 'minimal',
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    >
+    <Stack screenOptions={screenOptions}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );

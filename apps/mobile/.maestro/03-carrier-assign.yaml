@@ -33,9 +33,8 @@ tags: [carrier, star]
     element: 'Pedro López.*'
     centerElement: true
 - tapOn: 'Pedro López.*'
-- scrollUntilVisible:
-    element: 'Asignar operador'
-    centerElement: true
+# The screen's primary action sits in the bottom bar, always in view (U4);
+# then the confirmation sheet.
 - tapOn: 'Asignar operador'
 - tapOn: 'Sí, asignar'
 - extendedWaitUntil:

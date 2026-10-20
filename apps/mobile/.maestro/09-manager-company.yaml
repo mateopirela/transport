@@ -57,12 +57,16 @@ tags: [carrier, manager]
     element: '.*TT-01.*'
     centerElement: true
 - tapOn: '.*TT-01.*'
-# "Mover a…" and its chips sit at the end of the screen.
+# "Mover a…" and its chips sit at the end of the screen, clear of the bottom bar.
 - scrollUntilVisible:
     element: 'Bajío'
+    centerElement: true
 - tapOn:
     text: 'Bajío'
     below: 'Mover a…'
+- scrollUntilVisible:
+    element: 'Mover'
+    centerElement: true
 - tapOn: 'Mover'
 - extendedWaitUntil:
     visible: 'Movido de unidad de negocio.'

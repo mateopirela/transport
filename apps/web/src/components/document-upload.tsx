@@ -13,8 +13,8 @@ import { useId, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { registerDocument } from '@/lib/verification/actions';
 
@@ -109,18 +109,23 @@ export function DocumentUpload({
     >
       {error && <Notice tone="error">{error}</Notice>}
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-file`}>{c.file}</Label>
-          <Input id={`${id}-file`} name="file" type="file" accept={ACCEPT} required />
-        </div>
+        <Field label={c.file} htmlFor={`${id}-file`}>
+          <Input
+            id={`${id}-file`}
+            name="file"
+            type="file"
+            accept={ACCEPT}
+            required
+            className="py-2.5 file:mr-3 file:border-0 file:bg-transparent file:font-semibold file:text-accent-text"
+          />
+        </Field>
         {requiresExpiry && (
-          <div className="space-y-1.5">
-            <Label htmlFor={`${id}-expires`}>{c.expiresOn}</Label>
+          <Field label={c.expiresOn} htmlFor={`${id}-expires`}>
             <Input id={`${id}-expires`} name="expiresOn" type="date" required />
-          </div>
+          </Field>
         )}
       </div>
-      <Button type="submit" variant={replacing ? 'outline' : 'accent'} size="sm" disabled={pending}>
+      <Button type="submit" variant="secondary" size="sm" disabled={pending} loading={pending}>
         {pending ? c.uploading : replacing ? c.replace : c.upload}
       </Button>
     </form>

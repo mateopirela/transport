@@ -9,22 +9,24 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageHeading } from '@/components/app-shell';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { Pager } from '@/components/pager';
 import { buttonVariants } from '@/components/ui/button';
-import { Table } from '@/components/ui/table';
+import { Cell } from '@/components/ui/cell';
+import { Empty } from '@/components/ui/empty';
+import { Group } from '@/components/ui/group';
+import { PageHeader } from '@/components/ui/page-header';
+import { Segmented } from '@/components/ui/segmented';
 import { listCompanyLoads, LOADS_PAGE_SIZE, shipperContext } from '@/lib/loads/queries';
 import { parseStatusFilter } from '@/lib/loads/status';
 import { parsePage, withParams } from '@/lib/pagination';
 import { loadPath, paths } from '@/lib/routing';
-import { cn } from '@/lib/utils';
 
 const c = loadsCopy.list;
 
 export const metadata: Metadata = { title: c.title };
 
-/** The shipper's loads, filterable by status (B13). */
+/** The shipper's loads, filterable by status (B13): one cell per load, its status as a pill. */
 export default async function LoadsPage({ searchParams }: PageProps<'/cliente/cargas'>) {
   const { supabase, companyId } = await shipperContext(paths.shipperLoads);
   const params = await searchParams;
@@ -34,68 +36,46 @@ export default async function LoadsPage({ searchParams }: PageProps<'/cliente/ca
   const { rows, total } = await listCompanyLoads(supabase, companyId, { status, page });
 
   const filters = [
-    { value: undefined, label: c.all },
-    ...LOAD_STATUSES.map((value) => ({ value, label: loadStatusLabels[value] })),
+    { value: 'all', label: c.all, href: withParams(paths.shipperLoads, {}, {}) },
+    ...LOAD_STATUSES.map((value) => ({
+      value,
+      label: loadStatusLabels[value],
+      href: withParams(paths.shipperLoads, {}, { estado: value }),
+    })),
   ];
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeading title={c.title} description={c.description} />
-        <Link href={paths.newLoad} className={buttonVariants({ variant: 'accent' })}>
-          {c.newLoad}
-        </Link>
-      </div>
-
-      <nav className="mb-6 flex flex-wrap gap-2 text-sm">
-        {filters.map((filter) => (
-          <Link
-            key={filter.value ?? 'all'}
-            href={withParams(paths.shipperLoads, {}, { estado: filter.value })}
-            aria-current={filter.value === (status ?? undefined) ? 'page' : undefined}
-            className={cn(
-              'rounded-full border px-3 py-1 hover:bg-muted',
-              filter.value === (status ?? undefined) && 'border-accent bg-accent/10 text-accent',
-            )}
-          >
-            {filter.label}
+      <PageHeader
+        title={c.title}
+        description={c.description}
+        action={
+          <Link href={paths.newLoad} className={buttonVariants()}>
+            {c.newLoad}
           </Link>
-        ))}
-      </nav>
+        }
+      />
+
+      <Segmented label={c.title} value={status ?? 'all'} items={filters} className="mb-6" />
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{total === 0 ? c.empty : ''}</p>
+        total === 0 && <Empty title={c.empty} />
       ) : (
-        <Table
-          headers={[
-            c.columns.route,
-            c.columns.pickup,
-            c.columns.unit,
-            c.columns.price,
-            c.columns.status,
-            '',
-          ]}
-        >
+        <Group>
           {rows.map((load) => (
-            <tr key={load.id}>
-              <td className="font-medium">
-                {load.origin_city}, {load.origin_state} → {load.destination_city},{' '}
-                {load.destination_state}
-              </td>
-              <td className="whitespace-nowrap">{formatDate(load.pickup_window_start)}</td>
-              <td>{unitTypeLabels[load.unit_type]}</td>
-              <td className="whitespace-nowrap">{formatMxn(load.proposed_price_cents)}</td>
-              <td>
-                <LoadStatusBadge status={load.status} />
-              </td>
-              <td>
-                <Link href={loadPath(load.id)} className="text-accent hover:underline">
-                  {c.open}
-                </Link>
-              </td>
-            </tr>
+            <Cell
+              key={load.id}
+              href={loadPath(load.id)}
+              title={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
+              subtitle={[
+                `${c.columns.pickup} ${formatDate(load.pickup_window_start)}`,
+                unitTypeLabels[load.unit_type],
+                formatMxn(load.proposed_price_cents),
+              ].join(' · ')}
+              trailing={<LoadStatusBadge status={load.status} />}
+            />
           ))}
-        </Table>
+        </Group>
       )}
       <div className="mt-4">
         <Pager

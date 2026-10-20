@@ -13,8 +13,9 @@ import { useId, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { registerTripDocument } from '@/lib/trips/actions';
 
@@ -86,7 +87,7 @@ export function TripDocumentUpload({
 
   return (
     <form
-      className="space-y-3 rounded-xl border bg-card p-4"
+      className="space-y-4 rounded-2xl border bg-cell p-4"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
@@ -99,31 +100,31 @@ export function TripDocumentUpload({
           .finally(() => setPending(false));
       }}
     >
-      <p className="font-medium">{c.title}</p>
+      <p className="text-headline text-text">{c.title}</p>
       {error && <Notice tone="error">{error}</Notice>}
       {done && <Notice tone="success">{doneText}</Notice>}
-      <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-end">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-kind`}>{c.kind}</Label>
-          <select
-            id={`${id}-kind`}
-            name="kind"
-            defaultValue={kinds[0]}
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-          >
+      <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-end">
+        <Field label={c.kind} htmlFor={`${id}-kind`}>
+          <Select id={`${id}-kind`} name="kind" defaultValue={kinds[0]}>
             {kinds.map((kind) => (
               <option key={kind} value={kind}>
                 {tripDocumentKindLabels[kind]}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-file`}>{c.file}</Label>
-          <Input id={`${id}-file`} name="file" type="file" accept={ACCEPT} required />
-        </div>
+          </Select>
+        </Field>
+        <Field label={c.file} htmlFor={`${id}-file`}>
+          <Input
+            id={`${id}-file`}
+            name="file"
+            type="file"
+            accept={ACCEPT}
+            required
+            className="py-2.5 file:mr-3 file:border-0 file:bg-transparent file:font-semibold file:text-accent-text"
+          />
+        </Field>
       </div>
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      <Button type="submit" variant="secondary" size="sm" disabled={pending} loading={pending}>
         {pending ? c.submitting : c.submit}
       </Button>
     </form>

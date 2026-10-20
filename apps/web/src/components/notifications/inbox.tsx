@@ -1,8 +1,12 @@
 import { formatDateTime, notificationContent, notificationsInboxCopy } from '@transport/shared';
 
-import { PageHeading } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Group } from '@/components/ui/group';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
+import { groupRow } from '@/components/ui/variants';
 import { markAllNotificationsRead, openNotification } from '@/lib/notifications/actions';
 import { notificationHref } from '@/lib/notifications/links';
 import { listNotifications, unreadNotificationCount } from '@/lib/notifications/queries';
@@ -29,7 +33,7 @@ export async function NotificationsInbox({
   error: string | string[] | undefined;
 }) {
   const supabase = await createClient();
-  if (!supabase) return <p className="text-muted-foreground">{c.empty}</p>;
+  if (!supabase) return <Empty title={c.empty} />;
   // The whole unread count, not only the listed page: the badge counts all.
   const [notifications, unreadCount] = await Promise.all([
     listNotifications(supabase, viewer.userId),
@@ -38,57 +42,65 @@ export async function NotificationsInbox({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageHeading title={c.title} description={c.description} />
-        {unreadCount > 0 && (
-          <form action={markAllNotificationsRead}>
-            <Button type="submit" variant="outline" size="sm">
-              {c.markAllRead}
-            </Button>
-          </form>
-        )}
-      </div>
+      <PageHeader
+        title={c.title}
+        description={c.description}
+        action={
+          unreadCount > 0 && (
+            <form action={markAllNotificationsRead}>
+              <Button type="submit" variant="secondary" size="sm">
+                {c.markAllRead}
+              </Button>
+            </form>
+          )
+        }
+      />
       {error === 'leidas' && (
-        <div className="mb-4">
-          <Notice tone="error">{c.markFailed}</Notice>
-        </div>
+        <Notice tone="error" className="mb-4">
+          {c.markFailed}
+        </Notice>
       )}
       {notifications.length === 0 ? (
-        <p className="text-muted-foreground">{c.empty}</p>
+        <Empty title={c.empty} />
       ) : (
-        <ul className="divide-y rounded-xl border bg-card">
-          {notifications.map((notification) => {
-            const content = notificationContent(notification.type, notification.data);
-            const unread = notification.read_at === null;
-            const href = notificationHref(notification.type, notification.data, area);
-            return (
-              <li key={notification.id} className={cn('flex gap-4 p-4', unread && 'bg-accent/5')}>
-                <div className="flex-1 space-y-1">
-                  <p className="font-medium">
-                    {content.title}
-                    {unread && (
-                      <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">
-                        {c.unread}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{content.body}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateTime(notification.created_at)}
-                  </p>
-                </div>
-                {(href || unread) && (
-                  <form action={openNotification}>
-                    <input type="hidden" name="notificationId" value={notification.id} />
-                    <Button type="submit" variant="outline" size="sm">
-                      {href ? c.open : c.markRead}
-                    </Button>
-                  </form>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <Group>
+          <ul>
+            {notifications.map((notification) => {
+              const content = notificationContent(notification.type, notification.data);
+              const unread = notification.read_at === null;
+              const href = notificationHref(notification.type, notification.data, area);
+              return (
+                <li
+                  key={notification.id}
+                  className={cn(
+                    groupRow,
+                    'flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-3.5',
+                    unread && 'bg-accent-soft/40',
+                  )}
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="flex flex-wrap items-center gap-2 text-headline text-text">
+                      {content.title}
+                      {unread && <Pill tone="accent">{c.unread}</Pill>}
+                    </p>
+                    <p className="text-subhead text-text-dim">{content.body}</p>
+                    <p className="text-footnote text-text-faint tabular-nums">
+                      {formatDateTime(notification.created_at)}
+                    </p>
+                  </div>
+                  {(href || unread) && (
+                    <form action={openNotification}>
+                      <input type="hidden" name="notificationId" value={notification.id} />
+                      <Button type="submit" variant="secondary" size="sm">
+                        {href ? c.open : c.markRead}
+                      </Button>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Group>
       )}
     </>
   );

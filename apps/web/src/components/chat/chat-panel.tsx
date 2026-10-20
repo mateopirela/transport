@@ -9,10 +9,12 @@ import {
   MAX_MESSAGE_LENGTH,
   type Tables,
 } from '@transport/shared';
+import { Paperclip, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { markConversationRead, sendMessage } from '@/lib/chat/actions';
 import {
   attachmentIssue,
@@ -217,14 +219,14 @@ export function ChatPanel({
   }
 
   return (
-    <section className="flex flex-col rounded-xl border bg-card">
+    <section className="flex flex-col overflow-hidden rounded-2xl border bg-cell">
       <ol
         ref={listRef}
-        className="max-h-[28rem] min-h-48 space-y-3 overflow-y-auto p-4"
+        className="max-h-112 min-h-48 space-y-2 overflow-y-auto p-4"
         aria-live="polite"
       >
         {messages.length === 0 && (
-          <li className="text-sm text-muted-foreground">{chatCopy.empty}</li>
+          <li className="py-8 text-center text-subhead text-text-dim">{chatCopy.empty}</li>
         )}
         {messages.map((message) => {
           // A message without a sender (deleted account, D18) is nobody's here.
@@ -235,11 +237,11 @@ export function ChatPanel({
             <li key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
                 className={cn(
-                  'max-w-[85%] space-y-1 rounded-lg px-3 py-2 text-sm',
-                  mine ? 'bg-accent/10' : 'bg-muted',
+                  'max-w-[85%] space-y-1 rounded-2xl px-3.5 py-2 text-callout text-text',
+                  mine ? 'rounded-br-sm bg-accent-soft' : 'rounded-bl-sm bg-surface-high',
                 )}
               >
-                <p className="text-xs text-muted-foreground">
+                <p className="text-caption text-text-dim">
                   {chatSenderLabel(message, viewerId)} · {formatDateTime(message.created_at)}
                 </p>
                 {message.body && <p className="break-words whitespace-pre-wrap">{message.body}</p>}
@@ -249,13 +251,13 @@ export function ChatPanel({
                     href={chatAttachmentHref(attachment.path, area)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-accent underline-offset-4 hover:underline"
+                    className="block text-accent-text underline-offset-4 hover:underline"
                   >
                     {chatCopy.attachment}: {attachment.name}
                   </a>
                 ))}
                 {mine && (
-                  <p className="text-right text-xs text-muted-foreground">
+                  <p className="text-right text-caption text-text-dim">
                     {isReadByCounterpart(message, reads, own) ? chatCopy.read : chatCopy.sent}
                   </p>
                 )}
@@ -265,7 +267,7 @@ export function ChatPanel({
         })}
       </ol>
       <form
-        className="space-y-3 border-t p-4"
+        className="space-y-3 border-t p-3 sm:p-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (pending || (!body.trim() && drafts.length === 0)) return;
@@ -280,7 +282,7 @@ export function ChatPanel({
         <label htmlFor="chat-body" className="sr-only">
           {chatCopy.placeholder}
         </label>
-        <textarea
+        <Textarea
           id="chat-body"
           value={body}
           onChange={(event) => {
@@ -291,19 +293,19 @@ export function ChatPanel({
           maxLength={MAX_MESSAGE_LENGTH}
           placeholder={chatCopy.placeholder}
           disabled={pending}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className="min-h-11 resize-none"
         />
         {drafts.length > 0 && (
-          <ul className="flex flex-wrap gap-2 text-xs">
+          <ul className="flex flex-wrap gap-2">
             {drafts.map((draft) => (
               <li
                 key={draft.key}
-                className="flex items-center gap-1 rounded-full border px-2 py-0.5"
+                className="flex max-w-full items-center gap-1 rounded-full bg-surface-high py-1 pr-1 pl-3 text-footnote text-text"
               >
-                {draft.file.name}
+                <span className="truncate">{draft.file.name}</span>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-text-dim hover:text-text"
                   aria-label={chatCopy.removeAttachment(draft.file.name)}
                   disabled={pending}
                   onClick={() => {
@@ -311,14 +313,15 @@ export function ChatPanel({
                     setDrafts(drafts.filter((d) => d.key !== draft.key));
                   }}
                 >
-                  ×
+                  <X aria-hidden className="size-3.5" />
                 </button>
               </li>
             ))}
           </ul>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="cursor-pointer text-sm text-accent">
+          <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 text-subhead font-semibold text-text-dim transition-colors hover:bg-surface-high hover:text-text has-focus-visible:ring-[3px] has-focus-visible:ring-ring/40">
+            <Paperclip aria-hidden className="size-4" />
             {chatCopy.attach}
             <input
               type="file"
@@ -332,11 +335,11 @@ export function ChatPanel({
               }}
             />
           </label>
-          <Button type="submit" variant="accent" disabled={pending}>
+          <Button type="submit" variant="secondary" size="sm" disabled={pending} loading={pending}>
             {pending ? chatCopy.sending : chatCopy.send}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">{chatCopy.attachHint}</p>
+        <p className="px-1 text-caption text-text-dim">{chatCopy.attachHint}</p>
       </form>
     </section>
   );

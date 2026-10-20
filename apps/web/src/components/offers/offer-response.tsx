@@ -4,17 +4,19 @@ import { offersCopy } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
+import { Disclosure } from '@/components/disclosure';
 import { Button } from '@/components/ui/button';
+import { Field, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { acceptOffer, counterOffer, rejectOffer } from '@/lib/offers/actions';
 
 const c = offersCopy.actions;
-const textarea = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 /**
  * Accept (after an explicit confirmation), counter or reject a carrier's
- * pending offer. The RPCs re-check that the offer is still pending.
+ * pending offer, each folded in its cell. Confirming the acceptance is the
+ * screen's one primary. The RPCs re-check that the offer is still pending.
  */
 export function OfferResponse({
   offerId,
@@ -35,86 +37,83 @@ export function OfferResponse({
 
   return (
     <div className="space-y-3">
-      <details className="rounded-lg border p-4 open:bg-muted/40">
-        <summary className="cursor-pointer text-sm font-medium text-success">{c.accept}</summary>
-        <form action={accept} className="mt-4 space-y-3">
-          <p className="font-medium">{c.acceptTitle}</p>
-          <p className="text-sm text-muted-foreground">{c.acceptHelp(amount, carrier)}</p>
+      <Disclosure summary={c.accept} tone="ok">
+        <form action={accept} className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-headline text-text">{c.acceptTitle}</p>
+            <p className="text-subhead text-text-dim">{c.acceptHelp(amount, carrier)}</p>
+          </div>
           {accepted.error && <Notice tone="error">{accepted.error}</Notice>}
           <input type="hidden" name="offerId" value={offerId} />
-          <Button type="submit" variant="accent" disabled={accepting}>
+          <Button type="submit" className="w-full" disabled={accepting} loading={accepting}>
             {accepting ? c.accepting : c.acceptConfirm}
           </Button>
         </form>
-      </details>
+      </Disclosure>
 
-      <details
-        className="rounded-lg border p-4 open:bg-muted/40"
-        open={Boolean(countered.error || amountError)}
-      >
-        <summary className="cursor-pointer text-sm font-medium">{c.counter}</summary>
-        <form action={counter} className="mt-4 space-y-3" noValidate>
+      <Disclosure summary={c.counter} open={Boolean(countered.error || amountError)}>
+        <form action={counter} className="space-y-4" noValidate>
           {countered.error && <Notice tone="error">{countered.error}</Notice>}
           <input type="hidden" name="offerId" value={offerId} />
-          <div className="space-y-1.5">
-            <Label htmlFor="counter-amount">{c.counterAmount}</Label>
+          <Field label={c.counterAmount} htmlFor="counter-amount" error={amountError}>
             <Input
               id="counter-amount"
               name="amount"
               inputMode="decimal"
               defaultValue={countered.values?.amount}
               aria-invalid={amountError ? true : undefined}
+              aria-describedby={amountError ? fieldHelpId('counter-amount') : undefined}
+              className="tabular-nums"
             />
-            {amountError && <p className="text-xs text-destructive">{amountError}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="counter-conditions">{c.counterConditions}</Label>
-            <textarea
+          </Field>
+          <Field label={c.counterConditions} htmlFor="counter-conditions" error={conditionsError}>
+            <Textarea
               id="counter-conditions"
               name="conditions"
               rows={2}
               maxLength={1000}
               defaultValue={countered.values?.conditions}
               aria-invalid={conditionsError ? true : undefined}
-              className={textarea}
+              aria-describedby={conditionsError ? fieldHelpId('counter-conditions') : undefined}
             />
-            {conditionsError && <p className="text-xs text-destructive">{conditionsError}</p>}
-          </div>
-          <Button type="submit" disabled={countering}>
+          </Field>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full"
+            disabled={countering}
+            loading={countering}
+          >
             {countering ? c.countering : c.counterSubmit}
           </Button>
         </form>
-      </details>
+      </Disclosure>
 
-      <details className="rounded-lg border p-4 open:bg-muted/40">
-        <summary className="cursor-pointer text-sm font-medium text-destructive">
-          {c.reject}
-        </summary>
-        <form action={reject} className="mt-4 space-y-3" noValidate>
+      <Disclosure summary={c.reject} tone="red">
+        <form action={reject} className="space-y-4" noValidate>
           {rejected.error && <Notice tone="error">{rejected.error}</Notice>}
           <input type="hidden" name="offerId" value={offerId} />
-          <div className="space-y-1.5">
-            <Label htmlFor="reject-reason">{c.rejectReason}</Label>
-            <textarea
+          <Field label={c.rejectReason} htmlFor="reject-reason" error={reasonError}>
+            <Textarea
               id="reject-reason"
               name="reason"
               rows={2}
               maxLength={1000}
               aria-invalid={reasonError ? true : undefined}
-              className={textarea}
+              aria-describedby={reasonError ? fieldHelpId('reject-reason') : undefined}
             />
-            {reasonError && <p className="text-xs text-destructive">{reasonError}</p>}
-          </div>
+          </Field>
           <Button
             type="submit"
-            variant="outline"
-            className="border-destructive/40 text-destructive"
+            variant="destructive"
+            className="w-full"
             disabled={rejecting}
+            loading={rejecting}
           >
             {rejecting ? c.rejecting : c.rejectConfirm}
           </Button>
         </form>
-      </details>
+      </Disclosure>
     </div>
   );
 }

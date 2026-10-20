@@ -2,8 +2,8 @@ import { loadsCopy } from '@transport/shared';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
-import { PageHeading } from '@/components/app-shell';
 import { LoadForm } from '@/components/loads/load-form';
+import { PageHeader } from '@/components/ui/page-header';
 import { loadToFormValues } from '@/lib/loads/form';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
 import { shipperLoadActions } from '@/lib/loads/status';
@@ -22,7 +22,7 @@ export default async function EditLoadPage({ params }: PageProps<'/cliente/carga
   if (!shipperLoadActions(load.status).edit) redirect(loadPath(load.id));
   return (
     <>
-      <PageHeading title={c.editTitle} description={c.editDescription} />
+      <PageHeader title={c.editTitle} description={c.editDescription} />
       <LoadForm
         loadId={load.id}
         initialValues={loadToFormValues(load)}

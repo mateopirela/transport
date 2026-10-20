@@ -9,10 +9,12 @@ import {
 } from '@transport/shared';
 import type { Metadata } from 'next';
 
-import { AppShell, PageHeading } from '@/components/app-shell';
+import { Check } from 'lucide-react';
+
+import { AppShell } from '@/components/app-shell';
 import { Notice } from '@/components/auth-forms';
 import { DocumentUpload } from '@/components/document-upload';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { RequirementList } from '@/components/verification';
 import { CompanyContactForm, RequestReviewForm } from '@/components/verification-forms';
 import { paths } from '@/lib/routing';
@@ -30,34 +32,56 @@ type StepState = 'done' | 'current' | 'todo';
 
 function Stepper({ steps }: { steps: { label: string; state: StepState }[] }) {
   return (
-    <ol className="mb-8 grid gap-3 sm:grid-cols-3">
+    <ol className="mb-8 grid gap-2 sm:grid-cols-3">
       {steps.map((step, index) => (
         <li
           key={step.label}
           aria-current={step.state === 'current' ? 'step' : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-lg border px-4 py-3 text-sm',
-            step.state === 'current' && 'border-accent bg-accent/5',
+            'flex min-h-14 items-center gap-3 rounded-2xl border bg-cell px-4 py-2.5',
+            step.state === 'current' && 'border-accent',
           )}
         >
           <span
             className={cn(
-              'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-              step.state === 'done' ? 'bg-success text-success-foreground' : 'bg-muted',
-              step.state === 'current' && 'bg-accent text-accent-foreground',
+              'flex size-7 shrink-0 items-center justify-center rounded-full text-footnote font-semibold tabular-nums',
+              step.state === 'done' && 'bg-ok/14 text-ok-text',
+              step.state === 'current' && 'bg-accent text-accent-ink',
+              step.state === 'todo' && 'bg-surface-high text-text-dim',
             )}
           >
-            {index + 1}
+            {step.state === 'done' ? <Check aria-hidden className="size-4" /> : index + 1}
           </span>
-          <span>
-            <span className="block font-medium">{step.label}</span>
-            <span className="text-xs text-muted-foreground">
+          <span className="min-w-0">
+            <span className="block text-callout font-semibold text-text">{step.label}</span>
+            <span className="block text-footnote text-text-dim">
               {step.state === 'done' ? o.stepDone : step.state === 'current' ? o.stepCurrent : ''}
             </span>
           </span>
         </li>
       ))}
     </ol>
+  );
+}
+
+/** A section of the page: its title, the line under it, and its content. */
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1 px-1">
+        <h2 className="text-title2 text-text">{title}</h2>
+        {description}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -99,7 +123,7 @@ export default async function AccountInReviewPage() {
   return (
     <AppShell viewer={viewer}>
       <div className="mx-auto max-w-3xl">
-        <PageHeading title={text.title} description={description} />
+        <PageHeader title={text.title} description={description} />
         <Stepper
           steps={[
             { label: o.steps.company, state: 'done' },
@@ -108,42 +132,40 @@ export default async function AccountInReviewPage() {
           ]}
         />
         {company?.status_reason && (status === 'rejected' || status === 'suspended') && (
-          <div className="mb-6">
-            <Notice tone="error">
-              {c.reasonLabel}: {company.status_reason}
-            </Notice>
-          </div>
+          <Notice tone="error" className="mb-6">
+            {c.reasonLabel}: {company.status_reason}
+          </Notice>
         )}
         {missingFields.length > 0 && (
-          <div className="mb-6">
-            <Notice tone="info">
-              <strong>{o.company.missingFiscalTitle}.</strong>{' '}
-              {o.company.missingFiscal(missingLabels)}
-            </Notice>
-          </div>
+          <Notice tone="info" className="mb-6">
+            <strong className="font-semibold">{o.company.missingFiscalTitle}.</strong>{' '}
+            {o.company.missingFiscal(missingLabels)}
+          </Notice>
         )}
         {company && (
-          <div className="space-y-6">
+          <div className="space-y-10">
             {status === 'rejected' && !readOnly && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{o.requestReview.title}</CardTitle>
-                  <CardDescription>{o.requestReview.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <RequestReviewForm />
-                </CardContent>
-              </Card>
+              <Section
+                title={o.requestReview.title}
+                description={
+                  <p className="text-subhead text-text-dim">{o.requestReview.description}</p>
+                }
+              >
+                <RequestReviewForm />
+              </Section>
             )}
-            <Card>
-              <CardHeader>
-                <CardTitle>{o.documents.title}</CardTitle>
-                <CardDescription>{o.documents.description}</CardDescription>
-                <p className="pt-2 text-sm font-medium">
-                  {o.documents.progress(summary.approved, summary.required)}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <Section
+              title={o.documents.title}
+              description={
+                <>
+                  <p className="text-subhead text-text-dim">{o.documents.description}</p>
+                  <p className="pt-1 text-subhead font-semibold text-text tabular-nums">
+                    {o.documents.progress(summary.approved, summary.required)}
+                  </p>
+                </>
+              }
+            >
+              <div className="space-y-4">
                 {docsDone && summary.approved < summary.required && (
                   <Notice tone="info">{o.documents.allSent}</Notice>
                 )}
@@ -165,20 +187,21 @@ export default async function AccountInReviewPage() {
                     )
                   }
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </Section>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{o.company.title}</CardTitle>
-                <CardDescription>
+            <Section
+              title={o.company.title}
+              description={
+                <p className="text-subhead text-text-dim">
                   {editable ? o.company.description : o.company.readOnly}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm">
-                  <span className="text-muted-foreground">{o.company.rfc}: </span>
-                  <span className="font-medium">{company.rfc}</span>
+                </p>
+              }
+            >
+              <div className="space-y-5 rounded-2xl border bg-cell p-4 sm:p-5">
+                <p className="text-callout">
+                  <span className="text-text-dim">{o.company.rfc}: </span>
+                  <span className="font-semibold text-text">{company.rfc}</span>
                 </p>
                 {editable && (
                   <CompanyContactForm
@@ -198,8 +221,8 @@ export default async function AccountInReviewPage() {
                     }}
                   />
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </Section>
           </div>
         )}
       </div>

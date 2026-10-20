@@ -5,7 +5,9 @@ import { useActionState, useId } from 'react';
 
 import { ActionForm, CompanyFiscalFields, Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Field as FieldFrame, fieldHelpId } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { FormState } from '@/lib/forms';
 import {
   requestCompanyReview,
@@ -58,7 +60,7 @@ export function RequestReviewForm() {
   return (
     <form action={action} className="space-y-3">
       {state.error && <Notice tone="error">{state.error}</Notice>}
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" disabled={pending} loading={pending}>
         {pending ? c.pending : c.submit}
       </Button>
     </form>
@@ -68,19 +70,17 @@ export function RequestReviewForm() {
 function Notes({ state, label, id }: { state: FormState; label: string; id: string }) {
   const error = state.fieldErrors?.notes;
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <textarea
+    <FieldFrame label={label} htmlFor={id} error={error}>
+      <Textarea
         id={id}
         name="notes"
         rows={2}
         maxLength={2000}
         defaultValue={state.values?.notes}
         aria-invalid={error ? true : undefined}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40 aria-invalid:border-destructive"
+        aria-describedby={error ? fieldHelpId(id) : undefined}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+    </FieldFrame>
   );
 }
 
@@ -109,28 +109,37 @@ export function DocumentReviewForm({
   const [state, action, pending] = useActionState(reviewDocument, {});
   const expiryError = state.fieldErrors?.expiresOn;
   return (
-    <form action={action} className="space-y-3 rounded-md bg-muted/50 p-3" noValidate>
+    <form action={action} className="space-y-4 rounded-2xl bg-surface-high/60 p-4" noValidate>
       <FormFeedback state={state} />
       <input type="hidden" name="documentId" value={documentId} />
       <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
         <Notes state={state} label={c.notes} id={`${id}-notes`} />
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-expires`}>{c.expiresOn}</Label>
-          <input
+        <FieldFrame
+          label={c.expiresOn}
+          htmlFor={`${id}-expires`}
+          error={expiryError}
+          hint={c.expiresOnHint}
+        >
+          <Input
             id={`${id}-expires`}
             name="expiresOn"
             type="date"
             defaultValue={state.values?.expiresOn ?? expiresOn}
             required={requiresExpiry}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            aria-invalid={expiryError ? true : undefined}
+            aria-describedby={fieldHelpId(`${id}-expires`)}
           />
-          <p className={expiryError ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>
-            {expiryError ?? c.expiresOnHint}
-          </p>
-        </div>
+        </FieldFrame>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" name="decision" value="approve" size="sm" disabled={pending}>
+        <Button
+          type="submit"
+          name="decision"
+          value="approve"
+          size="sm"
+          variant="secondary"
+          disabled={pending}
+        >
           {c.approve}
         </Button>
         <Button
@@ -138,7 +147,7 @@ export function DocumentReviewForm({
           name="decision"
           value="reject"
           size="sm"
-          variant="outline"
+          variant="destructive"
           disabled={pending}
         >
           {c.reject}
@@ -174,7 +183,9 @@ export function CompanyReviewForm({
             // Reactivating a suspended company is an approval (review_company).
             value={decision === 'reactivate' ? 'approve' : decision}
             size="sm"
-            variant={decision === 'approve' || decision === 'reactivate' ? 'accent' : 'outline'}
+            variant={
+              decision === 'approve' || decision === 'reactivate' ? 'primary' : 'destructive'
+            }
             disabled={pending}
           >
             {c[decision]}

@@ -4,6 +4,7 @@ import { shareLinksCopy, type LatLng } from '@transport/shared';
 import { useEffect, useRef, useState } from 'react';
 
 import { googleMapId, googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
+import { mapColors } from '@/lib/map-colors';
 
 const c = shareLinksCopy.public;
 
@@ -56,9 +57,9 @@ export function PositionMap({ position }: { position: LatLng }) {
       .then(({ AdvancedMarkerElement, PinElement }) => {
         if (cancelled) return;
         const pin = new PinElement({
-          background: '#2f6fe4',
-          borderColor: '#13294b',
-          glyphColor: '#ffffff',
+          background: mapColors.pin,
+          borderColor: mapColors.pinBorder,
+          glyphColor: mapColors.pinGlyph,
         });
         marker = new AdvancedMarkerElement({
           map,
@@ -81,10 +82,10 @@ export function PositionMap({ position }: { position: LatLng }) {
   const mapsHref = `https://www.google.com/maps?q=${position.lat},${position.lng}`;
   return (
     <div className="space-y-2">
-      <div className="relative h-72 overflow-hidden rounded-lg border bg-muted">
+      <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high">
         <div ref={container} className="absolute inset-0" hidden={!showMap} />
         {!showMap && (
-          <p className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+          <p className="flex h-full items-center justify-center px-6 text-center text-subhead text-text-dim">
             {c.mapUnavailable}
           </p>
         )}
@@ -93,7 +94,7 @@ export function PositionMap({ position }: { position: LatLng }) {
         href={mapsHref}
         target="_blank"
         rel="noreferrer noopener"
-        className="text-sm text-accent hover:underline"
+        className="px-1 text-subhead text-accent-text underline-offset-4 hover:underline"
       >
         {c.openInMaps}
       </a>

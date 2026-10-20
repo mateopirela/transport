@@ -4,6 +4,7 @@ import { estimateRoadKm, formatDistance, loadsCopy, type LatLng } from '@transpo
 import { useEffect, useRef, useState } from 'react';
 
 import { googleMapId, googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
+import { mapColors } from '@/lib/map-colors';
 
 const c = loadsCopy.map;
 
@@ -81,7 +82,7 @@ export function RouteMap({
           map,
           path: [from, to],
           geodesic: true,
-          strokeColor: '#2f6fe4',
+          strokeColor: mapColors.route,
           strokeWeight: 4,
         });
         cleanup.push(() => line.setMap(null));
@@ -99,14 +100,14 @@ export function RouteMap({
   const showMap = Boolean(key) && !failed && ready;
   return (
     <div className="space-y-2">
-      <div className="relative h-64 overflow-hidden rounded-lg border bg-muted">
+      <div className="relative h-64 overflow-hidden rounded-2xl border bg-surface-high">
         <div ref={container} className="absolute inset-0" hidden={!showMap} />
         {!showMap && <RouteDiagram origin={origin} destination={destination} />}
       </div>
       {ready && (
-        <p className="text-sm">
+        <p className="px-1 text-subhead text-text">
           {c.estimate(formatDistance(estimateRoadKm(origin, destination, roadFactor)))}{' '}
-          <span className="text-muted-foreground">{c.estimateHint}</span>
+          <span className="text-text-dim">{c.estimateHint}</span>
         </p>
       )}
     </div>
@@ -130,7 +131,7 @@ export function RouteDiagram({
 }) {
   if (!origin || !destination) {
     return (
-      <p className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+      <p className="flex h-full items-center justify-center px-6 text-center text-subhead text-text-dim">
         {c.pickPlaces}
       </p>
     );
@@ -169,7 +170,7 @@ export function RouteDiagram({
           <polyline
             points={path.map((p) => `${p.x},${p.y}`).join(' ')}
             fill="none"
-            className="stroke-navy"
+            className="stroke-text"
             strokeWidth="0.9"
           />
         )}
@@ -178,13 +179,13 @@ export function RouteDiagram({
           { point: b, label: destination.label },
         ].map(({ point, label }, index) => (
           <g key={index}>
-            <circle cx={point.x} cy={point.y} r="1.8" className="fill-navy" />
+            <circle cx={point.x} cy={point.y} r="1.8" className="fill-text" />
             <text
               x={point.x}
               y={point.y - 3}
               textAnchor="middle"
               fontSize="3.2"
-              className="fill-foreground"
+              className="fill-text"
             >
               {label}
             </text>
@@ -192,7 +193,7 @@ export function RouteDiagram({
         ))}
         {last && <circle cx={last.x} cy={last.y} r="2" className="fill-accent" />}
       </svg>
-      <figcaption className="pb-2 text-center text-xs text-muted-foreground">{caption}</figcaption>
+      <figcaption className="pb-2 text-center text-caption text-text-dim">{caption}</figcaption>
     </figure>
   );
 }

@@ -20,11 +20,11 @@ export function RevokeShareButton({ shareId }: { shareId: string }) {
       className="flex flex-col items-end gap-1"
     >
       <input type="hidden" name="shareId" value={shareId} />
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      <Button type="submit" variant="destructive" size="sm" disabled={pending} loading={pending}>
         {c.revoke}
       </Button>
       {state.error && (
-        <p className="text-xs text-destructive" role="alert">
+        <p className="text-footnote text-red-text" role="alert">
           {state.error}
         </p>
       )}

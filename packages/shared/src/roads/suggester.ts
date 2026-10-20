@@ -3,7 +3,7 @@
 // the carrier's preferences with their routes and the units' axles), turned
 // into one function per candidate.
 import type { UnitType, VehicleKind } from '../enums';
-import type { LatLng } from '../geo';
+import { fromEwkbPoint, type LatLng } from '../geo';
 import type { MatchCandidate } from '../matching/scoring';
 import {
   preferencesForLoad,
@@ -20,13 +20,16 @@ export interface CarrierRoadPreferenceRow {
   carrier_routes: {
     origin_city: string;
     destination_city: string;
+    /** geography(Point) as PostgREST returns it (hex EWKB), when stored. */
+    origin_location?: unknown;
+    destination_location?: unknown;
     archived_at?: string | null;
   } | null;
 }
 
 /** Columns of carrier_road_preferences the suggester reads, with the route's cities. */
 export const ROAD_PREFERENCE_SELECT =
-  'segment_id, preference, carrier_routes(origin_city, destination_city, archived_at)';
+  'segment_id, preference, carrier_routes(origin_city, destination_city, origin_location, destination_location, archived_at)';
 
 /** Axles of a unit: its own, or the default of its kind and body. */
 export function vehicleAxles(vehicle: {
@@ -63,8 +66,8 @@ export function createRoadSuggester({
       axleCount: axlesByVehicle.get(candidate.vehicleId) ?? defaultAxleCount('tractor', null),
       corridors,
       preferences: preferencesForLoad(rows, {
-        originCity: candidate.origin.city,
-        destinationCity: candidate.destination.city,
+        origin: { city: candidate.origin.city, point: candidate.origin },
+        destination: { city: candidate.destination.city, point: candidate.destination },
       }),
     });
 }
@@ -78,8 +81,14 @@ function preferenceRows(preferences: readonly CarrierRoadPreferenceRow[]) {
       preference: p.preference,
       route: p.carrier_routes
         ? {
-            originCity: p.carrier_routes.origin_city,
-            destinationCity: p.carrier_routes.destination_city,
+            origin: {
+              city: p.carrier_routes.origin_city,
+              point: fromEwkbPoint(p.carrier_routes.origin_location),
+            },
+            destination: {
+              city: p.carrier_routes.destination_city,
+              point: fromEwkbPoint(p.carrier_routes.destination_location),
+            },
           }
         : null,
     }));
@@ -115,8 +124,11 @@ export function suggestLoadRoad(
     axleCount,
     corridors: context.corridors,
     preferences: preferencesForLoad(preferenceRows(context.preferences), {
-      originCity: load.origin_city,
-      destinationCity: load.destination_city,
+      origin: { city: load.origin_city, point: { lat: load.origin_lat, lng: load.origin_lng } },
+      destination: {
+        city: load.destination_city,
+        point: { lat: load.destination_lat, lng: load.destination_lng },
+      },
     }),
   });
 }

@@ -404,6 +404,8 @@ function collectScreenshots() {
 // `needs`: the step that sets up what a flow expects, run first when the run
 // starts at that flow (--from).
 const steps = [
+  // H4: reads the tolls and the suggested road of the return trip before 01 offers on it.
+  { name: '18-carrier-road', run: () => flow('18-carrier-road') },
   { name: '01-carrier-offer', run: () => flow('01-carrier-offer') },
   { name: 'shipper-accepts', run: (status) => shipperAccepts(status) },
   { name: '02-operator-unloading', run: () => flow('02-operator-unloading') },

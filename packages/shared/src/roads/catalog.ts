@@ -2,7 +2,7 @@
 // parser so a malformed row drops out instead of breaking a screen or the
 // Edge Function. Pure and free of Node and browser APIs (Deno imports it).
 import { Constants } from '../db';
-import type { LatLng } from '../geo';
+import { haversineKm, type LatLng } from '../geo';
 
 const DB_ENUMS = Constants.public.Enums;
 
@@ -210,30 +210,43 @@ export function parseRoadCatalog(json: unknown): RoadCorridor[] {
   return Array.isArray(json) ? compact(json.map(corridor)) : [];
 }
 
+/** A usual route's end within this distance of the load's matches it (as match_pairs does). */
+export const ROUTE_MATCH_RADIUS_KM = 50;
+
+/** One end of a usual route or a load: its city and, when known, its point. */
+export interface RouteEnd {
+  city: string;
+  point: LatLng | null;
+}
+
+function sameEnd(a: RouteEnd, b: RouteEnd): boolean {
+  if (a.point && b.point) return haversineKm(a.point, b.point) <= ROUTE_MATCH_RADIUS_KM;
+  return a.city.trim().toLowerCase() === b.city.trim().toLowerCase();
+}
+
 /**
  * The preferences that apply to a load: those for every route (no route) and
- * those of the carrier's usual routes between the load's cities, in either
- * direction. When both mark a segment, the route's own one wins.
+ * those of the carrier's usual routes that the load follows, in either
+ * direction (a segment is avoided both ways). A route's end matches the load's
+ * within ROUTE_MATCH_RADIUS_KM when both points are known, or by city name.
+ * When both kinds mark a segment, the route's own one wins.
  */
 export function preferencesForLoad(
   preferences: readonly {
     segmentId: string;
     preference: RoadPreference;
-    route: { originCity: string; destinationCity: string } | null;
+    route: { origin: RouteEnd; destination: RouteEnd } | null;
   }[],
-  load: { originCity: string; destinationCity: string },
+  load: { origin: RouteEnd; destination: RouteEnd },
 ): SegmentPreference[] {
-  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
   const bySegment = new Map<string, SegmentPreference & { specific: boolean }>();
   for (const p of preferences) {
     const specific = p.route !== null;
     if (
       p.route &&
       !(
-        (same(p.route.originCity, load.originCity) &&
-          same(p.route.destinationCity, load.destinationCity)) ||
-        (same(p.route.originCity, load.destinationCity) &&
-          same(p.route.destinationCity, load.originCity))
+        (sameEnd(p.route.origin, load.origin) && sameEnd(p.route.destination, load.destination)) ||
+        (sameEnd(p.route.origin, load.destination) && sameEnd(p.route.destination, load.origin))
       )
     ) {
       continue;

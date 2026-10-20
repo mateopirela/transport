@@ -173,7 +173,7 @@ export function TollForm({ segmentId, today }: { segmentId: string; today: strin
   const initial: Values = { validFrom: today };
   return (
     <Disclosure
-      summary={c.setToll}
+      summary={c.editToll}
       look="inline"
       tone="accent"
       open={Boolean(state.error || state.fieldErrors)}

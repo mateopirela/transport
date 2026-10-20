@@ -383,34 +383,57 @@ describe('parseRoadCatalog', () => {
 });
 
 describe('preferencesForLoad', () => {
+  const end = (city: string, point: { lat: number; lng: number } | null = null) => ({
+    city,
+    point,
+  });
   const rows = [
     { segmentId: 's1', preference: 'avoid' as const, route: null },
     {
       segmentId: 's1',
       preference: 'prefer' as const,
-      route: { originCity: 'Guadalajara', destinationCity: 'Monterrey' },
+      route: { origin: end('Guadalajara'), destination: end('Monterrey') },
     },
     {
       segmentId: 's2',
       preference: 'avoid' as const,
-      route: { originCity: 'Monterrey', destinationCity: 'Querétaro' },
+      route: { origin: end('Monterrey'), destination: end('Querétaro') },
     },
     {
       segmentId: 's3',
       preference: 'prefer' as const,
-      route: { originCity: 'monterrey ', destinationCity: 'Guadalajara' },
+      route: { origin: end('monterrey '), destination: end('Guadalajara') },
+    },
+    {
+      segmentId: 's4',
+      preference: 'avoid' as const,
+      route: { origin: end('Monterrey', MTY), destination: end('Guadalajara', GDL) },
     },
   ];
 
-  it('keeps global ones and those of routes between the same cities (either way); the route wins', () => {
+  it('keeps global ones and those of routes the load follows (either way); the route wins', () => {
     expect(
-      preferencesForLoad(rows, { originCity: 'Monterrey', destinationCity: 'Guadalajara' }),
+      preferencesForLoad(rows, { origin: end('Monterrey'), destination: end('Guadalajara') }),
     ).toEqual([
       { segmentId: 's1', preference: 'prefer' },
       { segmentId: 's3', preference: 'prefer' },
+      { segmentId: 's4', preference: 'avoid' },
     ]);
-    expect(preferencesForLoad(rows, { originCity: 'Monterrey', destinationCity: 'León' })).toEqual([
+    expect(
+      preferencesForLoad(rows, { origin: end('Monterrey'), destination: end('León') }),
+    ).toEqual([{ segmentId: 's1', preference: 'avoid' }]);
+  });
+
+  it('matches route ends by distance when both points are known', () => {
+    // Apodaca → Tlaquepaque is the MTY → GDL route by its points, not by name.
+    expect(
+      preferencesForLoad(rows, {
+        origin: end('Tlaquepaque', TLAQ),
+        destination: end('Apodaca', APODACA),
+      }),
+    ).toEqual([
       { segmentId: 's1', preference: 'avoid' },
+      { segmentId: 's4', preference: 'avoid' },
     ]);
   });
 });
@@ -508,6 +531,26 @@ describe('roads in the matching', () => {
     });
     expect(archived?.road?.source === 'catalog' && archived.road.corridor.code).toBe('MTY-GDL-SLP');
 
+    // With the route's stored points, Apodaca → Tlaquepaque follows MTY → GDL.
+    const byPoints = createRoadSuggester({
+      corridors: corridors(),
+      preferences: [
+        {
+          segment_id: 'sal-slp',
+          preference: 'avoid',
+          carrier_routes: {
+            origin_city: 'Monterrey',
+            destination_city: 'Guadalajara',
+            origin_location: ewkb(MTY),
+            destination_location: ewkb(GDL),
+          },
+        },
+      ],
+      axlesByVehicle: new Map(),
+    });
+    const [near] = await recommend([candidate], { now: NOW, suggestRoad: byPoints });
+    expect(near?.road?.source === 'catalog' && near.road.corridor.code).toBe('MTY-GDL-ZAC');
+
     const [none] = await recommend([{ ...candidate, destination: CDMX, vehicleId: 'unit-2' }], {
       now: NOW,
       suggestRoad,
@@ -575,5 +618,17 @@ describe('cardRoad', () => {
       risky: true,
     });
     expect(cardRoad({ ...route(), tollsCents: 0 }).tolls).toBeNull();
+    expect(cardRoad({ ...route(), tollsMissing: true }).tolls).toBe('Casetas desde $748');
   });
 });
+
+/** Hex EWKB of a point, as PostgREST returns a geography(Point, 4326). */
+function ewkb({ lat, lng }: { lat: number; lng: number }): string {
+  const view = new DataView(new ArrayBuffer(25));
+  view.setUint8(0, 1);
+  view.setUint32(1, 0x20000001, true);
+  view.setUint32(5, 4326, true);
+  view.setFloat64(9, lng, true);
+  view.setFloat64(17, lat, true);
+  return [...new Uint8Array(view.buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}

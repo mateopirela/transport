@@ -63,7 +63,10 @@ export function tollsText(route: Pick<SuggestedRoute, 'tollsCents' | 'tollsMissi
   return `${roadsCopy.tolls}: ${tollsAmount(route)}`;
 }
 
-/** What a recommendation card says of its road: "Casetas ~$748", "Casetas: sin dato" or nothing. */
+/**
+ * What a recommendation card says of its road: "Casetas ~$748", "Casetas
+ * desde $748" (some tariff missing), "Casetas: sin dato" or nothing.
+ */
 export function cardRoad(road: RoadSuggestion | undefined): {
   tolls: string | null;
   risky: boolean;
@@ -71,7 +74,9 @@ export function cardRoad(road: RoadSuggestion | undefined): {
   if (road?.source !== 'catalog') return { tolls: null, risky: false };
   const tolls =
     road.tollsCents > 0
-      ? roadsCopy.cardTolls(formatMxnWhole(road.tollsCents))
+      ? (road.tollsMissing ? roadsCopy.cardTollsFloor : roadsCopy.cardTolls)(
+          formatMxnWhole(road.tollsCents),
+        )
       : road.tollsMissing
         ? roadsCopy.cardTollsUnknown
         : null;
@@ -98,6 +103,7 @@ export const roadsCopy = {
   noRisks: 'Sin avisos de inseguridad a la hora de paso.',
   /** Recommendation card. */
   cardTolls: (amount: string) => `Casetas ~${amount}`,
+  cardTollsFloor: (amount: string) => `Casetas desde ${amount}`,
   cardTollsUnknown: 'Casetas: sin dato',
   cardHighRisk: 'Tramo inseguro',
   cardHighRiskLabel: 'Tramo con riesgo alto a la hora de paso',
@@ -177,6 +183,7 @@ export const roadsCopy = {
       sourceDate: 'Fecha de la fuente',
       dataStatus: 'Estado del dato',
       archived: 'Archivar',
+      editToll: 'Cambiar una tarifa',
       setToll: 'Guardar tarifa',
       tollAmount: 'Tarifa en pesos (vacío = sin dato)',
       tollClass: 'Clase',

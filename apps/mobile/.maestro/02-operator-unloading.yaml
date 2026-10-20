@@ -28,6 +28,11 @@ tags: [operator, star]
 # changes: its value is short, so tapping the input puts the cursor at its end
 # and eraseText clears it (the date fills its input: a tap lands mid-text).
 - runScript: scripts/unload-estimate.js
+# The form's button in the middle of the screen keeps its fields clear of the
+# bottom bar (the next step, "Terminar descarga").
+- scrollUntilVisible:
+    element: 'Guardar fin estimado'
+    centerElement: true
 - tapOn: '\d{2}:\d{2}'
 - eraseText: 10
 - inputText: ${output.estimate.input}

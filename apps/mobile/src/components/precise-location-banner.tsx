@@ -1,8 +1,9 @@
 import { trackingCopy as copy } from '@transport/shared';
-import { Linking } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { useLocationAdvice } from '../lib/location-advice';
-import { Body, Button, Notice } from './ui';
+import { spacing, useTheme } from '../theme';
+import { Button, Notice } from './ui';
 
 /**
  * "Ubicación precisa y Siempre" (D17): on the operator's trip, the location
@@ -12,16 +13,24 @@ import { Body, Button, Notice } from './ui';
  */
 export function PreciseLocationBanner({ hidden = false }: { hidden?: boolean }) {
   const advice = useLocationAdvice();
+  const { type } = useTheme();
   if (hidden || advice === null || advice === 'ok') return null;
   return (
     <Notice tone="warning" title={copy.preciseTitle}>
-      <Body>{copy.preciseBody}</Body>
-      <Body>{copy.preciseMissing[advice]}</Body>
-      <Button
-        label={copy.preciseAction}
-        variant="secondary"
-        onPress={() => void Linking.openSettings()}
-      />
+      <Text style={type.subhead}>{copy.preciseBody}</Text>
+      <Text style={type.subhead}>{copy.preciseMissing[advice]}</Text>
+      <View style={styles.action}>
+        <Button
+          label={copy.preciseAction}
+          variant="secondary"
+          size="small"
+          onPress={() => void Linking.openSettings()}
+        />
+      </View>
     </Notice>
   );
 }
+
+const styles = StyleSheet.create({
+  action: { marginTop: spacing.xs, alignItems: 'flex-start' },
+});

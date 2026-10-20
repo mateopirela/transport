@@ -8,9 +8,10 @@ appId: ${APP_ID}
       visible: 'Revisar y aceptar'
     commands:
       - tapOn: 'Revisar y aceptar'
-      - scrollUntilVisible:
-          element: 'Acepto compartir mi ubicación'
-          centerElement: true
+      # The acceptance is the button of the bottom bar, always on screen.
+      - extendedWaitUntil:
+          visible: 'Acepto compartir mi ubicación'
+          timeout: 15000
       - runFlow:
           when:
             true: ${SHOT !== ''}

@@ -12,7 +12,7 @@ import * as Linking from 'expo-linking';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { CarrierTripSummary } from '../lib/carrier-trips-api';
-import { colors, spacing } from '../theme';
+import { lookOf, spacing, useTheme, type Look } from '../theme';
 import type { Tone } from './fleet-ui';
 import { Button } from './ui';
 
@@ -31,8 +31,8 @@ const LOADED: readonly TripStatus[] = ['in_transit', 'at_delivery', 'unloading']
 
 /**
  * How fresh the last position of a trip on the road is ("sin señal desde
- * HH:MM" after 15 min) and, once loaded, the share of the trip covered.
- * With `withLink`, a button opens the position in the phone's maps app.
+ * HH:MM" after 15 min, in amber) and, once loaded, the share of the trip
+ * covered. With `withLink`, a button opens the position in the phone's maps app.
  */
 export function PositionLine({
   trip,
@@ -41,6 +41,7 @@ export function PositionLine({
   trip: CarrierTripSummary;
   withLink?: boolean;
 }) {
+  const styles = STYLES[useTheme().theme];
   const now = new Date();
   const position = trip.lastPosition;
   const freshness = locationFreshness(position?.recordedAt ?? null, now);
@@ -71,18 +72,27 @@ export function PositionLine({
       <Text style={[styles.text, freshness === 'live' ? null : styles.warning]}>{text}</Text>
       {progress !== null ? <Text style={styles.text}>{copy.progress(progress)}</Text> : null}
       {withLink && position ? (
-        <Button
-          label={copy.openPosition}
-          variant="secondary"
-          onPress={() => void Linking.openURL(mapPointUrl(position))}
-        />
+        <View style={styles.action}>
+          <Button
+            label={copy.openPosition}
+            icon="location"
+            variant="secondary"
+            size="small"
+            onPress={() => void Linking.openURL(mapPointUrl(position))}
+          />
+        </View>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: { gap: spacing.xs },
-  text: { fontSize: 14, color: colors.textMuted },
-  warning: { color: colors.warning, fontWeight: '600' },
-});
+function makeStyles({ colors, type }: Look) {
+  return StyleSheet.create({
+    box: { gap: spacing.xs },
+    text: { ...type.subhead, ...type.num, color: colors.textDim },
+    warning: { fontFamily: type.headline.fontFamily, color: colors.amberText },
+    action: { marginTop: spacing.xs, alignItems: 'flex-start' },
+  });
+}
+
+const STYLES = { light: makeStyles(lookOf('light')), dark: makeStyles(lookOf('dark')) };

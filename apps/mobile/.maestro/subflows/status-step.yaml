@@ -1,29 +1,26 @@
-# Taps one status button of the operator's trip and confirms it. Needs STEP.
+# Taps one status button of the operator's trip and confirms it in its sheet.
+# Needs STEP. The step is the button of the bottom bar, always on screen.
 appId: ${APP_ID}
 ---
-# The step buttons follow "Avance del viaje": start there, wherever the
-# screen was scrolled to.
 - scrollUntilVisible:
     element: 'Avance del viaje'
     direction: UP
 # Right after the previous step the screen can still re-render (the trip
-# reloads and sections such as the delivery photos appear above the button),
-# so a tap may land where the button was: tap again until the confirmation
-# shows up.
+# reloads and the bar's button changes), so a tap may land while it is busy:
+# tap again until the confirmation shows up.
 - retry:
     maxRetries: 2
     commands:
       - waitForAnimationToEnd
-      # A tap that landed on a form field (the estimate below "Iniciar
-      # descarga") leaves the keyboard over the button: a tap on the section
-      # title closes it.
+      # A field left focused (the estimate, who receives) keeps the keyboard
+      # over the bar: a tap on the section title closes it.
       - scrollUntilVisible:
           element: 'Avance del viaje'
           direction: UP
       - tapOn: 'Avance del viaje'
-      - scrollUntilVisible:
-          element: ${STEP}
-          centerElement: true
+      - extendedWaitUntil:
+          visible: ${STEP}
+          timeout: 15000
       - tapOn: ${STEP}
       - extendedWaitUntil:
           visible: 'Sí, confirmar'

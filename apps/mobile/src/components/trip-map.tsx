@@ -2,12 +2,16 @@ import { carrierTripsCopy, projectToBox, type LatLng } from '@transport/shared';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { lookOf, shape, spacing, useTheme, type Look } from '../theme';
 
 const copy = carrierTripsCopy.monitor;
 
 const HEIGHT = 220;
-const PADDING = 24;
+const PADDING = spacing.lg;
+/** Dots of the stops, of the trail's ends and of the last position (numbered). */
+const STOP_DOT = spacing.sm + 2;
+const POSITION_DOT = spacing.lg - 2;
+const LEGEND_DOT = spacing.sm;
 
 export interface MapTrip {
   key: string;
@@ -23,10 +27,12 @@ export interface MapTrip {
  * Schematic map of trips on the road: origin, destination, the trail and the
  * last position of each, numbered as in the list below it. It needs no Maps
  * SDK key (none exists yet): coordinates are projected into the box with one
- * shared scale, north up. The embedded Google map replaces it when the keys
- * arrive.
+ * shared scale, north up, on a tile of the page colour with the legend on
+ * glass over it. The embedded Google map replaces it when the keys arrive.
  */
 export function TripMap({ trips }: { trips: readonly MapTrip[] }) {
+  const { theme, colors } = useTheme();
+  const styles = STYLES[theme];
   const [width, setWidth] = useState(0);
   const points = trips.flatMap((t) => [
     t.origin,
@@ -49,22 +55,27 @@ export function TripMap({ trips }: { trips: readonly MapTrip[] }) {
       {width > 0
         ? drawn.map((t, index) => (
             <View key={t.key} style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Segment from={t.origin} to={t.destination} color={colors.border} />
+              <Segment from={t.origin} to={t.destination} color={colors.textFaint} />
               {t.trail.slice(1).map((p, i) => (
                 <Segment key={i} from={t.trail[i] ?? p} to={p} color={colors.accent} />
               ))}
-              <Dot at={t.origin} color={colors.accent} size={10} />
-              <Dot at={t.destination} color={colors.success} size={10} />
+              <Dot at={t.origin} color={colors.accent} size={STOP_DOT} />
+              <Dot at={t.destination} color={colors.ok} size={STOP_DOT} />
               {t.position ? (
-                <Dot at={t.position} color={colors.navy} size={22} label={String(index + 1)} />
+                <Dot
+                  at={t.position}
+                  color={colors.text}
+                  size={POSITION_DOT}
+                  label={String(index + 1)}
+                />
               ) : null}
             </View>
           ))
         : null}
       <View style={styles.legend}>
         <LegendDot color={colors.accent} label={copy.origin} />
-        <LegendDot color={colors.success} label={copy.destination} />
-        <LegendDot color={colors.navy} label={copy.lastPosition} />
+        <LegendDot color={colors.ok} label={copy.destination} />
+        <LegendDot color={colors.text} label={copy.lastPosition} />
       </View>
     </View>
   );
@@ -111,6 +122,7 @@ function Dot({
   size: number;
   label?: string;
 }) {
+  const styles = STYLES[useTheme().theme];
   return (
     <View
       style={[
@@ -132,6 +144,7 @@ function Dot({
 
 /** A straight line between two points: a thin view rotated around its center. */
 function Segment({ from, to, color }: { from: Point; to: Point; color: string }) {
+  const styles = STYLES[useTheme().theme];
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   if (length < 1) return null;
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -152,6 +165,7 @@ function Segment({ from, to, color }: { from: Point; to: Point; color: string })
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
+  const styles = STYLES[useTheme().theme];
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -160,24 +174,36 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    height: HEIGHT,
-    backgroundColor: colors.infoSurface,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  dot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  dotLabel: { color: colors.onAccent, fontSize: 12, fontWeight: '700' },
-  segment: { position: 'absolute', height: 2 },
-  legend: {
-    position: 'absolute',
-    left: spacing.sm,
-    bottom: spacing.xs,
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: colors.textMuted },
-});
+function makeStyles({ colors, type }: Look) {
+  return StyleSheet.create({
+    box: {
+      height: HEIGHT,
+      backgroundColor: colors.surfaceHigh,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.separator,
+      borderRadius: shape.card,
+      overflow: 'hidden',
+    },
+    dot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+    dotLabel: { ...type.caption, fontFamily: type.headline.fontFamily, color: colors.bg },
+    segment: { position: 'absolute', height: 2 },
+    legend: {
+      position: 'absolute',
+      left: spacing.sm,
+      bottom: spacing.sm,
+      flexDirection: 'row',
+      gap: spacing.sm + spacing.xs,
+      paddingHorizontal: spacing.sm + spacing.xs,
+      paddingVertical: spacing.xs,
+      borderRadius: shape.pill,
+      backgroundColor: colors.glass,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.glassLine,
+    },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    legendDot: { width: LEGEND_DOT, height: LEGEND_DOT, borderRadius: LEGEND_DOT / 2 },
+    legendText: type.caption,
+  });
+}
+
+const STYLES = { light: makeStyles(lookOf('light')), dark: makeStyles(lookOf('dark')) };

@@ -22,17 +22,23 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Linking, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import {
   EvidenceSection,
-  ReceiverForm,
+  ReceiverFields,
   type EvidenceItem,
 } from '../../components/evidence-section';
-import { Badge, SectionTitle } from '../../components/fleet-ui';
 import { OperatorDocumentsSection } from '../../components/operator-documents-section';
-import { IncidentForm, UnloadEstimateForm } from '../../components/trip-forms';
+import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
+import { TabBottomBar } from '../../components/tab-bottom-bar';
+import {
+  IncidentForm,
+  UnloadEstimateFields,
+  UnloadEstimateForm,
+  type FormHandle,
+} from '../../components/trip-forms';
 import {
   IncidentList,
   InstructionsSection,
@@ -44,7 +50,16 @@ import {
 } from '../../components/trip-sections';
 import { PreciseLocationBanner } from '../../components/precise-location-banner';
 import { TrackingBanner } from '../../components/tracking-banner';
-import { Body, Button, Loading, Notice, Screen, Title } from '../../components/ui';
+import {
+  Button,
+  Empty,
+  Footnote,
+  Loading,
+  Notice,
+  Pill,
+  Screen,
+  SectionHeader,
+} from '../../components/ui';
 import { capturePhoto, photoUri } from '../../lib/evidence-api';
 import {
   incidentPhotoCount,
@@ -84,7 +99,7 @@ import {
 import { useLoader } from '../../lib/use-loader';
 import { useTripTracking, type TripTracking } from '../../lib/use-trip-tracking';
 import { useSession } from '../../providers/session';
-import { spacing } from '../../theme';
+import { spacing, useTheme } from '../../theme';
 
 const STATUS_EVENTS = new Set<TripEventType>(OPERATOR_TRIP_STEPS);
 
@@ -94,13 +109,19 @@ interface Message {
   settings?: boolean;
 }
 
-function confirm(message: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    Alert.alert(copy.confirmTitle, message, [
-      { text: copy.cancel, style: 'cancel', onPress: () => resolve(false) },
-      { text: copy.confirm, onPress: () => resolve(true) },
-    ]);
-  });
+/** A paragraph inside a notice. */
+function NoticeText({ children }: { children: string }) {
+  const { type } = useTheme();
+  return <Text style={type.subhead}>{children}</Text>;
+}
+
+/** The small secondary action at the foot of a notice. */
+function NoticeAction({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <View style={styles.noticeAction}>
+      <Button label={label} variant="secondary" size="small" onPress={onPress} />
+    </View>
+  );
 }
 
 /** "Viaje asignado" (mockup): the trip, its status controls and incidents (B21). */
@@ -150,7 +171,11 @@ export default function AssignedTripTab() {
   }, [photos.syncCount, reload]);
 
   if (state.status === 'loading' || !queue.ready || !photos.ready) {
-    return <Loading label={copy.refresh} />;
+    return (
+      <Screen title={mobileNavCopy.assignedTrip}>
+        <Loading label={copy.refresh} />
+      </Screen>
+    );
   }
 
   // Refused actions of any trip: the trip itself may no longer be shown. A
@@ -168,27 +193,27 @@ export default function AssignedTripTab() {
     queue.rejected.length > 0 ? (
       <Notice tone="danger" title={copy.rejectedTitle}>
         {missingDocuments.length > 0 ? (
-          <Body>
+          <NoticeText>
             {copy.rejectedMissingDocuments(
               missingDocuments.map((kind) => tripDocumentKindLabels[kind]).join(', '),
             )}
-          </Body>
+          </NoticeText>
         ) : null}
         {otherRefused.length > 0 ? (
-          <Body>
+          <NoticeText>
             {copy.rejectedBody(
               otherRefused.map((a) => tripEventTypeLabels[actionEventType(a)]).join(', '),
             )}
-          </Body>
+          </NoticeText>
         ) : null}
-        <Button label={copy.dismiss} variant="secondary" onPress={dismissRejected} />
+        <NoticeAction label={copy.dismiss} onPress={dismissRejected} />
       </Notice>
     ) : null;
   const rejectedPhotosNotice =
     photos.rejected.length > 0 ? (
       <Notice tone="danger" title={evidenceCopy.rejectedTitle}>
-        <Body>{evidenceCopy.rejectedBody(photos.rejected.length)}</Body>
-        <Button label={copy.dismiss} variant="secondary" onPress={dismissRejectedPhotos} />
+        <NoticeText>{evidenceCopy.rejectedBody(photos.rejected.length)}</NoticeText>
+        <NoticeAction label={copy.dismiss} onPress={dismissRejectedPhotos} />
       </Notice>
     ) : null;
   const notices = (
@@ -200,21 +225,32 @@ export default function AssignedTripTab() {
 
   if (state.status === 'error') {
     return (
-      <Screen>
-        <Title>{mobileNavCopy.assignedTrip}</Title>
+      <Screen title={mobileNavCopy.assignedTrip}>
         {notices}
-        <Notice tone="danger">{copy.loadFailed}</Notice>
-        <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
+        <Notice tone="danger">
+          <NoticeText>{copy.loadFailed}</NoticeText>
+          <NoticeAction label={copy.refresh} onPress={() => void reload()} />
+        </Notice>
       </Screen>
     );
   }
   const trip = state.data;
   if (!trip) {
     return (
-      <Screen>
-        <Title subtitle={copy.noTrip}>{mobileNavCopy.assignedTrip}</Title>
+      <Screen title={mobileNavCopy.assignedTrip}>
         {notices}
-        <Button label={copy.refresh} variant="secondary" onPress={() => void reload()} />
+        <Empty
+          title={copy.noTripTitle}
+          body={copy.noTrip}
+          action={
+            <Button
+              label={copy.refresh}
+              variant="secondary"
+              size="small"
+              onPress={() => void reload()}
+            />
+          }
+        />
       </Screen>
     );
   }
@@ -246,6 +282,11 @@ function TripView({
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
+  const { type } = useTheme();
+  const [barHeight, setBarHeight] = useState(0);
+  const confirmSheet = useRef<ConfirmSheetHandle>(null);
+  // The fields of the step whose button is in the bottom bar (estimate or receiver).
+  const stepFields = useRef<FormHandle<string>>(null);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -384,12 +425,42 @@ function TripView({
     }
   }
 
-  async function recordStep(
+  /** Asks in a sheet before a status step; the step runs once the operator confirms. */
+  function askStep(
     event: OperatorTripEvent,
     estimatedUnloadEndAt: string | null,
     receivedByName: string | null = null,
   ) {
-    if (!(await confirm(operatorStepConfirmLabels[event]))) return;
+    confirmSheet.current?.ask({
+      title: copy.confirmTitle,
+      body: operatorStepConfirmLabels[event],
+      confirmLabel: copy.confirm,
+      cancelLabel: copy.cancel,
+      // The sheet closes at once: the step shows its progress on the bar's button.
+      onConfirm: () => {
+        void recordStep(event, estimatedUnloadEndAt, receivedByName);
+      },
+    });
+  }
+
+  /** The bar's button: the step, with what its fields ask for (the estimate, who receives). */
+  function onStep(step: OperatorTripEvent) {
+    if (step === 'unloading_started') {
+      const at = stepFields.current?.submit();
+      if (at) askStep(step, at);
+    } else if (step === 'unloading_finished') {
+      const name = stepFields.current?.submit();
+      if (name) askStep(step, null, name);
+    } else {
+      askStep(step, null);
+    }
+  }
+
+  async function recordStep(
+    event: OperatorTripEvent,
+    estimatedUnloadEndAt: string | null,
+    receivedByName: string | null,
+  ) {
     // The moment of the confirmation, not of the GPS fix that follows.
     const confirmedAt = new Date();
     setBusy('step');
@@ -493,149 +564,162 @@ function TripView({
   }
 
   return (
-    <Screen>
-      <Title>{mobileNavCopy.assignedTrip}</Title>
-      <Badge label={tripStatusLabels[status]} tone={status === 'delivered' ? 'success' : 'info'} />
-
-      {notice}
-
-      <TrackingBanner tracking={tracking} />
-      {/* D17; the tracking banner already asks for the consent or "Always". */}
-      <PreciseLocationBanner
-        hidden={tracking.decision === 'needs_consent' || tracking.decision === 'needs_permission'}
-      />
-
-      {pendingCount > 0 ? (
-        <Notice tone="warning" title={copy.pendingTitle}>
-          <Body>{copy.pendingBody(pendingCount)}</Body>
-          <Button
-            label={copy.syncNow}
-            variant="secondary"
-            onPress={() => {
-              if (supabase) void flushTripQueue(supabase);
-            }}
-          />
-        </Notice>
-      ) : null}
-
-      {pendingPhotoCount > 0 ? (
-        <Notice tone="warning" title={copy.pendingTitle}>
-          <Body>{evidenceCopy.pendingUploads(pendingPhotoCount)}</Body>
-          <Button
-            label={evidenceCopy.uploadNow}
-            variant="secondary"
-            onPress={() => {
-              if (supabase) void flushEvidenceQueue(supabase, { force: true });
-            }}
-          />
-        </Notice>
-      ) : null}
-
-      <RouteSection load={trip.load} status={status} />
-
-      <ProgressSection status={status} />
-
-      {message ? (
-        <Notice tone={message.tone}>
-          <Body>{message.text}</Body>
-          {message.settings ? (
-            <Button
-              label={copy.openSettings}
-              variant="secondary"
-              onPress={() => void Linking.openSettings()}
-            />
-          ) : null}
-        </Notice>
-      ) : null}
-
-      {captureStage ? (
-        <EvidenceSection
-          stage={captureStage}
-          minimum={trip.evidenceMinimums[captureStage]}
-          items={evidenceItems(captureStage)}
-          busy={busy === 'photo'}
-          disabled={busy !== null}
-          onCapture={() => void takePhoto(captureStage, null)}
-        />
-      ) : null}
-
-      {gate && missing > 0 ? (
-        <Notice tone="warning">{evidenceCopy.missing(gate, missing)}</Notice>
-      ) : null}
-
-      {next === 'unloading_finished' ? (
-        <ReceiverForm
-          submitLabel={operatorStepActionLabels.unloading_finished}
-          busy={busy === 'step'}
-          disabled={busy !== null || missing > 0}
-          onSubmit={(name) => void recordStep('unloading_finished', null, name)}
-        />
-      ) : next === 'unloading_started' ? (
-        <View style={styles.section}>
-          <SectionTitle>{copy.unloadEstimateTitle}</SectionTitle>
-          <Body>{copy.unloadEstimateHelp}</Body>
-          <UnloadEstimateForm
-            initial={null}
-            submitLabel={operatorStepActionLabels.unloading_started}
-            busy={busy === 'step'}
-            onSubmit={(at) => void recordStep('unloading_started', at)}
-          />
+    <>
+      <Screen title={mobileNavCopy.assignedTrip} bottom={next ? barHeight : 0}>
+        <View style={styles.status}>
+          <Pill label={tripStatusLabels[status]} tone={status === 'delivered' ? 'ok' : 'accent'} />
         </View>
-      ) : next ? (
-        <Button
-          label={operatorStepActionLabels[next]}
-          onPress={() => void recordStep(next, null)}
-          loading={busy === 'step'}
-          disabled={busy !== null || missing > 0}
+
+        {notice}
+
+        <TrackingBanner tracking={tracking} />
+        {/* D17; the tracking banner already asks for the consent or "Always". */}
+        <PreciseLocationBanner
+          hidden={tracking.decision === 'needs_consent' || tracking.decision === 'needs_permission'}
         />
-      ) : null}
 
-      {status === 'unloading' ? (
-        <View style={styles.section}>
-          <SectionTitle>{copy.unloadEstimateTitle}</SectionTitle>
-          {estimate ? <Body>{copy.unloadEstimateCurrent(formatDateTime(estimate))}</Body> : null}
-          <UnloadEstimateForm
-            key={estimate ?? 'none'}
-            initial={estimate}
-            submitLabel={copy.unloadEstimateSave}
-            busy={busy === 'estimate'}
-            onSubmit={(at) => void updateEstimate(at)}
-          />
-        </View>
-      ) : null}
-
-      {status === 'delivered' ? (
-        <Notice tone="info">
-          <Body>{copy.delivered}</Body>
-          {receivedBy ? <Body>{evidenceCopy.receivedBy(receivedBy)}</Body> : null}
-        </Notice>
-      ) : null}
-
-      <InstructionsSection trip={trip} />
-
-      <OperatorDocumentsSection documents={trip.documents} />
-
-      <View style={styles.section}>
-        <SectionTitle>{copy.incidents}</SectionTitle>
-        <IncidentList
-          incidents={trip.incidents}
-          queued={incidentsOnPhone}
-          photoCount={photosOfIncident}
-          onAddPhoto={(target) => void takePhoto('incident', target)}
-          busy={busy !== null}
-        />
-        {incidentMessage ? (
-          <Notice tone={incidentMessage.tone}>{incidentMessage.text}</Notice>
+        {pendingCount > 0 || pendingPhotoCount > 0 ? (
+          <Notice tone="warning" title={copy.pendingTitle}>
+            {pendingCount > 0 ? <NoticeText>{copy.pendingBody(pendingCount)}</NoticeText> : null}
+            {pendingPhotoCount > 0 ? (
+              <NoticeText>{evidenceCopy.pendingUploads(pendingPhotoCount)}</NoticeText>
+            ) : null}
+            <View style={styles.noticeActions}>
+              {pendingCount > 0 ? (
+                <Button
+                  label={copy.syncNow}
+                  variant="secondary"
+                  size="small"
+                  onPress={() => {
+                    if (supabase) void flushTripQueue(supabase);
+                  }}
+                />
+              ) : null}
+              {pendingPhotoCount > 0 ? (
+                <Button
+                  label={evidenceCopy.uploadNow}
+                  variant="secondary"
+                  size="small"
+                  onPress={() => {
+                    if (supabase) void flushEvidenceQueue(supabase, { force: true });
+                  }}
+                />
+              ) : null}
+            </View>
+          </Notice>
         ) : null}
-        <SectionTitle>{copy.reportIncident}</SectionTitle>
-        <IncidentForm busy={busy === 'incident'} onSubmit={submitIncident} />
-      </View>
 
-      <TimelineSection entries={timeline} />
-    </Screen>
+        {status === 'delivered' ? (
+          <Notice tone="highlight">
+            <NoticeText>{copy.delivered}</NoticeText>
+            {receivedBy ? <NoticeText>{evidenceCopy.receivedBy(receivedBy)}</NoticeText> : null}
+          </Notice>
+        ) : null}
+
+        <RouteSection load={trip.load} status={status} />
+
+        <ProgressSection status={status} />
+
+        {message ? (
+          <Notice tone={message.tone}>
+            <NoticeText>{message.text}</NoticeText>
+            {message.settings ? (
+              <NoticeAction label={copy.openSettings} onPress={() => void Linking.openSettings()} />
+            ) : null}
+          </Notice>
+        ) : null}
+
+        {captureStage ? (
+          <EvidenceSection
+            stage={captureStage}
+            minimum={trip.evidenceMinimums[captureStage]}
+            items={evidenceItems(captureStage)}
+            busy={busy === 'photo'}
+            disabled={busy !== null}
+            onCapture={() => void takePhoto(captureStage, null)}
+          />
+        ) : null}
+
+        {status === 'unloading' ? (
+          <View style={styles.section}>
+            <SectionHeader title={copy.unloadEstimateTitle} />
+            {estimate ? (
+              <Text style={[type.subhead, type.num]}>
+                {copy.unloadEstimateCurrent(formatDateTime(estimate))}
+              </Text>
+            ) : null}
+            <UnloadEstimateForm
+              key={estimate ?? 'none'}
+              initial={estimate}
+              submitLabel={copy.unloadEstimateSave}
+              busy={busy === 'estimate'}
+              onSubmit={(at) => void updateEstimate(at)}
+            />
+          </View>
+        ) : null}
+
+        {next === 'unloading_finished' ? (
+          <ReceiverFields ref={stepFields} />
+        ) : next === 'unloading_started' ? (
+          <View style={styles.section}>
+            <SectionHeader title={copy.unloadEstimateTitle} />
+            <UnloadEstimateFields ref={stepFields} initial={null} />
+            <Footnote>{copy.unloadEstimateHelp}</Footnote>
+          </View>
+        ) : null}
+
+        <InstructionsSection trip={trip} />
+
+        <OperatorDocumentsSection documents={trip.documents} />
+
+        <View style={styles.section}>
+          <SectionHeader title={copy.incidents} />
+          <IncidentList
+            incidents={trip.incidents}
+            queued={incidentsOnPhone}
+            photoCount={photosOfIncident}
+            onAddPhoto={(target) => void takePhoto('incident', target)}
+            busy={busy !== null}
+          />
+          {incidentMessage ? (
+            <Notice tone={incidentMessage.tone}>{incidentMessage.text}</Notice>
+          ) : null}
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeader title={copy.reportIncident} />
+          <IncidentForm busy={busy === 'incident'} onSubmit={submitIncident} />
+        </View>
+
+        <TimelineSection entries={timeline} />
+      </Screen>
+
+      {/* The next step is the screen's one primary, always at hand. */}
+      {next ? (
+        <TabBottomBar
+          action={{
+            label: operatorStepActionLabels[next],
+            onPress: () => onStep(next),
+            loading: busy === 'step',
+            disabled: busy !== null || missing > 0,
+          }}
+          note={gate && missing > 0 ? evidenceCopy.missing(gate, missing) : undefined}
+          onHeight={setBarHeight}
+        />
+      ) : null}
+      <ConfirmSheet ref={confirmSheet} />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: spacing.sm },
+  status: { marginTop: -spacing.sm, flexDirection: 'row' },
+  section: { gap: spacing.sm + spacing.xs },
+  noticeAction: { marginTop: spacing.xs, alignItems: 'flex-start' },
+  noticeActions: {
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
 });

@@ -96,10 +96,15 @@ export function InstructionsSection({ trip }: { trip: OperatorTrip }) {
     <View style={styles.section}>
       <SectionHeader title={copy.instructions} />
       <Group>
-        <Cell strong title={cargoTypeLabels[load.cargo_type]} subtitle={load.description} />
+        <Cell
+          strong
+          title={cargoTypeLabels[load.cargo_type]}
+          subtitle={load.description}
+          subtitleLines={0}
+        />
         <Cell title={copy.weight(weightFormat.format(load.weight_kg))} />
         {requirements.length > 0 ? (
-          <Cell title={copy.requirements(requirements.join(', '))} lines={3} />
+          <Cell title={copy.requirements(requirements.join(', '))} lines={0} />
         ) : null}
         {trip.vehiclePlate ? <Cell title={copy.unit(trip.vehiclePlate)} /> : null}
         {load.notes ? <TextCell tone="dim">{copy.notes(load.notes)}</TextCell> : null}

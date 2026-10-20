@@ -23,7 +23,7 @@ import {
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View, type ScrollView } from 'react-native';
 
 import {
   EvidenceSection,
@@ -287,6 +287,9 @@ function TripView({
   const confirmSheet = useRef<ConfirmSheetHandle>(null);
   // The fields of the step whose button is in the bottom bar (estimate or receiver).
   const stepFields = useRef<FormHandle<string>>(null);
+  // Where those fields start in the page, to scroll to their errors.
+  const scrollRef = useRef<ScrollView>(null);
+  const stepFieldsY = useRef(0);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -445,12 +448,15 @@ function TripView({
 
   /** The bar's button: the step, with what its fields ask for (the estimate, who receives). */
   function onStep(step: OperatorTripEvent) {
-    if (step === 'unloading_started') {
-      const at = stepFields.current?.submit();
-      if (at) askStep(step, at);
-    } else if (step === 'unloading_finished') {
-      const name = stepFields.current?.submit();
-      if (name) askStep(step, null, name);
+    if (step === 'unloading_started' || step === 'unloading_finished') {
+      const value = stepFields.current?.submit();
+      if (!value) {
+        // The errors sit by the fields: bring them into view.
+        scrollRef.current?.scrollTo({ y: Math.max(stepFieldsY.current - spacing.md, 0) });
+        return;
+      }
+      if (step === 'unloading_started') askStep(step, value);
+      else askStep(step, null, value);
     } else {
       askStep(step, null);
     }
@@ -565,7 +571,11 @@ function TripView({
 
   return (
     <>
-      <Screen title={mobileNavCopy.assignedTrip} bottom={next ? barHeight : 0}>
+      <Screen
+        title={mobileNavCopy.assignedTrip}
+        bottom={next ? barHeight : 0}
+        scrollRef={scrollRef}
+      >
         <View style={styles.status}>
           <Pill label={tripStatusLabels[status]} tone={status === 'delivered' ? 'ok' : 'accent'} />
         </View>
@@ -658,13 +668,17 @@ function TripView({
           </View>
         ) : null}
 
-        {next === 'unloading_finished' ? (
-          <ReceiverFields ref={stepFields} />
-        ) : next === 'unloading_started' ? (
-          <View style={styles.section}>
-            <SectionHeader title={copy.unloadEstimateTitle} />
-            <UnloadEstimateFields ref={stepFields} initial={null} />
-            <Footnote>{copy.unloadEstimateHelp}</Footnote>
+        {next === 'unloading_finished' || next === 'unloading_started' ? (
+          <View onLayout={(e) => (stepFieldsY.current = e.nativeEvent.layout.y)}>
+            {next === 'unloading_finished' ? (
+              <ReceiverFields ref={stepFields} />
+            ) : (
+              <View style={styles.section}>
+                <SectionHeader title={copy.unloadEstimateTitle} />
+                <UnloadEstimateFields ref={stepFields} initial={null} />
+                <Footnote>{copy.unloadEstimateHelp}</Footnote>
+              </View>
+            )}
           </View>
         ) : null}
 

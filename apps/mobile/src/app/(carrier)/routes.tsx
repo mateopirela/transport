@@ -10,9 +10,9 @@ import {
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 
+import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { ChoiceCell, MultiChoiceCell } from '../../components/choice-cell';
 import {
-  BottomBar,
   Button,
   Cell,
   Footnote,
@@ -131,7 +131,7 @@ export default function Routes() {
           />
         </Group>
       </Screen>
-      <BottomBar
+      <KeyboardBottomBar
         action={{ label: copy.save, onPress: add, loading: busy, disabled: !carrier }}
         onHeight={setBarHeight}
       />

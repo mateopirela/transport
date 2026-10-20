@@ -10,13 +10,13 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Text } from 'react-native';
 
+import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
 import { DetailRow } from '../../../components/detail-row';
 import { useNegotiation } from '../../../components/negotiation-panel';
 import { RoutePreview } from '../../../components/route-preview';
 import { ShareWithTeamButton } from '../../../components/share-button';
 import {
-  BottomBar,
   Group,
   LoadError,
   Notice,
@@ -193,7 +193,7 @@ function LoadBody({
           </Group>
         )}
       </Screen>
-      {bar ? <BottomBar {...bar} onHeight={setBarHeight} /> : null}
+      {bar ? <KeyboardBottomBar {...bar} onHeight={setBarHeight} /> : null}
     </>
   );
 }

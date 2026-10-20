@@ -27,10 +27,10 @@ import type { Supabase } from '../lib/supabase';
 import { track } from '../lib/track';
 import { ChoiceCell } from './choice-cell';
 import { ConfirmSheet, type ConfirmSheetHandle } from './sheet';
+import { StatusRow } from './status-row';
 import {
   type BottomBar,
   Button,
-  Cell,
   FieldCell,
   Group,
   GroupLabel,
@@ -252,19 +252,18 @@ export function useNegotiation({
           <Group>
             {offers.map((o) => {
               const unit = o.vehicle_id ? unitById.get(o.vehicle_id) : undefined;
-              const lines = [
-                formatDateTime(o.created_at),
-                o.conditions,
-                o.side === 'carrier'
-                  ? `${copy.negotiation.unit}: ${unit ? unitLabel(unit) : copy.negotiation.noUnit}`
-                  : null,
-              ];
               return (
-                <Cell
+                <StatusRow
                   key={o.id}
                   title={`${copy.negotiation.side[o.side]} · ${formatMxn(o.amount_cents)}`}
-                  subtitle={lines.filter(Boolean).join('\n')}
-                  subtitleLines={6}
+                  lines={[
+                    formatDateTime(o.created_at),
+                    // The conditions in full: the carrier reads them before accepting.
+                    o.conditions,
+                    o.side === 'carrier'
+                      ? `${copy.negotiation.unit}: ${unit ? unitLabel(unit) : copy.negotiation.noUnit}`
+                      : null,
+                  ]}
                   pill={{
                     label: offerStatusLabels[o.status],
                     tone: OFFER_TONES[o.status] ?? 'neutral',

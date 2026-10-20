@@ -13,6 +13,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
 import { DetailRow } from '../../../components/detail-row';
 import { SharedDocumentsSection } from '../../../components/shared-documents-section';
@@ -23,7 +24,6 @@ import { TripMap } from '../../../components/trip-map';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
 import {
-  BottomBar,
   Cell,
   Group,
   LoadError,
@@ -250,7 +250,7 @@ function TripBody({
           />
         ) : null}
       </Screen>
-      {action ? <BottomBar action={action} onHeight={setBarHeight} /> : null}
+      {action ? <KeyboardBottomBar action={action} onHeight={setBarHeight} /> : null}
     </>
   );
 }

@@ -2,6 +2,7 @@ import { fleetCopy, managerCompanyCopy, type BusinessUnitRef } from '@transport/
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
+import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { MoveToBusinessUnit } from '../../../components/business-unit-fields';
 import { DocumentList } from '../../../components/document-list';
 import { InvitationLinkIssuer } from '../../../components/invitation-link';
@@ -9,7 +10,6 @@ import { InvitationSection } from '../../../components/invitation-section';
 import { useOperatorForm } from '../../../components/operator-form';
 import { ConfirmSheet, type ConfirmSheetHandle } from '../../../components/sheet';
 import {
-  BottomBar,
   Button,
   Footnote,
   LoadError,
@@ -87,7 +87,7 @@ function NewOperatorForm({
       <Screen belowHeader bottom={barHeight}>
         {form.section}
       </Screen>
-      <BottomBar action={form.save} onHeight={setBarHeight} />
+      <KeyboardBottomBar action={form.save} onHeight={setBarHeight} />
     </>
   );
 }

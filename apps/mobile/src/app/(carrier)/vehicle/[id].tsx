@@ -7,6 +7,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 
+import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { useAvailability } from '../../../components/availability-section';
 import { MoveToBusinessUnit } from '../../../components/business-unit-fields';
 import { DocumentList } from '../../../components/document-list';
@@ -14,7 +15,6 @@ import { RecommendationCell } from '../../../components/load-card';
 import { useRelease } from '../../../components/release-section';
 import { ConfirmSheet, type ConfirmSheetHandle } from '../../../components/sheet';
 import {
-  BottomBar,
   Button,
   Footnote,
   Group,
@@ -68,7 +68,7 @@ function WithBar({ children, action }: { children: ReactNode; action: FormSave |
       <Screen belowHeader bottom={action ? barHeight : 0}>
         {children}
       </Screen>
-      {action ? <BottomBar action={action} onHeight={setBarHeight} /> : null}
+      {action ? <KeyboardBottomBar action={action} onHeight={setBarHeight} /> : null}
     </>
   );
 }

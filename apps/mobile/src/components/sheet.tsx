@@ -4,6 +4,7 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
+import { mobileErrorCopy } from '@transport/shared';
 import {
   useCallback,
   useImperativeHandle,
@@ -17,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { matchesQuery } from '../lib/fold';
 import { lookOf, opacity, shape, spacing, useTheme, type Look } from '../theme';
-import { Button, Cell, Footnote, Group, SearchBox } from './ui';
+import { Button, Cell, ErrorText, Footnote, Group, SearchBox } from './ui';
 
 export { fold } from '../lib/fold';
 
@@ -123,7 +124,13 @@ export interface Confirmation {
   readonly cancelLabel: string;
   /** A cancellation or a removal reads in red. */
   readonly destructive?: boolean;
+  /**
+   * The step itself. When it fails (throws or rejects), the sheet stays open
+   * with `errorMessage` under the body so the person can try again.
+   */
   readonly onConfirm: () => void | Promise<void>;
+  /** What the sheet says when the step fails; by default, the app's generic error. */
+  readonly errorMessage?: string;
 }
 
 export interface ConfirmSheetHandle {
@@ -140,12 +147,14 @@ export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
   const sheet = useRef<SheetHandle>(null);
   const [pending, setPending] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useImperativeHandle(
     ref,
     () => ({
       ask: (confirmation) => {
         setPending(confirmation);
+        setFailed(false);
         sheet.current?.open();
       },
     }),
@@ -155,17 +164,30 @@ export function ConfirmSheet({ ref }: { ref: Ref<ConfirmSheetHandle> }) {
   async function confirm() {
     if (!pending || busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       await pending.onConfirm();
-    } finally {
+    } catch {
+      // The step did not go through: stay open, say so, and let the person retry.
       setBusy(false);
-      sheet.current?.close();
+      setFailed(true);
+      return;
     }
+    setBusy(false);
+    sheet.current?.close();
   }
 
   return (
-    <Sheet ref={sheet} title={pending?.title} onClose={() => setPending(null)}>
+    <Sheet
+      ref={sheet}
+      title={pending?.title}
+      onClose={() => {
+        setPending(null);
+        setFailed(false);
+      }}
+    >
       <Text style={styles.body17}>{pending?.body}</Text>
+      {failed ? <ErrorText>{pending?.errorMessage ?? mobileErrorCopy.unknown}</ErrorText> : null}
       <Button
         label={pending?.confirmLabel ?? ''}
         variant={pending?.destructive ? 'destructive' : 'primary'}

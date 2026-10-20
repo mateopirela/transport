@@ -1,10 +1,11 @@
 'use client';
 
-import { clientTripsCopy, palette, type LatLng } from '@transport/shared';
+import { clientTripsCopy, type LatLng } from '@transport/shared';
 import { useEffect, useRef, useState } from 'react';
 
 import { RouteDiagram, type RoutePoint } from '@/components/loads/route-map';
 import { googleMapId, googleMapsKey, loadGoogleMaps } from '@/lib/google-maps';
+import { mapColors } from '@/lib/map-colors';
 
 const m = clientTripsCopy.map;
 
@@ -83,11 +84,10 @@ export function ReleaseMap({
         const bounds = new google.maps.LatLngBounds(origin).extend(destination);
         if (last) {
           bounds.extend(last);
-          // The map's tiles are light in both themes: the light palette's accent.
           const pin = new PinElement({
-            background: palette.light.accent,
-            borderColor: palette.light.accentText,
-            glyphColor: palette.light.accentInk,
+            background: mapColors.pin,
+            borderColor: mapColors.pinBorder,
+            glyphColor: mapColors.pinGlyph,
           });
           const marker = new AdvancedMarkerElement({
             map,

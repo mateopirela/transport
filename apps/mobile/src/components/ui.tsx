@@ -730,6 +730,14 @@ export function Checkbox({
 /** The height of a segment inside its track. */
 const SEGMENT_HEIGHT = shape.buttonHeightSmall - spacing.xs;
 
+/**
+ * A hit slop only works inside the bounds of every parent (Android clips it),
+ * so the parents of the small controls leave room for it: padding that the
+ * same negative margin takes back, so nothing moves on screen.
+ */
+const SEGMENT_SLOP = touchSlop(SEGMENT_HEIGHT)?.top ?? 0;
+const CHIP_SLOP = touchSlop(shape.buttonHeightSmall)?.top ?? 0;
+
 /** Two or three exclusive options side by side: the selected one lifted on the cell colour. */
 export function Segmented<T extends string>({
   label,
@@ -744,7 +752,9 @@ export function Segmented<T extends string>({
 }) {
   const kit = useKit();
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={kit.segmented}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={kit.segmentedFrame}>
+      {/* The track, drawn behind the segments: the frame around it holds their touch areas. */}
+      <View style={kit.segmented} />
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -1196,9 +1206,21 @@ function makeStyles({ colors, type, theme }: Look) {
       justifyContent: 'center',
     },
     checkBoxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-    segmented: {
+    // The segments sit SEGMENT_SLOP from the frame's edges (the track's padding
+    // above and below, plus room for their hit slop) and the track's padding
+    // from its sides; the negative margin keeps the control as tall as before.
+    segmentedFrame: {
       flexDirection: 'row',
-      padding: spacing.xs / 2,
+      paddingHorizontal: spacing.xs / 2,
+      paddingVertical: SEGMENT_SLOP,
+      marginVertical: spacing.xs / 2 - SEGMENT_SLOP,
+    },
+    segmented: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: SEGMENT_SLOP - spacing.xs / 2,
+      bottom: SEGMENT_SLOP - spacing.xs / 2,
       borderRadius: shape.pill,
       backgroundColor: track,
     },
@@ -1225,8 +1247,9 @@ function makeStyles({ colors, type, theme }: Look) {
     chipOn: { borderColor: colors.accentSoft, backgroundColor: colors.accentSoft },
     chipText: { ...type.subhead, color: colors.text },
     chipTextOn: { fontFamily: type.headline.fontFamily, color: colors.accentText },
-    chipTabs: { marginHorizontal: -spacing.md, flexGrow: 0 },
-    chipTabsRow: { gap: spacing.sm, paddingHorizontal: spacing.md },
+    // Room above and below the chips for their hit slop (a ScrollView clips).
+    chipTabs: { marginHorizontal: -spacing.md, marginVertical: -CHIP_SLOP, flexGrow: 0 },
+    chipTabsRow: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: CHIP_SLOP },
     searchBox: {
       ...hairline,
       flexDirection: 'row',

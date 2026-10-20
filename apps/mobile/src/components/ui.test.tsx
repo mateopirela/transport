@@ -7,7 +7,7 @@ import { setSavedForTest } from '../../test/stubs/secure-store';
 import { ThemeProvider } from '../theme';
 import { glyphOf } from './icons';
 import { tabAccessibilityLabel } from './tab-bar';
-import { Button, Cell, Empty, Group, Pill, Segmented } from './ui';
+import { Button, Cell, ChipTabs, Empty, Group, Pill, Segmented } from './ui';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -265,6 +265,52 @@ describe('Segmented', () => {
     expect(onChange).not.toHaveBeenCalled();
     act(() => system.props.onPress());
     expect(onChange).toHaveBeenCalledExactlyOnceWith('system');
+  });
+
+  it('gives each segment a 44-point touch area inside its frame, without growing', async () => {
+    const root = await render(
+      <Segmented label="Apariencia" value="light" options={options} onChange={() => undefined} />,
+    );
+    const frame = styleOf(at(byRole(root, 'radiogroup')));
+    for (const radio of byRole(root, 'radio')) {
+      const slop = radio.props.hitSlop as { top: number; bottom: number };
+      const height = styleOf(radio).minHeight as number;
+      expect(height + slop.top + slop.bottom).toBe(shape.minTouch);
+      // The frame holds the whole touch area (Android clips a slop at the parent).
+      expect(frame.paddingVertical).toBeGreaterThanOrEqual(slop.top);
+    }
+    // On screen it takes the height of a small button, as before.
+    const outer =
+      (styleOf(at(byRole(root, 'radio'))).minHeight as number) +
+      2 * (frame.paddingVertical as number) +
+      2 * (frame.marginVertical as number);
+    expect(outer).toBe(shape.buttonHeightSmall);
+  });
+});
+
+describe('ChipTabs', () => {
+  it("leaves room in the scroller for the chips' 44-point touch areas", async () => {
+    const root = await render(
+      <ChipTabs
+        label="Estado"
+        value="all"
+        options={[
+          { value: 'all', label: 'Todas' },
+          { value: 'open', label: 'Abiertas', count: 3 },
+        ]}
+        onChange={() => undefined}
+      />,
+    );
+    const scroller = at(byType(root, 'ScrollView'));
+    const content = [scroller.props.contentContainerStyle]
+      .flat(Infinity)
+      .reduce<Record<string, unknown>>((all, s) => (s ? { ...all, ...s } : all), {});
+    for (const chip of byRole(root, 'radio')) {
+      const slop = chip.props.hitSlop as { top: number; bottom: number };
+      expect((styleOf(chip).minHeight as number) + slop.top + slop.bottom).toBe(shape.minTouch);
+      expect(content.paddingVertical).toBeGreaterThanOrEqual(slop.top);
+    }
+    expect(styleOf(scroller).marginVertical).toBe(-(content.paddingVertical as number));
   });
 });
 

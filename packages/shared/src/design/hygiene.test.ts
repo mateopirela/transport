@@ -73,6 +73,27 @@ describe('findHygieneViolations', () => {
     expect(rules('<div>{/* shadow-md */}</div>', 'web')).toEqual([]);
   });
 
+  it('finds inline styles written by hand on the web too', () => {
+    expect(
+      rules(
+        "<div style={{ fontSize: 13, borderRadius: '8px', boxShadow: '0 1px 2px black' }} />",
+        'web',
+      ),
+    ).toEqual(['font-size', 'border-radius', 'shadow']);
+    expect(rules('<div style={{ fontSize: size.body }} />', 'web')).toEqual([]);
+  });
+
+  it('tells comments from strings', () => {
+    // A comment opener inside a string hides nothing.
+    expect(
+      rules("const marks = '/*'; const style = { color: '#fff' }; const end = '*/';", 'mobile'),
+    ).toEqual(['hex-color']);
+    // A line comment right after code is still a comment.
+    expect(rules('work();// no navy', 'web')).toEqual([]);
+    // A URL in a string is not a comment.
+    expect(rules("const u = 'https://x.test/'; const c = '#fff';", 'web')).toEqual(['hex-color']);
+  });
+
   it('says on which line it found each one', () => {
     const found = findHygieneViolations(
       'const a = 1;\n/* two\nlines */\nx: { fontSize: 9 }',

@@ -42,23 +42,34 @@ const COMMON: readonly HygieneRule[] = [
   },
 ];
 
-const MOBILE: readonly HygieneRule[] = [
-  {
-    id: 'font-size',
-    hint: 'a style of the type scale (useTheme().type)',
-    pattern: /\bfontSize\s*:\s*\d+(?:\.\d+)?/gu,
-  },
-  {
-    id: 'border-radius',
-    hint: 'a radius of `shape` or `radii`',
-    pattern: /\bborder(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*\d+(?:\.\d+)?/gu,
-  },
-  {
-    id: 'shadow',
-    hint: 'hairlines instead of shadows (§1.3); the kit owns the only two',
-    pattern: /\b(?:shadow(?:Color|Opacity|Radius|Offset)|boxShadow|elevation)\s*:/gu,
-  },
-];
+/**
+ * Style properties written by hand: in the app's StyleSheets and in the web's
+ * inline `style` objects alike (a number, or a string that starts with one).
+ */
+function styleProperties(hints: { size: string; radius: string }): HygieneRule[] {
+  return [
+    {
+      id: 'font-size',
+      hint: hints.size,
+      pattern: /\bfontSize\s*:\s*['"`]?\d+(?:\.\d+)?/gu,
+    },
+    {
+      id: 'border-radius',
+      hint: hints.radius,
+      pattern: /\bborder(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*['"`]?\d+(?:\.\d+)?/gu,
+    },
+    {
+      id: 'shadow',
+      hint: 'hairlines instead of shadows (§1.3); the kit owns the only two',
+      pattern: /\b(?:shadow(?:Color|Opacity|Radius|Offset)|boxShadow|textShadow|elevation)\s*:/gu,
+    },
+  ];
+}
+
+const MOBILE: readonly HygieneRule[] = styleProperties({
+  size: 'a style of the type scale (useTheme().type)',
+  radius: 'a radius of `shape` or `radii`',
+});
 
 const PALETTE_HUES =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
@@ -66,6 +77,10 @@ const COLOR_UTILITIES =
   'text|bg|border|ring|outline|fill|stroke|from|via|to|divide|decoration|placeholder|caret|accent';
 
 const WEB: readonly HygieneRule[] = [
+  ...styleProperties({
+    size: 'a step of the type scale as a class (text-body, text-subhead…)',
+    radius: 'a radius class (rounded-md, rounded-2xl, rounded-sm, rounded-full)',
+  }),
   {
     id: 'tailwind-palette',
     hint: 'a token class (text-text-dim, bg-cell, text-red-text…)',
@@ -106,18 +121,46 @@ export const hygieneRules: Readonly<Record<HygienePlatform, readonly HygieneRule
 
 /**
  * Blanks out comments (keeping the line breaks, so lines still count right):
- * a comment may name what it no longer does ("no shadow", "not navy").
- * A `//` counts only at the start of a line or after a space, so URLs in
- * strings stay.
+ * a comment may name what it no longer does ("no shadow", "not navy"). It
+ * reads the text once, so a `//` or a `/*` inside a string ('https://…',
+ * '/*') is not a comment, and a `//` right after code (`work();// …`) is.
+ * Regular expression literals are not told apart: a `//` in one blanks the
+ * rest of its line, which can only hide a match, never invent one.
  */
 export function stripComments(source: string): string {
-  const blank = (text: string) => text.replace(/[^\n]/gu, ' ');
-  return source
-    .replace(/\/\*[\s\S]*?\*\//gu, blank)
-    .replace(
-      /(^|\s)\/\/[^\n]*/gmu,
-      (match, lead: string) => lead + blank(match.slice(lead.length)),
-    );
+  let out = '';
+  let i = 0;
+  let quote: string | null = null;
+  while (i < source.length) {
+    const c = source[i] ?? '';
+    const next = source[i + 1] ?? '';
+    if (quote) {
+      if (c === '\\') {
+        out += c + next;
+        i += 2;
+        continue;
+      }
+      // A line break ends a stray quote (an apostrophe in JSX text), not a template.
+      if (c === quote || (c === '\n' && quote !== '`')) quote = null;
+      out += c;
+      i += 1;
+    } else if (c === '/' && next === '/') {
+      const end = source.indexOf('\n', i);
+      const stop = end === -1 ? source.length : end;
+      out += ' '.repeat(stop - i);
+      i = stop;
+    } else if (c === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(i, stop).replace(/[^\n]/gu, ' ');
+      i = stop;
+    } else {
+      if (c === "'" || c === '"' || c === '`') quote = c;
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
 }
 
 /** What a file's text breaks of the hygiene rules of its platform, line by line. */

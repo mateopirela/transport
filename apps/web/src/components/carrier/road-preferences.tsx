@@ -140,7 +140,6 @@ export function RoadPreferences({
               </Button>
             </form>
           )}
-          <p className="text-footnote text-text-dim">{c.hint}</p>
         </>
       )}
     </section>

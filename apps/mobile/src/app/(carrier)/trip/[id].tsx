@@ -2,11 +2,13 @@ import {
   canCancelTrip,
   cargoTypeLabels,
   carrierTripsCopy,
+  dwellCopy,
   formatDateTime,
   formatMxn,
   isTripActive,
   mapPointUrl,
   tripStatusLabels,
+  type TripEndEstimate,
 } from '@transport/shared';
 import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -36,6 +38,7 @@ import {
   ValueRow,
 } from '../../../components/ui';
 import { loadCarrierTrip, type CarrierTripDetail } from '../../../lib/carrier-trips-api';
+import { tripEndEstimate } from '../../../lib/dwell-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { usePolling } from '../../../lib/use-polling';
 import { spacing, useTheme } from '../../../theme';
@@ -52,8 +55,14 @@ const copy = carrierTripsCopy.detail;
 export default function CarrierTripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const load = useCallback(
-    ({ client, companyId, isManager }: CarrierContext) =>
-      loadCarrierTrip(client, companyId, id, isManager),
+    async ({ client, companyId, isManager }: CarrierContext) => {
+      // H5: the estimated end of unloading, with the times measured at the site.
+      const [detail, endEstimate] = await Promise.all([
+        loadCarrierTrip(client, companyId, id, isManager),
+        tripEndEstimate(client, id),
+      ]);
+      return detail ? { ...detail, endEstimate } : null;
+    },
     [id],
   );
   const { carrier, state, reload } = useCarrierData(load);
@@ -89,7 +98,7 @@ function TripBody({
   reload,
 }: {
   carrier: CarrierContext;
-  detail: CarrierTripDetail;
+  detail: CarrierTripDetail & { endEstimate: TripEndEstimate | null };
   reload: () => Promise<void>;
 }) {
   const { type } = useTheme();
@@ -177,12 +186,7 @@ function TripBody({
           {l.agreed_price_cents !== null ? (
             <ValueRow label={copy.agreedPrice} value={formatMxn(l.agreed_price_cents)} strong />
           ) : null}
-          {trip.estimatedUnloadEndAt ? (
-            <ValueRow
-              label={copy.unloadEstimate}
-              value={formatDateTime(trip.estimatedUnloadEndAt)}
-            />
-          ) : null}
+          <TripEndRow estimate={detail.endEstimate} />
         </Group>
 
         {cancelled ? null : assignment.section}
@@ -256,3 +260,11 @@ function TripBody({
 }
 
 const styles = StyleSheet.create({ head: { gap: spacing.sm, alignItems: 'flex-start' } });
+
+/** "Fin estimado de descarga" (H5): the time and what it is based on; nothing once unloaded. */
+function TripEndRow({ estimate }: { estimate: TripEndEstimate | null }) {
+  if (!estimate || estimate.source === 'finished') return null;
+  const basis = dwellCopy.tripEndBasis(estimate);
+  const at = formatDateTime(estimate.endsAt);
+  return <DetailRow label={dwellCopy.tripEnd} value={basis ? `${at} · ${basis}` : at} />;
+}

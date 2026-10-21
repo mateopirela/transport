@@ -7,6 +7,7 @@ export * from './chat';
 export * from './constants';
 export * from './copy';
 export * from './design';
+export * from './dwell';
 export * from './enums';
 export * from './evidence';
 export * from './fleet';

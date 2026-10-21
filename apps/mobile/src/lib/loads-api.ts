@@ -5,6 +5,7 @@ import {
   DEFAULT_TOP_N,
   matchExplanation,
   recommend,
+  returnTripDwells,
   toRecommendation,
   type CityPreset,
   type NegotiationOffer,
@@ -14,6 +15,7 @@ import {
   type UnitType,
 } from '@transport/shared';
 
+import { siteDwellEstimate } from './dwell-api';
 import { roadSuggesterFor } from './roads-api';
 import type { Supabase } from './supabase';
 
@@ -107,9 +109,16 @@ export async function unitRecommendations(
     // H4: the same road suggestion as the Edge Function (none if unavailable).
     suggestRoad: await roadSuggesterFor(client, [vehicleId]),
   });
+  // H5: the typical unloading time where each return trip starts.
+  const dwells = await returnTripDwells(
+    scored.map((m) => (m.breakdown.isReturnTrip ? m.candidate.start : null)),
+    (site) => siteDwellEstimate(client, 'delivery', site, { at: null }),
+  );
   return {
     vehicleId,
-    recommendations: scored.map((m) => toRecommendation(m, matchExplanation(m.breakdown))),
+    recommendations: scored.map((m, i) =>
+      toRecommendation(m, matchExplanation(m.breakdown), dwells[i]),
+    ),
   };
 }
 

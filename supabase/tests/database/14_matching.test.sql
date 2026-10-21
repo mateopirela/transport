@@ -294,11 +294,11 @@ select is(
   'a unit with a trip starts at its destination and only after the delivery (l10 closes before)'
 );
 select results_eq(
-  $$ select start_city, is_return_trip, available_from = (select delivery_window_end from public.loads where id = tests.val('l8')),
+  $$ select start_city, is_return_trip, available_from = (select delivery_window_start + interval '4 hours' from public.loads where id = tests.val('l8')),
             home_distance_km < 5, availability_id
      from public.match_candidates('e8000000-0000-4000-8000-0000000000a1') $$,
   $$ values ('Monterrey'::text, true, true, true, null::uuid) $$,
-  'return-trip mode: destination of the trip, estimated end (delivery window without an estimate), base = trip origin'
+  'return-trip mode: destination of the trip, estimated end (H5: 4 h after the delivery window opens without measurements), base = trip origin'
 );
 reset role;
 update public.trips set estimated_unload_end_at = now() + interval '50 hours' where id = tests.val('trip8');

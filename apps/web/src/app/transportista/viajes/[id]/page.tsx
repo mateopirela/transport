@@ -29,6 +29,7 @@ import { BackLink, PageSection } from '@/components/page-section';
 import { ProviderBadge } from '@/components/shared-documents/provider-status';
 import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
+import { TripEndRow } from '@/components/trips/site-dwell';
 import { ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripCancelForm } from '@/components/trips/trip-cancel-form';
 import { TripChecklist } from '@/components/trips/trip-checklist';
@@ -50,6 +51,7 @@ import {
 } from '@/lib/carrier/trip-actions';
 import { getCarrierTrip } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
+import { tripEndEstimate } from '@/lib/dwell';
 import { carrierLoadPath, carrierTripPath, paths, tripFileHref } from '@/lib/routing';
 import { getProviderDecisionForCarrier, getSharedDocuments } from '@/lib/shared-documents/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
@@ -101,13 +103,15 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
     );
   }
   const { trip, load, events, incidents, evidence, documents, locations } = data;
-  const [chat, sharedDocuments, decision] = await Promise.all([
+  const [chat, sharedDocuments, decision, endEstimate] = await Promise.all([
     data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
     getSharedDocuments(supabase, trip.id),
     getProviderDecisionForCarrier(supabase, {
       shipperCompanyId: trip.shipper_company_id,
       carrierCompanyId: companyId,
     }),
+    // H5: the estimated end of unloading, with the times measured at the site.
+    tripEndEstimate(supabase, id),
   ]);
 
   const now = new Date();
@@ -380,11 +384,7 @@ export default async function CarrierTripPage({ params }: PageProps<'/transporti
                   {decision.notes}
                 </p>
               )}
-              {trip.estimated_unload_end_at && (
-                <ValueRow label={d.unloadEstimate}>
-                  {formatDateTime(trip.estimated_unload_end_at)}
-                </ValueRow>
-              )}
+              <TripEndRow estimate={endEstimate} />
               {data.agreedPriceCents !== null && (
                 <ValueRow label={d.agreedPrice}>{formatMxn(data.agreedPriceCents)}</ValueRow>
               )}

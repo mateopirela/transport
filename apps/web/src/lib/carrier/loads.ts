@@ -13,6 +13,7 @@ import {
   findCityPreset,
   matchExplanation,
   recommend,
+  returnTripDwells,
   toRecommendation,
   uuidField,
   type CarrierFeed,
@@ -25,6 +26,7 @@ import {
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
+import { siteDwellEstimate } from '../dwell';
 import { roadSuggesterFor } from './roads';
 import type { LoadSearchFilters } from './filters';
 
@@ -165,9 +167,16 @@ export async function unitRecommendations(
     // H4: the same road suggestion as the Edge Function.
     suggestRoad: await roadSuggesterFor(supabase, [unit]),
   });
+  // H5: the typical unloading time where each return trip starts.
+  const dwells = await returnTripDwells(
+    scored.map((m) => (m.breakdown.isReturnTrip ? m.candidate.start : null)),
+    (site) => siteDwellEstimate(supabase, 'delivery', site, { at: null }),
+  );
   return {
     vehicleId,
-    recommendations: scored.map((m) => toRecommendation(m, matchExplanation(m.breakdown))),
+    recommendations: scored.map((m, i) =>
+      toRecommendation(m, matchExplanation(m.breakdown), dwells[i]),
+    ),
   };
 }
 

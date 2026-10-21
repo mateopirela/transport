@@ -2784,6 +2784,108 @@ export interface Database {
           },
         ];
       };
+      trip_stop_dwells: {
+        Row: {
+          arrived_at: string | null;
+          carrier_company_id: string;
+          excluded: boolean | null;
+          handling_finished_at: string | null;
+          handling_minutes: number | null;
+          handling_started_at: string | null;
+          hour_band: string | null;
+          shipper_company_id: string;
+          site_lat: number;
+          site_lng: number;
+          stop: Database['public']['Enums']['trip_stop'];
+          trip_id: string;
+          updated_at: string;
+          wait_minutes: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          arrived_at?: string | null;
+          carrier_company_id: string;
+          excluded?: never;
+          handling_finished_at?: string | null;
+          handling_minutes?: never;
+          handling_started_at?: string | null;
+          hour_band?: never;
+          shipper_company_id: string;
+          site_lat: number;
+          site_lng: number;
+          stop: Database['public']['Enums']['trip_stop'];
+          trip_id: string;
+          updated_at?: string;
+          wait_minutes?: never;
+        };
+        Update: {
+          arrived_at?: string | null;
+          carrier_company_id?: string;
+          excluded?: never;
+          handling_finished_at?: string | null;
+          handling_minutes?: never;
+          handling_started_at?: string | null;
+          hour_band?: never;
+          shipper_company_id?: string;
+          site_lat?: number;
+          site_lng?: number;
+          stop?: Database['public']['Enums']['trip_stop'];
+          trip_id?: string;
+          updated_at?: string;
+          wait_minutes?: never;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'trip_stop_dwells_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_carrier_company_id_fkey';
+            columns: ['carrier_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_shipper_company_id_fkey';
+            columns: ['shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_stop_dwells_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trips: {
         Row: {
           assigned_at: string | null;
@@ -3805,6 +3907,7 @@ export interface Database {
       };
       document_share_active: { Args: { p_share_id: string }; Returns: boolean };
       document_shares_lock: { Args: { p_carrier_company_id: string }; Returns: undefined };
+      dwell_hour_band: { Args: { p_at: string }; Returns: string };
       expire_stale_loads: { Args: Record<PropertyKey, never>; Returns: number };
       get_route_distances: {
         Args: { p_legs: Json };
@@ -4238,6 +4341,47 @@ export interface Database {
           unit_type: Database['public']['Enums']['unit_type'];
         }[];
       };
+      site_dwell_estimate: {
+        Args: {
+          p_at?: string;
+          p_lat: number;
+          p_lng: number;
+          p_shipper_company_id?: string;
+          p_stop: Database['public']['Enums']['trip_stop'];
+        };
+        Returns: {
+          basis: string;
+          handling_median_minutes: number;
+          handling_p75_minutes: number;
+          sample_size: number;
+          total_median_minutes: number;
+          total_p75_minutes: number;
+          wait_median_minutes: number;
+          wait_p75_minutes: number;
+        }[];
+      };
+      site_dwell_stats: {
+        Args: {
+          p_all: boolean;
+          p_at: string;
+          p_carrier_viewer: string;
+          p_lat: number;
+          p_lng: number;
+          p_shipper_company_id: string;
+          p_shipper_viewer: string;
+          p_stop: Database['public']['Enums']['trip_stop'];
+        };
+        Returns: {
+          basis: string;
+          handling_median_minutes: number;
+          handling_p75_minutes: number;
+          sample_size: number;
+          total_median_minutes: number;
+          total_p75_minutes: number;
+          wait_median_minutes: number;
+          wait_p75_minutes: number;
+        }[];
+      };
       staff_role_for_company_type: {
         Args: { p_type: Database['public']['Enums']['company_type'] };
         Returns: Database['public']['Enums']['user_role'];
@@ -4283,6 +4427,26 @@ export interface Database {
           required: boolean;
           responsible: string;
           stage: string;
+        }[];
+      };
+      trip_end_estimate: {
+        Args: { p_shipper_view?: boolean; p_trip_id: string };
+        Returns: {
+          arrival_at: string;
+          basis: string;
+          ends_at: string;
+          sample_size: number;
+          source: string;
+        }[];
+      };
+      trip_estimated_end: {
+        Args: { p_trip_id: string };
+        Returns: {
+          arrival_at: string;
+          basis: string;
+          ends_at: string;
+          sample_size: number;
+          source: string;
         }[];
       };
       trip_event_transition: {
@@ -4556,6 +4720,7 @@ export interface Database {
         | 'delivered'
         | 'closed'
         | 'cancelled';
+      trip_stop: 'pickup' | 'delivery';
       unit_type:
         | 'dry_van'
         | 'refrigerated'
@@ -4843,6 +5008,7 @@ export const Constants = {
         'closed',
         'cancelled',
       ],
+      trip_stop: ['pickup', 'delivery'],
       unit_type: [
         'dry_van',
         'refrigerated',

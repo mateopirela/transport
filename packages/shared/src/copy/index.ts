@@ -8,6 +8,7 @@ export * from './carrier-loads';
 export * from './carrier-trips';
 export * from './carrier-web';
 export * from './catalogs';
+export * from './dwell';
 export * from './client-trips';
 export * from './errors';
 export * from './fleet';

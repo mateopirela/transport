@@ -1,6 +1,7 @@
 import {
   APP_LOCALE,
   carrierLoadsCopy,
+  dwellCopy,
   formatDateTime,
   formatMxn,
   cardRoad,
@@ -67,6 +68,9 @@ export function RecommendationCell({
     <Cell role="link" onPress={onPress}>
       <Text style={styles.title}>{copy.route(r.origin.city, r.destination.city)}</Text>
       <Text style={styles.dim}>{copy.pickup(formatDateTime(r.pickupWindowStart))}</Text>
+      {returnTrip && r.returnDwell ? (
+        <Text style={styles.dim}>{dwellCopy.returnTrip(r.returnDwell)}</Text>
+      ) : null}
       <Text style={styles.body} numberOfLines={3}>
         {r.explanation}
       </Text>

@@ -20,7 +20,16 @@
 //    segments enter the score. If any of them cannot be read, the
 //    recommendations are served without roads; with an empty catalog every
 //    road is `{ source: 'none' }`.
+// 6. Waiting times (H5): each return trip gets the typical time at the
+//    delivery its unit is finishing (`returnDwell`), from site_dwell_estimate
+//    called with the caller's JWT (Postgres applies the privacy rule). A
+//    site that cannot be read is left without it.
 import { matchExplanation } from '../../../packages/shared/src/copy/matching.ts';
+import {
+  parseDwellEstimate,
+  returnTripDwells,
+  type DwellEstimate,
+} from '../../../packages/shared/src/dwell.ts';
 import { roadDistanceFactor } from '../../../packages/shared/src/geo.ts';
 import {
   candidateFromRow,
@@ -260,6 +269,33 @@ async function loadRoadSuggester(
   }
 }
 
+/** site_dwell_estimate of a delivery site, with the caller's JWT; null if it fails. */
+function dwellReader(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string,
+  fetch: FetchLike,
+  log: Logger,
+) {
+  return async (site: { lat: number; lng: number }): Promise<DwellEstimate | null> => {
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/site_dwell_estimate`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      // No hour: the hour the unit reaches that delivery is not known here.
+      body: JSON.stringify({ p_stop: 'delivery', p_lat: site.lat, p_lng: site.lng, p_at: null }),
+    });
+    if (!response.ok) {
+      log.warn('site_dwell_estimate failed', { status: response.status });
+      return null;
+    }
+    return parseDwellEstimate(await response.json());
+  };
+}
+
 export async function handleRecommendations(
   request: Request,
   deps: Dependencies,
@@ -350,6 +386,11 @@ export async function handleRecommendations(
     suggestRoad,
   });
 
+  const dwells = await returnTripDwells(
+    matches.map((m) => (m.breakdown.isReturnTrip ? m.candidate.start : null)),
+    dwellReader(supabaseUrl, anonKey, authorization, deps.fetch, log),
+  );
+
   log.info('recommendations served', {
     candidates: candidates.length,
     recommendations: matches.length,
@@ -359,7 +400,7 @@ export async function handleRecommendations(
   });
   return json({
     candidates: candidates.length,
-    recommendations: matches.map(({ candidate, score, breakdown, road }) => ({
+    recommendations: matches.map(({ candidate, score, breakdown, road }, i) => ({
       loadId: candidate.loadId,
       vehicleId: candidate.vehicleId,
       origin: candidate.origin,
@@ -371,6 +412,7 @@ export async function handleRecommendations(
       explanation: matchExplanation(breakdown),
       breakdown,
       ...(road ? { road } : {}),
+      ...(dwells[i] ? { returnDwell: dwells[i] } : {}),
     })),
   });
 }

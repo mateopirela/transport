@@ -1,4 +1,5 @@
 import {
+  dwellCopy,
   formatDistance,
   formatMxn,
   formatTime,
@@ -6,6 +7,7 @@ import {
   roadsCopy,
   tollClassLabels,
   tollsText,
+  type DwellEstimate,
   type RoadSuggestion,
 } from '@transport/shared';
 import { TriangleAlert } from 'lucide-react';
@@ -19,16 +21,22 @@ import { groupRow } from '@/components/ui/variants';
  * "Ruta sugerida" of a load (H4, D31): the corridor of the road catalog, the
  * estimated tolls for the unit's class with their source and date, the
  * warnings of unsafe segments at the hour the truck passes, and the segments
- * in order. Without a corridor for the pair it says so.
+ * in order. Without a corridor for the pair it says so. H5: the typical
+ * waiting and loading time at the pickup, when known.
  */
 export function SuggestedRoute({
   road,
   estimateFor,
+  pickupDwell,
 }: {
   road: RoadSuggestion;
   /** Which truck the tolls were estimated for (roadsCopy.estimateFor). */
   estimateFor: string;
+  pickupDwell?: DwellEstimate | null;
 }) {
+  const dwell = pickupDwell ? (
+    <p className="px-1 text-subhead text-text-dim tabular-nums">{dwellCopy.pickup(pickupDwell)}</p>
+  ) : null;
   if (road.source === 'none') {
     return (
       <PageSection title={roadsCopy.section}>
@@ -36,6 +44,7 @@ export function SuggestedRoute({
           <p className="text-headline text-text">{roadsCopy.none}</p>
           <p className="text-subhead text-text-dim">{roadsCopy.noneHint}</p>
         </div>
+        {dwell}
       </PageSection>
     );
   }
@@ -61,6 +70,7 @@ export function SuggestedRoute({
           <p className="text-footnote text-text-dim">{roadsCopy.tollsMissing}</p>
         )}
       </div>
+      {dwell}
 
       {road.warnings.length > 0 ? (
         <ul className="space-y-2">

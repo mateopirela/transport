@@ -56,6 +56,8 @@
   - fotos de evidencia
   - documentos del viaje (D22): subir la orden de servicio y ver el CFDI con Carta Porte y la factura que sube el coordinador
   - confirmación de entrega
+  - **fin estimado de descarga** y en qué se basa (estimado del operador, viajes medidos en el sitio o 4 h por defecto) (D32)
+- **Tiempo típico en tu sitio** (D32): en cada carga y viaje, cuánto tardan los camiones en cargar y descargar en sus propios sitios (espera + maniobra), medido con sus viajes anteriores.
 - **Compartir** una carga o el seguimiento de un viaje con un enlace público de solo lectura (D23).
 - Reportar incidencias.
 
@@ -79,6 +81,7 @@
 - Búsqueda y filtro de cargas, con detalle de la carga (mapa y distancia en vacío).
 - **Ruta sugerida** de cada carga (D31): el corredor del catálogo por donde conviene ir, las **casetas estimadas** para la clase del camión (por número de ejes) con su fuente y fecha, y los **avisos de tramos inseguros** a la hora en que pasaría el camión. Las recomendaciones muestran "Casetas ~$X" y el aviso, y puntúan el precio sin casetas. Lo que no tiene fuente dice "Sin dato".
 - En sus rutas habituales, **tramos preferidos y tramos a evitar**: la ruta sugerida los respeta.
+- **Tiempos de espera** (D32), medidos con los eventos de los viajes: "Espera típica en descarga" en los viajes de regreso (y la hora en que la unidad queda libre los usa), "Espera típica al cargar" en la ruta sugerida de la carga y el **fin estimado de descarga** de cada viaje. Con menos de 5 viajes medidos se usan 4 h y se dice; las estadísticas con viajes de otras empresas solo se muestran si vienen de al menos 2.
 - Ofertar y contraofertar (precio y disponibilidad), con chat con el cliente.
 - Confirmar camión y operador del viaje ganado; ver si el cliente ya lo dio de alta como proveedor.
 - Subir los documentos del viaje (D22): orden de servicio, CFDI con Carta Porte y factura.
@@ -96,7 +99,7 @@
   - inicio y fin de carga
   - en tránsito
   - llegada a destino
-  - inicio de descarga, con **hora estimada de fin de descarga**
+  - inicio de descarga, con **hora estimada de fin de descarga** (la sugerida sale de la descarga típica del sitio, D32; si no hay suficientes viajes medidos, 4 h)
   - fin de descarga
 - **Ubicación compartida en segundo plano**, con consentimiento explícito y solo durante viajes activos. La app le pide activar la **ubicación precisa** y el permiso **"Siempre"** (D17).
 - Evidencia de recolección y evidencia firmada de entrega (fotos con hora y ubicación, y quién recibe). Funciona sin señal y sube después.

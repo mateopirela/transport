@@ -1,5 +1,6 @@
 import {
   evidenceMinimumsFrom,
+  type DwellEstimate,
   pickOperatorTrip,
   type EvidenceMinimums,
   type Tables,
@@ -7,6 +8,7 @@ import {
   type TripStatus,
 } from '@transport/shared';
 
+import { siteDwellEstimate } from './dwell-api';
 import type { Supabase } from './supabase';
 import type { QueuedAction } from './trip-queue';
 
@@ -83,6 +85,11 @@ export interface OperatorTrip {
    * Carta Porte). Absent in copies saved on the phone before G3.
    */
   documents?: OperatorTripDocument[];
+  /**
+   * H5: the typical unloading at the delivery site, which suggests the end
+   * of unloading. Null when unknown; absent in copies saved before H5.
+   */
+  unloadDwell?: DwellEstimate | null;
 }
 
 export type OperatorTripDocument = Pick<
@@ -119,7 +126,7 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
   const trips = check(
     await client
       .from('trips')
-      .select('id, status, load_id, vehicle_id, estimated_unload_end_at')
+      .select('id, status, load_id, vehicle_id, estimated_unload_end_at, shipper_company_id')
       .eq('operator_id', operatorId)
       .in('status', OPERATOR_STATUSES),
   );
@@ -142,36 +149,43 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
   const trip = pickOperatorTrip(candidates);
   if (!trip) return null;
 
-  const [events, incidents, vehicle, evidence, minimums, documents] = await Promise.all([
-    client
-      .from('trip_events')
-      .select(
-        'id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id, received_by_name, incident_id',
-      )
-      .eq('trip_id', trip.id)
-      .order('occurred_at')
-      .order('recorded_at'),
-    client
-      .from('incidents')
-      .select('id, kind, description, status, occurred_at')
-      .eq('trip_id', trip.id)
-      .order('occurred_at', { ascending: false }),
-    trip.vehicle_id
-      ? client.from('vehicles').select('plate').eq('id', trip.vehicle_id).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    client
-      .from('trip_evidence')
-      .select('id, stage, incident_id, storage_path, captured_at')
-      .eq('trip_id', trip.id)
-      .order('captured_at'),
-    client.from('trip_evidence_requirements').select('stage, min_photos'),
-    client
-      .from('trip_documents')
-      .select('id, kind, storage_path, file_name, created_at')
-      .eq('trip_id', trip.id)
-      .in('kind', OPERATOR_DOCUMENT_KINDS)
-      .order('created_at'),
-  ]);
+  const [events, incidents, vehicle, evidence, minimums, documents, unloadDwell] =
+    await Promise.all([
+      client
+        .from('trip_events')
+        .select(
+          'id, event_type, occurred_at, estimated_unload_end_at, notes, client_event_id, received_by_name, incident_id',
+        )
+        .eq('trip_id', trip.id)
+        .order('occurred_at')
+        .order('recorded_at'),
+      client
+        .from('incidents')
+        .select('id, kind, description, status, occurred_at')
+        .eq('trip_id', trip.id)
+        .order('occurred_at', { ascending: false }),
+      trip.vehicle_id
+        ? client.from('vehicles').select('plate').eq('id', trip.vehicle_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      client
+        .from('trip_evidence')
+        .select('id, stage, incident_id, storage_path, captured_at')
+        .eq('trip_id', trip.id)
+        .order('captured_at'),
+      client.from('trip_evidence_requirements').select('stage, min_photos'),
+      client
+        .from('trip_documents')
+        .select('id, kind, storage_path, file_name, created_at')
+        .eq('trip_id', trip.id)
+        .in('kind', OPERATOR_DOCUMENT_KINDS)
+        .order('created_at'),
+      siteDwellEstimate(
+        client,
+        'delivery',
+        { lat: trip.load.destination_lat, lng: trip.load.destination_lng },
+        { shipperCompanyId: trip.shipper_company_id },
+      ),
+    ]);
   if (vehicle.error) throw vehicle.error;
 
   return {
@@ -185,6 +199,7 @@ export async function loadOperatorTrip(client: Supabase): Promise<OperatorTrip |
     evidence: check(evidence),
     evidenceMinimums: evidenceMinimumsFrom(check(minimums)),
     documents: check(documents),
+    unloadDwell,
   };
 }
 

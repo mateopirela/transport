@@ -26,6 +26,7 @@ import { ShareDialog } from '@/components/share/share-dialog';
 import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
 import { SharedDocumentsList } from '@/components/shared-documents/shared-documents-list';
 import { AutoRefresh } from '@/components/trips/auto-refresh';
+import { SiteDwellGroup, TripEndRow } from '@/components/trips/site-dwell';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripCancelForm } from '@/components/trips/trip-cancel-form';
 import { TripChecklist } from '@/components/trips/trip-checklist';
@@ -38,6 +39,7 @@ import { Group } from '@/components/ui/group';
 import { PageHeader } from '@/components/ui/page-header';
 import { groupRow } from '@/components/ui/variants';
 import { getChat } from '@/lib/chat/queries';
+import { ownSiteDwells, tripEndEstimate } from '@/lib/dwell';
 import { shipperContext } from '@/lib/loads/queries';
 import { loadPath, paths, tripFileHref, tripPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
@@ -97,13 +99,16 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   if (!data?.trip.load || !viewer) notFound();
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
   const load = trip.load;
-  const [chat, sharedDocuments, decisions] = await Promise.all([
+  const [chat, sharedDocuments, decisions, endEstimate, siteDwells] = await Promise.all([
     data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
     getSharedDocuments(supabase, trip.id),
     getProviderDecisions(supabase, {
       shipperCompanyId: companyId,
       carrierCompanyIds: [trip.carrier_company_id],
     }),
+    // H5: the estimated end of unloading and the times at the shipper's sites.
+    tripEndEstimate(supabase, trip.id),
+    ownSiteDwells(supabase, load),
   ]);
   const decision = decisions.get(trip.carrier_company_id) ?? null;
 
@@ -313,12 +318,10 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
                 : d.notAssigned}
             </ValueRow>
             <ValueRow label={d.operator}>{parties?.operatorName ?? d.notAssigned}</ValueRow>
-            {trip.estimated_unload_end_at && (
-              <ValueRow label={d.unloadEstimate}>
-                {formatDateTime(trip.estimated_unload_end_at)}
-              </ValueRow>
-            )}
+            <TripEndRow estimate={endEstimate} />
           </Group>
+
+          <SiteDwellGroup pickup={siteDwells.pickup} delivery={siteDwells.delivery} />
 
           <section className="space-y-3">
             <SectionTitle title={c.timeline.title} />

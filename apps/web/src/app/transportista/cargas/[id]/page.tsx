@@ -35,6 +35,7 @@ import {
 import { loadRoadContext } from '@/lib/carrier/roads';
 import { findCarrierTripId } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
+import { siteDwellEstimate } from '@/lib/dwell';
 import { serverRoadFactor } from '@/lib/loads/queries';
 import { carrierLoadPath, carrierTripPath, paths } from '@/lib/routing';
 
@@ -85,13 +86,20 @@ export default async function CarrierLoadPage({
   const labels = new Map(carrierUnits.map((u) => [u.id, unitLabel(u)]));
   // H4: the suggested road for the unit that leads (its axles pick the toll class).
   const roadUnit = carrierUnits.find((u) => u.id === (best?.vehicleId ?? preferred));
-  const [chat, tripId, roadContext] = await Promise.all([
+  const [chat, tripId, roadContext, pickupDwell] = await Promise.all([
     negotiation?.conversationId
       ? getChat(supabase, negotiation.conversationId, companyId)
       : Promise.resolve(null),
     // The company's trip of a won load (G10b); RLS hides anyone else's.
     findCarrierTripId(supabase, companyId, load.id),
     loadRoadContext(supabase),
+    // H5: the typical waiting and loading time at its pickup, at that hour.
+    siteDwellEstimate(
+      supabase,
+      'pickup',
+      { lat: load.origin_lat, lng: load.origin_lng },
+      { at: new Date(load.pickup_window_start) },
+    ),
   ]);
   const roadAxles = roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null);
   const road = suggestLoadRoad(roadContext, load, roadAxles);
@@ -142,6 +150,7 @@ export default async function CarrierLoadPage({
           <SuggestedRoute
             road={road}
             estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+            pickupDwell={pickupDwell}
           />
 
           <PageSection title={c.details}>

@@ -38,6 +38,17 @@ const row = (loadId: string, overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const DEFAULT_DWELL = {
+  basis: 'default',
+  sample_size: 0,
+  wait_median_minutes: null,
+  wait_p75_minutes: null,
+  handling_median_minutes: null,
+  handling_p75_minutes: null,
+  total_median_minutes: 240,
+  total_p75_minutes: 240,
+};
+
 interface Call {
   url: string;
   init: RequestInit;
@@ -53,6 +64,8 @@ function setup(options: {
   roadCatalog?: () => Response;
   roadPreferences?: unknown[];
   vehicles?: unknown[];
+  /** H5: answer of site_dwell_estimate. */
+  dwell?: () => Response;
 }) {
   const calls: Call[] = [];
   const env: Record<string, string> = {
@@ -72,6 +85,8 @@ function setup(options: {
           options.rpc?.() ?? Response.json([row('far', { origin_lat: 20.9 }), row('near')]),
         );
       }
+      if (url.endsWith('/rpc/site_dwell_estimate'))
+        return Promise.resolve(options.dwell?.() ?? Response.json([DEFAULT_DWELL]));
       if (url.endsWith('/rpc/road_catalog'))
         return Promise.resolve(options.roadCatalog?.() ?? Response.json([]));
       if (url.includes('/rest/v1/carrier_road_preferences?'))
@@ -418,4 +433,50 @@ Deno.test('serves recommendations without roads when the catalog cannot be read'
   const body = await response.json();
   assert.equal(body.recommendations.length, 2);
   assert.equal(body.recommendations[0].road, undefined);
+});
+
+Deno.test(
+  'adds the typical unloading time to return trips, once per site, with the caller JWT',
+  async () => {
+    const { deps, calls } = setup({
+      rpc: () => Response.json([row('a'), row('b'), row('c', { is_return_trip: false })]),
+      dwell: () =>
+        Response.json([
+          {
+            ...DEFAULT_DWELL,
+            basis: 'site',
+            sample_size: 6,
+            total_median_minutes: 300,
+            total_p75_minutes: 330,
+          },
+        ]),
+    });
+    const body = await (await handleRecommendations(post({ vehicleId: VEHICLE }), deps)).json();
+    type Row = { loadId: string; returnDwell?: { totalMedianMinutes: number; sampleSize: number } };
+    const byLoad = new Map((body.recommendations as Row[]).map((r) => [r.loadId, r]));
+    assert.equal(byLoad.get('a')?.returnDwell?.totalMedianMinutes, 300);
+    assert.equal(byLoad.get('b')?.returnDwell?.sampleSize, 6);
+    assert.equal(byLoad.get('c')?.returnDwell, undefined);
+    const dwellCalls = calls.filter((c) => c.url.endsWith('/rpc/site_dwell_estimate'));
+    assert.equal(dwellCalls.length, 1);
+    assert.equal(
+      (dwellCalls[0]?.init.headers as Record<string, string>).Authorization,
+      'Bearer user-jwt',
+    );
+    assert.deepEqual(JSON.parse(String(dwellCalls[0]?.init.body)), {
+      p_stop: 'delivery',
+      p_lat: 20.628,
+      p_lng: -103.356,
+      p_at: null,
+    });
+  },
+);
+
+Deno.test('serves return trips without the typical time when it cannot be read', async () => {
+  const { deps } = setup({ dwell: () => Response.json({ message: 'boom' }, { status: 500 }) });
+  const response = await handleRecommendations(post({ vehicleId: VEHICLE }), deps);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.recommendations.length, 2);
+  assert.equal(body.recommendations[0].returnDwell, undefined);
 });

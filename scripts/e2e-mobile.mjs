@@ -420,6 +420,12 @@ const steps = [
   },
   { name: 'api-up', run: (status) => apiUp(status) },
   { name: '07-operator-delivery', run: () => flow('07-operator-delivery') },
+  // H5: Miguel starts unloading where his company measured it (continues 07).
+  {
+    name: '19-operator-unload-estimate',
+    needs: '07-operator-delivery',
+    run: () => flow('19-operator-unload-estimate'),
+  },
   { name: '08-operator-invite', run: () => flow('08-operator-invite') },
   // G5 before G4: Héctor's TT-01 trip (and Raúl) are in "Regional Monterrey";
   // 09 moves TT-01 to "Bajío" once it is released.

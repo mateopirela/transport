@@ -269,7 +269,8 @@ select results_eq(
 );
 -- Trip A runs late (ends at +5 days, after trip B's window): V still starts
 -- from trip B, once it has done trip B after trip A (F5: B starts 4 days
--- late, so it ends at +6 days 6 hours).
+-- late; H5: B ends 4 h after its delivery window opens, the default time at
+-- the site, so it ends at +6 days 4 hours).
 set local role authenticated;
 select tests.login('af200000-0000-4000-8000-000000000001');
 insert into tests.vals select 'load_d', public.create_load(tests.payload(false, 7));
@@ -283,7 +284,7 @@ select is_empty(
 select results_eq(
   $$ select start_city, available_from, is_return_trip
      from public.match_pairs('ef200000-0000-4000-8000-000000000001', tests.val('load_d'), 1000) $$,
-  $$ values ('Monterrey', now() + interval '6 days 6 hours', true) $$,
+  $$ values ('Monterrey', now() + interval '6 days 4 hours', true) $$,
   'when the current trip runs late, the unit starts from the booked trip once it has done both'
 );
 update public.trips set estimated_unload_end_at = now() + interval '2 hours' where id = tests.val('trip_a');
@@ -363,7 +364,8 @@ select is_empty(
 );
 
 -- W also gets trip E (MTY -> GDL), which ends after trip B (GDL -> MTY):
--- matching starts W where the last of its trips ends.
+-- matching starts W where the last of its trips ends (H5: 4 h after its
+-- delivery window opens, the default time at the site).
 set local role authenticated;
 select tests.login('af200000-0000-4000-8000-000000000001');
 insert into tests.vals select 'load_e', public.create_load(tests.payload(false, 4));
@@ -379,7 +381,7 @@ reset role;
 select results_eq(
   $$ select start_city, available_from
      from public.match_pairs('ef200000-0000-4000-8000-000000000002', tests.val('load_d'), 1000) $$,
-  $$ select 'Guadalajara'::text, delivery_window_end from public.loads where id = tests.val('load_e') $$,
+  $$ select 'Guadalajara'::text, delivery_window_start + interval '4 hours' from public.loads where id = tests.val('load_e') $$,
   'a unit with two assigned trips starts where the later one ends'
 );
 

@@ -11,8 +11,9 @@
 --     one of them a phone-only operator provisioned by an invitation link, G2).
 --   * Business units (G1a.2): Transportes Regios del Norte has two, each with
 --     its coordinator; the other carriers have their "Principal" one.
---   * 15 loads in both directions and in every status, with their
---     negotiations, offers, trips, timelines, GPS points and chat messages.
+--   * 24 loads in both directions and in every status, with their
+--     negotiations, offers, trips, timelines, GPS points and chat messages
+--     (nine of them older trips that measure waiting times, H5).
 --   * Trip MTY -> GDL unloading with an estimated end, so its unit is
 --     available in Guadalajara and the GDL -> MTY load is its return trip (B08).
 --
@@ -558,6 +559,123 @@ from (values
   ('5eed0008-0000-4000-8000-000000000004', 'unloading_finished', 'unloading', 'delivered', '-122 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
   ('5eed0008-0000-4000-8000-000000000004', 'delivery_confirmed', 'delivered', 'closed', '-110 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper')
 ) as e(trip_id, event_type, from_status, to_status, occurred_at, lat, lng, estimate, notes, actor_id, actor_role);
+
+-- H5 (D32): older trips that measure the waiting times at two sites (loads
+-- 16-24, trips 5-13), between two and six weeks ago:
+--   * 16-19: MTY -> GDL of Aceros del Norte with Transportes Regios. Its
+--     Monterrey pickup gets 6 measurements with trips 1 and 3 (~3 h) and its
+--     Guadalajara delivery 5 with trip 3 (~5 h): the return trip of CS53-01.
+--   * 20-24: Apodaca -> GDL of Empaques Plásticos Regios with Fletes Tapatíos
+--     (RB-01, Miguel Hernández). Its Guadalajara delivery gets 5 measurements
+--     (~1 h of unloading): Miguel's trip 2 ends there.
+-- Per trip: the pair, hours from the reset of the arrival at the pickup, then
+-- minutes of waiting and loading, and of waiting and unloading.
+create temporary table seed_dwell_trips as
+select v.n, make_interval(hours => v.arrive) as arrive, make_interval(mins => v.pickup_wait) as pickup_wait,
+       make_interval(mins => v.loading) as loading, make_interval(mins => v.delivery_wait) as delivery_wait,
+       make_interval(mins => v.unloading) as unloading,
+       ('5eed0005-0000-4000-8000-0000000000' || v.n)::uuid as load_id,
+       ('5eed0006-0000-4000-8000-0000000000' || lpad((v.n - 7)::text, 2, '0'))::uuid as negotiation_id,
+       ('5eed0007-0000-4000-8000-0000000000' || lpad((v.n - 5)::text, 2, '0'))::uuid as offer_id,
+       ('5eed0008-0000-4000-8000-0000000000' || lpad((v.n - 11)::text, 2, '0'))::uuid as trip_id,
+       p.*
+from (values
+  (16, 'trn', -363, 60, 90, 180, 150),
+  (17, 'trn', -537, 90, 120, 150, 150),
+  (18, 'trn', -691, 30, 120, 240, 120),
+  (19, 'trn', -878, 60, 120, 150, 120),
+  (20, 'ft', -340, 45, 60, 90, 60),
+  (21, 'ft', -505, 30, 60, 120, 45),
+  (22, 'ft', -668, 60, 45, 60, 60),
+  (23, 'ft', -845, 30, 60, 150, 60),
+  (24, 'ft', -1010, 45, 45, 90, 45)
+) as v(n, pair, arrive, pickup_wait, loading, delivery_wait, unloading)
+join (values
+  ('trn', '5eed0002-0000-4000-8000-000000000001'::uuid, '5eed0001-0000-4000-8000-000000000002'::uuid,
+   '5eed0002-0000-4000-8000-000000000004'::uuid, '5eed0001-0000-4000-8000-000000000005'::uuid,
+   '5eed0004-0000-4000-8000-000000000002'::uuid, '5eed0003-0000-4000-8000-000000000001'::uuid,
+   '5eed0001-0000-4000-8000-000000000008'::uuid,
+   array['Av. Ruiz Cortines 2333, Col. Industrial', 'Monterrey', 'Nuevo León'], 25.7016, -100.3392,
+   array['Calle 2 No. 1250, Zona Industrial', 'Guadalajara', 'Jalisco'], 20.6280, -103.3560,
+   'Perfiles de acero galvanizado en tarimas', 21000, 68, 'dry_van'::public.unit_type,
+   '{}'::public.special_requirement[], 4000000::bigint),
+  ('ft', '5eed0002-0000-4000-8000-000000000003', '5eed0001-0000-4000-8000-000000000004',
+   '5eed0002-0000-4000-8000-000000000005', '5eed0001-0000-4000-8000-000000000006',
+   '5eed0004-0000-4000-8000-000000000007', '5eed0003-0000-4000-8000-000000000004',
+   '5eed0001-0000-4000-8000-000000000010',
+   array['Av. Santa Rosa 300, Parque Industrial Kalos', 'Apodaca', 'Nuevo León'], 25.7700, -100.1700,
+   array['Av. 8 de Julio 2950, Col. Zona Industrial', 'Guadalajara', 'Jalisco'], 20.6380, -103.3640,
+   'Película estirable en tarimas', 6500, 28, 'rabon', '{liftgate}', 2300000)
+) as p(pair, shipper, shipper_user, carrier, carrier_user, vehicle, operator, operator_user,
+       origin, olat, olng, destination, dlat, dlng, description, weight_kg, volume_m3, unit, requirements,
+       price_cents)
+  on p.pair = v.pair;
+
+select pg_temp.seed_load(d.load_id, d.shipper, d.shipper_user, d.origin, d.olat, d.olng, d.destination, d.dlat, d.dlng,
+                         d.arrive, 4, d.arrive + interval '16 hours', 8, 'palletized', d.description, d.weight_kg,
+                         d.volume_m3, d.unit, d.requirements, d.price_cents, null)
+from seed_dwell_trips d;
+
+insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id, created_by, created_at)
+select d.negotiation_id, d.load_id, d.shipper, d.carrier, d.carrier_user, pg_temp.at(d.arrive - interval '3 days')
+from seed_dwell_trips d;
+
+insert into public.offers (
+  id, negotiation_id, load_id, shipper_company_id, carrier_company_id, side, amount_cents, vehicle_id,
+  status, created_by, created_at, responded_by, responded_at
+)
+select d.offer_id, d.negotiation_id, d.load_id, d.shipper, d.carrier, 'carrier', d.price_cents, d.vehicle,
+       'accepted', d.carrier_user, pg_temp.at(d.arrive - interval '3 days'),
+       d.shipper_user, pg_temp.at(d.arrive - interval '2 days')
+from seed_dwell_trips d
+order by d.n;
+
+update public.loads l
+set status = 'completed', accepted_offer_id = d.offer_id, carrier_company_id = d.carrier,
+    agreed_price_cents = d.price_cents, contracted_at = pg_temp.at(d.arrive - interval '2 days')
+from seed_dwell_trips d
+where l.id = d.load_id;
+
+insert into public.trips (
+  id, load_id, offer_id, shipper_company_id, carrier_company_id, status, vehicle_id, operator_id,
+  estimated_unload_end_at, assigned_at, started_at, delivered_at, closed_at, created_at
+)
+select d.trip_id, d.load_id, d.offer_id, d.shipper, d.carrier, 'closed', d.vehicle, d.operator,
+       e.unloaded, pg_temp.at(d.arrive - interval '40 hours'), pg_temp.at(d.arrive - interval '1 hour'),
+       e.unloaded, e.unloaded + interval '2 hours', pg_temp.at(d.arrive - interval '2 days')
+from seed_dwell_trips d
+cross join lateral (
+  select pg_temp.at(d.arrive + d.pickup_wait + d.loading + interval '15 hours' + d.delivery_wait + d.unloading) as unloaded
+) e;
+
+insert into public.trip_events (
+  trip_id, event_type, from_status, to_status, occurred_at, recorded_at, latitude, longitude, accuracy_m,
+  estimated_unload_end_at, actor_id, actor_role
+)
+select d.trip_id, x.event_type::public.trip_event_type, x.from_status::public.trip_status, x.to_status::public.trip_status,
+       pg_temp.at(x.at), pg_temp.at(x.at), x.lat, x.lng, case when x.lat is not null then 15 end,
+       case when x.event_type = 'unloading_started' then pg_temp.at(x.at + d.unloading) end,
+       x.actor_id, x.actor_role::public.user_role
+from seed_dwell_trips d
+cross join lateral (
+  select d.arrive + d.pickup_wait + d.loading as loaded,
+         d.arrive + d.pickup_wait + d.loading + interval '15 hours' as at_delivery
+) t
+cross join lateral (values
+  ('created', null, 'pending_assignment', d.arrive - interval '2 days', null::double precision, null::double precision, d.shipper_user, 'shipper'),
+  ('assigned', 'pending_assignment', 'assigned', d.arrive - interval '40 hours', null, null, d.carrier_user, 'manager'),
+  ('departed', 'assigned', 'en_route_to_pickup', d.arrive - interval '1 hour', d.olat + 0.04, d.olng + 0.07, d.operator_user, 'operator'),
+  ('arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', d.arrive, d.olat, d.olng, d.operator_user, 'operator'),
+  ('loading_started', 'at_pickup', 'loading', d.arrive + d.pickup_wait, d.olat, d.olng, d.operator_user, 'operator'),
+  ('loading_finished', 'loading', 'in_transit', t.loaded, d.olat, d.olng, d.operator_user, 'operator'),
+  ('arrived_at_delivery', 'in_transit', 'at_delivery', t.at_delivery, d.dlat, d.dlng, d.operator_user, 'operator'),
+  ('unloading_started', 'at_delivery', 'unloading', t.at_delivery + d.delivery_wait, d.dlat, d.dlng, d.operator_user, 'operator'),
+  ('unloading_finished', 'unloading', 'delivered', t.at_delivery + d.delivery_wait + d.unloading, d.dlat, d.dlng, d.operator_user, 'operator'),
+  ('delivery_confirmed', 'delivered', 'closed', t.at_delivery + d.delivery_wait + d.unloading + interval '2 hours', null, null, d.shipper_user, 'shipper')
+) as x(event_type, from_status, to_status, at, lat, lng, actor_id, actor_role)
+order by d.n, x.at;
+
+drop table seed_dwell_trips;
 
 -- GPS points of the trip in unloading along the corridor (MTY, Saltillo,
 -- Matehuala, San Luis Potosí, Ojuelos, Lagos de Moreno, Tepatitlán, GDL).

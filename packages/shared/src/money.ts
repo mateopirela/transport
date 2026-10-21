@@ -32,3 +32,14 @@ export function toCents(value: number | bigint | string): number {
   }
   return cents;
 }
+
+/**
+ * Integer cents as the plain text of a price field ("99900" → "999.00"), the
+ * inverse of parsePesosToCents. String arithmetic only, never floats.
+ */
+export function centsToPesosInput(cents: number | bigint | string): string {
+  const value = toCents(cents);
+  const sign = value < 0 ? '-' : '';
+  const digits = String(Math.abs(value)).padStart(3, '0');
+  return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}

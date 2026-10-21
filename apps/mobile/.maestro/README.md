@@ -21,6 +21,7 @@ Se corren en orden con `pnpm e2e:mobile` ([scripts/e2e-mobile.mjs](../../../scri
 | `12-operator-phone.yaml`            | `81 1000 0013` (Iván Garza)  | Héctor le asigna `RF53-01` en un viaje refrigerado MTY → Saltillo de Sofía (RPC) | G9: entra con su teléfono, con la ubicación solo "Mientras se usa la app": su viaje muestra el aviso de ubicación precisa y "Siempre" con "Abrir ajustes" (D17) |
 | `13-owner-operator-offer.yaml`      | `jose.sanchez@demo.test`     | Sofía publica una carga de torton MTY → Saltillo (RPC)                           | G9: el hombre-camión (pestaña "Mi viaje") encuentra la carga en "Cargas" y oferta el precio propuesto con `JSM-01`                                              |
 | `14-owner-operator-trip.yaml`       | `jose.sanchez@demo.test`     | Sofía acepta la oferta (RPC)                                                     | G9: se asigna `JSM-01` y a sí mismo, abre "Mi viaje", acepta compartir su ubicación y sale a recolección                                                        |
+| `17-manager-subscription.yaml`      | `jose.sanchez@demo.test`     |                                                                                  | H3: "Más → Suscripción" muestra "Piloto gratis" y que la suscripción se administra en la web, sin botones, enlaces ni precios de compra (D30)                   |
 
 Las capturas de cada paso (`takeScreenshot`) quedan en `e2e/mobile-results/screenshots/` (ignorada por git) y los registros de Maestro en `e2e/mobile-results/maestro/`.
 

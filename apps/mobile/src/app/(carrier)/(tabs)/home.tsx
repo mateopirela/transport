@@ -8,6 +8,7 @@ import {
 } from '@transport/shared';
 import { useRouter, type Href } from 'expo-router';
 
+import { BillingBanner } from '../../../components/billing-banner';
 import { CompanyStatus } from '../../../components/company-status';
 import type { IconName } from '../../../components/icons';
 import { RecommendationCell } from '../../../components/load-card';
@@ -104,6 +105,7 @@ export default function HomeTab() {
   return (
     <Screen title={profile?.companyName ?? mobileNavCopy.home}>
       {profile ? <CompanyStatus profile={profile} /> : null}
+      <BillingBanner />
       {approved ? <PendingReleases /> : null}
       {approved ? (
         <Feed />

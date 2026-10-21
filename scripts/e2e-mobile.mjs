@@ -445,6 +445,8 @@ const steps = [
     needs: 'owner-operator-accepted',
     run: () => flow('14-owner-operator-trip'),
   },
+  // H3: read-only, so it runs on whatever the flows above left.
+  { name: '17-manager-subscription', run: () => flow('17-manager-subscription') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

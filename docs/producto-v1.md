@@ -20,14 +20,14 @@
 
 **Competidor directo:** BeGo, que tiene 3 apps separadas. Nos diferenciamos con viajes de regreso, anticipación de disponibilidad, mejor UX y altas simples.
 
-**Lanzamiento:** una sola ruta, **Monterrey ↔ Guadalajara**. El primer transportista es la empresa familiar de JP. La prueba piloto es **gratis** (D24) y el flete se paga fuera de la plataforma (D08-E1).
+**Lanzamiento:** una sola ruta, **Monterrey ↔ Guadalajara**. El primer transportista es la empresa familiar de JP. La prueba piloto es **gratis** (D24, D30: bandera global de piloto) y el flete se paga fuera de la plataforma (D08-E1).
 
 ## 2. Perfiles
 
 | Perfil | Quién es | Plataforma V1 |
 |---|---|---|
 | **Cliente** | Empresa que necesita mover carga | Web |
-| **Gerente** (transportista) | Dueño o director de la empresa transportista: lo legal, la flota, las unidades de negocio, los coordinadores y, más adelante, la suscripción (pospuesta, D24) | App móvil y web (D06-E1) |
+| **Gerente** (transportista) | Dueño o director de la empresa transportista: lo legal, la flota, las unidades de negocio, los coordinadores y la suscripción (D24, D30) | App móvil y web (D06-E1) |
 | **Coordinador** (transportista) | Opera una o varias unidades de negocio: busca cargas, negocia, asigna y supervisa | App móvil y web (D06-E1) |
 | **Operador** | Conductor que ejecuta el viaje | App móvil (vista de operador) |
 | **Hombre-camión** | Transportista independiente: una sola cuenta con los perfiles de Gerente y Operador (D13) | App móvil y web |
@@ -69,7 +69,7 @@
   - las bajas nunca rompen un viaje activo (se bloquean mientras haya uno)
 - Supervisar **todos** los viajes de la empresa, con filtro por unidad de negocio.
 - Todo lo que hace un coordinador, en cualquier unidad de negocio.
-- *(Pospuesto, D24)* **Suscripción**: ver el estado; pagar y administrarla en la web.
+- **Suscripción** (D24, D30): durante la prueba piloto todo es gratis ("Piloto gratis"). Después, el Gerente contrata y administra el pago en la web (Stripe Checkout y Customer Portal, en MXN); el Coordinador solo ve el estado. En la app, "Más → Suscripción" muestra estado, plan y avisos, sin precios para contratar ni botones o enlaces a la compra: solo dice que se administra desde la web (reglas de las tiendas, docs/tiendas.md).
 
 ### Coordinador (app y web)
 - Registro por enlace del Gerente: nombre, correo, teléfono y contraseña. No vuelve a registrar la empresa.
@@ -105,14 +105,14 @@
 ### Hombre-camión (app y web)
 - En el registro elige "Hombre camión": una sola cuenta crea la empresa, su perfil de Gerente y su perfil de Operador (D13).
 - Sube sus documentos fiscales, personales (identificación y licencia) y del camión.
-- Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación y subir evidencias. Pagar la suscripción queda pospuesto (D24).
+- Hace todo lo del Gerente y del Operador: buscar cargas, ofertar, aceptar viajes, compartir ubicación y subir evidencias. Paga la suscripción como Gerente, en la web (D13-E1, D30).
 
 ### Admin (web)
 - Cola de verificación de empresas, documentos, unidades y operadores: aprobar o rechazar con motivo.
 - Usuarios: buscar, suspender y reactivar.
 - Supervisión de cargas y viajes, con asignación manual.
 - Incidencias: seguimiento y resolución.
-- *(Pospuesto, D24)* Estado de suscripción de cada empresa transportista y fin del periodo piloto.
+- **Suscripciones** (D30): la bandera de la prueba piloto, su fecha de fin (avisa 14 días antes), el modo sin suscripción después del piloto (apagado, aviso o bloqueo de ofertas y disponibilidad nuevas; nunca de viajes en curso), los planes (hombre camión y empresa transportista, precio "Por definir" hasta que se fije) y el estado de cada empresa transportista. Cada cambio queda en la bitácora.
 - Estadísticas básicas: cargas publicadas, ofertas, viajes, viajes de regreso logrados y km en vacío.
 - Bitácora de auditoría de acciones administrativas.
 - **Carreteras** (D31): tramos, casetas por clase de camión, inseguridad por tramo y franja horaria, y corredores; cada dato con su fuente y fecha, y la marca "estimado" o "verificado". Los cambios quedan en la bitácora.
@@ -127,7 +127,7 @@
   - un documento del viaje nuevo, o documentos compartidos
   - una unidad pendiente de liberar
   - un documento aprobado, rechazado o por vencer
-  - *(pospuesto, D24)* una suscripción por vencer o vencida
+  - la prueba piloto por terminar (14 días antes) o una suscripción no activa después del piloto (banner en la web y la app del transportista, D30)
 - Alertas de **documentos por vencer** (licencias, seguros y demás documentos con vigencia).
 - Aviso de privacidad (LFPDPPP) y términos, con consentimiento de ubicación registrado.
 
@@ -148,7 +148,7 @@
 
 ## 4. Fuera de la V1
 
-Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o validación de Carta Porte, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros o de flotas (D17). La suscripción entró a la V1 (D24), pero Mateo la **pospuso** el 2026-10-16: no se construye en esta ola y el piloto es gratis. Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
+Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o validación de Carta Porte, predicción de disponibilidad con IA, comparación de fotos con IA, inglés, calificaciones y reputación, e integración con GPS de terceros o de flotas (D17). La suscripción está en la V1 (D24-E1, D30) con el piloto **gratis**: mientras la bandera de piloto esté activa nadie paga y nada se bloquea. Fuera: cobro del flete y comisiones, factura CFDI de la suscripción, OXXO y transferencia, precio por camión o por usuario y cupones. Los datos de la V1 (eventos con hora y fotos con metadatos) se guardan pensando en las funciones de IA.
 
 ## 5. Indicadores de éxito del piloto (MTY ↔ GDL)
 
@@ -185,7 +185,7 @@ Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o
 | Compartir por enlace | ✅ carga y seguimiento (público) | ✅ carga (interno) | 🔸 carga (interno) | — | — |
 | Marcar tramos preferidos o a evitar en las rutas habituales (D31) | — | ✅ | ✅ (rutas de la empresa) | — | 👁 |
 | Editar el catálogo de carreteras: tramos, casetas, inseguridad y corredores (D31) | — | — | — | — | ✅ |
-| Pagar y administrar la suscripción *(pospuesto, D24: no se construye en esta ola)* | — | ✅ (web) | 👁 estado | — | 👁 |
+| Pagar y administrar la suscripción (D30; gratis durante el piloto) | — | ✅ (web) | 👁 estado | — | 👁 |
 
 ## 7. Glosario
 

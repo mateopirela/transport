@@ -1,4 +1,5 @@
 import {
+  billingCopy,
   carrierWebCopy,
   managerCompanyCopy,
   notificationsInboxCopy,
@@ -6,8 +7,10 @@ import {
 } from '@transport/shared';
 
 import { AppShell } from '@/components/app-shell';
+import { BillingBanner } from '@/components/billing/billing-banner';
 import { BusinessUnitPicker } from '@/components/carrier/business-unit-picker';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
+import { loadBillingState } from '@/lib/billing/queries';
 import { carrierContext } from '@/lib/carrier/context';
 import { unreadNotificationCount } from '@/lib/notifications/queries';
 import { paths } from '@/lib/routing';
@@ -19,8 +22,12 @@ import { paths } from '@/lib/routing';
  * every screen lists (D19).
  */
 export default async function CarrierLayout({ children }: { children: React.ReactNode }) {
-  const { viewer, units, isManager } = await carrierContext(paths.carrier);
-  const unread = await unreadNotificationCount(viewer.userId);
+  const { supabase, viewer, units, isManager } = await carrierContext(paths.carrier);
+  const [unread, billing] = await Promise.all([
+    unreadNotificationCount(viewer.userId),
+    // The banner never takes the carrier area down.
+    loadBillingState(supabase).catch(() => null),
+  ]);
   const nav = [
     { href: paths.carrier, label: carrierWebCopy.nav.home },
     { href: paths.carrierLoads, label: carrierWebCopy.nav.loads },
@@ -28,6 +35,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
     { href: paths.carrierTrips, label: carrierWebCopy.nav.trips },
     { href: paths.carrierUnits, match: paths.carrierFleet, label: carrierWebCopy.nav.fleet },
     ...(isManager ? [{ href: paths.carrierCompany, label: managerCompanyCopy.title }] : []),
+    { href: paths.carrierSubscription, label: billingCopy.title },
     {
       href: paths.carrierNotifications,
       label: notificationsInboxCopy.nav,
@@ -43,6 +51,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
       }
       viewer={viewer}
     >
+      <BillingBanner state={billing} />
       {children}
     </AppShell>
   );

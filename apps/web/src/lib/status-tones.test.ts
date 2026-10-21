@@ -13,6 +13,7 @@ import {
   negotiationTone,
   providerStateTone,
   requirementStateTone,
+  subscriptionStatusTone,
   tripStatusTone,
   verificationTone,
 } from './status-tones';
@@ -58,5 +59,13 @@ describe('status tones', () => {
     expect(negotiationTone('accepted')).toBe('ok');
     expect(negotiationTone('awaiting_carrier')).toBe('neutral');
     expect(negotiationTone('closed')).toBe('neutral');
+  });
+
+  it('gives every subscription status a tone', () => {
+    for (const status of ['pilot_free', 'active', 'past_due', 'canceled', 'none'] as const) {
+      expect(PILL_TONES).toContain(subscriptionStatusTone(status));
+    }
+    expect(subscriptionStatusTone('pilot_free')).toBe('accent');
+    expect(subscriptionStatusTone('active')).toBe('ok');
   });
 });

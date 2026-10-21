@@ -33,4 +33,6 @@ tags: [carrier, coordinator]
     visible: 'Operadores.*'
     timeout: 15000
 - assertNotVisible: 'Mi empresa.*'
+# The subscription is the Gerente's too (H3).
+- assertNotVisible: 'Suscripción'
 - takeScreenshot: 11-4-coordinator-more

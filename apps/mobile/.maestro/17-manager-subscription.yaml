@@ -1,0 +1,28 @@
+# Suscripción (H3, D30): José, the hombre camión, is the Gerente of his
+# company. "Más → Suscripción" shows "Piloto gratis" and that the
+# subscription is managed on the web, with no button, link or price to buy
+# (App Store 3.1.1/3.1.3, Google Play: docs/tiendas.md). Read-only: any seed.
+appId: ${APP_ID}
+name: Hombre-camión · suscripción
+tags: [carrier, owner-operator, manager]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jose.sanchez@demo.test
+- extendedWaitUntil:
+    visible: 'Más, tab.*'
+    timeout: 30000
+- tapOn: 'Más, tab.*'
+- tapOn: 'Suscripción'
+- extendedWaitUntil:
+    visible: 'Piloto gratis'
+    timeout: 15000
+- assertVisible: 'Durante la prueba piloto la plataforma es gratis.*'
+- scrollUntilVisible:
+    element: 'La suscripción se administra desde la web de Transport.'
+    centerElement: true
+- assertNotVisible: 'Suscribirme'
+- assertNotVisible: 'Administrar pago'
+- assertNotVisible: '.*\$.*'
+- takeScreenshot: 17-1-owner-operator-subscription

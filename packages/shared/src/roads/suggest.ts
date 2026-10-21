@@ -196,9 +196,11 @@ function followCorridor(
     const preference = preferences.get(s.id) ?? null;
     if (preference === 'avoid') avoided += 1;
     if (preference === 'prefer') preferred += 1;
+    // One penalty per segment, its worst risk crossed (reports may overlap).
+    let segmentPenalty = 0;
     for (const r of s.risks) {
       if (!crossesBand(enter, exit, r.fromHour, r.toHour)) continue;
-      riskPenalty += ROUTE_RISK_PENALTY_MXN[r.level];
+      segmentPenalty = Math.max(segmentPenalty, ROUTE_RISK_PENALTY_MXN[r.level]);
       warnings.push({
         segmentId: s.id,
         segmentName: s.name,
@@ -211,6 +213,7 @@ function followCorridor(
         passAt: enter.toISOString(),
       });
     }
+    riskPenalty += segmentPenalty;
     segments.push({
       id: s.id,
       code: s.code,
@@ -241,7 +244,9 @@ function followCorridor(
       tollsMissing,
       tollSources: [...sources.values()],
       warnings,
-      highRiskCount: warnings.filter((w) => w.level === 'high').length,
+      // Distinct segments: several reports on one stretch are one unsafe stretch.
+      highRiskCount: new Set(warnings.filter((w) => w.level === 'high').map((w) => w.segmentId))
+        .size,
       usesAvoided: false,
       preferredCount: preferred,
     },

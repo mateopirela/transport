@@ -16,7 +16,14 @@ import { Cell, Footnote, Group, Notice, SectionHeader, TextCell, ValueRow } from
  * tolls for the unit's class with their source and date, the warnings of
  * unsafe segments at the hour the truck passes, and the segments in order.
  */
-export function SuggestedRoute({ road }: { road: RoadSuggestion }) {
+export function SuggestedRoute({
+  road,
+  estimateFor,
+}: {
+  road: RoadSuggestion;
+  /** Which truck the tolls were estimated for (roadsCopy.estimateFor). */
+  estimateFor: string;
+}) {
   if (road.source === 'none') {
     return (
       <>
@@ -51,6 +58,7 @@ export function SuggestedRoute({ road }: { road: RoadSuggestion }) {
           {roadsCopy.source(s.dataStatus, s.source, s.validFrom)}
         </Footnote>
       ))}
+      <Footnote>{estimateFor}</Footnote>
       {road.tollsMissing ? <Footnote>{roadsCopy.tollsMissing}</Footnote> : null}
       <Group>
         {road.segments.map((s) => (

@@ -4,6 +4,7 @@ import {
   chatCopy,
   defaultAxleCount,
   formatDistance,
+  roadsCopy,
   suggestLoadRoad,
   unitLabel,
   uuidField,
@@ -92,11 +93,8 @@ export default async function CarrierLoadPage({
     findCarrierTripId(supabase, companyId, load.id),
     loadRoadContext(supabase),
   ]);
-  const road = suggestLoadRoad(
-    roadContext,
-    load,
-    roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null),
-  );
+  const roadAxles = roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null);
+  const road = suggestLoadRoad(roadContext, load, roadAxles);
 
   return (
     <>
@@ -141,7 +139,10 @@ export default async function CarrierLoadPage({
             </p>
           </PageSection>
 
-          <SuggestedRoute road={road} />
+          <SuggestedRoute
+            road={road}
+            estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+          />
 
           <PageSection title={c.details}>
             <LoadDetails load={load} />

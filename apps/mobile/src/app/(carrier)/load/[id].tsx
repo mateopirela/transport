@@ -4,8 +4,10 @@ import {
   defaultAxleCount,
   formatDateTime,
   formatMxn,
+  roadsCopy,
   specialRequirementLabels,
   suggestLoadRoad,
+  unitLabel,
   unitTypeLabels,
   vehicleAxles,
   type RoadContext,
@@ -139,11 +141,8 @@ function LoadBody({
   const route = `${l.origin_city} → ${l.destination_city}`;
   // H4: the suggested road for the unit that leads (its axles pick the toll class).
   const roadUnit = units.find((u) => u.id === best?.vehicleId);
-  const road = suggestLoadRoad(
-    roads,
-    l,
-    roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null),
-  );
+  const roadAxles = roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null);
+  const road = suggestLoadRoad(roads, l, roadAxles);
 
   return (
     <>
@@ -201,7 +200,10 @@ function LoadBody({
         </Group>
         <ShareWithTeamButton client={carrier.client} loadId={l.id} route={route} />
 
-        <SuggestedRoute road={road} />
+        <SuggestedRoute
+          road={road}
+          estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+        />
 
         <SectionHeader title={carrierLoadsCopy.chat.title} />
         {negotiation.conversationId ? (

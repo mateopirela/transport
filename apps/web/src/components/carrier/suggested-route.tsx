@@ -21,7 +21,14 @@ import { groupRow } from '@/components/ui/variants';
  * warnings of unsafe segments at the hour the truck passes, and the segments
  * in order. Without a corridor for the pair it says so.
  */
-export function SuggestedRoute({ road }: { road: RoadSuggestion }) {
+export function SuggestedRoute({
+  road,
+  estimateFor,
+}: {
+  road: RoadSuggestion;
+  /** Which truck the tolls were estimated for (roadsCopy.estimateFor). */
+  estimateFor: string;
+}) {
   if (road.source === 'none') {
     return (
       <PageSection title={roadsCopy.section}>
@@ -49,6 +56,7 @@ export function SuggestedRoute({ road }: { road: RoadSuggestion }) {
             {roadsCopy.source(s.dataStatus, s.source, s.validFrom)}
           </p>
         ))}
+        <p className="text-footnote text-text-dim">{estimateFor}</p>
         {road.tollsMissing && (
           <p className="text-footnote text-text-dim">{roadsCopy.tollsMissing}</p>
         )}

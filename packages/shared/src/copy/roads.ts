@@ -91,6 +91,11 @@ export const roadsCopy = {
   noData: 'Sin dato',
   tollsMissing: 'Faltan tarifas de algunos tramos; el total es un mínimo.',
   tollClass: (label: string) => `Tarifa de camión ${label}`,
+  /** Which truck the tolls were estimated for (the unit the carrier would send). */
+  estimateFor: (unit: string | null, axles: number) =>
+    unit
+      ? `Calculado para ${unit} (${axles} ejes). Con otro camión la tarifa puede cambiar.`
+      : `Calculado para un camión de ${axles} ejes: no hay un camión compatible disponible.`,
   /** "estimado · CAPUFE …, 13 abr 2026". */
   source: (status: RoadDataStatus, source: string, date: string) =>
     `${roadDataStatusLabels[status]} · ${source}, ${formatCalendarDate(date)}`,

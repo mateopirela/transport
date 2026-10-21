@@ -317,6 +317,19 @@ describe('suggestRoute', () => {
     });
     if (onlyWay.source !== 'catalog') throw new Error('expected a route');
     expect(onlyWay.highRiskCount).toBe(1);
+    // Two reports on the same stretch: two warnings, one unsafe stretch.
+    const twice = suggestRoute({
+      origin: APODACA,
+      destination: TLAQ,
+      departAt: EVENING,
+      axleCount: 5,
+      corridors: corridors({
+        main: [{}, { risks: [risk('high', 22, 6), risk('high', 21, 23)] }],
+      }).slice(0, 1),
+    });
+    if (twice.source !== 'catalog') throw new Error('expected a route');
+    expect(twice.warnings).toHaveLength(2);
+    expect(twice.highRiskCount).toBe(1);
     expect(onlyWay.warnings[0]).toMatchObject({
       segmentId: 'sal-slp',
       level: 'high',

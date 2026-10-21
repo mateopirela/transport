@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(49);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -311,6 +311,11 @@ select lives_ok(
 );
 select ok(not ('MTY-GDL-LIBRE' = any (tests.catalog_codes())),
           'road_catalog drops a corridor with an archived segment');
+-- A carrier does not see the archived segment (RLS): its corridor must still go.
+select tests.login('a4500000-0000-4000-8000-000000000003');
+select ok(not ('MTY-GDL-LIBRE' = any (tests.catalog_codes())),
+          'road_catalog drops that corridor for a carrier too, who cannot see the archived segment');
+select tests.login('a4500000-0000-4000-8000-000000000006');
 select is(tests.matrix(format('select 1 from public.road_segments where id = %L', tests.val('new_seg'))),
           '0,0,0,0,0,1', 'only admins see archived segments');
 -- tests.matrix resets the role.

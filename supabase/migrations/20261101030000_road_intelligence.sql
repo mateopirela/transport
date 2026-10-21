@@ -459,11 +459,13 @@ as $$
   from public.road_corridors c
   where c.archived_at is null
     and exists (select 1 from public.road_corridor_segments cs where cs.corridor_id = c.id)
-    and not exists (
-      select 1 from public.road_corridor_segments cs
-      join public.road_segments s on s.id = cs.segment_id
-      where cs.corridor_id = c.id and s.archived_at is not null
-    );
+    -- Every link must reach an active segment. Security invoker: RLS hides
+    -- archived segments from non-admins, so a missing one is checked by
+    -- counting the active segments found, not by looking for archived ones.
+    and (select count(*) from public.road_corridor_segments cs where cs.corridor_id = c.id)
+      = (select count(*) from public.road_corridor_segments cs
+         join public.road_segments s on s.id = cs.segment_id and s.archived_at is null
+         where cs.corridor_id = c.id);
 $$;
 
 revoke all on function public.road_catalog() from public, anon;

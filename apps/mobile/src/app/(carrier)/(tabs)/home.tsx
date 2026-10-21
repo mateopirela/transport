@@ -9,7 +9,8 @@ import {
   progressSummary,
   vehicleReleaseCopy,
 } from '@transport/shared';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback } from 'react';
 
 import { BillingBanner } from '../../../components/billing-banner';
 import { CompanyStatus } from '../../../components/company-status';
@@ -41,7 +42,7 @@ import {
   unitLabel,
   unitRecommendations,
 } from '../../../lib/loads-api';
-import { loadInternalInbox } from '../../../lib/internal-chat-api';
+import { loadInternalInbox, UNREAD_REFRESH_MS } from '../../../lib/internal-chat-api';
 import { listPendingReleases } from '../../../lib/release-api';
 import { track } from '../../../lib/track';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
@@ -194,7 +195,14 @@ function Feed() {
  */
 function OperatorMessages() {
   const router = useRouter();
-  const { state } = useCarrierData(loadOperatorMessages);
+  const { state, reload } = useCarrierData(loadOperatorMessages);
+  // While in focus, so new messages show up without leaving the screen.
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setInterval(() => void reload(), UNREAD_REFRESH_MS);
+      return () => clearInterval(timer);
+    }, [reload]),
+  );
   if (state.status !== 'ready') return null;
   const unread = state.data.filter((row) => row.unread > 0);
   if (unread.length === 0) return null;

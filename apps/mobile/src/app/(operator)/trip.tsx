@@ -77,7 +77,7 @@ import {
   flushEvidenceQueue,
   useEvidenceQueue,
 } from '../../lib/evidence-sync';
-import { internalUnread } from '../../lib/internal-chat-api';
+import { internalUnread, UNREAD_REFRESH_MS } from '../../lib/internal-chat-api';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
 import { loadOperatorTrip, type OperatorTrip } from '../../lib/trip-api';
@@ -140,13 +140,18 @@ function ReportToCoordinator({ tripId }: { tripId: string }) {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      if (supabase) {
+      const refresh = () => {
+        if (!supabase) return;
         internalUnread(supabase, tripId)
           .then((count) => active && setUnread(count))
           .catch(() => undefined);
-      }
+      };
+      refresh();
+      // While in focus, so a reply shows up without leaving the screen.
+      const timer = setInterval(refresh, UNREAD_REFRESH_MS);
       return () => {
         active = false;
+        clearInterval(timer);
       };
     }, [tripId]),
   );

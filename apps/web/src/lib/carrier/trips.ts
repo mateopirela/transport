@@ -104,11 +104,15 @@ export async function listCarrierTrips(
 }
 
 /**
- * Unread messages of the internal chat of each trip the viewer sees (H1),
- * from internal_chat_inbox (RLS): only trips with unread ones.
+ * Unread messages of the internal chat of the trips on screen (H1), from
+ * internal_chat_inbox narrowed to them (RLS): only trips with unread ones.
  */
-export async function internalUnreadByTrip(supabase: Supabase): Promise<Map<string, number>> {
-  const { data, error } = await supabase.rpc('internal_chat_inbox');
+export async function internalUnreadByTrip(
+  supabase: Supabase,
+  tripIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (tripIds.length === 0) return new Map();
+  const { data, error } = await supabase.rpc('internal_chat_inbox', { p_trip_ids: [...tripIds] });
   if (error) throw new Error(`Internal chat inbox query failed: ${error.message}`);
   return new Map(
     data.filter((row) => row.unread_count > 0).map((row) => [row.trip_id, row.unread_count]),

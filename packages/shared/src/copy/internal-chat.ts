@@ -32,6 +32,9 @@ export const internalChatCopy = {
   /** Text of the location message; the link opens Google Maps at the point. */
   location: (url: string) => `Mi ubicación: ${url}`,
   photoPreview: '📷 Foto',
+  /** A photo of the chat in the app: it opens with a short-lived link. */
+  viewPhoto: 'Ver foto',
+  openAttachment: (name: string) => `Abrir ${name}`,
   tabs: { label: 'Chat del viaje', shipper: 'Cliente', internal: 'Interno' },
   unreadBadge: (count: number) => (count > 99 ? '99+' : String(count)),
   unreadLabel: (count: number) =>

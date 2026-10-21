@@ -11,10 +11,12 @@ import {
   type ChatMessage,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
+import { useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import {
+  chatAttachmentUrl,
   listMessages,
   markRead,
   sendMessage,
@@ -30,11 +32,21 @@ import { lookOf, shape, spacing, useTheme, type Look } from '../theme';
 import { Button, Chip, FieldCell, Footnote, Group, Notice, SectionHeader, TextCell } from './ui';
 
 type Busy = 'text' | 'quick' | 'photo' | 'location' | null;
+type ReportKind = Exclude<Busy, 'text' | null>;
+
+/** A report not yet confirmed: retried with the same id and attachment. */
+interface PendingReport {
+  id: string;
+  body: string | null;
+  attachments: OutgoingAttachment[];
+}
 
 /**
  * Chat of a negotiation or a trip (B07 schema): the latest messages, new ones
- * in real time, and text messages sent with send_message. Opening it or
- * receiving a message marks the conversation as read. The viewer's bubbles on
+ * in real time, and text messages sent with send_message. Opening it, or
+ * receiving a message while its screen is in focus, marks the conversation as
+ * read (a screen left mounted behind another does not). Attachments open with
+ * a short-lived link of the `chat` bucket. The viewer's bubbles on
  * the accent's tint, the others' a step above the cell (§1.7).
  *
  * `internal`: the carrier's internal chat of the trip (H1), where the staff is
@@ -65,11 +77,26 @@ export function ChatPanel({
   const sending = busy === 'text';
   // Kept until the send succeeds, so a retry is idempotent (send_message).
   const pendingId = useRef<string | null>(null);
+  // The same for each report tool: the quick report, the photo already
+  // uploaded and the location, until send_message confirms them.
+  const pendingReports = useRef<Record<ReportKind, PendingReport | null>>({
+    quick: null,
+    photo: null,
+    location: null,
+  });
+  const focused = useIsFocused();
+  const focusedRef = useRef(focused);
+
+  // Back in focus: what arrived meanwhile is read now.
+  useEffect(() => {
+    focusedRef.current = focused;
+    if (focused) void markRead(client, conversationId).catch(() => undefined);
+  }, [focused, client, conversationId]);
 
   const add = useCallback(
     (incoming: ChatMessage[]) => {
       setMessages((current) => mergeMessages(current, incoming));
-      void markRead(client, conversationId).catch(() => undefined);
+      if (focusedRef.current) void markRead(client, conversationId).catch(() => undefined);
     },
     [client, conversationId],
   );
@@ -130,12 +157,24 @@ export function ChatPanel({
     setBusy(null);
   }
 
+  /** Sends a report and forgets it once confirmed; a failed one waits for its retry. */
+  async function deliverReport(kind: ReportKind, report: PendingReport) {
+    pendingReports.current[kind] = report;
+    if (await deliver(kind, report.body, report.id, report.attachments)) {
+      pendingReports.current[kind] = null;
+    }
+  }
+
   /** A quick report goes as it reads, with one tap. */
   async function sendQuick(text: string) {
     if (busy) return;
     setBusy('quick');
     setProblem(null);
-    await deliver('quick', text, randomUUID());
+    const pending = pendingReports.current.quick;
+    await deliverReport(
+      'quick',
+      pending?.body === text ? pending : { id: randomUUID(), body: text, attachments: [] },
+    );
     setBusy(null);
   }
 
@@ -144,6 +183,12 @@ export function ChatPanel({
     setBusy('photo');
     setProblem(null);
     try {
+      // A photo already uploaded whose message did not go: sent again, not retaken.
+      const pending = pendingReports.current.photo;
+      if (pending) {
+        await deliverReport('photo', pending);
+        return;
+      }
       const photo = await takeChatPhoto();
       if (photo.status === 'cancelled') return;
       if (photo.status !== 'captured') {
@@ -161,7 +206,7 @@ export function ChatPanel({
         setProblem(internalChatCopy.errors.photo);
         return;
       }
-      await deliver('photo', null, randomUUID(), [attachment]);
+      await deliverReport('photo', { id: randomUUID(), body: null, attachments: [attachment] });
     } finally {
       setBusy(null);
     }
@@ -172,6 +217,11 @@ export function ChatPanel({
     setBusy('location');
     setProblem(null);
     try {
+      const pending = pendingReports.current.location;
+      if (pending) {
+        await deliverReport('location', pending);
+        return;
+      }
       const located = await currentPosition();
       if (!located.ok) {
         setProblem(
@@ -181,9 +231,21 @@ export function ChatPanel({
         );
         return;
       }
-      await deliver('location', locationMessage(located.position), randomUUID());
+      await deliverReport('location', {
+        id: randomUUID(),
+        body: locationMessage(located.position),
+        attachments: [],
+      });
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function openAttachment(path: string) {
+    try {
+      await Linking.openURL(await chatAttachmentUrl(client, path));
+    } catch {
+      setProblem(chatCopy.errors.unavailable);
     }
   }
 
@@ -204,13 +266,21 @@ export function ChatPanel({
                     {`${chatSenderLabel(m, userId, internal)} · ${formatDateTime(m.created_at)}`}
                   </Text>
                   {m.body ? <Text style={styles.body}>{m.body}</Text> : null}
-                  {m.attachments.length > 0 ? (
-                    <Text style={m.body ? styles.meta : styles.body}>
-                      {internal && !m.body
-                        ? internalChatCopy.photoPreview
-                        : carrierLoadsCopy.chat.attachments(m.attachments.length)}
-                    </Text>
-                  ) : null}
+                  {m.attachments.map((attachment) => (
+                    <Button
+                      key={attachment.path}
+                      label={
+                        internal && !m.body && m.attachments.length === 1
+                          ? internalChatCopy.viewPhoto
+                          : `${chatCopy.attachment}: ${attachment.name}`
+                      }
+                      accessibilityLabel={internalChatCopy.openAttachment(attachment.name)}
+                      variant="plain"
+                      size="small"
+                      icon="image"
+                      onPress={() => void openAttachment(attachment.path)}
+                    />
+                  ))}
                 </View>
               );
             })}

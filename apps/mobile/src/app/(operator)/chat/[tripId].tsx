@@ -34,7 +34,13 @@ export default function OperatorChatScreen() {
       supabase && valid ? loadOperatorChat(supabase, tripId.toLowerCase()) : Promise.resolve(null),
     [tripId, valid],
   );
-  const { state, reload } = useLoader(load);
+  const { state: loaded, reload } = useLoader(load);
+  // The screen is reused for another trip (a tab with href null): until that
+  // trip loads, the previous trip's chat is not shown.
+  const state =
+    loaded.status === 'ready' && loaded.data && loaded.data.tripId !== tripId?.toLowerCase()
+      ? ({ status: 'loading' } as const)
+      : loaded;
   const back = (
     <Button
       label={mobileNavCopy.assignedTrip}
@@ -69,7 +75,9 @@ export default function OperatorChatScreen() {
   return (
     <Screen title={copy.title} right={back}>
       {chat.trip ? <TripHeader trip={chat.trip} /> : null}
+      {/* One panel per conversation: another trip's chat never inherits its messages or draft. */}
       <ChatPanel
+        key={chat.conversationId}
         client={supabase}
         conversationId={chat.conversationId}
         internal

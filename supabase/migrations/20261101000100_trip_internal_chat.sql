@@ -206,10 +206,12 @@ for each row execute function public.notify_internal_message();
 -- ---------------------------------------------------------------------------
 -- RPC: the internal conversations the caller sees (RLS), with their trip,
 -- operator, latest message and the caller's unread messages. Only the ones
--- with messages, unread first, then the most recent. Feeds "Mensajes de
--- operadores" (app) and the unread badges of the trips (web).
+-- with messages, unread first, then the most recent, at most 100. Feeds
+-- "Mensajes de operadores" (app). `p_trip_ids` narrows it to those trips,
+-- without the limit: the unread badges of the trips on screen (web, the
+-- operator's trip), so none is left out.
 -- ---------------------------------------------------------------------------
-create function public.internal_chat_inbox()
+create function public.internal_chat_inbox(p_trip_ids uuid[] default null)
 returns table (
   trip_id uuid,
   conversation_id uuid,
@@ -263,10 +265,12 @@ as $$
     limit 1
   ) m on true
   where c.kind = 'trip_internal'
+    and (p_trip_ids is null or c.trip_id = any (p_trip_ids))
   ) inbox
   order by inbox.unread_count > 0 desc, inbox.last_message_at desc
-  limit 100;
+  -- No limit for the trips asked for (null is no limit).
+  limit case when p_trip_ids is null then 100 end;
 $$;
 
-revoke all on function public.internal_chat_inbox() from public, anon;
-grant execute on function public.internal_chat_inbox() to authenticated;
+revoke all on function public.internal_chat_inbox(uuid[]) from public, anon;
+grant execute on function public.internal_chat_inbox(uuid[]) to authenticated;

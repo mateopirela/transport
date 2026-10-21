@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(57);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -368,6 +368,18 @@ select results_eq(
              'a4200000-0000-4000-8000-000000000005'::uuid, 3) $$,
   'the coordinator''s inbox: the trip, its operator, the latest message and the unread ones (since their marker)'
 );
+select is(
+  (select unread_count from public.internal_chat_inbox(array[tests.val('trip')])), 3,
+  'narrowed to the trips on screen'
+);
+select is(
+  (select count(*)::int from public.internal_chat_inbox(array[gen_random_uuid()])), 0,
+  'another trip: nothing'
+);
+select is(
+  (select count(*)::int from public.internal_chat_inbox(array[]::uuid[])), 0,
+  'no trips: nothing'
+);
 select public.mark_conversation_read(tests.val('internal'));
 select is((select unread_count from public.internal_chat_inbox()), 0, 'reading the chat clears them');
 select tests.login('a4200000-0000-4000-8000-000000000005');
@@ -489,7 +501,7 @@ select is(
 
 -- Hygiene of the new objects.
 select is(
-  has_function_privilege('anon', 'public.internal_chat_inbox()', 'execute'), false,
+  has_function_privilege('anon', 'public.internal_chat_inbox(uuid[])', 'execute'), false,
   'anon cannot call internal_chat_inbox'
 );
 select is(
@@ -497,7 +509,7 @@ select is(
   'clients cannot call the notification trigger'
 );
 select is(
-  (select prosecdef from pg_proc where oid = 'public.internal_chat_inbox()'::regprocedure), false,
+  (select prosecdef from pg_proc where oid = 'public.internal_chat_inbox(uuid[])'::regprocedure), false,
   'internal_chat_inbox runs as the caller (RLS)'
 );
 select is(

@@ -5,7 +5,7 @@ import {
   tripStatusLabels,
 } from '@transport/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ChatPanel } from '../../../components/chat-panel';
@@ -38,14 +38,19 @@ export default function OperatorChatScreen() {
   const valid = typeof tripId === 'string' && UUID.test(tripId);
   const key = valid ? tripId.toLowerCase() : null;
   // Each result names its trip and a failure is a result too: the screen is
-  // reused for another trip (a tab with href null), and useLoader keeps the
-  // previous trip's chat when a refresh fails.
+  // reused for another trip (a tab with href null), and useLoader would keep
+  // the previous trip's chat when a load fails. A failed refresh of the same
+  // trip keeps its chat mounted (draft and pending reports included).
+  const lastLoaded = useRef<Loaded | null>(null);
   const load = useCallback(async (): Promise<Loaded> => {
     if (!supabase || !key) return { tripId: key, chat: null, failed: false };
     try {
-      return { tripId: key, chat: await loadOperatorChat(supabase, key), failed: false };
+      const result = { tripId: key, chat: await loadOperatorChat(supabase, key), failed: false };
+      lastLoaded.current = result;
+      return result;
     } catch {
-      return { tripId: key, chat: null, failed: true };
+      const previous = lastLoaded.current;
+      return previous?.tripId === key ? previous : { tripId: key, chat: null, failed: true };
     }
   }, [key]);
   const { state: loaded, reload } = useLoader(load);

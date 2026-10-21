@@ -680,7 +680,6 @@ function TripView({
                 <SectionHeader title={copy.unloadEstimateTitle} />
                 {/* H5: the suggested end comes from the typical unloading at the site. */}
                 <UnloadEstimateFields
-                  key={unloadMinutes}
                   ref={stepFields}
                   initial={null}
                   defaultMinutes={unloadMinutes}

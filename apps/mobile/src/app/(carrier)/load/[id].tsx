@@ -43,7 +43,7 @@ import {
   type EmptyLeg,
   type LoadNegotiation,
 } from '../../../lib/loads-api';
-import { siteDwellEstimate } from '../../../lib/dwell-api';
+import { loadPickupDwell } from '../../../lib/dwell-api';
 import { loadRoadContext } from '../../../lib/roads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useTheme } from '../../../theme';
@@ -70,14 +70,7 @@ export default function LoadDetail() {
       const [legs, pickupDwell] = await Promise.all([
         negotiation ? emptyLegs(client, id, units) : Promise.resolve([]),
         // H5: the typical waiting and loading time at its pickup, at that hour.
-        l
-          ? siteDwellEstimate(
-              client,
-              'pickup',
-              { lat: l.origin_lat, lng: l.origin_lng },
-              { at: new Date(l.pickup_window_start) },
-            )
-          : Promise.resolve(null),
+        l ? loadPickupDwell(client, l) : Promise.resolve(null),
       ]);
       legs.sort((a, b) => Number(b.vehicleId === vehicleId) - Number(a.vehicleId === vehicleId));
       return { negotiation, units, legs, roads, pickupDwell };

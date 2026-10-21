@@ -409,13 +409,15 @@ begin
         else v_pickup_at + v_estimate.total_median_minutes * interval '1 minute'
       end;
     end if;
-    -- Driving time: the cached Routes answer (B08), or the straight-line estimate.
+    -- Driving time: the cached Routes answer (B08; like get_route_distances,
+    -- only up to 30 days old), or the straight-line estimate.
     select c.duration_minutes into v_minutes
     from public.route_distance_cache c
     where c.origin_lat = round(v_trip.origin_lat::numeric, 2)
       and c.origin_lng = round(v_trip.origin_lng::numeric, 2)
       and c.destination_lat = round(v_trip.destination_lat::numeric, 2)
-      and c.destination_lng = round(v_trip.destination_lng::numeric, 2);
+      and c.destination_lng = round(v_trip.destination_lng::numeric, 2)
+      and c.fetched_at > now() - interval '30 days';
     v_minutes := coalesce(
       v_minutes,
       extensions.st_distance(v_trip.origin_location, v_trip.destination_location) / 1000

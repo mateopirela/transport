@@ -35,7 +35,7 @@ import {
 import { loadRoadContext } from '@/lib/carrier/roads';
 import { findCarrierTripId } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
-import { siteDwellEstimate } from '@/lib/dwell';
+import { loadPickupDwell } from '@/lib/dwell';
 import { serverRoadFactor } from '@/lib/loads/queries';
 import { carrierLoadPath, carrierTripPath, paths } from '@/lib/routing';
 
@@ -94,12 +94,7 @@ export default async function CarrierLoadPage({
     findCarrierTripId(supabase, companyId, load.id),
     loadRoadContext(supabase),
     // H5: the typical waiting and loading time at its pickup, at that hour.
-    siteDwellEstimate(
-      supabase,
-      'pickup',
-      { lat: load.origin_lat, lng: load.origin_lng },
-      { at: new Date(load.pickup_window_start) },
-    ),
+    loadPickupDwell(supabase, load),
   ]);
   const roadAxles = roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null);
   const road = suggestLoadRoad(roadContext, load, roadAxles);

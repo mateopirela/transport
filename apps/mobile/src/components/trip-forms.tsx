@@ -33,12 +33,22 @@ export interface FormHandle<T> {
  * checks the range again at the moment it records it.
  */
 function useUnloadEstimateForm(initial: string | null, defaultMinutes: number) {
-  const [values, setValues] = useState(() =>
-    mexicoCityParts(
-      initial ? new Date(initial) : new Date(Date.now() + defaultMinutes * 60 * 1000),
-    ),
-  );
+  const suggested = (minutes: number) =>
+    mexicoCityParts(initial ? new Date(initial) : new Date(Date.now() + minutes * 60 * 1000));
+  const [values, setFields] = useState(() => suggested(defaultMinutes));
   const [errors, setErrors] = useState<FieldErrors>({});
+  // H5: a suggestion that arrives later (the site's estimate, after a reload)
+  // replaces the fields only while the operator has not edited them.
+  const [touched, setTouched] = useState(false);
+  const [shownMinutes, setShownMinutes] = useState(defaultMinutes);
+  if (shownMinutes !== defaultMinutes) {
+    setShownMinutes(defaultMinutes);
+    if (!touched && !initial) setFields(suggested(defaultMinutes));
+  }
+  const setValues: typeof setFields = (next) => {
+    setTouched(true);
+    setFields(next);
+  };
 
   function submit(): string | null {
     const parsed = validateForm(unloadEstimateFormSchema, values);
@@ -63,7 +73,8 @@ function useUnloadEstimateForm(initial: string | null, defaultMinutes: number) {
 /**
  * The date and the time of the estimate, as two rows of a group. The default
  * (in `defaultMinutes`: the typical unloading at the site, H5, or four hours)
- * is taken when the fields appear. The screen sends them through `ref`
+ * is taken when the fields appear, and again when a new suggestion arrives
+ * before the operator edits them. The screen sends them through `ref`
  * ("Iniciar descarga" in its bottom bar).
  */
 export function UnloadEstimateFields({

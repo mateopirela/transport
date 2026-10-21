@@ -76,3 +76,26 @@ export async function ownSiteDwells(
   ]);
   return { pickup, delivery };
 }
+
+/**
+ * The typical waiting and loading time at a load's pickup for the carrier
+ * (the "Ruta sugerida"), at the hour its pickup window opens; with the load's
+ * shipper, so a pickup without enough measurements falls back to the
+ * shipper's other sites.
+ */
+export async function loadPickupDwell(
+  supabase: Supabase,
+  load: { id: string; origin_lat: number; origin_lng: number; pickup_window_start: string },
+): Promise<DwellEstimate | null> {
+  const { data } = await supabase
+    .from('loads')
+    .select('shipper_company_id')
+    .eq('id', load.id)
+    .maybeSingle();
+  return siteDwellEstimate(
+    supabase,
+    'pickup',
+    { lat: load.origin_lat, lng: load.origin_lng },
+    { shipperCompanyId: data?.shipper_company_id ?? null, at: new Date(load.pickup_window_start) },
+  );
+}

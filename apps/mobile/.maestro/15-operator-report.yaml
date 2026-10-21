@@ -61,7 +61,7 @@ tags: [operator]
       platform: Android
     file: subflows/shutter.yaml
 - scrollUntilVisible:
-    element: '📷 Foto'
+    element: '(Ver foto|Abrir Foto.*)'
     direction: UP
     timeout: 30000
 # And where he is: a Google Maps link.

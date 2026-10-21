@@ -13,8 +13,15 @@ import { tripStatusTone } from '../../../components/trip-position';
 import { Button, LoadError, Loading, Notice, Pill, Screen } from '../../../components/ui';
 import { loadOperatorChat, type OperatorChat } from '../../../lib/internal-chat-api';
 import { supabase } from '../../../lib/supabase';
-import { useLoader } from '../../../lib/use-loader';
+import { useLoader, type LoaderState } from '../../../lib/use-loader';
 import { spacing, useTheme } from '../../../theme';
+
+/** The chat of one trip, or why there is none. */
+interface Loaded {
+  tripId: string | null;
+  chat: OperatorChat | null;
+  failed: boolean;
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -29,18 +36,22 @@ export default function OperatorChatScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const router = useRouter();
   const valid = typeof tripId === 'string' && UUID.test(tripId);
-  const load = useCallback(
-    (): Promise<OperatorChat | null> =>
-      supabase && valid ? loadOperatorChat(supabase, tripId.toLowerCase()) : Promise.resolve(null),
-    [tripId, valid],
-  );
+  const key = valid ? tripId.toLowerCase() : null;
+  // Each result names its trip and a failure is a result too: the screen is
+  // reused for another trip (a tab with href null), and useLoader keeps the
+  // previous trip's chat when a refresh fails.
+  const load = useCallback(async (): Promise<Loaded> => {
+    if (!supabase || !key) return { tripId: key, chat: null, failed: false };
+    try {
+      return { tripId: key, chat: await loadOperatorChat(supabase, key), failed: false };
+    } catch {
+      return { tripId: key, chat: null, failed: true };
+    }
+  }, [key]);
   const { state: loaded, reload } = useLoader(load);
-  // The screen is reused for another trip (a tab with href null): until that
-  // trip loads, the previous trip's chat is not shown.
-  const state =
-    loaded.status === 'ready' && loaded.data && loaded.data.tripId !== tripId?.toLowerCase()
-      ? ({ status: 'loading' } as const)
-      : loaded;
+  // Until this trip's result arrives, the previous trip's chat is not shown.
+  const state: LoaderState<Loaded> =
+    loaded.status === 'ready' && loaded.data.tripId !== key ? { status: 'loading' } : loaded;
   const back = (
     <Button
       label={mobileNavCopy.assignedTrip}
@@ -57,14 +68,14 @@ export default function OperatorChatScreen() {
       </Screen>
     );
   }
-  if (state.status === 'error') {
+  if (state.status === 'error' || (state.status === 'ready' && state.data.failed)) {
     return (
       <Screen title={copy.title} right={back}>
         <LoadError onRetry={() => void reload()} />
       </Screen>
     );
   }
-  const chat = state.data;
+  const chat = state.data.chat;
   if (!chat || !supabase) {
     return (
       <Screen title={copy.title} right={back}>

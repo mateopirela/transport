@@ -1,6 +1,7 @@
 import {
   carrierLoadsCopy,
   carrierWebCopy,
+  dwellCopy,
   formatDateTime,
   formatMxn,
   cardRoad,
@@ -53,6 +54,11 @@ export function RecommendationCard({
         <p className="text-subhead text-text-dim">
           {c.pickup(formatDateTime(r.pickupWindowStart))}
         </p>
+        {r.breakdown.isReturnTrip && r.returnDwell && (
+          <p className="text-subhead text-text-dim tabular-nums">
+            {dwellCopy.returnTrip(r.returnDwell)}
+          </p>
+        )}
         {(r.breakdown.isReturnTrip ||
           r.breakdown.distanceSource === 'estimate' ||
           tolls ||

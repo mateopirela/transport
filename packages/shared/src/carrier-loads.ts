@@ -7,6 +7,7 @@ import { billingCopy } from './copy/billing';
 import { carrierLoadsCopy } from './copy/carrier-loads';
 import { offersCopy } from './copy/negotiation';
 import { vehicleReleaseCopy } from './copy/vehicle-release';
+import type { DwellEstimate } from './dwell';
 import type { LoadStatus, OfferSide, OfferStatus, TripStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
@@ -27,15 +28,22 @@ export interface Recommendation {
   breakdown: MatchBreakdown;
   /** Suggested road of the load (H4); absent from an older Edge Function. */
   road?: RoadSuggestion;
+  /**
+   * Return trips (H5): the typical time at the delivery the unit is
+   * finishing ("Espera típica en descarga"); absent when unknown.
+   */
+  returnDwell?: DwellEstimate;
 }
 
 /** The same shape from a locally scored match (fallback without the Edge Function). */
 export function toRecommendation(
   { candidate, score, breakdown, road }: ScoredMatch,
   explanation: string,
+  returnDwell?: DwellEstimate,
 ): Recommendation {
   return {
     ...(road ? { road } : {}),
+    ...(returnDwell ? { returnDwell } : {}),
     loadId: candidate.loadId,
     vehicleId: candidate.vehicleId,
     origin: candidate.origin,

@@ -1,4 +1,5 @@
 import {
+  dwellCopy,
   formatDistance,
   formatMxn,
   formatTime,
@@ -6,6 +7,7 @@ import {
   roadsCopy,
   tollClassLabels,
   tollsAmount,
+  type DwellEstimate,
   type RoadSuggestion,
 } from '@transport/shared';
 
@@ -15,21 +17,28 @@ import { Cell, Footnote, Group, Notice, SectionHeader, TextCell, ValueRow } from
  * "Ruta sugerida" of a load (H4, D31) in the app: the corridor, the estimated
  * tolls for the unit's class with their source and date, the warnings of
  * unsafe segments at the hour the truck passes, and the segments in order.
+ * H5: the typical waiting and loading time at the pickup, when known.
  */
 export function SuggestedRoute({
   road,
   estimateFor,
+  pickupDwell,
 }: {
   road: RoadSuggestion;
   /** Which truck the tolls were estimated for (roadsCopy.estimateFor). */
   estimateFor: string;
+  pickupDwell?: DwellEstimate | null;
 }) {
+  const dwell = pickupDwell ? (
+    <TextCell icon="time">{dwellCopy.pickup(pickupDwell)}</TextCell>
+  ) : null;
   if (road.source === 'none') {
     return (
       <>
         <SectionHeader title={roadsCopy.section} />
         <Group>
           <Cell title={roadsCopy.none} subtitle={roadsCopy.noneHint} />
+          {dwell}
         </Group>
       </>
     );
@@ -52,6 +61,7 @@ export function SuggestedRoute({
           </TextCell>
         ))}
         {road.warnings.length === 0 ? <TextCell tone="dim">{roadsCopy.noRisks}</TextCell> : null}
+        {dwell}
       </Group>
       {road.tollSources.map((s) => (
         <Footnote key={`${s.source}|${s.validFrom}|${s.dataStatus}`}>

@@ -5,10 +5,12 @@ import {
   operatorEvidenceCopy as evidenceCopy,
   mobileNavCopy,
   nextOperatorEvent,
+  suggestedHandlingMinutes,
   OPERATOR_TRIP_STEPS,
   operatorStepActionLabels,
   operatorStepConfirmLabels,
   operatorTripCopy as copy,
+  dwellCopy,
   formatDateTime,
   missingTripDocumentsFromError,
   tripDocumentKindLabels,
@@ -303,6 +305,7 @@ function TripView({
   const status = effectiveStatus(trip.status, queue, trip.id);
   const estimate = effectiveUnloadEstimate(trip.estimatedUnloadEndAt, queue, trip.id);
   const next = nextOperatorEvent(status);
+  const unloadMinutes = suggestedHandlingMinutes(trip.unloadDwell);
 
   // Photos (B23): the server's plus the ones still on the phone, per stage.
   const counts = photoCounts(trip.evidence, photos, trip.id);
@@ -675,7 +678,15 @@ function TripView({
             ) : (
               <View style={styles.section}>
                 <SectionHeader title={copy.unloadEstimateTitle} />
-                <UnloadEstimateFields ref={stepFields} initial={null} />
+                {/* H5: the suggested end comes from the typical unloading at the site. */}
+                <UnloadEstimateFields
+                  ref={stepFields}
+                  initial={null}
+                  defaultMinutes={unloadMinutes}
+                />
+                {trip.unloadDwell ? (
+                  <Footnote>{dwellCopy.unloadSuggestion(trip.unloadDwell)}</Footnote>
+                ) : null}
                 <Footnote>{copy.unloadEstimateHelp}</Footnote>
               </View>
             )}

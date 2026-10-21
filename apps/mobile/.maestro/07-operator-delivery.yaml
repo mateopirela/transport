@@ -1,5 +1,5 @@
 # Operator (F7, B21-B23): with the connection back, the queued incident and
-# its photo reach the server; then arrives, unloads and delivers.
+# its photo reach the server; then arrives at the delivery (19 unloads).
 # Continues 06 with the app still open. Precondition: the API is reachable
 # again (`pnpm e2e:mobile` starts the gateway before this flow).
 appId: ${APP_ID}
@@ -38,26 +38,8 @@ tags: [operator, offline]
     file: subflows/status-step.yaml
     env:
       STEP: 'Llegué a destino'
-# Starts unloading with the default estimated end (in 4 hours). Wait for
-# the estimate form, which pushes the button down when it appears.
+# Arrived: 19-operator-unload-estimate.yaml starts the unloading.
 - scrollUntilVisible:
     element: 'Fin estimado de descarga'
     timeout: 15000
-- waitForAnimationToEnd
-- runFlow:
-    file: subflows/status-step.yaml
-    env:
-      STEP: 'Iniciar descarga'
-# The status badge is at the top of the screen (the step buttons are below).
-- scrollUntilVisible:
-    element: 'Descargando'
-    direction: UP
-    timeout: 15000
-# deliver.yaml looks for the photos upwards: start below the badge.
-- scrollUntilVisible:
-    element: 'Fotos de entrega'
-    direction: DOWN
-    centerElement: true
-- runFlow:
-    file: subflows/deliver.yaml
-- takeScreenshot: 07-2-operator-delivered
+- takeScreenshot: 07-2-operator-at-delivery

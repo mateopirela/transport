@@ -1,4 +1,5 @@
 import {
+  DEFAULT_DWELL_MINUTES,
   INCIDENT_KINDS,
   incidentFormSchema,
   incidentKindLabels,
@@ -17,8 +18,6 @@ import { validateForm, type FieldErrors } from '../lib/forms';
 import { spacing } from '../theme';
 import { Button, Chip, ControlCell, FieldCell, Group } from './ui';
 
-const DEFAULT_UNLOAD_HOURS = 4;
-
 /**
  * What a screen holds of a form whose button lives elsewhere (in the bottom
  * bar): `submit` returns the value once it is valid, or null and shows the
@@ -33,13 +32,23 @@ export interface FormHandle<T> {
  * returns the ISO timestamp once it is valid and in range now; the caller
  * checks the range again at the moment it records it.
  */
-function useUnloadEstimateForm(initial: string | null) {
-  const [values, setValues] = useState(() =>
-    mexicoCityParts(
-      initial ? new Date(initial) : new Date(Date.now() + DEFAULT_UNLOAD_HOURS * 60 * 60 * 1000),
-    ),
-  );
+function useUnloadEstimateForm(initial: string | null, defaultMinutes: number) {
+  const suggested = (minutes: number) =>
+    mexicoCityParts(initial ? new Date(initial) : new Date(Date.now() + minutes * 60 * 1000));
+  const [values, setFields] = useState(() => suggested(defaultMinutes));
   const [errors, setErrors] = useState<FieldErrors>({});
+  // H5: a suggestion that arrives later (the site's estimate, after a reload)
+  // replaces the fields only while the operator has not edited them.
+  const [touched, setTouched] = useState(false);
+  const [shownMinutes, setShownMinutes] = useState(defaultMinutes);
+  if (shownMinutes !== defaultMinutes) {
+    setShownMinutes(defaultMinutes);
+    if (!touched && !initial) setFields(suggested(defaultMinutes));
+  }
+  const setValues: typeof setFields = (next) => {
+    setTouched(true);
+    setFields(next);
+  };
 
   function submit(): string | null {
     const parsed = validateForm(unloadEstimateFormSchema, values);
@@ -63,17 +72,21 @@ function useUnloadEstimateForm(initial: string | null) {
 
 /**
  * The date and the time of the estimate, as two rows of a group. The default
- * (in four hours) is taken when the fields appear. The screen sends them
- * through `ref` ("Iniciar descarga" in its bottom bar).
+ * (in `defaultMinutes`: the typical unloading at the site, H5, or four hours)
+ * is taken when the fields appear, and again when a new suggestion arrives
+ * before the operator edits them. The screen sends them through `ref`
+ * ("Iniciar descarga" in its bottom bar).
  */
 export function UnloadEstimateFields({
   ref,
   initial,
+  defaultMinutes = DEFAULT_DWELL_MINUTES.delivery,
 }: {
   ref?: Ref<FormHandle<string>>;
   initial: string | null;
+  defaultMinutes?: number;
 }) {
-  const { values, setValues, errors, submit } = useUnloadEstimateForm(initial);
+  const { values, setValues, errors, submit } = useUnloadEstimateForm(initial, defaultMinutes);
   useImperativeHandle(ref, () => ({ submit }));
   return (
     <Group>

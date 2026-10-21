@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(38);
+select plan(41);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -66,7 +66,7 @@ select ok(
                   where d.owner_id = '5eed0003-0000-4000-8000-000000000007' and d.status <> 'approved'),
   'Iván Garza has his licence approved, so the demo can assign him (G9)'
 );
-select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 15, 'fifteen loads');
+select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 24, 'twenty-four loads');
 select is(
   (select array_agg(distinct status::text order by status::text) from public.loads where id::text like '5eed0005-%'),
   array['cancelled', 'completed', 'contracted', 'draft', 'expired', 'in_progress', 'negotiating', 'published'],
@@ -77,6 +77,29 @@ select ok(
       and count(*) filter (where origin_state = 'Jalisco' and destination_state = 'Nuevo León') >= 4
    from public.loads where id::text like '5eed0005-%'),
   'loads in both directions of the corridor'
+);
+-- H5 (D32): the older trips measure the waiting times of Aceros del Norte's
+-- Monterrey pickup and Guadalajara delivery (Transportes Regios' view).
+select is(
+  (select array[basis, sample_size::text, total_median_minutes::text]
+   from public.site_dwell_stats('pickup', 25.7016, -100.3392, null, null,
+                                '5eed0002-0000-4000-8000-000000000004', null, false)),
+  array['site', '6', '180'],
+  'the Monterrey pickup of Aceros del Norte has 6 measured loadings (~3 h)'
+);
+select is(
+  (select array[basis, sample_size::text, total_median_minutes::text]
+   from public.site_dwell_stats('delivery', 20.6280, -103.3560, null, null,
+                                '5eed0002-0000-4000-8000-000000000004', null, false)),
+  array['site', '5', '300'],
+  'the Guadalajara delivery of Aceros del Norte has 5 measured unloadings (~5 h)'
+);
+select is(
+  (select array[basis, sample_size::text, handling_median_minutes::text]
+   from public.site_dwell_stats('delivery', 20.6380, -103.3640, null, null,
+                                '5eed0002-0000-4000-8000-000000000005', null, false)),
+  array['site', '5', '60'],
+  'Fletes Tapatíos has 5 measured unloadings (~1 h) where Miguel''s trip ends'
 );
 
 -- ---------------------------------------------------------------------------
@@ -218,7 +241,7 @@ set local role authenticated;
 -- Ana Garza, shipper (Aceros del Norte)
 select tests.login('5eed0001-0000-4000-8000-000000000002');
 select is(
-  (select count(*)::int from public.loads), 5, 'the shipper sees only the loads of its company'
+  (select count(*)::int from public.loads), 9, 'the shipper sees only the loads of its company'
 );
 select ok(
   (select count(*) > 0 from public.trip_locations where trip_id = '5eed0008-0000-4000-8000-000000000001'),
@@ -238,7 +261,7 @@ select is(
 -- Pedro López, operator of the trip in unloading
 select tests.login('5eed0001-0000-4000-8000-000000000008');
 select is(
-  (select count(*)::int from public.trips), 2, 'the operator sees only the trips assigned to it'
+  (select count(*)::int from public.trips), 6, 'the operator sees only the trips assigned to it'
 );
 select is(
   (select count(*)::int from public.messages m join public.conversations c on c.id = m.conversation_id
@@ -278,7 +301,7 @@ select is(
 -- Admin
 select tests.login('5eed0001-0000-4000-8000-000000000001');
 select is(
-  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 15, 'the admin sees every load'
+  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 24, 'the admin sees every load'
 );
 
 reset role;

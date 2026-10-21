@@ -10,6 +10,7 @@ import {
   unitLabel,
   unitTypeLabels,
   vehicleAxles,
+  type DwellEstimate,
   type RoadContext,
 } from '@transport/shared';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -42,6 +43,7 @@ import {
   type EmptyLeg,
   type LoadNegotiation,
 } from '../../../lib/loads-api';
+import { loadPickupDwell } from '../../../lib/dwell-api';
 import { loadRoadContext } from '../../../lib/roads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useTheme } from '../../../theme';
@@ -64,9 +66,14 @@ export default function LoadDetail() {
         loadRoadContext(client),
       ]);
       // Compatible units nearest first; the unit it was recommended for leads.
-      const legs = negotiation ? await emptyLegs(client, id, units) : [];
+      const l = negotiation?.load;
+      const [legs, pickupDwell] = await Promise.all([
+        negotiation ? emptyLegs(client, id, units) : Promise.resolve([]),
+        // H5: the typical waiting and loading time at its pickup, at that hour.
+        l ? loadPickupDwell(client, l) : Promise.resolve(null),
+      ]);
       legs.sort((a, b) => Number(b.vehicleId === vehicleId) - Number(a.vehicleId === vehicleId));
-      return { negotiation, units, legs, roads };
+      return { negotiation, units, legs, roads, pickupDwell };
     },
     [id, vehicleId],
   );
@@ -102,6 +109,7 @@ export default function LoadDetail() {
         units={state.data.units}
         legs={state.data.legs}
         roads={state.data.roads}
+        pickupDwell={state.data.pickupDwell}
         offerSource={vehicleId ? 'recommendation' : 'search'}
         reload={reload}
       />
@@ -115,6 +123,7 @@ function LoadBody({
   units,
   legs,
   roads,
+  pickupDwell,
   offerSource,
   reload,
 }: {
@@ -123,6 +132,7 @@ function LoadBody({
   units: readonly CarrierUnit[];
   legs: readonly EmptyLeg[];
   roads: RoadContext;
+  pickupDwell: DwellEstimate | null;
   offerSource: 'recommendation' | 'search';
   reload: () => Promise<void>;
 }) {
@@ -203,6 +213,7 @@ function LoadBody({
         <SuggestedRoute
           road={road}
           estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+          pickupDwell={pickupDwell}
         />
 
         <SectionHeader title={carrierLoadsCopy.chat.title} />

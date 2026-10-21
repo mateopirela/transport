@@ -229,6 +229,8 @@ insert into tests.ownership values
   ('public.invitations', 't.company_id = $1'),
   ('public.carrier_routes', 't.company_id = $1'),
   ('public.carrier_road_preferences', 't.company_id = $1'),
+  -- Waiting times (H5): the trip's shipper and carrier.
+  ('public.trip_stop_dwells', 't.shipper_company_id = $1 or t.carrier_company_id = $1'),
   ('public.business_units', 't.company_id = $1'),
   ('public.business_unit_coordinators', 't.company_id = $1'),
   ('public.vehicle_availability', 't.company_id = $1'),
@@ -621,7 +623,9 @@ insert into tests.rpc_calls values
   ('company_billing_state', $$ (select count(*) from public.company_billing_state(tests.val('carrier_company'))) $$),
   ('admin_set_platform_setting', $$ public.admin_set_platform_setting('billing.pilot_mode', 'false') $$),
   ('admin_update_subscription_plan', $$ public.admin_update_subscription_plan(
-       (select id from public.subscription_plans where code = 'fleet_monthly'), 'Ajeno', null, 100, null, true) $$);
+       (select id from public.subscription_plans where code = 'fleet_monthly'), 'Ajeno', null, 100, null, true) $$),
+  -- Estimated end of a trip (H5): whoever sees the trip.
+  ('trip_estimated_end', $$ (select count(*) from public.trip_estimated_end(tests.val('trip'))) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -648,7 +652,10 @@ insert into tests.self_scoped values
   ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
   ('consume_rate_limit'), ('track_product_event'), ('invitation_preview'),
   -- G4: creates a business unit in the caller's own company (the Gerente's).
-  ('create_business_unit');
+  ('create_business_unit'),
+  -- H5: a site's typical time from the caller's own trips (others' only from
+  -- 2 carriers up; 46_site_dwell); a site without them answers the default.
+  ('site_dwell_estimate');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,
@@ -753,7 +760,7 @@ select is_empty(
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link',
-       'trip_shared_documents', 'revoke_document_share',
+       'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end',
        'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
        'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'

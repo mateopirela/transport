@@ -20,10 +20,12 @@ import { RouteMap } from '@/components/loads/route-map';
 import { OfferBoard } from '@/components/offers/offer-board';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { ShareDialog } from '@/components/share/share-dialog';
+import { SiteDwellGroup } from '@/components/trips/site-dwell';
 import { buttonVariants } from '@/components/ui/button';
 import { ValueRow } from '@/components/ui/cell';
 import { Group } from '@/components/ui/group';
 import { PageHeader } from '@/components/ui/page-header';
+import { ownSiteDwells } from '@/lib/dwell';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
 import { shipperLoadActions } from '@/lib/loads/status';
 import { getOfferBoard } from '@/lib/offers/queries';
@@ -62,7 +64,11 @@ export default async function LoadDetailPage({
   // A published load can be shared with anyone, read-only (G7, D23). Its
   // active links stay listed (and revocable) after it leaves the market.
   const shareable = load.status === 'published' || load.status === 'negotiating';
-  const shareLinks = await listActiveShareLinks(supabase, { loadId: load.id });
+  const [shareLinks, siteDwells] = await Promise.all([
+    listActiveShareLinks(supabase, { loadId: load.id }),
+    // H5: how long trucks usually take at the shipper's own pickup and delivery.
+    ownSiteDwells(supabase, load),
+  ]);
   const range = (start: string, end: string) =>
     c.window(formatDateTime(start), formatDateTime(end));
 
@@ -185,6 +191,7 @@ export default async function LoadDetailPage({
               </ValueRow>
             ))}
           </Group>
+          <SiteDwellGroup pickup={siteDwells.pickup} delivery={siteDwells.delivery} />
           {actions.cancel && <CancelLoadForm loadId={load.id} />}
         </aside>
       </div>

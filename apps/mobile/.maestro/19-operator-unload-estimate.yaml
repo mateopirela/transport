@@ -1,0 +1,39 @@
+# Operator (H5, D32): at the start of unloading, the suggested end comes from
+# the typical unloading at the site, not from the fixed 4 h: Fletes Tapatíos
+# unloaded 5 times at Av. 8 de Julio in Guadalajara (about 1 h each, seed
+# trips 9-13). Then Miguel unloads and delivers.
+# Continues 07 with the app still open: Miguel just arrived at the delivery.
+appId: ${APP_ID}
+name: Operador · fin sugerido según el sitio y entrega
+tags: [operator, dwell]
+---
+# Wait for the estimate form, which pushes the button down when it appears.
+- scrollUntilVisible:
+    element: 'Te sugerimos la descarga típica en este sitio, ~1 h \(5 viajes\).*'
+    timeout: 15000
+    centerElement: true
+- assertVisible: 'Fin estimado de descarga'
+- takeScreenshot: 19-1-operator-suggested-unload-end
+- waitForAnimationToEnd
+- runFlow:
+    file: subflows/status-step.yaml
+    env:
+      STEP: 'Iniciar descarga'
+# The status badge is at the top of the screen (the step buttons are below).
+- scrollUntilVisible:
+    element: 'Descargando'
+    direction: UP
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'Fin estimado: .*'
+    direction: DOWN
+    centerElement: true
+- takeScreenshot: 19-2-operator-unloading
+# deliver.yaml looks for the photos upwards: start below the badge.
+- scrollUntilVisible:
+    element: 'Fotos de entrega'
+    direction: DOWN
+    centerElement: true
+- runFlow:
+    file: subflows/deliver.yaml
+- takeScreenshot: 19-3-operator-delivered

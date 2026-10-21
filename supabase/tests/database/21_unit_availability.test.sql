@@ -194,8 +194,9 @@ select is_empty(
 );
 
 -- Matching: trip A runs late (ends at +5 days). V is free only once it has
--- also done its return trips: B ends 4 days after its delivery window
--- (+6d 6h), so B2 (same windows) ends 5 days 6 hours late (+7d 12h).
+-- also done its return trips. Each ends 4 h after its delivery window opens
+-- (H5: the default time at the site, +2d 4h): B ends 4 days late (+6d 4h),
+-- so B2 (same windows) ends 5 days 4 hours late (+7d 8h).
 reset role;
 update public.trips set estimated_unload_end_at = now() + interval '5 days' where id = tests.val('trip_a');
 set local role authenticated;
@@ -208,7 +209,7 @@ reset role;
 select results_eq(
   $$ select start_city, available_from, is_return_trip
      from public.match_pairs('ef500000-0000-4000-8000-000000000001', tests.val('load_later'), 1000) $$,
-  $$ values ('Monterrey', now() + interval '7 days 12 hours', true) $$,
+  $$ values ('Monterrey', now() + interval '7 days 8 hours', true) $$,
   'a unit whose current trip runs late is free once it has also done the trips it is booked for'
 );
 select is_empty(
@@ -453,9 +454,10 @@ select is(
 -- Matching: delays carry through every booked trip
 -- ---------------------------------------------------------------------------
 -- V sets off on trip P, which runs late (ends at +10 days); V is booked for
--- Q (GDL -> MTY, pickup +1 day, delivery ends +2 days 6 h) and then R
--- (MTY -> GDL, pickup +3 days, delivery ends +4 days 6 h). Q ends 9 days
--- late (+11 days 6 h), so R starts 8 days 6 h late and ends at +12 days 12 h.
+-- Q (GDL -> MTY, pickup +1 day, ends +2 days 4 h: 4 h after its delivery
+-- window opens, H5) and then R (MTY -> GDL, pickup +3 days, ends +4 days
+-- 4 h). Q ends 9 days late (+11 days 4 h), so R starts 8 days 4 h late and
+-- ends at +12 days 8 h.
 select tests.contract('trip_p', false, 1, 'ef500000-0000-4000-8000-000000000001');
 select tests.login('af500000-0000-4000-8000-000000000002');
 select public.assign_trip(tests.val('trip_p'), 'ef500000-0000-4000-8000-000000000001',
@@ -471,7 +473,7 @@ update public.trips set estimated_unload_end_at = now() + interval '10 days' whe
 select results_eq(
   $$ select start_city, available_from
      from public.match_pairs('ef500000-0000-4000-8000-000000000001', tests.val('load_far'), 1000) $$,
-  $$ values ('Guadalajara', now() + interval '12 days 12 hours') $$,
+  $$ values ('Guadalajara', now() + interval '12 days 8 hours') $$,
   'the delay of the late trip carries through both booked trips'
 );
 set local role authenticated;

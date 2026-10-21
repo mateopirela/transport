@@ -8,6 +8,7 @@ import {
   MAX_MESSAGE_LENGTH,
   mergeMessages,
   QUICK_REPORTS,
+  sharedLocationUrl,
   type ChatMessage,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
@@ -241,6 +242,15 @@ export function ChatPanel({
     }
   }
 
+  /** A shared location's map (the link is rebuilt by sharedLocationUrl). */
+  async function openUrl(url: string) {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setProblem(chatCopy.errors.unavailable);
+    }
+  }
+
   async function openAttachment(path: string) {
     try {
       await Linking.openURL(await chatAttachmentUrl(client, path));
@@ -260,12 +270,27 @@ export function ChatPanel({
             {messages.map((m) => {
               // A message without a sender (deleted account, D18) is never the viewer's.
               const own = m.sender_id !== null && m.sender_id === userId;
+              // "Enviar mi ubicación" (H1): its map, one tap away.
+              const mapUrl = sharedLocationUrl(m.body);
               return (
                 <View key={m.id} style={[styles.bubble, own ? styles.own : styles.theirs]}>
                   <Text style={styles.meta}>
                     {`${chatSenderLabel(m, userId, internal)} · ${formatDateTime(m.created_at)}`}
                   </Text>
-                  {m.body ? <Text style={styles.body}>{m.body}</Text> : null}
+                  {m.body ? (
+                    <Text style={styles.body} selectable>
+                      {m.body}
+                    </Text>
+                  ) : null}
+                  {mapUrl ? (
+                    <Button
+                      label={internalChatCopy.openMap}
+                      variant="plain"
+                      size="small"
+                      icon="location"
+                      onPress={() => void openUrl(mapUrl)}
+                    />
+                  ) : null}
                   {m.attachments.map((attachment) => (
                     <Button
                       key={attachment.path}

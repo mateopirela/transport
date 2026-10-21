@@ -6,10 +6,12 @@ import {
   chatCopy,
   chatSenderLabel,
   formatDateTime,
+  internalChatCopy,
   MAX_MESSAGE_LENGTH,
+  sharedLocationUrl,
   type Tables,
 } from '@transport/shared';
-import { Paperclip, X } from 'lucide-react';
+import { MapPin, Paperclip, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
@@ -236,6 +238,8 @@ export function ChatPanel({
           const mine =
             message.sender_id !== null &&
             (own.has(message.sender_id) || message.sender_id === viewerId);
+          // "Enviar mi ubicación" (H1): its map, one click away.
+          const mapUrl = sharedLocationUrl(message.body);
           return (
             <li key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
@@ -249,6 +253,17 @@ export function ChatPanel({
                   {formatDateTime(message.created_at)}
                 </p>
                 {message.body && <p className="break-words whitespace-pre-wrap">{message.body}</p>}
+                {mapUrl && (
+                  <a
+                    href={mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-accent-text underline-offset-4 hover:underline"
+                  >
+                    <MapPin aria-hidden className="size-4" />
+                    {internalChatCopy.openMap}
+                  </a>
+                )}
                 {message.attachments.map((attachment) => (
                   <a
                     key={attachment.path}

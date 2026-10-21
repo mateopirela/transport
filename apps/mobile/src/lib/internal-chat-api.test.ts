@@ -16,6 +16,7 @@ type Row = Record<string, unknown>;
  */
 function fakeClient(tables: Record<string, Row[]>, inbox: Row[] = []) {
   const queries: { table: string; filters: Record<string, unknown> }[] = [];
+  const rpcs: { fn: string; args: unknown }[] = [];
   const client = {
     from: (table: string) => {
       const filters: Record<string, unknown> = {};
@@ -35,12 +36,14 @@ function fakeClient(tables: Record<string, Row[]>, inbox: Row[] = []) {
       };
       return builder;
     },
-    rpc: (fn: string) =>
-      Promise.resolve(
+    rpc: (fn: string, args?: unknown) => {
+      rpcs.push({ fn, args });
+      return Promise.resolve(
         fn === 'internal_chat_inbox' ? { data: inbox, error: null } : { data: null, error: null },
-      ),
+      );
+    },
   } as unknown as Supabase;
-  return { client, queries };
+  return { client, queries, rpcs };
 }
 
 describe('loadOperatorChat (H1)', () => {
@@ -54,6 +57,7 @@ describe('loadOperatorChat (H1)', () => {
       loads: [{ id: LOAD, origin_city: 'Guadalajara', destination_city: 'Monterrey' }],
     });
     await expect(loadOperatorChat(client, TRIP)).resolves.toEqual({
+      tripId: TRIP,
       conversationId: CONVERSATION,
       trip: {
         id: TRIP,
@@ -83,6 +87,7 @@ describe('loadOperatorChat (H1)', () => {
       conversations: [{ id: CONVERSATION, trip_id: TRIP, kind: 'trip_internal' }],
     });
     await expect(loadOperatorChat(client, TRIP)).resolves.toEqual({
+      tripId: TRIP,
       conversationId: CONVERSATION,
       trip: null,
     });
@@ -104,8 +109,10 @@ describe('internalUnread', () => {
       last_sender_id: 'x',
       unread_count: 2,
     };
-    const { client } = fakeClient({}, [row]);
+    const { client, rpcs } = fakeClient({}, [row]);
     await expect(internalUnread(client, TRIP)).resolves.toBe(2);
+    // Narrowed to the trip: never cut by the inbox's limit.
+    expect(rpcs[0]).toEqual({ fn: 'internal_chat_inbox', args: { p_trip_ids: [TRIP] } });
     await expect(internalUnread(client, LOAD)).resolves.toBe(0);
   });
 });

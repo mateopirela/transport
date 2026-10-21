@@ -3922,7 +3922,7 @@ export interface Database {
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
       internal_chat_inbox: {
-        Args: Record<PropertyKey, never>;
+        Args: { p_trip_ids?: string[] };
         Returns: {
           conversation_id: string;
           destination_city: string;

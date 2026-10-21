@@ -117,3 +117,10 @@ export function watchMessages(
     });
   return () => void client.removeChannel(channel);
 }
+
+/** Short-lived link to open an attachment (the `chat` bucket policy checks the reader). */
+export async function chatAttachmentUrl(client: Supabase, path: string): Promise<string> {
+  const { data, error } = await client.storage.from('chat').createSignedUrl(path, 60);
+  if (error) throw error;
+  return data.signedUrl;
+}

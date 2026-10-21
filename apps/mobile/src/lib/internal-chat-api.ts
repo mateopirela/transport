@@ -23,6 +23,8 @@ export async function tripConversationId(
 }
 
 export interface OperatorChat {
+  /** The trip asked for (the screen checks it is still the one shown). */
+  tripId: string;
   conversationId: string;
   /** The trip's header; null when RLS no longer shows the trip. */
   trip: {
@@ -49,7 +51,7 @@ export async function loadOperatorChat(
   ]);
   if (!conversationId) return null;
   if (trip.error) throw trip.error;
-  if (!trip.data) return { conversationId, trip: null };
+  if (!trip.data) return { tripId, conversationId, trip: null };
   const load = await client
     .from('loads')
     .select('origin_city, destination_city')
@@ -57,6 +59,7 @@ export async function loadOperatorChat(
     .maybeSingle();
   if (load.error) throw load.error;
   return {
+    tripId,
     conversationId,
     trip: {
       id: trip.data.id,
@@ -66,6 +69,12 @@ export async function loadOperatorChat(
     },
   };
 }
+
+/**
+ * How often an unread count on screen refreshes while in focus: the replies
+ * show up even without push notifications.
+ */
+export const UNREAD_REFRESH_MS = 30_000;
 
 export interface InternalInboxRow {
   tripId: string;
@@ -80,9 +89,18 @@ export interface InternalInboxRow {
   unread: number;
 }
 
-/** The internal conversations the caller sees, unread first (internal_chat_inbox). */
-export async function loadInternalInbox(client: Supabase): Promise<InternalInboxRow[]> {
-  const { data, error } = await client.rpc('internal_chat_inbox');
+/**
+ * The internal conversations the caller sees, unread first, at most 100
+ * (internal_chat_inbox); with `tripIds`, only those trips' and all of them.
+ */
+export async function loadInternalInbox(
+  client: Supabase,
+  tripIds?: readonly string[],
+): Promise<InternalInboxRow[]> {
+  const { data, error } = await client.rpc(
+    'internal_chat_inbox',
+    tripIds ? { p_trip_ids: [...tripIds] } : {},
+  );
   if (error) throw error;
   return data.map((row) => ({
     tripId: row.trip_id,
@@ -101,6 +119,6 @@ export async function loadInternalInbox(client: Supabase): Promise<InternalInbox
 
 /** The caller's unread internal messages of one trip (0 when none or not visible). */
 export async function internalUnread(client: Supabase, tripId: string): Promise<number> {
-  const rows = await loadInternalInbox(client);
+  const rows = await loadInternalInbox(client, [tripId]);
   return rows.find((row) => row.tripId === tripId)?.unread ?? 0;
 }

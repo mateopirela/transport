@@ -78,14 +78,15 @@ export default async function CarrierTripsPage({
     [TRIP_FILTER_PARAMS.businessUnit]: businessUnitId ?? undefined,
     p: String(page),
   };
-  const [{ rows, total }, unread] = await Promise.all([
-    listCarrierTrips(supabase, companyId, {
-      businessUnitIds: businessUnitId ? [businessUnitId] : units.ids,
-      view,
-      page,
-    }),
-    internalUnreadByTrip(supabase),
-  ]);
+  const { rows, total } = await listCarrierTrips(supabase, companyId, {
+    businessUnitIds: businessUnitId ? [businessUnitId] : units.ids,
+    view,
+    page,
+  });
+  const unread = await internalUnreadByTrip(
+    supabase,
+    rows.map((trip) => trip.id),
+  );
   const narrowed = units.operable.find((u) => u.id === businessUnitId);
 
   return (

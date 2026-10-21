@@ -22,10 +22,10 @@ tags: [operator]
     visible: 'Avance del viaje'
     timeout: 30000
 # His trip: the report to the coordinator on top, no chat with the shipper.
-- assertVisible: 'Reportar al coordinador'
+- assertVisible: 'Reportar al coordinador.*'
 - assertNotVisible: 'Chat del viaje'
 - takeScreenshot: 15-1-operator-trip-report
-- tapOn: 'Reportar al coordinador'
+- tapOn: 'Reportar al coordinador.*'
 - extendedWaitUntil:
     visible: 'Solo lo ven tu coordinador y el gerente de tu empresa.*'
     timeout: 30000

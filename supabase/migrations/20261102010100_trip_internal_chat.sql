@@ -45,6 +45,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Caller check: only as the after insert trigger of a negotiation or a trip
+  -- (Postgres also refuses a direct call, and EXECUTE is revoked).
+  if tg_op is distinct from 'INSERT' or tg_when is distinct from 'AFTER'
+     or tg_table_name not in ('negotiations', 'trips') then
+    raise exception 'open_conversation runs only after inserting a negotiation or a trip'
+      using errcode = '42501';
+  end if;
   if tg_table_name = 'negotiations' then
     insert into public.conversations (kind, negotiation_id, load_id, shipper_company_id, carrier_company_id)
     values ('negotiation', new.id, new.load_id, new.shipper_company_id, new.carrier_company_id);
@@ -146,6 +153,18 @@ declare
   v_body text := nullif(btrim(regexp_replace(coalesce(new.body, ''), '\s+', ' ', 'g')), '');
   v_data jsonb;
 begin
+  -- Caller check: only as the after insert trigger of messages, and a message
+  -- of a signed-in user is always their own (send_message sets the sender);
+  -- the migrations, the seed and the service role run without a user.
+  if tg_op is distinct from 'INSERT' or tg_when is distinct from 'AFTER'
+     or tg_table_name is distinct from 'messages' then
+    raise exception 'notify_internal_message runs only after inserting a message'
+      using errcode = '42501';
+  end if;
+  if auth.uid() is not null and new.sender_id is distinct from auth.uid() then
+    raise exception 'a message is sent by its sender' using errcode = '42501';
+  end if;
+
   -- Locks the conversation (send_message already holds it): two messages at
   -- the same time notify one after the other, so the grouping sees the first.
   select * into v_conversation from public.conversations c

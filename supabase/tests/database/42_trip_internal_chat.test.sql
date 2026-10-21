@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(60);
+select plan(62);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -392,6 +392,22 @@ select is((select count(*)::int from public.internal_chat_inbox()), 0, 'nor the 
 select tests.login('a4200000-0000-4000-8000-000000000007');
 select is((select count(*)::int from public.internal_chat_inbox()), 0, 'nor another carrier');
 reset role;
+
+-- The triggers check their caller: a signed-in user's message is their own,
+-- and open_conversation runs only as a trigger.
+select tests.login('a4200000-0000-4000-8000-000000000003');
+select throws_ok(
+  $$ insert into public.messages (conversation_id, sender_id, sender_role, body)
+     values (tests.val('internal'), 'a4200000-0000-4000-8000-000000000005', 'operator', 'No lo escribí yo') $$,
+  '42501', 'a message is sent by its sender',
+  'notify_internal_message refuses a message in someone else''s name'
+);
+select set_config('request.jwt.claims', '', true);
+select throws_ok(
+  $$ select public.open_conversation() $$,
+  '0A000', null,
+  'open_conversation cannot be called directly'
+);
 
 -- The shipper cannot reach the internal messages by any other table either.
 select is(

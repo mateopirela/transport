@@ -12,6 +12,7 @@ export * from './evidence';
 export * from './fleet';
 export * from './formatters';
 export * from './geo';
+export * from './internal-chat';
 export * from './invitation-link';
 export * from './kpis';
 export * from './legal';

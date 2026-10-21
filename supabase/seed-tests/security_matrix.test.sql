@@ -62,7 +62,12 @@ insert into tests.vals values
   ('shipper_company', '5eed0002-0000-4000-8000-000000000001'),
   ('carrier_company', '5eed0002-0000-4000-8000-000000000004');
 insert into tests.vals
-select 'trip_conversation', id from public.conversations where trip_id = '5eed0008-0000-4000-8000-000000000001';
+select 'trip_conversation', id from public.conversations
+where trip_id = '5eed0008-0000-4000-8000-000000000001' and kind = 'trip';
+-- H1: the carrier's internal conversation of T1 (never the shipper's).
+insert into tests.vals
+select 'internal_conversation', id from public.conversations
+where trip_id = '5eed0008-0000-4000-8000-000000000001' and kind = 'trip_internal';
 insert into tests.vals
 select 'negotiation_conversation', id from public.conversations where kind = 'negotiation' order by id limit 1;
 insert into tests.vals select 'document', id from public.documents order by id limit 1;
@@ -138,7 +143,9 @@ insert into storage.objects (bucket_id, name, owner_id, metadata) values
   ('trip-documents', tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf',
    '5eed0001-0000-4000-8000-000000000005', '{"mimetype": "application/pdf", "size": 2048}'),
   ('chat', tests.val('trip_conversation') || '/a2400000-0000-4000-8000-000000000004.jpg',
-   '5eed0001-0000-4000-8000-000000000002', '{"mimetype": "image/jpeg", "size": 2048}');
+   '5eed0001-0000-4000-8000-000000000002', '{"mimetype": "image/jpeg", "size": 2048}'),
+  ('chat', tests.val('internal_conversation') || '/a2400000-0000-4000-8000-000000000005.jpg',
+   '5eed0001-0000-4000-8000-000000000008', '{"mimetype": "image/jpeg", "size": 2048}');
 insert into public.trip_evidence (trip_id, stage, storage_path, sha256, captured_at, uploaded_by)
 values (tests.val('trip'), 'delivery', tests.val('trip') || '/delivery/a2400000-0000-4000-8000-000000000002.jpg',
         repeat('ab', 32), now(), '5eed0001-0000-4000-8000-000000000008');
@@ -249,7 +256,8 @@ insert into tests.ownership values
   ('public.negotiations', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
   ('public.offers', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
   ('public.trips', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
-  ('public.conversations', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
+  -- The internal chat of a trip (H1, D28) is the carrier's only.
+  ('public.conversations', '$1 = t.carrier_company_id or ($1 = t.shipper_company_id and t.kind <> ''trip_internal'')'),
   -- Children of a trip or a conversation: parties of the parent.
   ('public.trip_events', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
   ('public.trip_evidence', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
@@ -266,8 +274,14 @@ insert into tests.ownership values
      exists (select 1 from public.trips x where x.id = t.trip_id
              and (x.carrier_company_id = $1 or (x.shipper_company_id = $1 and public.trip_is_active(x.status))))
   $$),
-  ('public.messages', 'exists (select 1 from public.conversations x where x.id = t.conversation_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
-  ('public.message_reads', 'exists (select 1 from public.conversations x where x.id = t.conversation_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
+  ('public.messages', $$
+     exists (select 1 from public.conversations x where x.id = t.conversation_id
+             and ($1 = x.carrier_company_id or ($1 = x.shipper_company_id and x.kind <> 'trip_internal')))
+  $$),
+  ('public.message_reads', $$
+     exists (select 1 from public.conversations x where x.id = t.conversation_id
+             and ($1 = x.carrier_company_id or ($1 = x.shipper_company_id and x.kind <> 'trip_internal')))
+  $$),
   -- Personal rows.
   ('public.notifications', 't.user_id = $2'),
   ('public.push_tokens', 't.user_id = $2'),
@@ -281,7 +295,8 @@ insert into tests.ownership values
        when 'trip-documents' then exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
                                           and $1 in (x.shipper_company_id, x.carrier_company_id))
        when 'chat' then exists (select 1 from public.conversations x where x.id::text = split_part(t.name, '/', 1)
-                                and $1 in (x.shipper_company_id, x.carrier_company_id))
+                                and ($1 = x.carrier_company_id
+                                     or ($1 = x.shipper_company_id and x.kind <> 'trip_internal')))
        else false
      end
   $$);
@@ -601,6 +616,10 @@ insert into tests.rpc_calls values
   ('send_message', $$ public.send_message(tests.val('negotiation_conversation'), 'hola', '[]', null) $$),
   ('mark_conversation_read', $$ public.mark_conversation_read(tests.val('trip_conversation'), null) $$),
   ('is_conversation_participant', $$ public.is_conversation_participant(tests.val('trip_conversation')) $$),
+  -- H1: the carrier's internal chat of T1.
+  ('send_message', $$ public.send_message(tests.val('internal_conversation'), 'hola', '[]', null) $$),
+  ('mark_conversation_read', $$ public.mark_conversation_read(tests.val('internal_conversation'), null) $$),
+  ('is_conversation_participant', $$ public.is_conversation_participant(tests.val('internal_conversation')) $$),
   ('unregister_push_token', $$ public.unregister_push_token('ExponentPushToken[b24SeedDeviceToken]') $$),
   ('mark_notifications_read', $$ public.mark_notifications_read(array(select id from tests.foreign_notifications)) $$),
   -- Share links (G7): a load the outsiders do not see (contracted), the

@@ -1,4 +1,11 @@
-import { carrierTripsCopy, carrierWebCopy, formatDate } from '@transport/shared';
+import {
+  carrierTripsCopy,
+  carrierWebCopy,
+  formatDate,
+  INTERNAL_CHAT_PARAM,
+  internalChatCopy,
+} from '@transport/shared';
+import { MessageCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -19,11 +26,33 @@ import {
   TRIP_FILTER_PARAMS,
   TRIP_VIEW_PARAMS,
 } from '@/lib/carrier/trip-filters';
-import { CARRIER_TRIPS_PAGE_SIZE, listCarrierTrips } from '@/lib/carrier/trips';
+import {
+  CARRIER_TRIPS_PAGE_SIZE,
+  internalUnreadByTrip,
+  listCarrierTrips,
+} from '@/lib/carrier/trips';
 import { parsePage, withParams } from '@/lib/pagination';
 import { carrierTripPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.trips;
+
+/** Unread messages of the trip's internal chat (H1): a link to its "Interno" tab. */
+function UnreadBadge({ tripId, count }: { tripId: string; count: number }) {
+  if (count === 0) return null;
+  return (
+    <Link
+      href={`${carrierTripPath(tripId)}?chat=${INTERNAL_CHAT_PARAM}`}
+      aria-label={internalChatCopy.unreadLabel(count)}
+      title={internalChatCopy.unreadLabel(count)}
+      className="ml-2 inline-flex align-middle"
+    >
+      <Pill tone="accent">
+        <MessageCircle aria-hidden className="size-3" />
+        {internalChatCopy.unreadBadge(count)}
+      </Pill>
+    </Link>
+  );
+}
 
 export const metadata: Metadata = { title: c.title };
 
@@ -54,6 +83,10 @@ export default async function CarrierTripsPage({
     view,
     page,
   });
+  const unread = await internalUnreadByTrip(
+    supabase,
+    rows.map((trip) => trip.id),
+  );
   const narrowed = units.operable.find((u) => u.id === businessUnitId);
 
   return (
@@ -113,6 +146,7 @@ export default async function CarrierTripsPage({
                       `${trip.load.destination_city}, ${trip.load.destination_state}`,
                     )
                   : ''}
+                <UnreadBadge tripId={trip.id} count={unread.get(trip.id) ?? 0} />
               </td>
               <td className="text-text-dim">{trip.businessUnitName ?? ''}</td>
               <td className="whitespace-nowrap tabular-nums">

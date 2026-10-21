@@ -241,7 +241,8 @@ select is(tests.matrix($$ select 1 from public.trips where id = tests.val('trip1
 select is(tests.matrix($$ select 1 from public.trip_events where trip_id = tests.val('trip1') $$),
   '2,2,2,0,2,0,0', 'trip_events follow the trip');
 select is(tests.matrix($$ select 1 from public.conversations where load_id = tests.val('load1') $$),
-  '2,2,2,0,1,0,0', 'conversations: the negotiation and the trip, for the shipper, M and A; the trip for O');
+  '2,3,3,0,1,0,0',
+  'conversations: the negotiation and the trip for the shipper; those and the internal one (H1) for M and A; only the internal one for O');
 select is(tests.matrix($$ select 1 from public.business_units where company_id = 'c2600000-0000-4000-8000-000000000002' $$),
   '0,2,2,2,0,2,0', 'business_units: every manager and coordinator of the company');
 select is(tests.matrix($$ select 1 from public.business_unit_coordinators $$),
@@ -416,7 +417,7 @@ select is(
 select is(tests.matrix($$ select 1 from public.trips where id = tests.val('trip1') $$),
   '1,1,0,1,0,0,0', 'now B sees the trip and A does not (nor O, who was unassigned)');
 select is(tests.matrix($$ select 1 from public.conversations where trip_id = tests.val('trip1') $$),
-  '1,1,0,1,0,0,0', 'and its chat');
+  '1,2,0,2,0,0,0', 'and its chats (the internal one, not the shipper)');
 select is(tests.matrix($$ select 1 from public.loads where id = tests.val('load1') $$),
   '1,1,1,1,0,0,0', 'B reads the load through the trip; A still through the negotiation');
 select is(tests.matrix($$ select 1 from public.trip_events where trip_id = tests.val('trip1') $$),

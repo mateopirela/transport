@@ -260,6 +260,8 @@ select set_eq(
     'operators_revoke_invitations_on_unit_change',
     'trips_sync_document_shares', 'trips_lock_document_shares', 'documents_sync_shares',
     'notify_trip_document_added',
+    -- H1: a message of the internal trip chat.
+    'notify_internal_message',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

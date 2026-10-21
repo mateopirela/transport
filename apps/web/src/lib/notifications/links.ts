@@ -1,7 +1,7 @@
 // Where a notification leads in the web (B14 for the shipper, G10a for the
 // carrier staff). Pure: notification data is JSON written by the B07
 // triggers, so every id is validated before use.
-import { uuidField, type NotificationType } from '@transport/shared';
+import { INTERNAL_CHAT_PARAM, uuidField, type NotificationType } from '@transport/shared';
 
 import {
   carrierLoadPath,
@@ -86,6 +86,11 @@ export function notificationHref(
         const vehicleId = id(data, 'vehicleId');
         return vehicleId && carrierUnitPath(vehicleId);
       }
+      // A message of the internal trip chat (H1): the trip, on its internal tab.
+      case 'internal_message': {
+        const tripId = id(data, 'tripId');
+        return tripId && `${carrierTripPath(tripId)}?chat=${INTERNAL_CHAT_PARAM}`;
+      }
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6).
       case 'trip_location_stale':
@@ -116,6 +121,8 @@ export function notificationHref(
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2) or company documents, which have no screen for an
     // approved shipper.
+    // The internal trip chat is the carrier's only (H1, D28).
+    case 'internal_message':
     case 'load_match':
     case 'provider_status_changed':
     case 'trip_location_stale':

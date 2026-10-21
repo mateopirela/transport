@@ -3818,6 +3818,22 @@ export interface Database {
         }[];
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
+      internal_chat_inbox: {
+        Args: { p_trip_ids?: string[] };
+        Returns: {
+          conversation_id: string;
+          destination_city: string;
+          last_message_at: string;
+          last_message_attachments: number;
+          last_message_body: string;
+          last_sender_id: string;
+          operator_name: string;
+          origin_city: string;
+          trip_id: string;
+          trip_status: Database['public']['Enums']['trip_status'];
+          unread_count: number;
+        }[];
+      };
       invitation_preview: {
         Args: { p_token: string };
         Returns: {
@@ -4451,7 +4467,7 @@ export interface Database {
         | 'construction_materials'
         | 'livestock';
       company_type: 'shipper' | 'carrier';
-      conversation_kind: 'negotiation' | 'trip';
+      conversation_kind: 'negotiation' | 'trip' | 'trip_internal';
       document_owner_type: 'company' | 'vehicle' | 'operator';
       document_share_reason: 'offer_accepted' | 'trip_assigned';
       document_share_revoke_reason:
@@ -4493,7 +4509,8 @@ export interface Database {
         | 'provider_status_changed'
         | 'trip_document_added'
         | 'vehicle_release_pending'
-        | 'vehicle_released';
+        | 'vehicle_released'
+        | 'internal_message';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -4726,7 +4743,7 @@ export const Constants = {
         'livestock',
       ],
       company_type: ['shipper', 'carrier'],
-      conversation_kind: ['negotiation', 'trip'],
+      conversation_kind: ['negotiation', 'trip', 'trip_internal'],
       document_owner_type: ['company', 'vehicle', 'operator'],
       document_share_reason: ['offer_accepted', 'trip_assigned'],
       document_share_revoke_reason: [
@@ -4776,6 +4793,7 @@ export const Constants = {
         'trip_document_added',
         'vehicle_release_pending',
         'vehicle_released',
+        'internal_message',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

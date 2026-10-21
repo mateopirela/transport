@@ -12,7 +12,7 @@ type Functions = Database['public']['Functions'];
 // and notifications schema of B07 (supabase/migrations/*_chat_notifications.sql).
 describe('generated database types (B07)', () => {
   it('exposes the chat and notification enums', () => {
-    expect([...CONVERSATION_KINDS]).toEqual(['negotiation', 'trip']);
+    expect([...CONVERSATION_KINDS]).toEqual(['negotiation', 'trip', 'trip_internal']);
     expect([...PUSH_PLATFORMS]).toEqual(['ios', 'android']);
     expect(Constants.public.Enums.notification_type).toEqual([...NOTIFICATION_TYPES]);
     for (const type of NOTIFICATION_TYPES) expect(notificationContent(type, {}).title).toBeTruthy();

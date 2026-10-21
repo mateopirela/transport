@@ -32,6 +32,20 @@ describe('pushTarget', () => {
     });
   });
 
+  it('opens the internal chat of the trip for a message of it (H1)', () => {
+    const message = { tripId, conversationId: tripId, type: 'internal_message' };
+    expect(pushTarget(message, 'operator')).toEqual({
+      pathname: '/chat/[tripId]',
+      params: { tripId },
+    });
+    expect(pushTarget(message, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId, chat: 'interno' },
+    });
+    expect(pushTarget(message, 'auth')).toBeNull();
+    expect(pushTarget({ ...message, tripId: '../x' }, 'operator')).toBeNull();
+  });
+
   it('ignores other areas, other payloads and malformed ids', () => {
     expect(pushTarget({ tripId }, 'auth')).toBeNull();
     expect(pushTarget({ tripId: '../x' }, 'carrier')).toBeNull();

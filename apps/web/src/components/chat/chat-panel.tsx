@@ -6,10 +6,12 @@ import {
   chatCopy,
   chatSenderLabel,
   formatDateTime,
+  internalChatCopy,
   MAX_MESSAGE_LENGTH,
+  sharedLocationUrl,
   type Tables,
 } from '@transport/shared';
-import { Paperclip, X } from 'lucide-react';
+import { MapPin, Paperclip, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
@@ -54,6 +56,7 @@ export function ChatPanel({
   initialMessages,
   initialReads,
   area = 'cliente',
+  internal = false,
 }: {
   conversationId: string;
   viewerId: string;
@@ -62,6 +65,8 @@ export function ChatPanel({
   initialReads: ChatRead[];
   /** Area whose attachment route opens the files (each area guards its own). */
   area?: WebArea;
+  /** The carrier's internal chat of a trip (H1): the staff is told apart by role. */
+  internal?: boolean;
 }) {
   // What arrived after the server render (Realtime, catch-up, own sends);
   // merged with the server data, so a refresh of the page adds to it too.
@@ -233,6 +238,8 @@ export function ChatPanel({
           const mine =
             message.sender_id !== null &&
             (own.has(message.sender_id) || message.sender_id === viewerId);
+          // "Enviar mi ubicación" (H1): its map, one click away.
+          const mapUrl = sharedLocationUrl(message.body);
           return (
             <li key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
@@ -242,9 +249,21 @@ export function ChatPanel({
                 )}
               >
                 <p className="text-caption text-text-dim">
-                  {chatSenderLabel(message, viewerId)} · {formatDateTime(message.created_at)}
+                  {chatSenderLabel(message, viewerId, internal)} ·{' '}
+                  {formatDateTime(message.created_at)}
                 </p>
                 {message.body && <p className="break-words whitespace-pre-wrap">{message.body}</p>}
+                {mapUrl && (
+                  <a
+                    href={mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-accent-text underline-offset-4 hover:underline"
+                  >
+                    <MapPin aria-hidden className="size-4" />
+                    {internalChatCopy.openMap}
+                  </a>
+                )}
                 {message.attachments.map((attachment) => (
                   <a
                     key={attachment.path}

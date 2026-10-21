@@ -10,6 +10,7 @@ import {
   operatorStepConfirmLabels,
   operatorTripCopy as copy,
   formatDateTime,
+  internalChatCopy,
   missingTripDocumentsFromError,
   tripDocumentKindLabels,
   tripEventTypeLabels,
@@ -22,6 +23,7 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type ScrollView } from 'react-native';
 
@@ -52,8 +54,10 @@ import { PreciseLocationBanner } from '../../components/precise-location-banner'
 import { TrackingBanner } from '../../components/tracking-banner';
 import {
   Button,
+  Cell,
   Empty,
   Footnote,
+  Group,
   Loading,
   Notice,
   Pill,
@@ -73,6 +77,7 @@ import {
   flushEvidenceQueue,
   useEvidenceQueue,
 } from '../../lib/evidence-sync';
+import { internalUnread, UNREAD_REFRESH_MS } from '../../lib/internal-chat-api';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
 import { loadOperatorTrip, type OperatorTrip } from '../../lib/trip-api';
@@ -121,6 +126,49 @@ function NoticeAction({ label, onPress }: { label: string; onPress: () => void }
     <View style={styles.noticeAction}>
       <Button label={label} variant="secondary" size="small" onPress={onPress} />
     </View>
+  );
+}
+
+/**
+ * "Reportar al coordinador" (H1, D28): the operator's channel to their
+ * coordinator, with the unread messages. Only in the operator's area: the
+ * hombre-camión ("Mi viaje") has no coordinator to report to (D13-E1).
+ */
+function ReportToCoordinator({ tripId }: { tripId: string }) {
+  const router = useRouter();
+  const [unread, setUnread] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const refresh = () => {
+        if (!supabase) return;
+        internalUnread(supabase, tripId)
+          .then((count) => active && setUnread(count))
+          .catch(() => undefined);
+      };
+      refresh();
+      // While in focus, so a reply shows up without leaving the screen.
+      const timer = setInterval(refresh, UNREAD_REFRESH_MS);
+      return () => {
+        active = false;
+        clearInterval(timer);
+      };
+    }, [tripId]),
+  );
+  return (
+    <Group>
+      <Cell
+        icon="chat"
+        title={internalChatCopy.report}
+        subtitle={unread > 0 ? internalChatCopy.reportUnread(unread) : internalChatCopy.description}
+        pill={
+          unread > 0 ? { label: internalChatCopy.unreadBadge(unread), tone: 'accent' } : undefined
+        }
+        role="link"
+        strong
+        onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId } })}
+      />
+    </Group>
   );
 }
 
@@ -280,6 +328,7 @@ function TripView({
   tracking: TripTracking;
 }) {
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
+  const operatorArea = useSession().area === 'operator';
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
   const { type } = useTheme();
@@ -581,6 +630,8 @@ function TripView({
         </View>
 
         {notice}
+
+        {operatorArea ? <ReportToCoordinator tripId={trip.id} /> : null}
 
         <TrackingBanner tracking={tracking} />
         {/* D17; the tracking banner already asks for the consent or "Always". */}

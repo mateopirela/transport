@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  hidesInternalChat,
   licensePairsFrom,
   operatorLicenseCurrent,
   unitLabel,
@@ -100,6 +101,22 @@ export async function listCarrierTrips(
     })),
     total: count ?? data.length,
   };
+}
+
+/**
+ * Unread messages of the internal chat of the trips on screen (H1), from
+ * internal_chat_inbox narrowed to them (RLS): only trips with unread ones.
+ */
+export async function internalUnreadByTrip(
+  supabase: Supabase,
+  tripIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (tripIds.length === 0) return new Map();
+  const { data, error } = await supabase.rpc('internal_chat_inbox', { p_trip_ids: [...tripIds] });
+  if (error) throw new Error(`Internal chat inbox query failed: ${error.message}`);
+  return new Map(
+    data.filter((row) => row.unread_count > 0).map((row) => [row.trip_id, row.unread_count]),
+  );
 }
 
 /** The trip of a load the company won, if visible (link from the load and the negotiation). */
@@ -237,6 +254,9 @@ export async function getCarrierTrip(
     documents,
     locations,
     conversation,
+    internalConversation,
+    staff,
+    company,
     checklist,
     requirements,
     assignment,
@@ -272,7 +292,23 @@ export async function getCarrierTrip(
       .eq('trip_id', trip.id)
       .order('recorded_at', { ascending: false })
       .limit(MAP_POINTS_LIMIT),
-    supabase.from('conversations').select('id').eq('trip_id', trip.id).maybeSingle(),
+    supabase
+      .from('conversations')
+      .select('id')
+      .eq('trip_id', trip.id)
+      .eq('kind', 'trip')
+      .maybeSingle(),
+    supabase
+      .from('conversations')
+      .select('id')
+      .eq('trip_id', trip.id)
+      .eq('kind', 'trip_internal')
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId),
+    supabase.from('companies').select('is_owner_operator').eq('id', companyId).maybeSingle(),
     supabase.rpc('trip_checklist', { p_trip_id: trip.id }),
     supabase.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
     assignmentOptions(
@@ -291,6 +327,9 @@ export async function getCarrierTrip(
     documents,
     locations,
     conversation,
+    internalConversation,
+    staff,
+    company,
     checklist,
     requirements,
   })) {
@@ -316,6 +355,16 @@ export async function getCarrierTrip(
     // Oldest first, to draw the trail in order.
     locations: (locations.data ?? []).reverse(),
     conversationId: conversation.data?.id ?? null,
+    /**
+     * The internal chat with the operator (H1, D28), or null when hidden: a
+     * hombre-camión working alone would only talk to themself (D13-E1).
+     */
+    internalConversationId: hidesInternalChat({
+      isOwnerOperator: company.data?.is_owner_operator === true,
+      staffCount: staff.count ?? 0,
+    })
+      ? null
+      : (internalConversation.data?.id ?? null),
     assignment,
   };
 }

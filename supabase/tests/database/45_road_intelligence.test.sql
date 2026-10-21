@@ -34,6 +34,13 @@ as $$
   select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
 $$;
 
+-- Dates of the catalog are days in Mexico City (CI runs in UTC).
+create function tests.today()
+returns date
+language sql
+stable
+as $$ select (now() at time zone 'America/Mexico_City')::date $$;
+
 create table tests.vals (name text primary key, id uuid);
 grant select, insert on tests.vals to authenticated;
 
@@ -199,7 +206,7 @@ select is(
 select throws_ok(
   $$ insert into public.road_segments (code, name, from_city, from_state, from_lat, from_lng, to_city, to_state,
                                        to_lat, to_lng, distance_km, source, source_date)
-     values ('X-Y', 'X', 'a', 'b', 1, 1, 'c', 'd', 2, 2, 10, 'x', current_date) $$,
+     values ('X-Y', 'X', 'a', 'b', 1, 1, 'c', 'd', 2, 2, 10, 'x', tests.today()) $$,
   '42501', null, 'no client inserts into the catalog directly'
 );
 select throws_ok(
@@ -207,33 +214,33 @@ select throws_ok(
   '42501', null, 'no client updates tolls directly'
 );
 select throws_ok(
-  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'x', current_date, 'estimated', 1, null) $$,
+  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'x', tests.today(), 'estimated', 1, null) $$,
   '42501', 'only admins edit the road catalog', 'a shipper cannot edit tolls'
 );
 select tests.login('a4500000-0000-4000-8000-000000000002');
 select throws_ok(
-  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', current_date, 'estimated', null, null, null, null) $$,
+  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', tests.today(), 'estimated', null, null, null, null) $$,
   '42501', 'only admins edit the road catalog', 'a manager cannot add segments'
 );
 
 select tests.login('a4500000-0000-4000-8000-000000000006');
 select throws_ok(
-  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, '  ', current_date, 'estimated', null, null, null, null) $$,
+  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, '  ', tests.today(), 'estimated', null, null, null, null) $$,
   '22023', 'a source is required', 'the source is required'
 );
 select throws_ok(
-  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', current_date, 'estimated', null, null, null, 'http://insecure.test') $$,
+  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', tests.today(), 'estimated', null, null, null, 'http://insecure.test') $$,
   '22023', 'the source link must be an https URL', 'the source link must be https'
 );
 select throws_ok(
-  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', current_date + 2, 'estimated', null, null, null, null) $$,
+  $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', tests.today() + 2, 'estimated', null, null, null, null) $$,
   '22023', 'source_date cannot be in the future', 'the source date cannot be in the future'
 );
 select throws_ok(
   $$ select public.admin_upsert_road_segment('NEW-SEG', 'Nuevo', 'Saltillo', 'Coahuila', 25.4, -101, 'Matehuala', 'San Luis Potosí', 23.6, -100.6, 100, false, 'x', null, 'estimated', null, null, null, null) $$,
   '22023', 'source_date is required', 'the source date is required'
 );
-insert into tests.vals select 'new_seg', public.admin_upsert_road_segment('sal-mat-libre', 'Saltillo – Matehuala (libre)', 'Saltillo', 'Coahuila', 25.4383, -100.9737, 'Matehuala', 'San Luis Potosí', 23.6489, -100.6436, 265, false, 'Prueba', current_date, 'verified', null, '57', null, 'https://example.test/x');
+insert into tests.vals select 'new_seg', public.admin_upsert_road_segment('sal-mat-libre', 'Saltillo – Matehuala (libre)', 'Saltillo', 'Coahuila', 25.4383, -100.9737, 'Matehuala', 'San Luis Potosí', 23.6489, -100.6436, 265, false, 'Prueba', tests.today(), 'verified', null, '57', null, 'https://example.test/x');
 select is(
   (select code from public.road_segments where id = tests.val('new_seg')),
   'SAL-MAT-LIBRE', 'an admin adds a segment (code upper-cased)'
@@ -242,7 +249,7 @@ select is(tests.audit_count('road_segments'), 1::bigint, 'the new segment is in 
 
 -- Tolls: the admin corrects a tariff and road_catalog reflects it.
 select lives_ok(
-  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'Corrección del admin', current_date, 'verified', 45000, 'https://example.test/tarifa') $$,
+  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'Corrección del admin', tests.today(), 'verified', 45000, 'https://example.test/tarifa') $$,
   'an admin corrects a tariff'
 );
 select is(
@@ -251,7 +258,7 @@ select is(
   'road_catalog shows the corrected tariff from today'
 );
 select lives_ok(
-  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'Tarifa futura', current_date + 30, 'estimated', 99900, null) $$,
+  $$ select public.admin_set_segment_toll(tests.val('slp_lag'), 'c5', 'Tarifa futura', tests.today() + 30, 'estimated', 99900, null) $$,
   'an admin can load a tariff that starts later'
 );
 select is(
@@ -260,27 +267,27 @@ select is(
   'a tariff that has not started yet is not current'
 );
 select lives_ok(
-  $$ select public.admin_set_segment_toll(tests.val('sal_mat'), 'c9', 'Sin tarifa publicada', current_date, 'estimated', null, null) $$,
+  $$ select public.admin_set_segment_toll(tests.val('sal_mat'), 'c9', 'Sin tarifa publicada', tests.today(), 'estimated', null, null) $$,
   'a tariff can be recorded as unknown (null)'
 );
 select is(tests.audit_count('road_segment_tolls'), 3::bigint, 'every toll change is in the audit log');
 
 -- Risks: validated hours, archived ones leave the catalog.
 select throws_ok(
-  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 22::smallint, 'robo', 'x', current_date, 'estimated', null, null) $$,
+  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 22::smallint, 'robo', 'x', tests.today(), 'estimated', null, null) $$,
   '22023', 'invalid hour band', 'a band needs two different hours'
 );
 select throws_ok(
-  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 25::smallint, 'robo', 'x', current_date, 'estimated', null, null) $$,
+  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 25::smallint, 'robo', 'x', tests.today(), 'estimated', null, null) $$,
   '22023', 'invalid hour band', 'hours go up to 24'
 );
-insert into tests.vals select 'risk', public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 6::smallint, 'robo a transporte de carga', 'Fuente de prueba', current_date, 'estimated', null, null);
+insert into tests.vals select 'risk', public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 6::smallint, 'robo a transporte de carga', 'Fuente de prueba', tests.today(), 'estimated', null, null);
 select is(
   tests.catalog_segment('SAL-MAT') -> 'risks' -> 0 ->> 'level', 'high',
   'an active risk is in road_catalog'
 );
 select lives_ok(
-  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 6::smallint, 'robo a transporte de carga', 'Fuente de prueba', current_date, 'estimated', tests.val('risk'), null, true) $$,
+  $$ select public.admin_upsert_segment_risk(tests.val('sal_mat'), 'high', 22::smallint, 6::smallint, 'robo a transporte de carga', 'Fuente de prueba', tests.today(), 'estimated', tests.val('risk'), null, true) $$,
   'an admin archives a risk'
 );
 select is(
@@ -299,7 +306,7 @@ insert into tests.vals select 'corridor', public.admin_upsert_corridor('mty-gdl-
        with ordinality u(code, n) join public.road_segments s on s.code = u.code) x), null);
 select ok('MTY-GDL-LIBRE' = any (tests.catalog_codes()), 'an admin adds a corridor');
 select lives_ok(
-  $$ select public.admin_upsert_road_segment('SAL-MAT-LIBRE', 'Saltillo – Matehuala (libre)', 'Saltillo', 'Coahuila', 25.4383, -100.9737, 'Matehuala', 'San Luis Potosí', 23.6489, -100.6436, 265, false, 'Prueba', current_date, 'verified', tests.val('new_seg'), '57', null, null, true) $$,
+  $$ select public.admin_upsert_road_segment('SAL-MAT-LIBRE', 'Saltillo – Matehuala (libre)', 'Saltillo', 'Coahuila', 25.4383, -100.9737, 'Matehuala', 'San Luis Potosí', 23.6489, -100.6436, 265, false, 'Prueba', tests.today(), 'verified', tests.val('new_seg'), '57', null, null, true) $$,
   'an admin archives a segment'
 );
 select ok(not ('MTY-GDL-LIBRE' = any (tests.catalog_codes())),

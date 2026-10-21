@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(62);
+select plan(63);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -401,6 +401,16 @@ select throws_ok(
      values (tests.val('internal'), 'a4200000-0000-4000-8000-000000000005', 'operator', 'No lo escribí yo') $$,
   '42501', 'a message is sent by its sender',
   'notify_internal_message refuses a message in someone else''s name'
+);
+select tests.login('a4200000-0000-4000-8000-000000000004');
+select throws_ok(
+  $$ insert into public.negotiations (load_id, shipper_company_id, carrier_company_id, business_unit_id)
+     select l.id, l.shipper_company_id, b.company_id, b.id
+     from public.loads l, public.business_units b
+     where l.id = tests.val('load') and b.company_id = 'c4200000-0000-4000-8000-000000000003'
+     limit 1 $$,
+  '42501', 'only a party opens its conversations',
+  'open_conversation refuses a caller who is not a party'
 );
 select set_config('request.jwt.claims', '', true);
 select throws_ok(

@@ -52,6 +52,15 @@ begin
     raise exception 'open_conversation runs only after inserting a negotiation or a trip'
       using errcode = '42501';
   end if;
+  -- And a signed-in caller is one of its parties (or an admin): the RPCs that
+  -- create negotiations and trips run as the carrier or the shipper. The
+  -- migrations, the seed and the service role run without a user.
+  if auth.uid() is not null
+     and not public.is_admin()
+     and public.auth_company_id() is distinct from new.shipper_company_id
+     and public.auth_company_id() is distinct from new.carrier_company_id then
+    raise exception 'only a party opens its conversations' using errcode = '42501';
+  end if;
   if tg_table_name = 'negotiations' then
     insert into public.conversations (kind, negotiation_id, load_id, shipper_company_id, carrier_company_id)
     values ('negotiation', new.id, new.load_id, new.shipper_company_id, new.carrier_company_id);

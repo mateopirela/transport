@@ -1,4 +1,9 @@
-import { chatAttachmentPath, toChatMessage, type ChatMessage } from '@transport/shared';
+import {
+  chatAttachmentPath,
+  internalChatCopy,
+  toChatMessage,
+  type ChatMessage,
+} from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
 import { File as LocalFile } from 'expo-file-system';
 
@@ -75,7 +80,7 @@ export async function uploadChatPhoto(
     .from('chat')
     .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
-  return { path, name: 'Foto.jpg' };
+  return { path, name: internalChatCopy.photoFileName };
 }
 
 /** Marks the conversation read up to its latest message (best effort). */

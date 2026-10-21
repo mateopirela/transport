@@ -16,7 +16,8 @@ tags: [carrier, roads]
 - extendedWaitUntil:
     visible: 'Viajes de regreso'
     timeout: 30000
-- assertVisible: 'Casetas desde \$748'
+# Rows read as one accessibility element: match inside it.
+- assertVisible: '.*Casetas desde \$748.*'
 - takeScreenshot: 18-1-carrier-recommendation-tolls
 - tapOn: 'Guadalajara → Monterrey.*'
 - extendedWaitUntil:
@@ -27,8 +28,8 @@ tags: [carrier, roads]
     direction: DOWN
     timeout: 20000
 - scrollUntilVisible:
-    element: 'MTY–GDL por Saltillo y San Luis Potosí'
+    element: '.*MTY–GDL por Saltillo y San Luis Potosí.*'
     direction: DOWN
     timeout: 20000
-- assertVisible: 'desde \$748.00'
+- assertVisible: '.*desde \$748.00.*'
 - takeScreenshot: 18-2-carrier-suggested-road

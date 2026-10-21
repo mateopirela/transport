@@ -34,6 +34,8 @@ export const internalChatCopy = {
   photoPreview: '📷 Foto',
   /** A photo of the chat in the app: it opens with a short-lived link. */
   viewPhoto: 'Ver foto',
+  /** A shared location: opens the map at the point. */
+  openMap: 'Abrir en el mapa',
   openAttachment: (name: string) => `Abrir ${name}`,
   tabs: { label: 'Chat del viaje', shipper: 'Cliente', internal: 'Interno' },
   unreadBadge: (count: number) => (count > 99 ? '99+' : String(count)),

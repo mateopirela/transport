@@ -13,6 +13,7 @@ import {
   internalMessagePreview,
   internalMessageRoutes,
   locationMessage,
+  sharedLocationUrl,
   tripChatTab,
 } from './internal-chat';
 
@@ -93,6 +94,18 @@ describe('quick reports and location', () => {
     expect(locationMessage({ lat: 20.123456789, lng: -0 })).toBe(
       'Mi ubicación: https://maps.google.com/?q=20.123457,0',
     );
+  });
+
+  it('finds the map link of a shared location, and only that', () => {
+    const sent = locationMessage({ lat: 20.633, lng: -103.361 });
+    expect(sharedLocationUrl(sent)).toBe('https://maps.google.com/?q=20.633,-103.361');
+    expect(sharedLocationUrl('Ya llegué a cargar')).toBeNull();
+    expect(sharedLocationUrl(null)).toBeNull();
+    // Other hosts, extra text or a point outside the globe never open.
+    expect(sharedLocationUrl('Mi ubicación: https://evil.example/?q=20,-103')).toBeNull();
+    expect(sharedLocationUrl('Mi ubicación: https://maps.google.com/?q=20,-103&x=1')).toBeNull();
+    expect(sharedLocationUrl('Mi ubicación: https://maps.google.com/?q=95,-103')).toBeNull();
+    expect(sharedLocationUrl('Mi ubicación: javascript:alert(1)')).toBeNull();
   });
 
   it('refuses a point outside the globe', () => {

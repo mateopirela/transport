@@ -50,6 +50,26 @@ export function locationMessage({ lat, lng }: { lat: number; lng: number }): str
   return internalChatCopy.location(`https://maps.google.com/?q=${fixed(lat)},${fixed(lng)}`);
 }
 
+const LOCATION_URL =
+  /^https:\/\/maps\.google\.com\/\?q=(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)$/u;
+
+/**
+ * The map link of a message sent with "Enviar mi ubicación", to open it with
+ * a tap; null for any other text. The link is rebuilt from the coordinates,
+ * so only a Google Maps link to a valid point ever opens.
+ */
+export function sharedLocationUrl(body: string | null): string | null {
+  const prefix = internalChatCopy.location('');
+  if (!body?.startsWith(prefix)) return null;
+  const match = LOCATION_URL.exec(body.slice(prefix.length).trim());
+  if (!match) return null;
+  try {
+    return locationMessage({ lat: Number(match[1]), lng: Number(match[2]) }).slice(prefix.length);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Whether a carrier hides the internal chat (D13-E1): a hombre-camión with no
  * other staff would only talk to themself. `staffCount` counts the accounts

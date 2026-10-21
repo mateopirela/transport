@@ -5,7 +5,7 @@ import {
   tripStatusLabels,
 } from '@transport/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ChatPanel } from '../../../components/chat-panel';
@@ -42,11 +42,17 @@ export default function OperatorChatScreen() {
   // the previous trip's chat when a load fails. A failed refresh of the same
   // trip keeps its chat mounted (draft and pending reports included).
   const lastLoaded = useRef<Loaded | null>(null);
+  // The trip on screen now: a slower request of the previous trip that ends
+  // later never becomes its last good result.
+  const shownKey = useRef(key);
+  useEffect(() => {
+    shownKey.current = key;
+  }, [key]);
   const load = useCallback(async (): Promise<Loaded> => {
     if (!supabase || !key) return { tripId: key, chat: null, failed: false };
     try {
       const result = { tripId: key, chat: await loadOperatorChat(supabase, key), failed: false };
-      lastLoaded.current = result;
+      if (shownKey.current === key) lastLoaded.current = result;
       return result;
     } catch {
       const previous = lastLoaded.current;
@@ -54,9 +60,14 @@ export default function OperatorChatScreen() {
     }
   }, [key]);
   const { state: loaded, reload } = useLoader(load);
-  // Until this trip's result arrives, the previous trip's chat is not shown.
-  const state: LoaderState<Loaded> =
-    loaded.status === 'ready' && loaded.data.tripId !== key ? { status: 'loading' } : loaded;
+  // Until this trip's result arrives, the previous trip's chat is not shown;
+  // when the last result to land is another trip's (it ended after this
+  // trip's), this trip loads again instead of waiting for a focus change.
+  const stale = loaded.status === 'ready' && loaded.data.tripId !== key;
+  useEffect(() => {
+    if (stale) void reload();
+  }, [stale, reload]);
+  const state: LoaderState<Loaded> = stale ? { status: 'loading' } : loaded;
   const back = (
     <Button
       label={mobileNavCopy.assignedTrip}

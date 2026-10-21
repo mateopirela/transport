@@ -1,14 +1,21 @@
 import {
   carrierRouteFormSchema,
   CITY_PRESETS,
+  findCityPreset,
   fleetCopy,
+  ROAD_PREFERENCES,
+  roadPreferenceLabels,
+  roadsCopy,
+  segmentsForRoute,
   toOptions,
   UNIT_TYPES,
   unitTypeLabels,
+  type RoadPreference,
   type UnitType,
 } from '@transport/shared';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { ChoiceCell, MultiChoiceCell } from '../../components/choice-cell';
@@ -26,6 +33,7 @@ import {
 } from '../../components/ui';
 import { addRoute, archiveRoute, listRoutes } from '../../lib/fleet-api';
 import { fleetErrorMessage } from '../../lib/fleet-errors';
+import { listRoadPreferences, loadRoadContext, setRoadPreference } from '../../lib/roads-api';
 import { toggleItem } from '../../lib/fleet-forms';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
@@ -34,7 +42,34 @@ const copy = fleetCopy.routes;
 const CITY_OPTIONS = CITY_PRESETS.map((c) => ({ value: c.id, label: c.city }));
 const UNIT_TYPE_OPTIONS = toOptions(UNIT_TYPES, unitTypeLabels);
 
-const loadRoutes = ({ client, companyId }: CarrierContext) => listRoutes(client, companyId);
+const PREFERENCE_OPTIONS = toOptions(ROAD_PREFERENCES, roadPreferenceLabels);
+
+async function loadRoutes({ client, companyId }: CarrierContext) {
+  const [routes, roads, preferences] = await Promise.all([
+    listRoutes(client, companyId),
+    loadRoadContext(client),
+    // H4: the preferred and avoided segments of each route.
+    listRoadPreferences(client, companyId).catch(() => []),
+  ]);
+  return {
+    routes,
+    // Per route, the segments of the catalog's corridors that serve it
+    // (routes are stored as city presets, so their points are known).
+    roads: routes.map((route) => ({
+      route,
+      segments: segmentsForRoute(
+        roads.corridors,
+        findCityPreset(route.origin_city, route.origin_state) ?? null,
+        findCityPreset(route.destination_city, route.destination_state) ?? null,
+      ),
+      marked: new Map<string, RoadPreference>(
+        preferences
+          .filter((p) => p.carrierRouteId === route.id)
+          .map((p) => [p.segmentId, p.preference]),
+      ),
+    })),
+  };
+}
 
 /** Usual routes of the carrier, used for recommendations and return trips (B18). */
 export default function Routes() {
@@ -78,13 +113,13 @@ export default function Routes() {
           <Skeleton />
         ) : state.status === 'error' ? (
           <LoadError onRetry={() => void reload()} />
-        ) : state.data.length === 0 ? (
+        ) : state.data.routes.length === 0 ? (
           <Group>
             <TextCell tone="dim">{copy.empty}</TextCell>
           </Group>
         ) : (
           <Group>
-            {state.data.map((route) => (
+            {state.data.routes.map((route) => (
               <Cell
                 key={route.id}
                 title={copy.item(route.origin_city, route.destination_city)}
@@ -105,6 +140,45 @@ export default function Routes() {
           </Group>
         )}
         <Footnote>{copy.subtitle}</Footnote>
+
+        {state.status === 'ready'
+          ? state.data.roads
+              .filter(({ segments }) => segments.length > 0)
+              .map(({ route, segments, marked }) => (
+                <View key={route.id}>
+                  <SectionHeader
+                    title={roadsCopy.preferences.forRoute(
+                      copy.item(route.origin_city, route.destination_city),
+                    )}
+                  />
+                  <Group>
+                    {segments.map((segment) => (
+                      <ChoiceCell
+                        key={segment.id}
+                        label={
+                          segment.highway ? `${segment.name} · ${segment.highway}` : segment.name
+                        }
+                        options={PREFERENCE_OPTIONS}
+                        value={marked.get(segment.id)}
+                        clearable
+                        onChange={(preference) =>
+                          carrier &&
+                          void run(() =>
+                            setRoadPreference(
+                              carrier.client,
+                              route.id,
+                              segment.id,
+                              preference ?? null,
+                            ),
+                          )
+                        }
+                      />
+                    ))}
+                  </Group>
+                  <Footnote>{roadsCopy.preferences.hint}</Footnote>
+                </View>
+              ))
+          : null}
 
         <SectionHeader title={copy.add} />
         <Group>

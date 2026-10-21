@@ -26,12 +26,20 @@ export function vehicleSchemaInput(entries: Entries, features: readonly string[]
     capacityKg: tractor ? undefined : parseNumberInput(entries.capacityKg),
     capacityM3: tractor ? undefined : parseNumberInput(entries.capacityM3),
     features: tractor ? [] : [...features],
+    axleCount: parseNumberInput(entries.axleCount),
   };
 }
 
 export type VehicleFormRow = Pick<
   Tables<'vehicles'>,
-  'kind' | 'plate' | 'fleet_number' | 'model_year' | 'unit_type' | 'capacity_kg' | 'capacity_m3'
+  | 'kind'
+  | 'plate'
+  | 'fleet_number'
+  | 'model_year'
+  | 'unit_type'
+  | 'capacity_kg'
+  | 'capacity_m3'
+  | 'axle_count'
 >;
 
 /** The form's values from a unit row (to edit it). Features are checkboxes, apart. */
@@ -44,6 +52,7 @@ export function vehicleFormValues(row: VehicleFormRow): Entries {
     unitType: row.unit_type ?? '',
     capacityKg: row.capacity_kg?.toString() ?? '',
     capacityM3: row.capacity_m3?.toString() ?? '',
+    axleCount: row.axle_count?.toString() ?? '',
   };
 }
 

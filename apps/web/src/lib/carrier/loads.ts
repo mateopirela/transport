@@ -25,6 +25,7 @@ import {
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
+import { roadSuggesterFor } from './roads';
 import type { LoadSearchFilters } from './filters';
 
 // Data access of the carrier web's loads and negotiation screens (G10a), the
@@ -49,6 +50,7 @@ export type CarrierUnit = Pick<
   | 'business_unit_id'
   | 'capacity_kg'
   | 'features'
+  | 'axle_count'
 >;
 
 /**
@@ -65,7 +67,9 @@ export async function listCarrierUnits(
   return check(
     await supabase
       .from('vehicles')
-      .select('id, plate, fleet_number, unit_type, kind, business_unit_id, capacity_kg, features')
+      .select(
+        'id, plate, fleet_number, unit_type, kind, business_unit_id, capacity_kg, features, axle_count',
+      )
       .eq('company_id', companyId)
       .in('business_unit_id', [...businessUnitIds])
       .is('archived_at', null)
@@ -143,8 +147,9 @@ async function returnTripCities(supabase: Supabase): Promise<Map<string, string>
  */
 export async function unitRecommendations(
   supabase: Supabase,
-  vehicleId: string,
+  unit: Pick<CarrierUnit, 'id' | 'kind' | 'unit_type' | 'axle_count'>,
 ): Promise<UnitRecommendations> {
+  const vehicleId = unit.id;
   const { data, error } = await supabase.functions.invoke<{ recommendations: Recommendation[] }>(
     'recommendations',
     { body: { vehicleId, limit: DEFAULT_TOP_N } },
@@ -155,7 +160,11 @@ export async function unitRecommendations(
   const rows = check(
     await supabase.rpc('match_candidates', { p_vehicle_id: vehicleId, p_limit: 200 }),
   );
-  const scored = await recommend(rows.map(candidateFromRow), { topN: DEFAULT_TOP_N });
+  const scored = await recommend(rows.map(candidateFromRow), {
+    topN: DEFAULT_TOP_N,
+    // H4: the same road suggestion as the Edge Function.
+    suggestRoad: await roadSuggesterFor(supabase, [unit]),
+  });
   return {
     vehicleId,
     recommendations: scored.map((m) => toRecommendation(m, matchExplanation(m.breakdown))),
@@ -168,7 +177,7 @@ export async function carrierFeed(
   units: readonly CarrierUnit[],
 ): Promise<CarrierFeed> {
   const [perUnit, cities] = await Promise.all([
-    Promise.all(units.map((u) => unitRecommendations(supabase, u.id))),
+    Promise.all(units.map((u) => unitRecommendations(supabase, u))),
     returnTripCities(supabase),
   ]);
   return buildCarrierFeed(perUnit, cities);

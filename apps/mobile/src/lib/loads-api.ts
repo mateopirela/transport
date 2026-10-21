@@ -14,6 +14,7 @@ import {
   type UnitType,
 } from '@transport/shared';
 
+import { roadSuggesterFor } from './roads-api';
 import type { Supabase } from './supabase';
 
 // Data access of the carrier's loads screens (B19). Everything goes through
@@ -33,7 +34,7 @@ function ok({ error }: { error: unknown }): void {
 
 export type CarrierUnit = Pick<
   Tables<'vehicles'>,
-  'id' | 'plate' | 'fleet_number' | 'unit_type' | 'kind'
+  'id' | 'plate' | 'fleet_number' | 'unit_type' | 'kind' | 'axle_count'
 >;
 
 // Shared with the carrier web since G10a.
@@ -44,7 +45,7 @@ export async function listCarrierUnits(client: Supabase, companyId: string) {
   return check(
     await client
       .from('vehicles')
-      .select('id, plate, fleet_number, unit_type, kind')
+      .select('id, plate, fleet_number, unit_type, kind, axle_count')
       .eq('company_id', companyId)
       .is('archived_at', null)
       .not('unit_type', 'is', null)
@@ -101,7 +102,11 @@ export async function unitRecommendations(
   const rows = check(
     await client.rpc('match_candidates', { p_vehicle_id: vehicleId, p_limit: 200 }),
   );
-  const scored = await recommend(rows.map(candidateFromRow), { topN: DEFAULT_TOP_N });
+  const scored = await recommend(rows.map(candidateFromRow), {
+    topN: DEFAULT_TOP_N,
+    // H4: the same road suggestion as the Edge Function (none if unavailable).
+    suggestRoad: await roadSuggesterFor(client, [vehicleId]),
+  });
   return {
     vehicleId,
     recommendations: scored.map((m) => toRecommendation(m, matchExplanation(m.breakdown))),

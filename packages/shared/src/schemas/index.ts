@@ -11,3 +11,4 @@ export * from './redeem';
 export * from './trip';
 export * from './vehicle';
 export * from './verification';
+export * from './roads';

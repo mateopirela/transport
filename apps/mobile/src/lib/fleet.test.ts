@@ -48,6 +48,7 @@ describe('vehicle form', () => {
       capacity_kg: 30000,
       capacity_m3: null,
       features: ['tarp'],
+      axle_count: null,
     });
   });
 
@@ -89,6 +90,7 @@ describe('vehicle form', () => {
         capacity_kg: 12000,
         capacity_m3: 45.5,
         features: [],
+        axle_count: 3,
       }),
     ).toEqual({
       kind: 'rigid',
@@ -99,6 +101,7 @@ describe('vehicle form', () => {
       capacityKg: '12000',
       capacityM3: '45.5',
       features: [],
+      axleCount: '3',
     });
   });
 });

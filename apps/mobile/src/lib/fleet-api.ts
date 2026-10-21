@@ -110,7 +110,7 @@ export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'bu
 }
 
 const VEHICLE_COLUMNS =
-  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_unit_id, business_units(name)';
+  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, axle_count, business_unit_id, business_units(name)';
 
 export async function listVehicles(
   client: Supabase,

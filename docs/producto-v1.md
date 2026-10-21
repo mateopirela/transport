@@ -64,7 +64,7 @@
 - **Mi empresa**:
   - unidades de negocio: crear, renombrar y archivar
   - coordinadores: invitar por enlace, asignarlos a una o varias unidades de negocio, moverlos o darlos de baja
-  - camiones: alta con placas, tipo de unidad, capacidad y documentos (tarjeta de circulación, permisos, seguro vigente); editarlos, moverlos de unidad de negocio o darlos de baja
+  - camiones: alta con placas, tipo de unidad, capacidad, número de ejes (decide la tarifa de casetas, D31) y documentos (tarjeta de circulación, permisos, seguro vigente); editarlos, moverlos de unidad de negocio o darlos de baja
   - operadores: invitar por enlace, moverlos de unidad de negocio, restablecerles el acceso o darlos de baja
   - las bajas nunca rompen un viaje activo (se bloquean mientras haya uno)
 - Supervisar **todos** los viajes de la empresa, con filtro por unidad de negocio.
@@ -77,6 +77,8 @@
 - Disponibilidad de sus unidades (dónde y desde cuándo queda libre cada una) y rutas habituales de la empresa.
 - **Cargas recomendadas**, incluido el modo **viaje de regreso**, y notificaciones de cargas nuevas cercanas a sus camiones disponibles y compatibles.
 - Búsqueda y filtro de cargas, con detalle de la carga (mapa y distancia en vacío).
+- **Ruta sugerida** de cada carga (D31): el corredor del catálogo por donde conviene ir, las **casetas estimadas** para la clase del camión (por número de ejes) con su fuente y fecha, y los **avisos de tramos inseguros** a la hora en que pasaría el camión. Las recomendaciones muestran "Casetas ~$X" y el aviso, y puntúan el precio sin casetas. Lo que no tiene fuente dice "Sin dato".
+- En sus rutas habituales, **tramos preferidos y tramos a evitar**: la ruta sugerida los respeta.
 - Ofertar y contraofertar (precio y disponibilidad), con chat con el cliente.
 - Confirmar camión y operador del viaje ganado; ver si el cliente ya lo dio de alta como proveedor.
 - Subir los documentos del viaje (D22): orden de servicio, CFDI con Carta Porte y factura.
@@ -113,6 +115,7 @@
 - *(Pospuesto, D24)* Estado de suscripción de cada empresa transportista y fin del periodo piloto.
 - Estadísticas básicas: cargas publicadas, ofertas, viajes, viajes de regreso logrados y km en vacío.
 - Bitácora de auditoría de acciones administrativas.
+- **Carreteras** (D31): tramos, casetas por clase de camión, inseguridad por tramo y franja horaria, y corredores; cada dato con su fuente y fecha, y la marca "estimado" o "verificado". Los cambios quedan en la bitácora.
 
 ### Transversal
 - Notificaciones push (móvil) y por email (web) cuando hay:
@@ -180,6 +183,8 @@ Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o
 | Ver documentos compartidos del transportista | ✅ (de sus viajes) | — | — | — | ✅ |
 | Dar de alta a un transportista como proveedor | ✅ | — | — | — | 👁 |
 | Compartir por enlace | ✅ carga y seguimiento (público) | ✅ carga (interno) | 🔸 carga (interno) | — | — |
+| Marcar tramos preferidos o a evitar en las rutas habituales (D31) | — | ✅ | ✅ (rutas de la empresa) | — | 👁 |
+| Editar el catálogo de carreteras: tramos, casetas, inseguridad y corredores (D31) | — | — | — | — | ✅ |
 | Pagar y administrar la suscripción *(pospuesto, D24: no se construye en esta ola)* | — | ✅ (web) | 👁 estado | — | 👁 |
 
 ## 7. Glosario

@@ -46,6 +46,7 @@ export const paths = {
   adminLoads: '/admin/cargas',
   adminTrips: '/admin/viajes',
   adminIncidents: '/admin/incidencias',
+  adminRoads: '/admin/carreteras',
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,

@@ -3,7 +3,9 @@ import {
   carrierLoadsCopy,
   formatDateTime,
   formatMxn,
+  cardRoad,
   matchingCopy,
+  roadsCopy,
   unitTypeLabels,
   type Recommendation,
 } from '@transport/shared';
@@ -58,6 +60,9 @@ export function RecommendationCell({
   }
   const returnTrip = r.breakdown.isReturnTrip;
   const estimated = r.breakdown.distanceSource === 'estimate';
+  // H4: estimated tolls of the suggested road, and a warning when it crosses a
+  // high-risk segment inside its band.
+  const { tolls, risky } = cardRoad(r.road);
   return (
     <Cell role="link" onPress={onPress}>
       <Text style={styles.title}>{copy.route(r.origin.city, r.destination.city)}</Text>
@@ -67,10 +72,12 @@ export function RecommendationCell({
       </Text>
       <Text style={styles.price}>{copy.price(formatMxn(r.proposedPriceCents))}</Text>
       {unitLabel ? <Text style={styles.dim}>{copy.unit(unitLabel)}</Text> : null}
-      {returnTrip || estimated ? (
+      {returnTrip || estimated || tolls || risky ? (
         <View style={styles.pills}>
           {returnTrip ? <Pill label={matchingCopy.returnTrip} tone="ok" /> : null}
           {estimated ? <Pill label={matchingCopy.estimatedDistance} /> : null}
+          {tolls ? <Pill label={tolls} /> : null}
+          {risky ? <Pill label={roadsCopy.cardHighRisk} tone="red" /> : null}
         </View>
       ) : null}
     </Cell>

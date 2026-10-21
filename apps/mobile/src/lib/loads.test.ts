@@ -153,6 +153,7 @@ describe('emptyLegs', () => {
     fleet_number: null,
     unit_type: 'dry_van',
     kind: 'rigid',
+    axle_count: null,
   });
 
   it('keeps the compatible units, nearest first, with estimated road km', async () => {

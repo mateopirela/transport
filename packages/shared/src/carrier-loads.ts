@@ -9,6 +9,7 @@ import { vehicleReleaseCopy } from './copy/vehicle-release';
 import type { LoadStatus, OfferSide, OfferStatus, TripStatus } from './enums';
 import type { LatLng } from './geo';
 import type { MatchBreakdown, MatchPlace, ScoredMatch } from './matching/scoring';
+import type { RoadSuggestion } from './roads/suggest';
 import { ACTIVE_TRIP_STATUSES } from './trips';
 
 /** One recommendation, as the Edge Function `recommendations` returns it (B08). */
@@ -23,14 +24,17 @@ export interface Recommendation {
   score: number;
   explanation: string;
   breakdown: MatchBreakdown;
+  /** Suggested road of the load (H4); absent from an older Edge Function. */
+  road?: RoadSuggestion;
 }
 
 /** The same shape from a locally scored match (fallback without the Edge Function). */
 export function toRecommendation(
-  { candidate, score, breakdown }: ScoredMatch,
+  { candidate, score, breakdown, road }: ScoredMatch,
   explanation: string,
 ): Recommendation {
   return {
+    ...(road ? { road } : {}),
     loadId: candidate.loadId,
     vehicleId: candidate.vehicleId,
     origin: candidate.origin,

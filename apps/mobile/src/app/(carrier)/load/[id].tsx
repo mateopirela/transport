@@ -1,10 +1,16 @@
 import {
   cargoTypeLabels,
   carrierLoadsCopy,
+  defaultAxleCount,
   formatDateTime,
   formatMxn,
+  roadsCopy,
   specialRequirementLabels,
+  suggestLoadRoad,
+  unitLabel,
   unitTypeLabels,
+  vehicleAxles,
+  type RoadContext,
 } from '@transport/shared';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,6 +22,7 @@ import { DetailRow } from '../../../components/detail-row';
 import { useNegotiation } from '../../../components/negotiation-panel';
 import { RoutePreview } from '../../../components/route-preview';
 import { ShareWithTeamButton } from '../../../components/share-button';
+import { SuggestedRoute } from '../../../components/suggested-route';
 import {
   Group,
   LoadError,
@@ -35,6 +42,7 @@ import {
   type EmptyLeg,
   type LoadNegotiation,
 } from '../../../lib/loads-api';
+import { loadRoadContext } from '../../../lib/roads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useTheme } from '../../../theme';
 
@@ -50,14 +58,15 @@ export default function LoadDetail() {
 
   const load = useCallback(
     async ({ client, companyId }: CarrierContext) => {
-      const [negotiation, units] = await Promise.all([
+      const [negotiation, units, roads] = await Promise.all([
         loadWithNegotiation(client, companyId, id),
         listCarrierUnits(client, companyId),
+        loadRoadContext(client),
       ]);
       // Compatible units nearest first; the unit it was recommended for leads.
       const legs = negotiation ? await emptyLegs(client, id, units) : [];
       legs.sort((a, b) => Number(b.vehicleId === vehicleId) - Number(a.vehicleId === vehicleId));
-      return { negotiation, units, legs };
+      return { negotiation, units, legs, roads };
     },
     [id, vehicleId],
   );
@@ -92,6 +101,7 @@ export default function LoadDetail() {
         negotiation={state.data.negotiation}
         units={state.data.units}
         legs={state.data.legs}
+        roads={state.data.roads}
         offerSource={vehicleId ? 'recommendation' : 'search'}
         reload={reload}
       />
@@ -104,6 +114,7 @@ function LoadBody({
   negotiation,
   units,
   legs,
+  roads,
   offerSource,
   reload,
 }: {
@@ -111,6 +122,7 @@ function LoadBody({
   negotiation: LoadNegotiation;
   units: readonly CarrierUnit[];
   legs: readonly EmptyLeg[];
+  roads: RoadContext;
   offerSource: 'recommendation' | 'search';
   reload: () => Promise<void>;
 }) {
@@ -127,6 +139,10 @@ function LoadBody({
     onChanged: reload,
   });
   const route = `${l.origin_city} → ${l.destination_city}`;
+  // H4: the suggested road for the unit that leads (its axles pick the toll class).
+  const roadUnit = units.find((u) => u.id === best?.vehicleId);
+  const roadAxles = roadUnit ? vehicleAxles(roadUnit) : defaultAxleCount('tractor', null);
+  const road = suggestLoadRoad(roads, l, roadAxles);
 
   return (
     <>
@@ -183,6 +199,11 @@ function LoadBody({
           {l.notes ? <DetailRow label={copy.notes} value={l.notes} /> : null}
         </Group>
         <ShareWithTeamButton client={carrier.client} loadId={l.id} route={route} />
+
+        <SuggestedRoute
+          road={road}
+          estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+        />
 
         <SectionHeader title={carrierLoadsCopy.chat.title} />
         {negotiation.conversationId ? (

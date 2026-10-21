@@ -8,13 +8,13 @@ import {
   expiredRequirementIds,
   findCityPreset,
   fleetErrorText,
-  fromEwkbPoint,
   mexicoCityDateTime,
   mexicoCityParts,
   toEwktPoint,
   unitLabel,
   vehicleReadiness,
 } from './fleet';
+import { fromEwkbPoint } from './geo';
 import {
   availabilityFormSchema,
   carrierRouteFormSchema,

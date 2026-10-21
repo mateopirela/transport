@@ -19,6 +19,7 @@ export * from './negotiation';
 export * from './notification-email';
 export * from './notifications';
 export * from './permissions';
+export * from './roads';
 export * from './share-links';
 export * from './shared-documents';
 export * from './tracking';

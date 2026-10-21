@@ -72,7 +72,7 @@ export async function loadFleetContext(
 // ---------------------------------------------------------------------------
 
 const VEHICLE_COLUMNS =
-  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, business_unit_id, current_operator_id, business_unit:business_units!vehicles_business_unit_fkey(name)';
+  'id, kind, plate, fleet_number, model_year, unit_type, capacity_kg, capacity_m3, features, axle_count, business_unit_id, current_operator_id, business_unit:business_units!vehicles_business_unit_fkey(name)';
 
 /**
  * Units waiting for their release (G5, D20), of one unit or of every unit

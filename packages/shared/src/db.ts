@@ -126,6 +126,75 @@ export interface Database {
           },
         ];
       };
+      carrier_road_preferences: {
+        Row: {
+          archived_at: string | null;
+          carrier_route_id: string | null;
+          company_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          notes: string | null;
+          preference: Database['public']['Enums']['road_preference'];
+          segment_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          carrier_route_id?: string | null;
+          company_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          preference: Database['public']['Enums']['road_preference'];
+          segment_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          carrier_route_id?: string | null;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          preference?: Database['public']['Enums']['road_preference'];
+          segment_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'carrier_road_preferences_carrier_route_id_fkey';
+            columns: ['carrier_route_id'];
+            isOneToOne: false;
+            referencedRelation: 'carrier_routes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'carrier_road_preferences_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'carrier_road_preferences_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'carrier_road_preferences_segment_id_fkey';
+            columns: ['segment_id'];
+            isOneToOne: false;
+            referencedRelation: 'road_segments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       carrier_routes: {
         Row: {
           archived_at: string | null;
@@ -1761,6 +1830,285 @@ export interface Database {
         };
         Relationships: [];
       };
+      road_corridor_segments: {
+        Row: {
+          corridor_id: string;
+          id: string;
+          segment_id: string;
+          seq: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          corridor_id: string;
+          id?: string;
+          segment_id: string;
+          seq: number;
+        };
+        Update: {
+          corridor_id?: string;
+          id?: string;
+          segment_id?: string;
+          seq?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'road_corridor_segments_corridor_id_fkey';
+            columns: ['corridor_id'];
+            isOneToOne: false;
+            referencedRelation: 'road_corridors';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'road_corridor_segments_segment_id_fkey';
+            columns: ['segment_id'];
+            isOneToOne: false;
+            referencedRelation: 'road_segments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      road_corridors: {
+        Row: {
+          archived_at: string | null;
+          bidirectional: boolean;
+          code: string;
+          created_at: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_radius_km: number;
+          destination_state: string;
+          id: string;
+          name: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_radius_km: number;
+          origin_state: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          bidirectional?: boolean;
+          code: string;
+          created_at?: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_radius_km?: number;
+          destination_state: string;
+          id?: string;
+          name: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_radius_km?: number;
+          origin_state: string;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          bidirectional?: boolean;
+          code?: string;
+          created_at?: string;
+          destination_city?: string;
+          destination_lat?: number;
+          destination_lng?: number;
+          destination_radius_km?: number;
+          destination_state?: string;
+          id?: string;
+          name?: string;
+          origin_city?: string;
+          origin_lat?: number;
+          origin_lng?: number;
+          origin_radius_km?: number;
+          origin_state?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      road_segment_risks: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          data_status: Database['public']['Enums']['road_data_status'];
+          description: string;
+          from_hour: number;
+          id: string;
+          level: Database['public']['Enums']['road_risk_level'];
+          observed_on: string;
+          segment_id: string;
+          source: string;
+          source_url: string | null;
+          to_hour: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          description: string;
+          from_hour: number;
+          id?: string;
+          level: Database['public']['Enums']['road_risk_level'];
+          observed_on: string;
+          segment_id: string;
+          source: string;
+          source_url?: string | null;
+          to_hour: number;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          description?: string;
+          from_hour?: number;
+          id?: string;
+          level?: Database['public']['Enums']['road_risk_level'];
+          observed_on?: string;
+          segment_id?: string;
+          source?: string;
+          source_url?: string | null;
+          to_hour?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'road_segment_risks_segment_id_fkey';
+            columns: ['segment_id'];
+            isOneToOne: false;
+            referencedRelation: 'road_segments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      road_segment_tolls: {
+        Row: {
+          amount_cents: number | null;
+          created_at: string;
+          data_status: Database['public']['Enums']['road_data_status'];
+          id: string;
+          segment_id: string;
+          source: string;
+          source_url: string | null;
+          updated_at: string;
+          valid_from: string;
+          vehicle_class: Database['public']['Enums']['toll_vehicle_class'];
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_cents?: number | null;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          id?: string;
+          segment_id: string;
+          source: string;
+          source_url?: string | null;
+          updated_at?: string;
+          valid_from: string;
+          vehicle_class: Database['public']['Enums']['toll_vehicle_class'];
+        };
+        Update: {
+          amount_cents?: number | null;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          id?: string;
+          segment_id?: string;
+          source?: string;
+          source_url?: string | null;
+          updated_at?: string;
+          valid_from?: string;
+          vehicle_class?: Database['public']['Enums']['toll_vehicle_class'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'road_segment_tolls_segment_id_fkey';
+            columns: ['segment_id'];
+            isOneToOne: false;
+            referencedRelation: 'road_segments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      road_segments: {
+        Row: {
+          archived_at: string | null;
+          code: string;
+          created_at: string;
+          data_status: Database['public']['Enums']['road_data_status'];
+          distance_km: number;
+          from_city: string;
+          from_lat: number;
+          from_lng: number;
+          from_state: string;
+          highway: string | null;
+          id: string;
+          is_toll: boolean;
+          name: string;
+          notes: string | null;
+          source: string;
+          source_date: string;
+          source_url: string | null;
+          to_city: string;
+          to_lat: number;
+          to_lng: number;
+          to_state: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          archived_at?: string | null;
+          code: string;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          distance_km: number;
+          from_city: string;
+          from_lat: number;
+          from_lng: number;
+          from_state: string;
+          highway?: string | null;
+          id?: string;
+          is_toll?: boolean;
+          name: string;
+          notes?: string | null;
+          source: string;
+          source_date: string;
+          source_url?: string | null;
+          to_city: string;
+          to_lat: number;
+          to_lng: number;
+          to_state: string;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          code?: string;
+          created_at?: string;
+          data_status?: Database['public']['Enums']['road_data_status'];
+          distance_km?: number;
+          from_city?: string;
+          from_lat?: number;
+          from_lng?: number;
+          from_state?: string;
+          highway?: string | null;
+          id?: string;
+          is_toll?: boolean;
+          name?: string;
+          notes?: string | null;
+          source?: string;
+          source_date?: string;
+          source_url?: string | null;
+          to_city?: string;
+          to_lat?: number;
+          to_lng?: number;
+          to_state?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       route_distance_cache: {
         Row: {
           destination_lat: number;
@@ -2560,6 +2908,7 @@ export interface Database {
       vehicles: {
         Row: {
           archived_at: string | null;
+          axle_count: number | null;
           business_unit_id: string;
           capacity_kg: number | null;
           capacity_m3: number | null;
@@ -2578,6 +2927,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           archived_at?: string | null;
+          axle_count?: number | null;
           business_unit_id: string;
           capacity_kg?: number | null;
           capacity_m3?: number | null;
@@ -2595,6 +2945,7 @@ export interface Database {
         };
         Update: {
           archived_at?: string | null;
+          axle_count?: number | null;
           business_unit_id?: string;
           capacity_kg?: number | null;
           capacity_m3?: number | null;
@@ -2829,6 +3180,80 @@ export interface Database {
           total_count: number;
         }[];
       };
+      admin_set_segment_toll: {
+        Args: {
+          p_amount_cents?: number;
+          p_data_status: Database['public']['Enums']['road_data_status'];
+          p_segment_id: string;
+          p_source: string;
+          p_source_url?: string;
+          p_valid_from: string;
+          p_vehicle_class: Database['public']['Enums']['toll_vehicle_class'];
+        };
+        Returns: undefined;
+      };
+      admin_upsert_corridor: {
+        Args: {
+          p_archived?: boolean;
+          p_bidirectional: boolean;
+          p_code: string;
+          p_destination_city: string;
+          p_destination_lat: number;
+          p_destination_lng: number;
+          p_destination_radius_km: number;
+          p_destination_state: string;
+          p_id?: string;
+          p_name: string;
+          p_origin_city: string;
+          p_origin_lat: number;
+          p_origin_lng: number;
+          p_origin_radius_km: number;
+          p_origin_state: string;
+          p_segment_ids: string[];
+        };
+        Returns: string;
+      };
+      admin_upsert_road_segment: {
+        Args: {
+          p_archived?: boolean;
+          p_code: string;
+          p_data_status: Database['public']['Enums']['road_data_status'];
+          p_distance_km: number;
+          p_from_city: string;
+          p_from_lat: number;
+          p_from_lng: number;
+          p_from_state: string;
+          p_highway?: string;
+          p_id?: string;
+          p_is_toll: boolean;
+          p_name: string;
+          p_notes?: string;
+          p_source: string;
+          p_source_date: string;
+          p_source_url?: string;
+          p_to_city: string;
+          p_to_lat: number;
+          p_to_lng: number;
+          p_to_state: string;
+        };
+        Returns: string;
+      };
+      admin_upsert_segment_risk: {
+        Args: {
+          p_archived?: boolean;
+          p_data_status: Database['public']['Enums']['road_data_status'];
+          p_description: string;
+          p_from_hour: number;
+          p_id?: string;
+          p_level: Database['public']['Enums']['road_risk_level'];
+          p_observed_on: string;
+          p_segment_id: string;
+          p_source: string;
+          p_source_url?: string;
+          p_to_hour: number;
+        };
+        Returns: string;
+      };
       apply_load_payload: {
         Args: {
           p_load: Omit<
@@ -2898,6 +3323,10 @@ export interface Database {
       archive_business_unit: { Args: { p_id: string }; Returns: undefined };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
+      assert_road_source: {
+        Args: { p_date: string; p_date_field: string; p_source: string; p_source_url: string };
+        Returns: undefined;
+      };
       assert_trip_event_order: {
         Args: {
           p_at: string;
@@ -3422,12 +3851,21 @@ export interface Database {
       revoke_location_consent: { Args: Record<PropertyKey, never>; Returns: number };
       revoke_share_link: { Args: { p_id: string }; Returns: undefined };
       revoke_user_sessions_service: { Args: { p_user_id: string }; Returns: number };
+      road_catalog: { Args: Record<PropertyKey, never>; Returns: Json };
       send_message: {
         Args: {
           p_attachments?: Json;
           p_body?: string;
           p_client_message_id?: string;
           p_conversation_id: string;
+        };
+        Returns: string;
+      };
+      set_carrier_road_preference: {
+        Args: {
+          p_carrier_route_id?: string;
+          p_preference?: Database['public']['Enums']['road_preference'];
+          p_segment_id: string;
         };
         Returns: string;
       };
@@ -3779,6 +4217,9 @@ export interface Database {
       provider_status: 'approved' | 'rejected' | 'revoked';
       push_platform: 'ios' | 'android';
       release_task_status: 'pending' | 'released';
+      road_data_status: 'estimated' | 'verified';
+      road_preference: 'prefer' | 'avoid';
+      road_risk_level: 'low' | 'medium' | 'high';
       share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public';
       special_requirement:
         | 'temperature_control'
@@ -3791,6 +4232,7 @@ export interface Database {
         | 'extended_cargo_insurance'
         | 'loading_crew';
       taxpayer_type: 'moral' | 'fisica';
+      toll_vehicle_class: 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7' | 'c8' | 'c9';
       trip_cancellation_reason:
         | 'shipper_request'
         | 'carrier_request'
@@ -4056,6 +4498,9 @@ export const Constants = {
       provider_status: ['approved', 'rejected', 'revoked'],
       push_platform: ['ios', 'android'],
       release_task_status: ['pending', 'released'],
+      road_data_status: ['estimated', 'verified'],
+      road_preference: ['prefer', 'avoid'],
+      road_risk_level: ['low', 'medium', 'high'],
       share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public'],
       special_requirement: [
         'temperature_control',
@@ -4069,6 +4514,7 @@ export const Constants = {
         'loading_crew',
       ],
       taxpayer_type: ['moral', 'fisica'],
+      toll_vehicle_class: ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'],
       trip_cancellation_reason: [
         'shipper_request',
         'carrier_request',

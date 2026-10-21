@@ -14,6 +14,12 @@
 // 4. Rate limit (B24): 30 calls a minute per user (consume_rate_limit, keyed
 //    by the caller's JWT), so one account cannot burn the Routes budget. A
 //    refused call answers 429; the app then scores the candidates itself.
+// 5. Roads (H4): the road catalog, the caller's road preferences and the
+//    axles of the candidate units are read with the caller's JWT (RLS); each
+//    recommendation gets its suggested road (`road`) and the tolls and risky
+//    segments enter the score. If any of them cannot be read, the
+//    recommendations are served without roads; with an empty catalog every
+//    road is `{ source: 'none' }`.
 import { matchExplanation } from '../../../packages/shared/src/copy/matching.ts';
 import { roadDistanceFactor } from '../../../packages/shared/src/geo.ts';
 import {
@@ -30,6 +36,15 @@ import {
   type MatchCandidateRow,
 } from '../../../packages/shared/src/matching/index.ts';
 import { createLogger, type Logger } from '../../../packages/shared/src/observability/logger.ts';
+import {
+  createRoadSuggester,
+  parseRoadCatalog,
+  ROAD_PREFERENCE_SELECT,
+  vehicleAxles,
+  type CarrierRoadPreferenceRow,
+  type RoadSuggestion,
+} from '../../../packages/shared/src/roads/index.ts';
+import type { UnitType, VehicleKind } from '../../../packages/shared/src/enums.ts';
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -187,6 +202,64 @@ export function restDistanceCache(
   };
 }
 
+/**
+ * The road suggester of the request, from the catalog, the caller's road
+ * preferences and the axles of the candidate units, all read with the
+ * caller's JWT. Undefined when any of them fails: roads are an extra.
+ */
+async function loadRoadSuggester(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string,
+  vehicleIds: readonly string[],
+  fetch: FetchLike,
+  log: Logger,
+): Promise<((c: MatchCandidate) => RoadSuggestion) | undefined> {
+  const headers = {
+    apikey: anonKey,
+    Authorization: authorization,
+    'Content-Type': 'application/json',
+  };
+  const read = async (url: string, init: RequestInit = { method: 'GET', headers }) => {
+    const response = await fetch(url, init);
+    if (!response.ok) throw new Error(`${url.split('?')[0]} failed with ${response.status}`);
+    return (await response.json()) as unknown;
+  };
+  try {
+    const ids = [...new Set(vehicleIds)].filter((id) => UUID.test(id));
+    const [catalog, preferences, vehicles] = await Promise.all([
+      read(`${supabaseUrl}/rest/v1/rpc/road_catalog`, { method: 'POST', headers, body: '{}' }),
+      read(
+        `${supabaseUrl}/rest/v1/carrier_road_preferences?select=${encodeURIComponent(ROAD_PREFERENCE_SELECT)}&archived_at=is.null`,
+      ),
+      ids.length === 0
+        ? Promise.resolve([])
+        : read(
+            `${supabaseUrl}/rest/v1/vehicles?select=id,kind,unit_type,axle_count&id=in.(${ids.join(',')})`,
+          ),
+    ]);
+    if (!Array.isArray(preferences) || !Array.isArray(vehicles))
+      throw new Error('malformed answer');
+    return createRoadSuggester({
+      corridors: parseRoadCatalog(catalog),
+      preferences: preferences as CarrierRoadPreferenceRow[],
+      axlesByVehicle: new Map(
+        (
+          vehicles as {
+            id: string;
+            kind: VehicleKind;
+            unit_type: UnitType | null;
+            axle_count: number | null;
+          }[]
+        ).map((v) => [v.id, vehicleAxles(v)]),
+      ),
+    });
+  } catch (error) {
+    log.warn('road catalog unavailable; recommendations without roads', { error });
+    return undefined;
+  }
+}
+
 export async function handleRecommendations(
   request: Request,
   deps: Dependencies,
@@ -256,12 +329,25 @@ export async function handleRecommendations(
       })
     : undefined;
 
+  const suggestRoad =
+    candidates.length === 0
+      ? undefined
+      : await loadRoadSuggester(
+          supabaseUrl,
+          anonKey,
+          authorization,
+          candidates.map((c) => c.vehicleId),
+          deps.fetch,
+          log,
+        );
+
   const matches = await recommend(candidates, {
     weights: parseMatchingWeights(deps.env('MATCHING_WEIGHTS')),
     topN: input.limit,
     roadFactor: roadDistanceFactor(deps.env('ROAD_DISTANCE_FACTOR')),
     now: deps.now?.() ?? new Date(),
     resolveDistances,
+    suggestRoad,
   });
 
   log.info('recommendations served', {
@@ -269,10 +355,11 @@ export async function handleRecommendations(
     recommendations: matches.length,
     returnTrips: matches.filter((m) => m.breakdown.isReturnTrip).length,
     roadDistances: Boolean(resolveDistances),
+    roads: Boolean(suggestRoad),
   });
   return json({
     candidates: candidates.length,
-    recommendations: matches.map(({ candidate, score, breakdown }) => ({
+    recommendations: matches.map(({ candidate, score, breakdown, road }) => ({
       loadId: candidate.loadId,
       vehicleId: candidate.vehicleId,
       origin: candidate.origin,
@@ -283,6 +370,7 @@ export async function handleRecommendations(
       score,
       explanation: matchExplanation(breakdown),
       breakdown,
+      ...(road ? { road } : {}),
     })),
   });
 }

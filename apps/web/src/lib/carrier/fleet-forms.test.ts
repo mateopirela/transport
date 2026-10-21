@@ -76,6 +76,7 @@ describe('vehicleFormValues', () => {
         unit_type: 'torton',
         capacity_kg: 14000,
         capacity_m3: null,
+        axle_count: 3,
       }),
     ).toEqual({
       kind: 'rigid',
@@ -85,6 +86,7 @@ describe('vehicleFormValues', () => {
       unitType: 'torton',
       capacityKg: '14000',
       capacityM3: '',
+      axleCount: '3',
     });
   });
 });

@@ -231,6 +231,13 @@ describe('vehicleFormSchema', () => {
       capacityM3: m.tractorNoBody,
     });
     expect(issues(vehicleFormSchema, { ...trailer, plate: 'A1' })).toEqual({ plate: m.plate });
+    expect(issues(vehicleFormSchema, { ...trailer, axleCount: 10 })).toEqual({
+      axleCount: m.axleCount,
+    });
+    expect(issues(vehicleFormSchema, { ...trailer, axleCount: 1 })).toEqual({
+      axleCount: m.axleCount,
+    });
+    expect(vehicleFormSchema.parse({ ...trailer, axleCount: 5 }).axleCount).toBe(5);
     expect(issues(vehicleFormSchema, { ...trailer, modelYear: 1900 })).toEqual({
       modelYear: m.vehicleYear,
     });

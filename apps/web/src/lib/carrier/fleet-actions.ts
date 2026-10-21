@@ -89,6 +89,7 @@ export async function saveCarrierVehicle(_prev: FormState, formData: FormData): 
     capacity_kg: v.capacityKg ?? null,
     capacity_m3: v.capacityM3 ?? null,
     features: v.features,
+    axle_count: v.axleCount ?? null,
   };
   const vehicleId = uuidOf(formData, 'vehicleId');
   if (vehicleId) {

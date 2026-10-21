@@ -49,6 +49,10 @@ function setup(options: {
   cacheRows?: unknown[];
   /** Answer of consume_rate_limit (seconds to wait; 0 = allowed). */
   rateLimit?: () => Response | Promise<Response>;
+  /** H4: answers of road_catalog, carrier_road_preferences and vehicles. */
+  roadCatalog?: () => Response;
+  roadPreferences?: unknown[];
+  vehicles?: unknown[];
 }) {
   const calls: Call[] = [];
   const env: Record<string, string> = {
@@ -68,6 +72,12 @@ function setup(options: {
           options.rpc?.() ?? Response.json([row('far', { origin_lat: 20.9 }), row('near')]),
         );
       }
+      if (url.endsWith('/rpc/road_catalog'))
+        return Promise.resolve(options.roadCatalog?.() ?? Response.json([]));
+      if (url.includes('/rest/v1/carrier_road_preferences?'))
+        return Promise.resolve(Response.json(options.roadPreferences ?? []));
+      if (url.includes('/rest/v1/vehicles?'))
+        return Promise.resolve(Response.json(options.vehicles ?? []));
       if (url.endsWith('/rpc/get_route_distances'))
         return Promise.resolve(Response.json(options.cacheRows ?? []));
       if (url.endsWith('/rpc/put_route_distances'))
@@ -301,4 +311,111 @@ Deno.test('rate limit errors: unauthorized callers get 401, the rest fail closed
   } finally {
     console.error = errors;
   }
+});
+
+// ---------------------------------------------------------------------------
+// H4: suggested road of each recommendation
+// ---------------------------------------------------------------------------
+const place = (city: string, state: string, lat: number, lng: number) => ({
+  city,
+  state,
+  lat,
+  lng,
+});
+const MTY = place('Monterrey', 'Nuevo León', 25.6866, -100.3161);
+const SLP = place('San Luis Potosí', 'San Luis Potosí', 22.1565, -100.9855);
+const GDL = place('Guadalajara', 'Jalisco', 20.6597, -103.3496);
+const segment = (
+  id: string,
+  from: unknown,
+  to: unknown,
+  distanceKm: number,
+  amountCents: number | null,
+) => ({
+  id,
+  code: id.toUpperCase(),
+  name: id,
+  highway: null,
+  from,
+  to,
+  distanceKm,
+  isToll: true,
+  source: 'Estimado',
+  sourceUrl: null,
+  sourceDate: '2026-10-20',
+  dataStatus: 'estimated',
+  tolls: [
+    {
+      vehicleClass: 'c3',
+      amountCents,
+      source: 'CAPUFE',
+      sourceUrl: null,
+      validFrom: '2026-04-13',
+      dataStatus: 'estimated',
+    },
+  ],
+  risks: [],
+});
+const CATALOG = [
+  {
+    id: 'corridor-1',
+    code: 'MTY-GDL-SLP',
+    name: 'MTY–GDL por San Luis Potosí',
+    bidirectional: true,
+    origin: { ...MTY, radiusKm: 60 },
+    destination: { ...GDL, radiusKm: 60 },
+    segments: [
+      segment('mty-slp', MTY, SLP, 500, 30_000),
+      segment('slp-gdl', SLP, GDL, 400, 40_000),
+    ],
+  },
+];
+
+Deno.test('adds the suggested road, with the unit axles and the caller JWT', async () => {
+  const { deps, calls } = setup({
+    roadCatalog: () => Response.json(CATALOG),
+    vehicles: [{ id: VEHICLE, kind: 'rigid', unit_type: 'torton', axle_count: null }],
+  });
+  const response = await handleRecommendations(post({ vehicleId: VEHICLE }), deps);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  const [first] = body.recommendations;
+  assert.equal(first.road.source, 'catalog');
+  assert.equal(first.road.reversed, true);
+  assert.equal(first.road.tollClass, 'c3');
+  assert.equal(first.road.tollsCents, 70_000);
+  assert.equal(first.breakdown.tollsCents, 70_000);
+  assert.match(first.explanation, /~\$700 de casetas/u);
+  for (const path of [
+    '/rpc/road_catalog',
+    '/rest/v1/carrier_road_preferences?',
+    '/rest/v1/vehicles?',
+  ]) {
+    const call = calls.find((c) => c.url.includes(path));
+    assert.ok(call, path);
+    assert.equal((call.init.headers as Record<string, string>).Authorization, 'Bearer user-jwt');
+  }
+  const vehicles = calls.find((c) => c.url.includes('/rest/v1/vehicles?'));
+  assert.ok(vehicles?.url.endsWith(`id=in.(${VEHICLE})`));
+});
+
+Deno.test('works without a catalog: every road is source none', async () => {
+  const { deps } = setup({});
+  const body = await (await handleRecommendations(post({ vehicleId: VEHICLE }), deps)).json();
+  assert.equal(body.recommendations.length, 2);
+  for (const r of body.recommendations) {
+    assert.deepEqual(r.road, { source: 'none' });
+    assert.equal(r.breakdown.tollsCents, null);
+  }
+});
+
+Deno.test('serves recommendations without roads when the catalog cannot be read', async () => {
+  const { deps } = setup({
+    roadCatalog: () => Response.json({ message: 'boom' }, { status: 500 }),
+  });
+  const response = await handleRecommendations(post({ vehicleId: VEHICLE }), deps);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.recommendations.length, 2);
+  assert.equal(body.recommendations[0].road, undefined);
 });

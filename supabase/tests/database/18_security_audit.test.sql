@@ -34,6 +34,7 @@ select set_eq(
   $$ select distinct table_name::text || ':' || privilege_type from information_schema.column_privileges
      where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('INSERT', 'UPDATE') $$,
   array[
+    'carrier_road_preferences:INSERT', 'carrier_road_preferences:UPDATE',
     'carrier_routes:INSERT', 'carrier_routes:UPDATE', 'companies:UPDATE',
     'document_requirements:INSERT', 'document_requirements:UPDATE',
     -- G3 catalogs (D16, D22): admins only, by RLS.
@@ -226,6 +227,8 @@ select set_eq(
     -- Share links (G7, D23). The two public_* views are also granted to anon
     -- (checked below); the rest need a session.
     'create_share_link', 'revoke_share_link', 'open_internal_share', 'public_shared_load', 'public_shared_trip',
+    -- Road catalog (H4, D31): admins only, validated and audited (45_road_intelligence).
+    'admin_upsert_road_segment', 'admin_set_segment_toll', 'admin_upsert_segment_risk', 'admin_upsert_corridor',
     -- Rate limits (B24).
     'consume_rate_limit'
   ],

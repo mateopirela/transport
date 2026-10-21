@@ -2,7 +2,9 @@
 
 import {
   carrierWebCopy,
+  defaultAxleCount,
   fleetCopy,
+  roadsCopy,
   SPECIAL_REQUIREMENTS,
   specialRequirementLabels,
   UNIT_TYPES,
@@ -124,6 +126,18 @@ export function VehicleForm({
         <Field name="plate" label={c.plateLabel} state={fieldState} autoCapitalize="characters" />
         <Field name="fleetNumber" label={c.fleetNumberLabel} state={fieldState} />
         <Field name="modelYear" label={c.modelYearLabel} state={fieldState} inputMode="numeric" />
+        <Field
+          name="axleCount"
+          label={roadsCopy.axles.label}
+          state={fieldState}
+          inputMode="numeric"
+          hint={roadsCopy.axles.hint(
+            defaultAxleCount(
+              kind as (typeof VEHICLE_KINDS)[number],
+              (values.unitType || null) as (typeof UNIT_TYPES)[number] | null,
+            ),
+          )}
+        />
         {!tractor && (
           <>
             <FormField label={c.unitTypeLabel} htmlFor={`${id}-unit-type`} error={errors.unitType}>

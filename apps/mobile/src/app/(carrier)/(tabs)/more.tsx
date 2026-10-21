@@ -1,4 +1,4 @@
-import { fleetCopy, managerCompanyCopy } from '@transport/shared';
+import { billingCopy, fleetCopy, managerCompanyCopy } from '@transport/shared';
 import { useRouter, type Href } from 'expo-router';
 
 import { AccountScreen } from '../../../components/account-screen';
@@ -13,14 +13,19 @@ const LINKS: [string, Href, IconName][] = [
 ];
 
 /**
- * "Más": "Mi empresa" for the Gerente (G4), company documents, operators and
- * usual routes (B18) as one group of rows, then the account.
+ * "Más": "Mi empresa" and "Suscripción" (H3, information only) for the Gerente
+ * (G4), company documents, operators and usual routes (B18) as one group of
+ * rows, then the account.
  */
 export default function MoreTab() {
   const router = useRouter();
   const carrier = useCarrier();
   const links: [string, Href, IconName][] = carrier?.isManager
-    ? [[managerCompanyCopy.title, '/my-company', 'company'], ...LINKS]
+    ? [
+        [managerCompanyCopy.title, '/my-company', 'company'],
+        [billingCopy.title, '/subscription', 'money'],
+        ...LINKS,
+      ]
     : LINKS;
   return (
     <AccountScreen>

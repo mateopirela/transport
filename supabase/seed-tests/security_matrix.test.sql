@@ -186,6 +186,9 @@ insert into public.road_segment_risks (id, segment_id, level, from_hour, to_hour
 values ('e2400000-0000-4000-8000-000000000003', tests.val('road_segment'), 'medium', 22, 6, 'Prueba', 'Prueba',
         current_date);
 insert into tests.vals values ('road_risk', 'e2400000-0000-4000-8000-000000000003');
+-- A Stripe event applied to the seed's carrier (H3): admins only.
+insert into public.billing_events (stripe_event_id, type, company_id, processed_at)
+values ('evt_b24fixture', 'customer.subscription.updated', tests.val('carrier_company'), now());
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -200,6 +203,8 @@ insert into tests.ownership values
   ('public.rate_limit_counters', 'false'),
   ('public.operator_provisioning_tickets', 'false'),
   ('public.product_events', 'false'),
+  -- Stripe events applied by the webhook (H3): admins only.
+  ('public.billing_events', 'false'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -211,6 +216,9 @@ insert into tests.ownership values
   ('public.road_segment_risks', 'true'),
   ('public.road_corridors', 'true'),
   ('public.road_corridor_segments', 'true'),
+  -- H3: global settings (no secrets) and the plans on offer.
+  ('public.platform_settings', 'true'),
+  ('public.subscription_plans', 't.active'),
   -- Company data.
   ('public.companies', 't.id = $1'),
   ('public.profiles', 't.company_id = $1 or t.id = $2'),
@@ -227,6 +235,7 @@ insert into tests.ownership values
   -- Share links (G7): the company that created them.
   ('public.share_links', 't.company_id = $1'),
   ('public.vehicle_release_tasks', 't.company_id = $1'),
+  ('public.company_subscriptions', 't.company_id = $1'),
   -- Marketplace: open loads are visible to approved carriers. A carrier that
   -- negotiated keeps seeing the load unless another carrier won it.
   ('public.loads', $$
@@ -607,7 +616,12 @@ insert into tests.rpc_calls values
   ('admin_upsert_road_segment', $$ public.admin_upsert_road_segment('SLP-LAG', 'Ajeno', 'San Luis Potosí', 'San Luis Potosí', 22.1565, -100.9855, 'Lagos de Moreno', 'Jalisco', 21.3564, -101.9356, 172, true, 'x', current_date, 'verified', tests.val('road_segment'), null, null, null) $$),
   ('admin_set_segment_toll', $$ public.admin_set_segment_toll(tests.val('road_segment'), 'c5', 'x', current_date, 'verified', 1, null) $$),
   ('admin_upsert_segment_risk', $$ public.admin_upsert_segment_risk(tests.val('road_segment'), 'high', 0::smallint, 24::smallint, 'x', 'x', current_date, 'verified', tests.val('road_risk'), null, true) $$),
-  ('admin_upsert_corridor', $$ public.admin_upsert_corridor('MTY-GDL-SLP', 'Ajeno', 'Monterrey', 'Nuevo León', 25.6866, -100.3161, 60, 'Guadalajara', 'Jalisco', 20.6597, -103.3496, 60, true, array[tests.val('road_segment')], tests.val('road_corridor'), true) $$);
+  ('admin_upsert_corridor', $$ public.admin_upsert_corridor('MTY-GDL-SLP', 'Ajeno', 'Monterrey', 'Nuevo León', 25.6866, -100.3161, 60, 'Guadalajara', 'Jalisco', 20.6597, -103.3496, 60, true, array[tests.val('road_segment')], tests.val('road_corridor'), true) $$),
+  -- Subscription (H3): another company's state, and the admin RPCs.
+  ('company_billing_state', $$ (select count(*) from public.company_billing_state(tests.val('carrier_company'))) $$),
+  ('admin_set_platform_setting', $$ public.admin_set_platform_setting('billing.pilot_mode', 'false') $$),
+  ('admin_update_subscription_plan', $$ public.admin_update_subscription_plan(
+       (select id from public.subscription_plans where code = 'fleet_monthly'), 'Ajeno', null, 100, null, true) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.

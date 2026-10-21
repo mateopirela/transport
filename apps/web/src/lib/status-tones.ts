@@ -1,5 +1,7 @@
 import {
   isTripActive,
+  subscriptionStatusTone as subscriptionTone,
+  type SubscriptionStatus,
   type LoadStatus,
   type ProviderState,
   type RequirementState,
@@ -83,4 +85,9 @@ export function negotiationTone(state: NegotiationState): PillTone {
     case 'closed':
       return 'neutral';
   }
+}
+
+/** A subscription (H3): the same tones in the app (packages/shared/src/billing.ts). */
+export function subscriptionStatusTone(status: SubscriptionStatus): PillTone {
+  return subscriptionTone(status);
 }

@@ -1,4 +1,4 @@
-import { adminCopy, adminOpsCopy, roadsCopy, shellCopy } from '@transport/shared';
+import { adminBillingCopy, adminCopy, adminOpsCopy, roadsCopy, shellCopy } from '@transport/shared';
 
 import { AppShell } from '@/components/app-shell';
 import { paths } from '@/lib/routing';
@@ -11,6 +11,7 @@ const NAV = [
   { href: paths.adminTrips, label: adminOpsCopy.nav.trips },
   { href: paths.adminIncidents, label: adminOpsCopy.nav.incidents },
   { href: paths.adminRoads, label: roadsCopy.admin.title },
+  { href: paths.adminSubscriptions, label: adminBillingCopy.nav },
   { href: paths.adminUsers, label: adminCopy.nav.users },
   { href: paths.adminAudit, label: adminCopy.nav.audit },
 ] as const;

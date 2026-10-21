@@ -39,6 +39,8 @@ export const paths = {
   inviteCarrierOperator: '/transportista/flota/operadores/invitar',
   carrierRoutes: '/transportista/rutas',
   carrierCompany: '/transportista/empresa',
+  /** Subscription (H3): the Gerente pays; the Coordinador only sees the state. */
+  carrierSubscription: '/transportista/suscripcion',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -47,6 +49,7 @@ export const paths = {
   adminTrips: '/admin/viajes',
   adminIncidents: '/admin/incidencias',
   adminRoads: '/admin/carreteras',
+  adminSubscriptions: '/admin/suscripciones',
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,

@@ -3,6 +3,7 @@
 // the link that opens a route in the phone's maps app. Pure, so the ordering
 // and the allowed actions are unit-tested; Postgres validates every action
 // again in the negotiation RPCs (B05).
+import { billingCopy } from './copy/billing';
 import { carrierLoadsCopy } from './copy/carrier-loads';
 import { offersCopy } from './copy/negotiation';
 import { vehicleReleaseCopy } from './copy/vehicle-release';
@@ -204,6 +205,8 @@ const OFFER_ERRORS: readonly (readonly [RegExp, string])[] = [
   [/^business_unit_id is required/u, carrierLoadsCopy.errors.businessUnitRequired],
   [/^vehicle is pending release/u, vehicleReleaseCopy.errors.pendingRelease],
   [/^both companies must be approved/u, carrierLoadsCopy.errors.bothApproved],
+  // H3: the subscription block (off unless the pilot is over and enforcement is 'block').
+  [/^subscription required/u, billingCopy.errors.subscriptionRequired],
 ];
 
 /** Spanish text for a known error message of an offer RPC, or null when unknown. */

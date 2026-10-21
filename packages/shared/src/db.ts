@@ -40,6 +40,49 @@ export interface Database {
         };
         Relationships: [];
       };
+      billing_events: {
+        Row: {
+          company_id: string | null;
+          processed_at: string | null;
+          received_at: string;
+          stripe_event_id: string;
+          summary: NonNullable<Json>;
+          type: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          company_id?: string | null;
+          processed_at?: string | null;
+          received_at?: string;
+          stripe_event_id: string;
+          summary?: NonNullable<Json>;
+          type: string;
+        };
+        Update: {
+          company_id?: string | null;
+          processed_at?: string | null;
+          received_at?: string;
+          stripe_event_id?: string;
+          summary?: NonNullable<Json>;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'billing_events_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'billing_events_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+        ];
+      };
       business_unit_coordinators: {
         Row: {
           business_unit_id: string;
@@ -334,6 +377,86 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      company_subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean;
+          checkout_expires_at: string | null;
+          checkout_lease_id: string | null;
+          checkout_lease_until: string | null;
+          checkout_price_id: string | null;
+          checkout_session_id: string | null;
+          checkout_url: string | null;
+          company_id: string;
+          created_at: string;
+          current_period_end: string | null;
+          last_fetched_at: string | null;
+          plan_id: string | null;
+          status: Database['public']['Enums']['subscription_status'];
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          cancel_at_period_end?: boolean;
+          checkout_expires_at?: string | null;
+          checkout_lease_id?: string | null;
+          checkout_lease_until?: string | null;
+          checkout_price_id?: string | null;
+          checkout_session_id?: string | null;
+          checkout_url?: string | null;
+          company_id: string;
+          created_at?: string;
+          current_period_end?: string | null;
+          last_fetched_at?: string | null;
+          plan_id?: string | null;
+          status?: Database['public']['Enums']['subscription_status'];
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          cancel_at_period_end?: boolean;
+          checkout_expires_at?: string | null;
+          checkout_lease_id?: string | null;
+          checkout_lease_until?: string | null;
+          checkout_price_id?: string | null;
+          checkout_session_id?: string | null;
+          checkout_url?: string | null;
+          company_id?: string;
+          created_at?: string;
+          current_period_end?: string | null;
+          last_fetched_at?: string | null;
+          plan_id?: string | null;
+          status?: Database['public']['Enums']['subscription_status'];
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'company_subscriptions_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: true;
+            referencedRelation: 'companies';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'company_subscriptions_company_id_fkey';
+            columns: ['company_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_carrier_onboarding';
+            referencedColumns: ['company_id'];
+          },
+          {
+            foreignKeyName: 'company_subscriptions_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscription_plans';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       conversations: {
         Row: {
@@ -1565,6 +1688,31 @@ export interface Database {
           },
         ];
       };
+      platform_settings: {
+        Row: {
+          description: string | null;
+          key: string;
+          updated_at: string;
+          updated_by: string | null;
+          value: NonNullable<Json>;
+        };
+        ComputedFields: never;
+        Insert: {
+          description?: string | null;
+          key: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value: NonNullable<Json>;
+        };
+        Update: {
+          description?: string | null;
+          key?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value?: NonNullable<Json>;
+        };
+        Relationships: [];
+      };
       product_events: {
         Row: {
           company_id: string | null;
@@ -2235,6 +2383,55 @@ export interface Database {
             referencedColumns: ['id'];
           },
         ];
+      };
+      subscription_plans: {
+        Row: {
+          active: boolean;
+          amount_cents: number | null;
+          audience: Database['public']['Enums']['subscription_audience'];
+          billing_interval: string;
+          code: string;
+          created_at: string;
+          currency: string;
+          description: string | null;
+          id: string;
+          name: string;
+          sort_order: number;
+          stripe_price_id: string | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          amount_cents?: number | null;
+          audience: Database['public']['Enums']['subscription_audience'];
+          billing_interval?: string;
+          code: string;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          sort_order?: number;
+          stripe_price_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          amount_cents?: number | null;
+          audience?: Database['public']['Enums']['subscription_audience'];
+          billing_interval?: string;
+          code?: string;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          sort_order?: number;
+          stripe_price_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       trip_document_requirements: {
         Row: {
@@ -3180,6 +3377,7 @@ export interface Database {
           total_count: number;
         }[];
       };
+      admin_set_platform_setting: { Args: { p_key: string; p_value: Json }; Returns: undefined };
       admin_set_segment_toll: {
         Args: {
           p_amount_cents?: number;
@@ -3189,6 +3387,17 @@ export interface Database {
           p_source_url?: string;
           p_valid_from: string;
           p_vehicle_class: Database['public']['Enums']['toll_vehicle_class'];
+        };
+        Returns: undefined;
+      };
+      admin_update_subscription_plan: {
+        Args: {
+          p_active: boolean;
+          p_amount_cents: number;
+          p_description: string;
+          p_name: string;
+          p_plan_id: string;
+          p_stripe_price_id: string;
         };
         Returns: undefined;
       };
@@ -3321,6 +3530,7 @@ export interface Database {
         Returns: string;
       };
       archive_business_unit: { Args: { p_id: string }; Returns: undefined };
+      assert_billing_allows: { Args: { p_company_id: string }; Returns: undefined };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       assert_road_source: {
@@ -3372,6 +3582,58 @@ export interface Database {
         Returns: string;
       };
       backfill_document_shares: { Args: Record<PropertyKey, never>; Returns: number };
+      billing_apply_event_service: {
+        Args: {
+          p_cancel_at_period_end: boolean;
+          p_current_period_end: string;
+          p_customer_id: string;
+          p_event_id: string;
+          p_event_type: string;
+          p_fetched_at: string;
+          p_price_id: string;
+          p_stripe_status: string;
+          p_subscription_id: string;
+        };
+        Returns: string;
+      };
+      billing_begin_checkout_service: {
+        Args: { p_company_id: string; p_discard_session_id?: string; p_price_id: string };
+        Returns: {
+          action: string;
+          lease_id: string;
+          session_id: string;
+          url: string;
+        }[];
+      };
+      billing_company_plan_id: { Args: { p_company_id: string }; Returns: string };
+      billing_link_customer_service: {
+        Args: { p_company_id: string; p_customer_id: string };
+        Returns: string;
+      };
+      billing_map_stripe_status: {
+        Args: { p_status: string };
+        Returns: Database['public']['Enums']['subscription_status'];
+      };
+      billing_save_checkout_service: {
+        Args: {
+          p_company_id: string;
+          p_expires_at: string;
+          p_lease_id: string;
+          p_price_id: string;
+          p_session_id: string;
+          p_url: string;
+        };
+        Returns: boolean;
+      };
+      billing_session_context_service: {
+        Args: { p_plan_code?: string; p_user_id: string };
+        Returns: {
+          company_id: string;
+          stripe_customer_id: string;
+          stripe_price_id: string;
+        }[];
+      };
+      billing_settings: { Args: Record<PropertyKey, never>; Returns: Record<string, unknown> };
       business_unit_name: { Args: { p_name: string }; Returns: string };
       can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
@@ -3412,6 +3674,27 @@ export interface Database {
         }[];
       };
       clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
+      company_billing_state: {
+        Args: { p_company_id?: string };
+        Returns: {
+          billing_configured: boolean;
+          cancel_at_period_end: boolean;
+          checkout_available: boolean;
+          company_id: string;
+          current_period_end: string;
+          effective_status: Database['public']['Enums']['subscription_status'];
+          enforcement: string;
+          has_customer: boolean;
+          notice: string;
+          pilot_ends_at: string;
+          pilot_mode: boolean;
+          plan_amount_cents: number;
+          plan_code: string;
+          plan_interval: string;
+          plan_name: string;
+          stored_status: Database['public']['Enums']['subscription_status'];
+        }[];
+      };
       company_missing_fields: { Args: { p_company_id: string }; Returns: string[] };
       company_missing_requirements: {
         Args: { p_company_id: string };
@@ -4231,6 +4514,8 @@ export interface Database {
         | 'team_drivers'
         | 'extended_cargo_insurance'
         | 'loading_crew';
+      subscription_audience: 'fleet' | 'owner_operator';
+      subscription_status: 'pilot_free' | 'active' | 'past_due' | 'canceled' | 'none';
       taxpayer_type: 'moral' | 'fisica';
       toll_vehicle_class: 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7' | 'c8' | 'c9';
       trip_cancellation_reason:
@@ -4513,6 +4798,8 @@ export const Constants = {
         'extended_cargo_insurance',
         'loading_crew',
       ],
+      subscription_audience: ['fleet', 'owner_operator'],
+      subscription_status: ['pilot_free', 'active', 'past_due', 'canceled', 'none'],
       taxpayer_type: ['moral', 'fisica'],
       toll_vehicle_class: ['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'],
       trip_cancellation_reason: [

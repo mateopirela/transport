@@ -3,6 +3,7 @@
 export * from './admin-ops';
 export * from './appearance';
 export * from './auth';
+export * from './billing';
 export * from './carrier-loads';
 export * from './carrier-trips';
 export * from './carrier-web';

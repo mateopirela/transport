@@ -1,11 +1,15 @@
 import {
+  adminBillingCopy,
   adminCopy,
   companyDecisions,
   companyFiscalFieldLabels,
   companyTypeLabels,
   documentOwnerTypeLabels,
+  formatDate,
   formatDateTime,
+  planPriceLabel,
   progressSummary,
+  subscriptionStatusLabels,
   toMexicoCityDate,
   userRoleLabels,
   uuidField,
@@ -21,11 +25,14 @@ import { BackLink, PageSection, textLink } from '@/components/page-section';
 import { ValueRow } from '@/components/ui/cell';
 import { Group } from '@/components/ui/group';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
 import { groupRow } from '@/components/ui/variants';
 import { RequirementList, StatusBadge } from '@/components/verification';
 import { CompanyReviewForm, DocumentReviewForm } from '@/components/verification-forms';
+import { loadBillingState } from '@/lib/billing/queries';
 import { adminDocumentFilePath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
+import { subscriptionStatusTone } from '@/lib/status-tones';
 import { createClient } from '@/lib/supabase/server';
 import { loadCompanyVerification } from '@/lib/verification/queries';
 
@@ -77,6 +84,11 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
     supabase.rpc('company_missing_fields', { p_company_id: id }),
   ]);
   if (!verification) notFound();
+  // Subscription (H3): only carriers have one.
+  const billing =
+    verification.company.type === 'carrier'
+      ? await loadBillingState(supabase, id).catch(() => null)
+      : null;
   if (members.error) throw new Error(`Could not load members: ${members.error.message}`);
   const missingFiscal = (missingFields.data ?? [])
     .map((column) => companyFiscalFieldLabels[column as CompanyFiscalColumn] ?? column)
@@ -179,6 +191,37 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
               <p className="text-footnote text-text-dim">{adminCopy.companyActions.approveHint}</p>
             </div>
           </Group>
+
+          {billing && (
+            <Group
+              label={adminBillingCopy.companySection}
+              footer={
+                <Link href={paths.adminSubscriptions} className={textLink}>
+                  {adminBillingCopy.title}
+                </Link>
+              }
+            >
+              <ValueRow label={adminBillingCopy.columns.status}>
+                <Pill tone={subscriptionStatusTone(billing.effective_status)}>
+                  {subscriptionStatusLabels[billing.effective_status]}
+                </Pill>
+              </ValueRow>
+              {billing.stored_status !== billing.effective_status && (
+                <ValueRow label={adminBillingCopy.columns.stored}>
+                  {subscriptionStatusLabels[billing.stored_status]}
+                </ValueRow>
+              )}
+              <ValueRow label={adminBillingCopy.columns.plan}>
+                {billing.plan_name ?? '—'} ·{' '}
+                {planPriceLabel(billing.plan_amount_cents, billing.plan_interval)}
+              </ValueRow>
+              {billing.current_period_end && (
+                <ValueRow label={adminBillingCopy.columns.periodEnd}>
+                  {formatDate(billing.current_period_end)}
+                </ValueRow>
+              )}
+            </Group>
+          )}
 
           <Group
             label={c.data}

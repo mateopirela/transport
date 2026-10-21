@@ -230,7 +230,10 @@ select set_eq(
     -- Road catalog (H4, D31): admins only, validated and audited (45_road_intelligence).
     'admin_upsert_road_segment', 'admin_set_segment_toll', 'admin_upsert_segment_risk', 'admin_upsert_corridor',
     -- Rate limits (B24).
-    'consume_rate_limit'
+    'consume_rate_limit',
+    -- Subscription (H3): the caller's company (any one for admins) and the
+    -- admin settings and plans.
+    'company_billing_state', 'admin_set_platform_setting', 'admin_update_subscription_plan'
   ],
   'every client-callable security definer function is on the reviewed list'
 );
@@ -264,7 +267,11 @@ select set_eq(
     'issue_operator_provisioning_ticket_service', 'discard_unredeemed_operator_service',
     'discard_orphan_operator_service',
     -- G6's shared-document-url Edge Function.
-    'authorize_shared_document_view_service'
+    'authorize_shared_document_view_service',
+    -- H3: a subscription row per carrier company (trigger) and the billing
+    -- Edge Functions (billing-checkout, billing-portal, stripe-webhook).
+    'companies_create_subscription', 'billing_session_context_service', 'billing_link_customer_service',
+    'billing_begin_checkout_service', 'billing_save_checkout_service', 'billing_apply_event_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

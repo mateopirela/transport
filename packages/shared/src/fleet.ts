@@ -2,6 +2,7 @@
 // picks while there is no Google Places key, and Mexico City date-times.
 // Postgres enforces the same rules (set_vehicle_availability,
 // vehicle_expired_requirements).
+import { billingCopy } from './copy/billing';
 import { fleetErrorCopy } from './copy/fleet';
 import { vehicleReleaseCopy } from './copy/vehicle-release';
 import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verification';
@@ -157,6 +158,8 @@ const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
   [/only the manager can move or archive/u, fleetErrorCopy.managerOnly],
   [/business_unit_id is required/u, fleetErrorCopy.businessUnitRequired],
   [/vehicle is pending release/u, vehicleReleaseCopy.errors.pendingRelease],
+  // H3: the subscription block of set_vehicle_availability.
+  [/subscription required/u, billingCopy.errors.subscriptionRequired],
 ];
 
 /** Spanish text for a known error message of a fleet write, or null when unknown. */

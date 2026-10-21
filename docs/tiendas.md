@@ -57,6 +57,20 @@ La app usa `UIBackgroundModes: location` y pide "Siempre". Los textos que ve el 
 - **Por qué necesita segundo plano:** el operador maneja con la pantalla apagada o usa otras apps (navegación); el cliente y el transportista necesitan ver la posición de la carga durante todo el trayecto. Mientras se comparte hay una notificación fija (servicio en primer plano de tipo `location`).
 - **Video (obligatorio):** grabar en un Android real: inicio de sesión del operador → pantalla de consentimiento → permiso "Permitir todo el tiempo" → "Salir a recoger" → notificación fija → registrar la entrega → la notificación desaparece. Subirlo como enlace de YouTube no listado.
 
+## Suscripción: la app no vende (H3, D30)
+
+La suscripción de la plataforma la paga la empresa transportista (su Gerente o el hombre-camión) **en la web**, con Stripe Checkout y el Customer Portal. La app móvil **solo informa**: "Más → Suscripción" muestra el estado ("Piloto gratis", "Activa", "Vencida", "Cancelada"), el plan, la fecha de fin del piloto y los avisos, y el texto "La suscripción se administra desde la web de Transport".
+
+Por las reglas de las tiendas, la app **no**:
+
+- vende ni abre Checkout o el Portal;
+- muestra precios para contratar;
+- tiene botones, enlaces ni llamadas a la acción hacia la compra (tampoco al sitio web para pagar).
+
+Motivo: App Store Review Guidelines **3.1.1** (los contenidos o funciones que se desbloquean dentro de la app se compran con In-App Purchase) y **3.1.3** (las apps "multiplataforma" y de servicios entre empresas pueden dar acceso a lo comprado en otro lado, pero no dirigir a la compra fuera de la app desde la app), y la política de pagos de Google Play (servicios digitales dentro de la app con Google Play Billing). La suscripción es un servicio para empresas y se contrata fuera de la app, así que la app solo muestra el estado. Si en el futuro Apple o Google permiten enlazar la web de pago para este caso, es una decisión nueva (Seguimiento de §H, punto 5).
+
+Nota para el revisor (si pregunta): "La app es la herramienta de trabajo de empresas transportistas verificadas y sus operadores. La suscripción de la empresa se contrata y paga fuera de la app, en la web, por el representante de la empresa; la app no vende ni enlaza a la compra, solo muestra el estado de la cuenta."
+
 ## Privacidad de los datos
 
 Respuestas para _App Privacy_ (Apple) y _Seguridad de los datos_ (Google). Deben coincidir con el aviso de privacidad.

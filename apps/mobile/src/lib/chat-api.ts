@@ -83,9 +83,19 @@ export async function uploadChatPhoto(
   return { path, name: internalChatCopy.photoFileName };
 }
 
-/** Marks the conversation read up to its latest message (best effort). */
-export async function markRead(client: Supabase, conversationId: string): Promise<void> {
-  await client.rpc('mark_conversation_read', { p_conversation_id: conversationId });
+/**
+ * Marks the conversation read up to a message the viewer saw, or its latest
+ * one without it (best effort; the read marker never moves back).
+ */
+export async function markRead(
+  client: Supabase,
+  conversationId: string,
+  messageId?: string,
+): Promise<void> {
+  await client.rpc('mark_conversation_read', {
+    p_conversation_id: conversationId,
+    ...(messageId ? { p_message_id: messageId } : {}),
+  });
 }
 
 /**

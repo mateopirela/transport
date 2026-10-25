@@ -44,9 +44,9 @@ interface PendingReport {
 
 /**
  * Chat of a negotiation or a trip (B07 schema): the latest messages, new ones
- * in real time, and text messages sent with send_message. Opening it, or
- * receiving a message while its screen is in focus, marks the conversation as
- * read (a screen left mounted behind another does not). Attachments open with
+ * in real time, and text messages sent with send_message. While its screen is
+ * in focus, the conversation is marked read up to the newest message shown (a
+ * screen left mounted behind another, or a load that failed, marks nothing). Attachments open with
  * a short-lived link of the `chat` bucket. The viewer's bubbles on
  * the accent's tint, the others' a step above the cell (§1.7).
  *
@@ -86,21 +86,21 @@ export function ChatPanel({
     location: null,
   });
   const focused = useIsFocused();
-  const focusedRef = useRef(focused);
+  // The newest message on screen: the conversation is read up to it, never
+  // past what the viewer could see (a failed load marks nothing).
+  const newestShown = messages.at(-1)?.id ?? null;
 
-  // Back in focus: what arrived meanwhile is read now.
+  // In focus (opening it, coming back, or a new message shown): read up to
+  // the newest message displayed.
   useEffect(() => {
-    focusedRef.current = focused;
-    if (focused) void markRead(client, conversationId).catch(() => undefined);
-  }, [focused, client, conversationId]);
+    if (focused && newestShown) {
+      void markRead(client, conversationId, newestShown).catch(() => undefined);
+    }
+  }, [focused, newestShown, client, conversationId]);
 
-  const add = useCallback(
-    (incoming: ChatMessage[]) => {
-      setMessages((current) => mergeMessages(current, incoming));
-      if (focusedRef.current) void markRead(client, conversationId).catch(() => undefined);
-    },
-    [client, conversationId],
-  );
+  const add = useCallback((incoming: ChatMessage[]) => {
+    setMessages((current) => mergeMessages(current, incoming));
+  }, []);
 
   useEffect(() => {
     let active = true;

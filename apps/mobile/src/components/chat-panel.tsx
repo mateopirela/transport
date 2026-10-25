@@ -72,6 +72,9 @@ export function ChatPanel({
   const userId = session?.user.id;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
+  // The latest messages came in: until then (or after a failed reload), what
+  // Realtime shows may skip older ones the viewer has not seen.
+  const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<Busy>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -88,7 +91,7 @@ export function ChatPanel({
   const focused = useIsFocused();
   // The newest message on screen: the conversation is read up to it, never
   // past what the viewer could see (a failed load marks nothing).
-  const newestShown = messages.at(-1)?.id ?? null;
+  const newestShown = loaded && !loadFailed ? (messages.at(-1)?.id ?? null) : null;
 
   // In focus (opening it, coming back, or a new message shown): read up to
   // the newest message displayed.
@@ -109,6 +112,7 @@ export function ChatPanel({
         .then((page) => {
           if (!active) return;
           setLoadFailed(false);
+          setLoaded(true);
           add(page);
         })
         .catch(() => active && setLoadFailed(true));

@@ -19,7 +19,7 @@ Contraseña de todos: **`Demo1234`**
 | `hector.ibarra@demo.test`    | Coordinador               | TRN · "Regional Monterrey"                 | `RF53-01`, `TT-01`, Raúl y Arturo; no ve nada del corredor (app y web)          |
 | `carmen.navarro@demo.test`   | Gerente                   | Fletes Tapatíos (Guadalajara)              | Contraoferta por responder; plataforma con póliza en revisión      |
 | `jose.sanchez@demo.test`     | Gerente y operador        | José Sánchez Medina (hombre-camión, D13)   | Oferta pendiente; viaje cerrado que manejó él mismo; en la app, "Mi viaje" |
-| `pedro.lopez@demo.test`      | Operador                  | Transportes Regios del Norte               | Viaje en descarga: actualizar el fin estimado y terminar           |
+| `pedro.lopez@demo.test`      | Operador                  | Transportes Regios del Norte               | Viaje en descarga: actualizar el fin estimado y terminar; "Reportar al coordinador" (chat interno, H1), también del viaje cancelado GDL → MTY (`transport://chat/5eed0008-0000-4000-8000-000000000020`) |
 | `raul.mendez@demo.test`      | Operador                  | Transportes Regios del Norte               | Operador sin viaje activo                                          |
 | `miguel.hernandez@demo.test` | Operador                  | Fletes Tapatíos                            | Viaje asignado Apodaca → GDL: registrar la salida                  |
 | `81 1000 0013` (teléfono)    | Operador sin correo (G2)  | TRN · "Regional Monterrey"                 | Iván Garza: entra con su teléfono y `Demo1234` ("Correo o teléfono"); licencia aprobada, se le puede asignar `RF53-01` |
@@ -35,8 +35,8 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 
 - **6 empresas aprobadas** (3 clientes y 3 transportistas) con todos sus documentos aprobados, salvo la póliza de la plataforma de Fletes Tapatíos, que espera revisión: esa unidad no está lista para matching hasta que el admin la apruebe.
 - **8 unidades** (tractocamiones, cajas secas, refrigerada, plataforma, tortons y rabón) y **7 operadores** (Iván Garza, solo con teléfono), con disponibilidad en Monterrey, Saltillo y Guadalajara, y rutas habituales MTY ↔ GDL.
-- **15 cargas** en ambos sentidos y en todos los estados: 6 publicadas, 2 en negociación, 1 borrador, 1 contratada, 1 en curso, 2 completadas, 1 cancelada y 1 expirada.
-- **4 viajes**: uno MTY → GDL **en descarga** con fin estimado en 2 horas (con línea de tiempo, puntos GPS del corredor y chat), uno asignado y dos cerrados.
+- **15 cargas** en ambos sentidos y en todos los estados: 6 publicadas, 2 en negociación, 1 borrador, 1 contratada, 1 en curso, 2 completadas, 1 cancelada (contratada por Transportes Regios y cancelada por el cliente antes de salir) y 1 expirada.
+- **5 viajes**: uno MTY → GDL **en descarga** con fin estimado en 2 horas (con línea de tiempo, puntos GPS del corredor, chat con el cliente y chat interno de Pedro con Andrea), uno asignado, dos cerrados y uno GDL → MTY **cancelado** con su chat interno abierto (H1, D20-E1).
 
 ### Recorrido por perfil (G9)
 

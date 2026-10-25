@@ -17,6 +17,11 @@ tags: [operator, offline]
     env:
       LABEL: 'Qué pasó'
       TEXT: 'Tráfico detenido en la autopista por obras.'
+# A tap on the section's title closes the keyboard; with "Reportar al
+# coordinador" above (H1) it may have scrolled out of view.
+- scrollUntilVisible:
+    element: 'Reportar incidencia'
+    direction: UP
 - tapOn: 'Reportar incidencia'
 - scrollUntilVisible:
     element: 'Enviar incidencia'

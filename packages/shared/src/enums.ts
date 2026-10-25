@@ -73,7 +73,7 @@ export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 export const TRIP_DOCUMENT_KINDS = DB_ENUMS.trip_document_kind;
 export type TripDocumentKind = (typeof TRIP_DOCUMENT_KINDS)[number];
 
-/** A conversation belongs to a negotiation or to a trip (conversations, B07). */
+/** A conversation belongs to a negotiation or to a trip (conversations, B07); a trip has two: with the shipper and the carrier's internal one (H1). */
 export const CONVERSATION_KINDS = DB_ENUMS.conversation_kind;
 export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
 

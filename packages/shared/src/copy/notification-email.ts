@@ -2,6 +2,7 @@
 // users (Cliente and Admin, D06). Title and body come from notificationContent,
 // so push, email and the in-app inbox always say the same thing.
 import type { NotificationType, UserRole } from '../enums';
+import { INTERNAL_CHAT_PARAM } from '../internal-chat';
 import { authCopy } from './auth';
 import { notificationContent } from './notifications';
 
@@ -16,6 +17,12 @@ export const notificationEmailCopy = {
   footer:
     'Recibes este correo porque tienes una cuenta en la plataforma. Todos tus avisos están en la bandeja de notificaciones.',
 } as const;
+
+/**
+ * Types sent by push and kept in the inbox, never by email: the messages of
+ * the internal trip chat (H1) are too frequent for the mailbox.
+ */
+export const PUSH_ONLY_NOTIFICATION_TYPES: readonly NotificationType[] = ['internal_message'];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -37,6 +44,10 @@ export function notificationWebPath(role: UserRole | null, data: unknown): strin
   const loadId = uuid(data, 'loadId');
   const tripId = uuid(data, 'tripId');
   if (role === 'manager' || role === 'coordinator') {
+    // The internal trip chat (H1) carries its conversation: the internal tab.
+    if (tripId && uuid(data, 'conversationId')) {
+      return `/transportista/viajes/${tripId}?chat=${INTERNAL_CHAT_PARAM}`;
+    }
     const negotiationId = uuid(data, 'negotiationId');
     if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;
     // A unit to release, or released (G5): its screen, where it is released.

@@ -2,11 +2,15 @@ import {
   buildCarrierFeed,
   carrierLoadsCopy,
   fleetCopy,
+  INTERNAL_CHAT_PARAM,
+  internalChatCopy,
+  internalMessagePreview,
   mobileNavCopy,
   progressSummary,
   vehicleReleaseCopy,
 } from '@transport/shared';
-import { useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback } from 'react';
 
 import { BillingBanner } from '../../../components/billing-banner';
 import { CompanyStatus } from '../../../components/company-status';
@@ -38,6 +42,7 @@ import {
   unitLabel,
   unitRecommendations,
 } from '../../../lib/loads-api';
+import { loadInternalInbox, UNREAD_REFRESH_MS } from '../../../lib/internal-chat-api';
 import { listPendingReleases } from '../../../lib/release-api';
 import { track } from '../../../lib/track';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
@@ -94,9 +99,15 @@ async function loadPendingReleases({ client, companyId }: CarrierContext) {
   return listPendingReleases(client, companyId);
 }
 
+/** The internal chats of the trips (H1), for "Mensajes de operadores". */
+async function loadOperatorMessages({ client }: CarrierContext) {
+  return loadInternalInbox(client);
+}
+
 /**
- * Carrier home: the units to release (G5), recommended loads and return trips
- * (B19), then the onboarding steps (B18).
+ * Carrier home: the operators' unread messages (H1), the units to release
+ * (G5), recommended loads and return trips (B19), then the onboarding steps
+ * (B18).
  */
 export default function HomeTab() {
   const { profile } = useSession();
@@ -106,6 +117,8 @@ export default function HomeTab() {
     <Screen title={profile?.companyName ?? mobileNavCopy.home}>
       {profile ? <CompanyStatus profile={profile} /> : null}
       <BillingBanner />
+      {/* Only unread messages of others: never for a hombre-camión working alone (D13-E1). */}
+      {approved ? <OperatorMessages /> : null}
       {approved ? <PendingReleases /> : null}
       {approved ? (
         <Feed />
@@ -171,6 +184,55 @@ function Feed() {
         icon="search"
         onPress={() => router.push('/loads')}
       />
+    </>
+  );
+}
+
+/**
+ * "Mensajes de operadores (n)": the trips whose internal chat has messages the
+ * viewer has not read; each opens the trip on its "Interno" tab. Nothing while
+ * there are none.
+ */
+function OperatorMessages() {
+  const router = useRouter();
+  const { state, reload } = useCarrierData(loadOperatorMessages);
+  // While in focus, so new messages show up without leaving the screen.
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setInterval(() => void reload(), UNREAD_REFRESH_MS);
+      return () => clearInterval(timer);
+    }, [reload]),
+  );
+  if (state.status !== 'ready') return null;
+  const unread = state.data.filter((row) => row.unread > 0);
+  if (unread.length === 0) return null;
+  return (
+    <>
+      <SectionHeader title={internalChatCopy.inbox.title(unread.length)} />
+      <Group>
+        {unread.slice(0, 5).map((row) => (
+          <StatusRow
+            key={row.conversationId}
+            strong
+            title={
+              row.originCity && row.destinationCity
+                ? internalChatCopy.inbox.route(row.originCity, row.destinationCity)
+                : (row.operatorName ?? internalChatCopy.inbox.noOperator)
+            }
+            lines={[
+              row.operatorName,
+              internalMessagePreview(row.lastMessageBody, row.lastMessageAttachments),
+            ]}
+            pill={{ label: internalChatCopy.unreadLabel(row.unread), tone: 'accent' }}
+            onPress={() =>
+              router.push({
+                pathname: '/trip/[id]',
+                params: { id: row.tripId, chat: INTERNAL_CHAT_PARAM },
+              })
+            }
+          />
+        ))}
+      </Group>
     </>
   );
 }

@@ -90,6 +90,7 @@ Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit
 | --- | --- | --- | --- |
 | GHSA-86w9-cpqp-85rv (alto) | `node-forge` ≤ 1.4.0 | `@expo/code-signing-certificates` (CLI de Expo) | Aceptado: herramienta de desarrollo, no va en la app. Sin versión corregida |
 | GHSA-vfj7-8cjw-p6xm (alto) | `braces` ≤ 3.0.3 | `@next/eslint-plugin-next` (lint) | Aceptado: solo lint. Sin versión corregida |
+| GHSA-mrhx-c7xc-m3w5 (alto) | `zod` 3.25.76 | `@expo/cli` (CLI de Expo) | Aceptado: herramienta de desarrollo, no va en la app (las apps usan `zod` 4.6.7, ya corregido). La corrección solo existe en `zod` 4 y `@expo/cli` 57 usa `zod` 3. Revisar al actualizar Expo |
 | GHSA-vcc3-ghjq-m6fr (moderado) | `decode-uri-component` 0.2.2 | `query-string` de `expo-router` | Seguimiento: la corrección (0.5.0) solo existe como ESM y rompería `query-string` 7. Hay que esperar a que `expo-router` la adopte |
 | GHSA-w5hq-g745-h8pq (moderado) | `uuid` 7 | `xcode` (config plugins de Expo, en build) | Aceptado: solo en build, y la app no usa la API afectada (`buf`) |
 

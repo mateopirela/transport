@@ -235,6 +235,43 @@ Deno.test('without an email provider the email is simulated, not sent', async ()
   assert.deepEqual(recorded(), [{ id: 'n1', attempt: 1, push: 'skipped', email: 'skipped' }]);
 });
 
+Deno.test('internal chat messages go by push only, never by email (H1)', async () => {
+  const TRIP = '5eed0008-0000-4000-8000-000000000001';
+  const CONVERSATION = '6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b';
+  const { deps, of, recorded } = setup({
+    batches: [
+      [
+        row('n1', {
+          type: 'internal_message',
+          role: 'coordinator',
+          email: 'andrea@t.test',
+          push_tokens: [TOKEN_A],
+          data: {
+            ...ROUTE,
+            tripId: TRIP,
+            conversationId: CONVERSATION,
+            senderName: 'Pedro López',
+            preview: 'Ya llegué a cargar',
+          },
+        }),
+      ],
+    ],
+  });
+  await handleDispatch(post(), deps);
+  assert.equal(of(RESEND_URL).length, 0);
+  const messages = of(EXPO_PUSH_URL)[0]!.body as { title: string; body: string; data: unknown }[];
+  assert.equal(messages[0]!.title, 'Mensaje de Pedro López');
+  assert.equal(messages[0]!.body, 'Ya llegué a cargar');
+  assert.deepEqual(messages[0]!.data, {
+    loadId: LOAD,
+    tripId: TRIP,
+    conversationId: CONVERSATION,
+    notificationId: 'n1',
+    type: 'internal_message',
+  });
+  assert.deepEqual(recorded(), [{ id: 'n1', attempt: 1, push: 'sent', email: 'skipped' }]);
+});
+
 Deno.test('email failures: temporary ones are retried, permanent ones are not', async () => {
   for (const [status, outcome] of [
     [429, 'retry'],

@@ -1,0 +1,93 @@
+# Operator (H1, D28): "Reportar al coordinador". From his trip, Pedro opens
+# the internal chat with his coordinator, sends a quick report, a photo (the
+# stand-in camera of E2E builds) and his location; his trip has no chat with
+# the shipper. Then a link to the internal chat of his cancelled trip
+# (transport://chat/<trip>, as its notification opens it) shows the
+# conversation, still open, and he answers (D20-E1).
+# Seed: pedro.lopez@demo.test drives CS53-01 (the trip in unloading, or the
+# return trip once 03 assigned it) and had the GDL -> MTY trip 5eed0008-…-20,
+# cancelled by the shipper, with a message of Andrea in its internal chat.
+appId: ${APP_ID}
+name: Operador · reportar al coordinador
+tags: [operator]
+---
+- setLocation:
+    latitude: 20.6330
+    longitude: -103.3610
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: pedro.lopez@demo.test
+- extendedWaitUntil:
+    visible: 'Avance del viaje'
+    timeout: 30000
+# His trip: the report to the coordinator on top, no chat with the shipper.
+- assertVisible: 'Reportar al coordinador.*'
+- assertNotVisible: 'Chat del viaje'
+- takeScreenshot: 15-1-operator-trip-report
+- tapOn: 'Reportar al coordinador.*'
+- extendedWaitUntil:
+    visible: 'Solo lo ven tu coordinador y el gerente de tu empresa.*'
+    timeout: 30000
+- scrollUntilVisible:
+    element: 'Mensajes rápidos'
+    direction: DOWN
+    timeout: 15000
+- tapOn: 'Ya llegué a cargar'
+- extendedWaitUntil:
+    visible: 'Tú · .*'
+    timeout: 15000
+# A photo: camera only (the stand-in one in this build).
+- scrollUntilVisible:
+    element: 'Enviar foto'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Enviar foto'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: 'Allow'
+          timeout: 2000
+          optional: true
+      - runFlow:
+          when:
+            visible: 'Allow'
+          commands:
+            - tapOn: 'Allow'
+- runFlow:
+    when:
+      platform: Android
+    file: subflows/shutter.yaml
+- scrollUntilVisible:
+    element: '(Ver foto|Abrir Foto.*)'
+    direction: UP
+    timeout: 30000
+# And where he is: a Google Maps link.
+- scrollUntilVisible:
+    element: 'Enviar mi ubicación'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Enviar mi ubicación'
+- scrollUntilVisible:
+    element: 'Mi ubicación: https://maps.google.com/.*'
+    direction: UP
+    timeout: 30000
+- takeScreenshot: 15-2-operator-report-sent
+# The internal chat of his cancelled trip, as its notification opens it.
+- openLink: transport://chat/5eed0008-0000-4000-8000-000000000020
+- extendedWaitUntil:
+    visible: 'Este viaje se canceló.*'
+    timeout: 30000
+- assertVisible: 'Pedro, el cliente canceló el viaje a Monterrey.*'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Chat'
+      TEXT: 'Enterado, regreso la unidad al patio.'
+- tapOn: 'Enviar'
+- extendedWaitUntil:
+    visible: 'Enterado, regreso la unidad al patio.'
+    timeout: 15000
+- takeScreenshot: 15-3-operator-cancelled-trip-chat

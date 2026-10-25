@@ -109,6 +109,16 @@ describe('resolveRoute', () => {
     expect(resolveRoute('/compartidos', null)).toBe('/login?next=%2Fcompartidos');
   });
 
+  it('opens the trip link page and the universal-link files to everyone (H2)', () => {
+    const token = 'Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+    for (const viewer of [null, admin, approvedShipper, manager, coordinator, operator]) {
+      expect(resolveRoute(`/viaje/${token}`, viewer)).toBeNull();
+      expect(resolveRoute('/.well-known/apple-app-site-association', viewer)).toBeNull();
+      expect(resolveRoute('/.well-known/assetlinks.json', viewer)).toBeNull();
+    }
+    expect(resolveRoute('/viajes', null)).toBe('/login?next=%2Fviajes');
+  });
+
   it('opens the internal share links only to the carrier staff, remembering the link (G7)', () => {
     const path = '/transportista/compartido/Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
     expect(resolveRoute(path, null)).toBe(`/login?next=${encodeURIComponent(path)}`);

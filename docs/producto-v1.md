@@ -84,6 +84,7 @@
 - **Tiempos de espera** (D32), medidos con los eventos de los viajes: "Espera típica en descarga" en los viajes de regreso (y la hora en que la unidad queda libre los usa), "Espera típica al cargar" en la ruta sugerida de la carga y el **fin estimado de descarga** de cada viaje. Con menos de 5 viajes medidos se usan 4 h y se dice; las estadísticas con viajes de otras empresas solo se muestran si vienen de al menos 2.
 - Ofertar y contraofertar (precio y disponibilidad), con chat con el cliente.
 - Confirmar camión y operador del viaje ganado; ver si el cliente ya lo dio de alta como proveedor.
+- **Enviar viaje al operador** (D29): al asignar, y mientras el viaje esté en curso, le manda al operador un enlace del viaje. En la app, con la hoja de compartir del sistema; en la web, "Enviar por WhatsApp" (al teléfono del operador), "Enviar por SMS", "Copiar enlace" y "Revocar". El enlace solo abre con la sesión del operador asignado y vence al cambiar de operador, al cerrar o cancelar el viaje, o a los 30 días. La notificación de viaje asignado sigue.
 - Subir los documentos del viaje (D22): orden de servicio, CFDI con Carta Porte y factura.
 - **Compartir** una carga por enlace con operadores u otros coordinadores de la empresa (D23).
 - Monitorear viajes activos en el mapa y consultar el historial.
@@ -94,6 +95,7 @@
 ### Operador (app móvil)
 - Registro por enlace: nombre, teléfono y contraseña; correo opcional; identificación oficial y licencia de conducir vigente y adecuada al vehículo.
 - Notificación de viaje asignado y pantalla del viaje: origen, destino, ruta, instrucciones, contactos y documentos del viaje.
+- **Viaje por enlace** (D29): el enlace que le manda su coordinador (`https://<sitio>/viaje/<token>` o `transport://viaje/<token>`) abre la app en su viaje; sin sesión, le pide entrar con su teléfono y contraseña y después lo abre. Si no es el viaje en curso, lo ve como "Siguiente viaje" en solo lectura. Un enlace vencido, revocado o de otro operador dice "Este enlace ya no está disponible. Pide uno nuevo a tu coordinador." La página web del enlace no muestra datos del viaje: solo "Abrir en la app" y, si están configuradas, las tiendas.
 - Botones de estado:
   - salida
   - llegada a recolección
@@ -193,6 +195,7 @@ Hardware propio, pago del flete dentro de la plataforma y comisiones, emisión o
 | Ver documentos compartidos del transportista | ✅ (de sus viajes) | — | — | — | ✅ |
 | Dar de alta a un transportista como proveedor | ✅ | — | — | — | 👁 |
 | Compartir por enlace | ✅ carga y seguimiento (público) | ✅ carga (interno) | 🔸 carga (interno) | — | — |
+| Enviar el viaje al operador por enlace (D29) | — | ✅ | 🔸 | ✅ abrirlo (su viaje) | — |
 | Marcar tramos preferidos o a evitar en las rutas habituales (D31) | — | ✅ | ✅ (rutas de la empresa) | — | 👁 |
 | Editar el catálogo de carreteras: tramos, casetas, inseguridad y corredores (D31) | — | — | — | — | ✅ |
 | Pagar y administrar la suscripción (D30; gratis durante el piloto) | — | ✅ (web) | 👁 estado | — | 👁 |

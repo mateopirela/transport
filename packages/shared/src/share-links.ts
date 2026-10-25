@@ -37,6 +37,7 @@ export const DEFAULT_SHARE_VALIDITY_HOURS: Record<ShareLinkKind, ShareValidityHo
   load_internal: 72,
   load_public: 168,
   trip_tracking_public: 720,
+  trip_operator: 720,
 };
 
 /** One of the dialog's validity choices, or null for anything else. */

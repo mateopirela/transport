@@ -6,6 +6,7 @@
 import {
   LEGAL_PATHS,
   SHARE_PATHS,
+  TRIP_LINK_PATH,
   type UserRole,
   type VerificationStatus,
 } from '@transport/shared';
@@ -57,6 +58,10 @@ export const paths = {
   shared: SHARE_PATHS.public,
   /** Internal share links (G7): a load shared with the carrier's team. */
   carrierShared: SHARE_PATHS.internal,
+  /** Trip link of the operator (H2): only offers to open the app, never reads the token. */
+  tripLink: TRIP_LINK_PATH,
+  /** Universal links (H2): apple-app-site-association and assetlinks.json. */
+  wellKnown: '/.well-known',
 } as const;
 
 /** The web page of an invitation link (G2). */
@@ -140,11 +145,20 @@ const GUEST_ONLY = [paths.signIn, paths.signUp, paths.forgotPassword, paths.chec
 /**
  * Open to everyone: auth callbacks must work with or without a session, the
  * legal pages (B27) are linked from the stores and the mobile app, the
- * public share links (G7) are read by anyone who has the token, and an
+ * public share links (G7) are read by anyone who has the token, an
  * invitation link (G2) is opened by a new person or by a signed-in
- * Coordinador who joins the company.
+ * Coordinador who joins the company, and the trip link of the operator (H2)
+ * and the universal-link files are opened by the phone before any session.
  */
-const PUBLIC = ['/auth', paths.privacy, paths.terms, paths.shared, paths.invitation];
+const PUBLIC = [
+  '/auth',
+  paths.privacy,
+  paths.terms,
+  paths.shared,
+  paths.invitation,
+  paths.tripLink,
+  paths.wellKnown,
+];
 
 /** Areas that only one kind of user may open: their home. */
 const HOME_ONLY = [

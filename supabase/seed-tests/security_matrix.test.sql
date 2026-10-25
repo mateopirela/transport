@@ -633,6 +633,9 @@ insert into tests.rpc_calls values
   ('open_internal_share', $$ public.open_internal_share('B24SHARETOKEN') $$),
   ('public_shared_load', $$ public.public_shared_load('B24SHARETOKEN') $$),
   ('public_shared_trip', $$ public.public_shared_trip('B24SHARETOKEN') $$),
+  -- Trip link of the operator (H2): the seed's trip and a token that matches nothing.
+  ('create_trip_operator_link', $$ (select count(*) from public.create_trip_operator_link(tests.val('trip'))) $$),
+  ('open_trip_operator_link', $$ public.open_trip_operator_link('B24SHARETOKEN') $$),
   -- Road catalog (H4): admins only.
   ('admin_upsert_road_segment', $$ public.admin_upsert_road_segment('SLP-LAG', 'Ajeno', 'San Luis Potosí', 'San Luis Potosí', 22.1565, -100.9855, 'Lagos de Moreno', 'Jalisco', 21.3564, -101.9356, 172, true, 'x', current_date, 'verified', tests.val('road_segment'), null, null, null) $$),
   ('admin_set_segment_toll', $$ public.admin_set_segment_toll(tests.val('road_segment'), 'c5', 'x', current_date, 'verified', 1, null) $$),
@@ -731,6 +734,12 @@ begin
       -- The expected refusal.
       when insufficient_privilege then
         v_breach := null;
+      -- H2 (D29): the trip link answers every caller it is not meant for
+      -- with this one error, so it cannot tell them apart (47_trip_operator_links).
+      when invalid_parameter_value then
+        if not (r.fn = 'open_trip_operator_link' and sqlerrm = 'invalid or expired link') then
+          v_breach := r.fn || ' failed with ' || sqlstate || ' instead of 42501: ' || left(sqlerrm, 80);
+        end if;
       when others then
         -- Any other error (a missing function, a wrong argument, a broken
         -- fixture) means the call never reached its access check: report it
@@ -778,7 +787,7 @@ select is_empty(
        'set_vehicle_availability', 'clear_vehicle_availability', 'assign_trip', 'cancel_trip', 'report_incident',
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
-       'create_invitation', 'revoke_invitation', 'create_share_link',
+       'create_invitation', 'revoke_invitation', 'create_share_link', 'create_trip_operator_link',
        'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end',
        'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
        'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,

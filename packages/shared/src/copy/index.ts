@@ -24,6 +24,7 @@ export * from './notifications';
 export * from './permissions';
 export * from './roads';
 export * from './share-links';
+export * from './trip-link';
 export * from './shared-documents';
 export * from './tracking';
 export * from './trip-documents';

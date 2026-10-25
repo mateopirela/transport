@@ -45,6 +45,7 @@ describe('validity', () => {
       load_internal: 72,
       load_public: 168,
       trip_tracking_public: 720,
+      trip_operator: 720,
     });
   });
 

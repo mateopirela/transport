@@ -16,6 +16,7 @@ import {
   missingTripDocumentsFromError,
   tripDocumentKindLabels,
   tripEventTypeLabels,
+  tripLinkCopy,
   tripStatusLabels,
   unloadEstimateProblem,
   type EvidenceStage,
@@ -25,7 +26,7 @@ import {
   type TripEventType,
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type ScrollView } from 'react-native';
 
@@ -61,6 +62,7 @@ import {
   Footnote,
   Group,
   Loading,
+  LoadError,
   Notice,
   Pill,
   Screen,
@@ -83,6 +85,7 @@ import { internalUnread, UNREAD_REFRESH_MS } from '../../lib/internal-chat-api';
 import { currentPosition } from '../../lib/location';
 import { supabase } from '../../lib/supabase';
 import { loadOperatorTrip, type OperatorTrip } from '../../lib/trip-api';
+import { loadLinkedTrip } from '../../lib/trip-link-api';
 import {
   actionEventType,
   effectiveStatus,
@@ -174,8 +177,60 @@ function ReportToCoordinator({ tripId }: { tripId: string }) {
   );
 }
 
+/**
+ * "Siguiente viaje" (H2): a trip link opened for a trip that is not the one in
+ * course. Read-only until it is its turn: the route and the pickup window,
+ * and the operator can still report to the coordinator about it.
+ */
+function NextTrip({ tripId }: { tripId: string }) {
+  const load = useCallback(
+    () => (supabase ? loadLinkedTrip(supabase, tripId) : Promise.resolve(null)),
+    [tripId],
+  );
+  const { state, reload } = useLoader(load);
+  const header = <SectionHeader title={tripLinkCopy.app.nextTrip} />;
+  if (state.status === 'loading') {
+    return (
+      <>
+        {header}
+        <Loading label={tripLinkCopy.app.opening} />
+      </>
+    );
+  }
+  if (state.status === 'error') {
+    return (
+      <>
+        {header}
+        <LoadError onRetry={() => void reload()} />
+      </>
+    );
+  }
+  const next = state.data;
+  // No longer theirs (reassigned, cancelled): the trip link screen said so already.
+  if (!next) return null;
+  return (
+    <>
+      {header}
+      <Group>
+        <Cell
+          icon="route"
+          title={`${next.origin} → ${next.destination}`}
+          subtitle={tripLinkCopy.app.pickup(
+            formatDateTime(next.pickupStart),
+            formatDateTime(next.pickupEnd),
+          )}
+          pill={{ label: tripStatusLabels[next.status], tone: 'neutral' }}
+        />
+      </Group>
+      <Footnote>{tripLinkCopy.app.nextTripHelp}</Footnote>
+    </>
+  );
+}
+
 /** "Viaje asignado" (mockup): the trip, its status controls and incidents (B21). */
 export default function AssignedTripTab() {
+  // H2: the trip of a link the operator opened (lib/trip-link-api.ts).
+  const { viaje } = useLocalSearchParams<{ viaje?: string }>();
   const { session } = useSession();
   const userId = session?.user.id ?? null;
   const queue = useTripQueue(supabase, userId);
@@ -266,10 +321,14 @@ export default function AssignedTripTab() {
         <NoticeAction label={copy.dismiss} onPress={dismissRejectedPhotos} />
       </Notice>
     ) : null;
+  const current = state.status === 'ready' ? state.data : null;
+  const linked =
+    typeof viaje === 'string' && viaje !== current?.id ? <NextTrip tripId={viaje} /> : null;
   const notices = (
     <>
       {rejectedNotice}
       {rejectedPhotosNotice}
+      {linked}
     </>
   );
 

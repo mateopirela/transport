@@ -17,6 +17,15 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
+      {
+        // Trip link of the operator (H2): same reasons, the token is in the URL.
+        source: '/viaje/:path*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
     ];
   },
 };

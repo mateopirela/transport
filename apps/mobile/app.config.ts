@@ -29,6 +29,20 @@ const sentryUpload =
       ]
     : [];
 
+// Universal links of the trip link (H2, D29): https://<sitio>/viaje/<token>
+// opens the app when the site is configured (https only) and the web serves
+// apple-app-site-association / assetlinks.json (APPLE_TEAM_ID,
+// ANDROID_CERT_SHA256). Without it the page offers "Abrir en la app" with the
+// deep link. Changing it needs a new native build.
+const siteHost = (() => {
+  try {
+    const url = new URL(process.env.EXPO_PUBLIC_SITE_URL ?? '');
+    return url.protocol === 'https:' ? url.host : null;
+  } catch {
+    return null;
+  }
+})();
+
 // withIosSceneLifecycle wraps the whole config (ExpoConfig's `plugins` only
 // types module names, not plugin functions).
 export default ({ config }: ConfigContext): ExpoConfig =>
@@ -47,6 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       bundleIdentifier: bundleId,
       supportsTablet: false,
       config: { usesNonExemptEncryption: false },
+      ...(siteHost ? { associatedDomains: [`applinks:${siteHost}`] } : {}),
     },
     android: {
       package: bundleId,
@@ -58,6 +73,18 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       },
       // Session tokens live in the Keychain/Keystore; never back them up.
       allowBackup: false,
+      ...(siteHost
+        ? {
+            intentFilters: [
+              {
+                action: 'VIEW',
+                autoVerify: true,
+                data: [{ scheme: 'https', host: siteHost, pathPrefix: '/viaje/' }],
+                category: ['BROWSABLE', 'DEFAULT'],
+              },
+            ],
+          }
+        : {}),
     },
     plugins: [
       'expo-router',

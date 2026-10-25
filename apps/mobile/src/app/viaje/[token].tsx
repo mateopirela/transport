@@ -47,9 +47,7 @@ export default function TripLink() {
         <LoadError onRetry={() => void reload()} />
       ) : state.status === 'ready' && !link ? (
         <>
-          <Notice tone="warning" title={copy.unavailableTitle}>
-            {copy.unavailable}
-          </Notice>
+          <Notice tone="warning">{copy.unavailable}</Notice>
           <Button
             label={copy.goHome}
             variant="secondary"

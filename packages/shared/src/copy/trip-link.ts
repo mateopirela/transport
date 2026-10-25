@@ -55,7 +55,6 @@ export const tripLinkCopy = {
   /** The app's screen of a trip link. */
   app: {
     opening: 'Abriendo el viaje…',
-    unavailableTitle: 'Este enlace ya no está disponible',
     unavailable: 'Este enlace ya no está disponible. Pide uno nuevo a tu coordinador.',
     retry: 'Reintentar',
     goHome: 'Ir al inicio',

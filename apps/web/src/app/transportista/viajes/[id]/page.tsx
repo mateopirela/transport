@@ -1,6 +1,7 @@
 import {
   canAddTripDocuments,
   canCancelTrip,
+  canSendTripLink,
   cancelLeavesUnitPending,
   cancellationText,
   carrierTripsCopy,
@@ -27,6 +28,7 @@ import Link from 'next/link';
 
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { TripAssignForm } from '@/components/carrier/trip-assign-form';
+import { TripLinkPanel } from '@/components/carrier/trip-link-panel';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { BackLink, PageSection } from '@/components/page-section';
 import { ProviderBadge } from '@/components/shared-documents/provider-status';
@@ -57,6 +59,7 @@ import { getCarrierTrip } from '@/lib/carrier/trips';
 import { getChat } from '@/lib/chat/queries';
 import { tripEndEstimate } from '@/lib/dwell';
 import { carrierLoadPath, carrierTripPath, paths, tripFileHref } from '@/lib/routing';
+import { activeTripOperatorLink } from '@/lib/share-links/queries';
 import { getProviderDecisionForCarrier, getSharedDocuments } from '@/lib/shared-documents/queries';
 import { mapState, signalTime, tripRefreshMs, type MapState } from '@/lib/trips/tracking';
 import { cn } from '@/lib/utils';
@@ -115,7 +118,12 @@ export default async function CarrierTripPage({
   const { trip, load, events, incidents, evidence, documents, locations } = data;
   const chatTab = data.internalConversationId ? requestedTab : 'shipper';
   const chatId = chatTab === 'internal' ? data.internalConversationId : data.conversationId;
-  const [chat, sharedDocuments, decision, endEstimate] = await Promise.all([
+  // H2: "Enviar viaje al operador", while the operator has the trip in hand.
+  const sendsLink =
+    data.operatorName !== null &&
+    !data.soloOwnerOperator &&
+    canSendTripLink({ status: trip.status, operatorId: trip.operator_id });
+  const [chat, sharedDocuments, decision, endEstimate, tripLink] = await Promise.all([
     chatId ? getChat(supabase, chatId, companyId) : null,
     getSharedDocuments(supabase, trip.id),
     getProviderDecisionForCarrier(supabase, {
@@ -124,6 +132,7 @@ export default async function CarrierTripPage({
     }),
     // H5: the estimated end of unloading, with the times measured at the site.
     tripEndEstimate(supabase, id),
+    sendsLink ? activeTripOperatorLink(supabase, trip.id) : null,
   ]);
 
   const now = new Date();
@@ -414,6 +423,16 @@ export default async function CarrierTripPage({
               )}
             </div>
           </Group>
+
+          {sendsLink && data.operatorName && (
+            <TripLinkPanel
+              tripId={trip.id}
+              operatorName={data.operatorName}
+              operatorPhone={data.operatorPhone}
+              route={loadRoute(load)}
+              active={tripLink}
+            />
+          )}
 
           <section className="space-y-3">
             <Group label={c.detail.data}>

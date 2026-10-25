@@ -2298,6 +2298,7 @@ export interface Database {
           kind: Database['public']['Enums']['share_link_kind'];
           last_viewed_at: string | null;
           load_id: string | null;
+          operator_id: string | null;
           revoked_at: string | null;
           token_hash: string;
           trip_id: string | null;
@@ -2313,6 +2314,7 @@ export interface Database {
           kind: Database['public']['Enums']['share_link_kind'];
           last_viewed_at?: string | null;
           load_id?: string | null;
+          operator_id?: string | null;
           revoked_at?: string | null;
           token_hash: string;
           trip_id?: string | null;
@@ -2327,6 +2329,7 @@ export interface Database {
           kind?: Database['public']['Enums']['share_link_kind'];
           last_viewed_at?: string | null;
           load_id?: string | null;
+          operator_id?: string | null;
           revoked_at?: string | null;
           token_hash?: string;
           trip_id?: string | null;
@@ -2359,6 +2362,13 @@ export interface Database {
             columns: ['load_id'];
             isOneToOne: false;
             referencedRelation: 'loads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'share_links_operator_id_fkey';
+            columns: ['operator_id'];
+            isOneToOne: false;
+            referencedRelation: 'operators';
             referencedColumns: ['id'];
           },
           {
@@ -3890,6 +3900,14 @@ export interface Database {
         }[];
       };
       create_trip_for_accepted_offer: { Args: { p_offer_id: string }; Returns: string };
+      create_trip_operator_link: {
+        Args: { p_trip_id: string };
+        Returns: {
+          expires_at: string;
+          id: string;
+          token: string;
+        }[];
+      };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       device_time_ahead: { Args: { p_at: string }; Returns: boolean };
       discard_orphan_operator_service: {
@@ -4133,6 +4151,7 @@ export interface Database {
       };
       notify_matches_for_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined };
       open_internal_share: { Args: { p_token: string }; Returns: Json };
+      open_trip_operator_link: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       product_event_properties_valid: {
@@ -4324,6 +4343,7 @@ export interface Database {
           kind: Database['public']['Enums']['share_link_kind'];
           last_viewed_at: string | null;
           load_id: string | null;
+          operator_id: string | null;
           revoked_at: string | null;
           token_hash: string;
           trip_id: string | null;
@@ -4478,6 +4498,10 @@ export interface Database {
         Returns: boolean;
       };
       trip_is_active: {
+        Args: { p_status: Database['public']['Enums']['trip_status'] };
+        Returns: boolean;
+      };
+      trip_operator_link_issuable: {
         Args: { p_status: Database['public']['Enums']['trip_status'] };
         Returns: boolean;
       };
@@ -4684,7 +4708,7 @@ export interface Database {
       road_data_status: 'estimated' | 'verified';
       road_preference: 'prefer' | 'avoid';
       road_risk_level: 'low' | 'medium' | 'high';
-      share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public';
+      share_link_kind: 'load_internal' | 'load_public' | 'trip_tracking_public' | 'trip_operator';
       special_requirement:
         | 'temperature_control'
         | 'hazmat_permit'
@@ -4969,7 +4993,7 @@ export const Constants = {
       road_data_status: ['estimated', 'verified'],
       road_preference: ['prefer', 'avoid'],
       road_risk_level: ['low', 'medium', 'high'],
-      share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public'],
+      share_link_kind: ['load_internal', 'load_public', 'trip_tracking_public', 'trip_operator'],
       special_requirement: [
         'temperature_control',
         'hazmat_permit',

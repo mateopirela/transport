@@ -41,3 +41,32 @@ export async function listActiveShareLinks(
     lastViewedAt: row.last_viewed_at,
   }));
 }
+
+/**
+ * The live trip link of the operator (H2), if any: at most one per trip (a
+ * partial unique index). Read by the carrier's staff (RLS: their company).
+ */
+export async function activeTripOperatorLink(
+  supabase: Supabase,
+  tripId: string,
+): Promise<ActiveShareLink | null> {
+  const { data, error } = await supabase
+    .from('share_links')
+    .select('id, kind, created_at, expires_at, view_count, last_viewed_at')
+    .eq('trip_id', tripId)
+    .eq('kind', 'trip_operator')
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+  if (error) throw new Error(`Trip link query failed: ${error.message}`);
+  return data
+    ? {
+        id: data.id,
+        kind: data.kind,
+        createdAt: data.created_at,
+        expiresAt: data.expires_at,
+        viewCount: data.view_count,
+        lastViewedAt: data.last_viewed_at,
+      }
+    : null;
+}

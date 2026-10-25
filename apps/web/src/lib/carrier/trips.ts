@@ -236,7 +236,7 @@ export async function getCarrierTrip(
       `id, load_id, offer_id, shipper_company_id, status, business_unit_id, vehicle_id, operator_id,
        estimated_unload_end_at, started_at, cancellation_reason, cancellation_reason_code, created_at,
        vehicle:vehicles!trips_vehicle_fkey(plate, fleet_number),
-       operator:operators!trips_operator_fkey(full_name),
+       operator:operators!trips_operator_fkey(full_name, phone),
        business_unit:business_units!trips_business_unit_fkey(name)`,
     )
     .eq('id', tripId)
@@ -343,6 +343,8 @@ export async function getCarrierTrip(
     agreedPriceCents: agreed.data?.agreed_price_cents ?? null,
     unitName: vehicle ? unitLabel(vehicle) : null,
     operatorName: operator?.full_name ?? null,
+    /** For "Enviar por WhatsApp" and SMS (H2). */
+    operatorPhone: operator?.phone ?? null,
     businessUnitName: businessUnit?.name ?? null,
     events: events.data ?? [],
     incidents: incidents.data ?? [],
@@ -365,6 +367,11 @@ export async function getCarrierTrip(
     })
       ? null
       : (internalConversation.data?.id ?? null),
+    /** H2: the hombre-camión alone would send the trip link to himself (D13-E1). */
+    soloOwnerOperator: hidesInternalChat({
+      isOwnerOperator: company.data?.is_owner_operator === true,
+      staffCount: staff.count ?? 0,
+    }),
     assignment,
   };
 }

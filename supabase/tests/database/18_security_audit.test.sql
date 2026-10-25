@@ -227,6 +227,9 @@ select set_eq(
     -- Share links (G7, D23). The two public_* views are also granted to anon
     -- (checked below); the rest need a session.
     'create_share_link', 'revoke_share_link', 'open_internal_share', 'public_shared_load', 'public_shared_trip',
+    -- Trip link for the operator (H2, D29): signed in only, the same error for
+    -- everyone it is not meant for (47_trip_operator_links).
+    'create_trip_operator_link', 'open_trip_operator_link',
     -- Road catalog (H4, D31): admins only, validated and audited (45_road_intelligence).
     'admin_upsert_road_segment', 'admin_set_segment_toll', 'admin_upsert_segment_risk', 'admin_upsert_corridor',
     -- Waiting times (H5, D32): the caller's own trips, others' only from 2 carriers up (46_site_dwell).

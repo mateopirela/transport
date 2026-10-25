@@ -58,8 +58,10 @@ const AREA_ROUTES: Record<
   company_setup: { home: '/company', segments: ['company'] },
   // `shared` is a load shared with the team (G7); `compartido` is its deep
   // link (transport://compartido/<token>), which redirects to `shared`.
-  carrier: { home: '/home', segments: ['(carrier)', 'shared', 'compartido'] },
-  operator: { home: '/trip', segments: ['(operator)', 'shared', 'compartido'] },
+  // `viaje` is the trip link the coordinator sends the operator (H2): it
+  // takes the operator to their trip and the staff to the trip detail.
+  carrier: { home: '/home', segments: ['(carrier)', 'shared', 'compartido', 'viaje'] },
+  operator: { home: '/trip', segments: ['(operator)', 'shared', 'compartido', 'viaje'] },
   unsupported: { home: '/unsupported', segments: ['unsupported'] },
   problem: { home: '/problem', segments: ['problem'] },
 };
@@ -84,11 +86,15 @@ export function redirectFor(area: Area, segments: readonly string[]): string | n
   return first !== undefined && allowed.includes(first) ? null : home;
 }
 
-/** Paths of a load shared with the team (G7): `/shared/<token>` or its deep link `/compartido/<token>`. */
-const SHARED_PATH = /^\/(?:shared|compartido)\/[A-Za-z0-9_-]{43}$/u;
+/**
+ * Paths of a link that needs a session: a load shared with the team (G7),
+ * `/shared/<token>` or its deep link `/compartido/<token>`, and the trip link
+ * of the operator (H2), `/viaje/<token>`.
+ */
+const SHARED_PATH = /^\/(?:shared|compartido|viaje)\/[A-Za-z0-9_-]{43}$/u;
 
 /**
- * Like `redirectFor`, but a shared-load link opened while signed out (or
+ * Like `redirectFor`, but a shared-load or trip link opened while signed out (or
  * before the profile loads) survives the trip through sign-in: the guard
  * remembers its path in `pending` and, once the user is in an area that may
  * open it, goes there instead of the area's home; it forgets it on arrival. Returns the route to

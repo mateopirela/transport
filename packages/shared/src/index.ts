@@ -28,6 +28,7 @@ export * from './roads';
 export * from './roles';
 export * from './schemas';
 export * from './share-links';
+export * from './trip-link';
 export * from './shared-documents';
 export * from './state-machines';
 export * from './tracking';

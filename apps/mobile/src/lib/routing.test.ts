@@ -170,3 +170,42 @@ describe('resolveRedirect: a shared load survives sign-in (G7)', () => {
     });
   });
 });
+
+describe('the trip link of the operator survives sign-in (H2)', () => {
+  const token = 'Qm9vay1vZi1zaGFyZS10b2tlbnMtMzItYnl0ZXMtMDA';
+  const trip = `/viaje/${token}`;
+
+  it('lets the operators and the carrier staff open it, and asks the rest to sign in', () => {
+    expect(redirectFor('operator', ['viaje', '[token]'])).toBeNull();
+    expect(redirectFor('carrier', ['viaje', '[token]'])).toBeNull();
+    expect(redirectFor('auth', ['viaje', '[token]'])).toBe('/sign-in');
+    expect(redirectFor('join', ['viaje', '[token]'])).toBe('/invitacion');
+    expect(redirectFor('unsupported', ['viaje', '[token]'])).toBe('/unsupported');
+  });
+
+  it('remembers /viaje/<token> while signed out and opens it after the login', () => {
+    expect(resolveRedirect('auth', ['viaje', '[token]'], trip, null)).toEqual({
+      target: '/sign-in',
+      pending: trip,
+    });
+    expect(resolveRedirect('auth', ['(auth)', 'sign-in'], '/sign-in', trip)).toEqual({
+      target: null,
+      pending: trip,
+    });
+    expect(resolveRedirect('operator', ['(auth)', 'sign-in'], '/sign-in', trip)).toEqual({
+      target: trip,
+      pending: trip,
+    });
+    expect(resolveRedirect('operator', ['viaje', '[token]'], trip, trip)).toEqual({
+      target: null,
+      pending: null,
+    });
+  });
+
+  it('ignores a malformed trip link', () => {
+    expect(resolveRedirect('auth', ['viaje', '[token]'], '/viaje/nope', null)).toEqual({
+      target: '/sign-in',
+      pending: null,
+    });
+  });
+});

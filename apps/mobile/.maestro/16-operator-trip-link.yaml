@@ -1,0 +1,88 @@
+# Operator (H2, D29): the trip link his coordinator sends him. Signed out,
+# Pedro opens transport://viaje/<token>: the app asks him to sign in and then
+# takes him to his trip. A link that was replaced (revoked) only says it is no
+# longer available.
+# Before (scripts/e2e-mobile.mjs, step trip-links-for-pedro): Andrea issues
+# the link of Pedro's trip twice and passes TRIP_TOKEN (live) and
+# REVOKED_TOKEN (the first one). A development build only runs once its
+# bundle is loaded, so the app starts signed out on the sign-in screen and
+# then the link arrives, as a cold start of a release build would see it.
+appId: ${APP_ID}
+name: Operador · viaje por enlace
+tags: [operator]
+---
+- setLocation:
+    latitude: 20.6330
+    longitude: -103.3610
+- clearKeychain
+- launchApp:
+    clearState: true
+    permissions:
+      location: always
+      camera: allow
+      notifications: deny
+- openLink: ${DEV_CLIENT_URL}
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd
+# The link without a session: the app keeps it and asks to sign in.
+- openLink: transport://viaje/${TRIP_TOKEN}
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 30000
+- takeScreenshot: 16-1-trip-link-sign-in
+- retry:
+    maxRetries: 3
+    commands:
+      - runFlow:
+          file: subflows/fill-field.yaml
+          env:
+            LABEL: 'Correo o teléfono'
+            TEXT: pedro.lopez@demo.test
+      - assertVisible: pedro.lopez@demo.test
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Contraseña'
+      TEXT: 'Demo1234'
+- tapOn: 'Tu siguiente viaje, antes de terminar el actual.'
+- tapOn: 'Entrar'
+- extendedWaitUntil:
+    visible: 'Not Now'
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: 'Not Now'
+    optional: true
+# Back from the sign-in, the link opens his trip.
+- extendedWaitUntil:
+    visible: 'Avance del viaje'
+    timeout: 30000
+- assertVisible: 'Reportar al coordinador.*'
+- takeScreenshot: 16-2-trip-link-operator-trip
+# The replaced link opens nothing.
+- openLink: transport://viaje/${REVOKED_TOKEN}
+- extendedWaitUntil:
+    visible: 'Este enlace ya no está disponible. Pide uno nuevo a tu coordinador.'
+    timeout: 30000
+- takeScreenshot: 16-3-trip-link-revoked

@@ -7,6 +7,8 @@
 //     coordinator has a unit to release,
 //   - G9: Héctor assigns Iván Garza (phone only) a trip of RF53-01; Sofía
 //     publishes a load for the hombre-camión and accepts his offer,
+//   - H2: the coordinator sends the operator the link of his trip (twice, so
+//     the first one is revoked),
 //   - the API goes down and up again around the offline flow (the iOS
 //     simulator shares the Mac's network, so the app is cut off from the
 //     server by stopping the local API gateway, the Kong container).
@@ -54,6 +56,9 @@ const RAUL = '5eed0003-0000-4000-8000-000000000002';
 const REEFER = '5eed0004-0000-4000-8000-000000000003';
 const IVAN = '5eed0003-0000-4000-8000-000000000007';
 const OWNER_OPERATOR_LOAD = 'Rollos de cartón (E2E G9, hombre-camión)';
+// H2: Andrea Cavazos sends Pedro López (operator row) the link of his trip.
+const TRIP_LINK_COORDINATOR = 'andrea.cavazos@demo.test';
+const PEDRO = '5eed0003-0000-4000-8000-000000000001';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -345,6 +350,32 @@ async function shipperAcceptsOwnerOperator(status) {
   console.log(`${RELEASE_SHIPPER} accepted the hombre-camión's offer.`);
 }
 
+/**
+ * H2: Andrea (Pedro's coordinator) sends him the link of his trip twice: the
+ * first link is revoked by the second. 16-operator-trip-link opens both.
+ */
+let tripLinks = null;
+async function tripLinksForPedro(status) {
+  const coordinator = await signIn(status, TRIP_LINK_COORDINATOR);
+  const trips = await api(
+    status,
+    `/rest/v1/trips?select=id&operator_id=eq.${PEDRO}&status=in.(assigned,en_route_to_pickup,at_pickup,loading,in_transit,at_delivery,unloading)&order=created_at`,
+    { token: coordinator },
+  );
+  if (trips.length === 0) throw new Error('Pedro has no trip on the road');
+  const issue = async () => {
+    const [link] = await api(status, '/rest/v1/rpc/create_trip_operator_link', {
+      token: coordinator,
+      body: { p_trip_id: trips[0].id },
+    });
+    return link.token;
+  };
+  const revoked = await issue();
+  const live = await issue();
+  tripLinks = { TRIP_TOKEN: live, REVOKED_TOKEN: revoked };
+  console.log(`${TRIP_LINK_COORDINATOR} sent Pedro the link of trip ${trips[0].id}.`);
+}
+
 function apiDown() {
   run('docker', ['stop', gatewayContainer()]);
   console.log('API gateway stopped: the app is offline.');
@@ -369,7 +400,7 @@ async function apiUp(status) {
   throw new Error('the API did not come back');
 }
 
-function flow(name) {
+function flow(name, env = {}) {
   const devClientUrl = `exp+transport://expo-development-client/?url=${encodeURIComponent(metroUrl)}`;
   run(maestro, [
     ...(device ? ['--device', device] : []),
@@ -378,6 +409,7 @@ function flow(name) {
     `APP_ID=${appId}`,
     '-e',
     `DEV_CLIENT_URL=${devClientUrl}`,
+    ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
     '--test-output-dir',
     join(output, 'maestro', name),
     join(flowsDir, `${name}.yaml`),
@@ -453,6 +485,13 @@ const steps = [
   },
   // H1: Pedro reports to his coordinator; his cancelled trip comes from the seed.
   { name: '15-operator-report', run: () => flow('15-operator-report') },
+  // H2: the link of Pedro's trip, opened without a session (and a revoked one).
+  { name: 'trip-links-for-pedro', run: (status) => tripLinksForPedro(status) },
+  {
+    name: '16-operator-trip-link',
+    needs: 'trip-links-for-pedro',
+    run: () => flow('16-operator-trip-link', tripLinks ?? {}),
+  },
   // H3: read-only, so it runs on whatever the flows above left.
   { name: '17-manager-subscription', run: () => flow('17-manager-subscription') },
 ];

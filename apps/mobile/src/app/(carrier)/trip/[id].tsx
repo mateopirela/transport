@@ -1,5 +1,6 @@
 import {
   canCancelTrip,
+  canSendTripLink,
   cargoTypeLabels,
   carrierTripsCopy,
   dwellCopy,
@@ -26,6 +27,7 @@ import { SharedDocumentsSection } from '../../../components/shared-documents-sec
 import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
 import { TripDocumentsSection } from '../../../components/trip-documents-section';
+import { TripLinkSection } from '../../../components/trip-link-section';
 import { TripMap } from '../../../components/trip-map';
 import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
@@ -222,6 +224,20 @@ function TripBody({
               {carrierTripsCopy.assign.current(trip.unitName, trip.operatorName)}
             </TextCell>
           </Group>
+        ) : null}
+        {/* H2: the hombre-camión alone would send it to himself (D13-E1). */}
+        {trip.operatorName &&
+        !hidesInternalChat({ isOwnerOperator, staffCount: detail.staffCount }) &&
+        canSendTripLink({ status: trip.status, operatorId: trip.operatorId }) ? (
+          <TripLinkSection
+            client={carrier.client}
+            tripId={trip.id}
+            operatorName={trip.operatorName}
+            route={carrierTripsCopy.list.route(
+              `${l.origin_city}, ${l.origin_state}`,
+              `${l.destination_city}, ${l.destination_state}`,
+            )}
+          />
         ) : null}
 
         <TripDocumentsSection

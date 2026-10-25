@@ -520,7 +520,7 @@ insert into public.trips (
   id, load_id, offer_id, shipper_company_id, carrier_company_id, status, vehicle_id, operator_id,
   assigned_at, cancelled_at, cancellation_reason, cancellation_reason_code, cancelled_by_side, created_at
 )
-select '5eed0008-0000-4000-8000-000000000005', l.id, l.accepted_offer_id, l.shipper_company_id, l.carrier_company_id,
+select '5eed0008-0000-4000-8000-000000000020', l.id, l.accepted_offer_id, l.shipper_company_id, l.carrier_company_id,
        'cancelled', '5eed0004-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-000000000001',
        pg_temp.at('-16 hours'), l.cancelled_at, l.cancellation_reason, 'shipper_request', 'shipper', l.contracted_at
 from public.loads l
@@ -572,9 +572,9 @@ from (values
   ('5eed0008-0000-4000-8000-000000000004', 'unloading_finished', 'unloading', 'delivered', '-122 hours', 25.7240, -100.2010, null, null, '5eed0001-0000-4000-8000-000000000007', 'manager'),
   ('5eed0008-0000-4000-8000-000000000004', 'delivery_confirmed', 'delivered', 'closed', '-110 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
   -- Trip 5 · GDL -> MTY · Pedro López, cancelled by the shipper before departure
-  ('5eed0008-0000-4000-8000-000000000005', 'created', null, 'pending_assignment', '-18 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
-  ('5eed0008-0000-4000-8000-000000000005', 'assigned', 'pending_assignment', 'assigned', '-16 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000011', 'coordinator'),
-  ('5eed0008-0000-4000-8000-000000000005', 'cancelled', 'assigned', 'cancelled', '-2 hours', null, null, null, 'El pedido del cliente se pospuso.', '5eed0001-0000-4000-8000-000000000003', 'shipper')
+  ('5eed0008-0000-4000-8000-000000000020', 'created', null, 'pending_assignment', '-18 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000003', 'shipper'),
+  ('5eed0008-0000-4000-8000-000000000020', 'assigned', 'pending_assignment', 'assigned', '-16 hours', null, null, null, null, '5eed0001-0000-4000-8000-000000000011', 'coordinator'),
+  ('5eed0008-0000-4000-8000-000000000020', 'cancelled', 'assigned', 'cancelled', '-2 hours', null, null, null, 'El pedido del cliente se pospuso.', '5eed0001-0000-4000-8000-000000000003', 'shipper')
 ) as e(trip_id, event_type, from_status, to_status, occurred_at, lat, lng, estimate, notes, actor_id, actor_role);
 
 -- H5 (D32): older trips that measure the waiting times at two sites (loads
@@ -744,7 +744,7 @@ from (values
    'Ya llegué a descargar', '-62 minutes'),
   ('5eed0008-0000-4000-8000-000000000001', null, true, '5eed0001-0000-4000-8000-000000000011', 'coordinator',
    'Enterada, Pedro. Avísame cuando te firmen la remisión.', '-58 minutes'),
-  ('5eed0008-0000-4000-8000-000000000005', null, true, '5eed0001-0000-4000-8000-000000000011', 'coordinator',
+  ('5eed0008-0000-4000-8000-000000000020', null, true, '5eed0001-0000-4000-8000-000000000011', 'coordinator',
    'Pedro, el cliente canceló el viaje a Monterrey. Ya no tienes que pasar a cargar.', '-110 minutes')
 ) as m(trip_id, negotiation_id, internal, sender_id, sender_role, body, at)
 join public.conversations c

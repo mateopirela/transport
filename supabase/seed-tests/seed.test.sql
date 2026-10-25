@@ -273,7 +273,7 @@ select results_eq(
 );
 select is(
   (select count(*)::int from public.conversations
-   where trip_id = '5eed0008-0000-4000-8000-000000000005' and kind = 'trip_internal'),
+   where trip_id = '5eed0008-0000-4000-8000-000000000020' and kind = 'trip_internal'),
   1, 'and keeps the internal chat of its cancelled trip (D20-E1)'
 );
 select lives_ok(

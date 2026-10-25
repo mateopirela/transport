@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { internalUnread, loadOperatorChat } from './internal-chat-api';
 import type { Supabase } from './supabase';
 
-const TRIP = '5eed0008-0000-4000-8000-000000000005';
+const TRIP = '5eed0008-0000-4000-8000-000000000020';
 const LOAD = '5eed0005-0000-4000-8000-000000000012';
 const CONVERSATION = '6f1c2b3a-4d5e-4f60-8a7b-9c0d1e2f3a4b';
 

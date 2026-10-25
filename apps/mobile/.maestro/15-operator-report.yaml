@@ -5,7 +5,7 @@
 # (transport://chat/<trip>, as its notification opens it) shows the
 # conversation, still open, and he answers (D20-E1).
 # Seed: pedro.lopez@demo.test drives CS53-01 (the trip in unloading, or the
-# return trip once 03 assigned it) and had the GDL -> MTY trip 5eed0008-…-05,
+# return trip once 03 assigned it) and had the GDL -> MTY trip 5eed0008-…-20,
 # cancelled by the shipper, with a message of Andrea in its internal chat.
 appId: ${APP_ID}
 name: Operador · reportar al coordinador
@@ -76,7 +76,7 @@ tags: [operator]
     timeout: 30000
 - takeScreenshot: 15-2-operator-report-sent
 # The internal chat of his cancelled trip, as its notification opens it.
-- openLink: transport://chat/5eed0008-0000-4000-8000-000000000005
+- openLink: transport://chat/5eed0008-0000-4000-8000-000000000020
 - extendedWaitUntil:
     visible: 'Este viaje se canceló.*'
     timeout: 30000

@@ -43,3 +43,6 @@ auditConfig:
     - GHSA-86w9-cpqp-85rv
     # braces, through @next/eslint-plugin-next (lint only).
     - GHSA-vfj7-8cjw-p6xm
+    # zod 3, through @expo/cli (Expo CLI only; the apps use zod 4.6.7). The
+    # fix exists only in zod 4, which @expo/cli 57 does not support yet.
+    - GHSA-mrhx-c7xc-m3w5

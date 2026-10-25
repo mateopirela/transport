@@ -52,7 +52,12 @@ export async function createTripOperatorLink(
   const origin = (await headers()).get('origin');
   return done({
     message: c.send.created,
-    values: { url: `${siteUrl(origin)}${tripLinkPath(link.token)}`, expiresAt: link.expires_at },
+    values: {
+      // The panel shows the URL only while this link is still the live one.
+      linkId: link.id,
+      url: `${siteUrl(origin)}${tripLinkPath(link.token)}`,
+      expiresAt: link.expires_at,
+    },
   });
 }
 

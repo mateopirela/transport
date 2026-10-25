@@ -42,7 +42,10 @@ export function TripLinkPanel({
 }) {
   const [state, action, pending] = useActionState(createTripOperatorLink, {});
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-  const url = state.values?.url;
+  // The URL of the link this panel created, only while it is still the live
+  // one: replaced (here, in the app or by another coordinator) or revoked, it
+  // is never offered again.
+  const url = state.values?.linkId === active?.id ? state.values?.url : undefined;
   const message = url ? tripLinkMessage({ operatorName, route, url }) : null;
   const hasPhone = whatsappPhone(operatorPhone) !== null;
 

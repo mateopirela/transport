@@ -62,6 +62,7 @@ import {
   Footnote,
   Group,
   Loading,
+  LoadError,
   Notice,
   Pill,
   Screen,
@@ -186,12 +187,30 @@ function NextTrip({ tripId }: { tripId: string }) {
     () => (supabase ? loadLinkedTrip(supabase, tripId) : Promise.resolve(null)),
     [tripId],
   );
-  const { state } = useLoader(load);
-  const next = state.status === 'ready' ? state.data : null;
+  const { state, reload } = useLoader(load);
+  const header = <SectionHeader title={tripLinkCopy.app.nextTrip} />;
+  if (state.status === 'loading') {
+    return (
+      <>
+        {header}
+        <Loading label={tripLinkCopy.app.opening} />
+      </>
+    );
+  }
+  if (state.status === 'error') {
+    return (
+      <>
+        {header}
+        <LoadError onRetry={() => void reload()} />
+      </>
+    );
+  }
+  const next = state.data;
+  // No longer theirs (reassigned, cancelled): the trip link screen said so already.
   if (!next) return null;
   return (
     <>
-      <SectionHeader title={tripLinkCopy.app.nextTrip} />
+      {header}
       <Group>
         <Cell
           icon="route"

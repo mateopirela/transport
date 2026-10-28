@@ -456,6 +456,8 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 | Apple Team ID y huella SHA-256 del certificado de Android, para los enlaces universales del viaje | H2 (opcional: sin ellos el enlace abre la página web con "Abrir en la app") | Mateo |
 | Precios y planes de la suscripción, y fecha de fin del piloto | H3 (se construye con "Por definir") | Mateo / JP |
 | Corredores y tramos que usa la flota de JP, y fuentes de inseguridad que él consulta | H4 (se construye con datos semilla marcados "estimado") | JP |
+| Cómo pagan hoy los clientes del piloto: porcentaje que paga el 100 % en un plazo fijo y en cuántos días, contra los que pagan en parcialidades ([§H.3](#h3-pendientes-de-jp-pagos-y-seguro-2026-10-28)) | D33 y D34 (no se construye nada hasta tenerlo) | JP |
+| Seguro de la mercancía: si se contrata por viaje o por mes, con quién y cuánto cuesta ([§H.3](#h3-pendientes-de-jp-pagos-y-seguro-2026-10-28)) | D35 | JP |
 | Apple Developer ($99 USD/año) y Google Play Console ($25 USD) | B27 | Mateo / Fulmis |
 | Proyectos Supabase en la nube y Vercel | B27 | Mateo |
 | Proveedor de email transaccional (Resend o similar) y dominio | B09 y B27 | Mateo |
@@ -1186,3 +1188,28 @@ Cada bloque arranca con el valor por defecto de abajo; cambiarlo es un dato o un
 6. **Corredores y fuentes:** qué corredores y tramos usa la flota de JP además del principal MTY–GDL, y qué fuentes de inseguridad consulta; ¿quién mantiene el catálogo?
 7. **Tiempos de espera para el cliente:** ¿se le muestran también las estadísticas generales (otras empresas) de su sitio, o solo las de sus viajes?
 8. **Enlaces universales:** dominio definitivo, Apple Team ID y huella del certificado de Android (H2).
+
+### H.3 Pendientes de JP: pagos y seguro (2026-10-28)
+
+Salen de la reunión con JP del 2026-10-28 ([decisiones.md](decisiones.md) D33–D36). Mientras no lleguen, D08-E1 sigue vigente (el flete se paga fuera de la plataforma) y no se construye ningún bloque de pagos.
+
+**Lo que investiga JP:**
+
+1. **Plazos de pago de los clientes** (D33). De los clientes con los que trabaja hoy su empresa:
+   - qué porcentaje paga el **100 % en un plazo fijo** y cuál es ese plazo (contado, 15, 30, 60 días);
+   - qué porcentaje paga en **parcialidades** y con qué esquema (por ejemplo, anticipo y resto a 30 días);
+   - con qué **medio** pagan (transferencia SPEI, cheque, otro) y si piden factura antes de pagar.
+
+   Con eso se decide si el esquema 30/70 replica lo que ya hacen los clientes y cuánto capital tendría que adelantar Fulmis.
+2. **Seguro de la mercancía** (D35):
+   - si se contrata **por viaje o por mes**;
+   - qué aseguradoras usan los transportistas que conoce y cuánto cuesta (por viaje o como porcentaje del valor de la carga);
+   - qué documento lo comprueba (póliza, certificado por viaje), para saber si entra en los documentos de verificación inicial (D16) o en los del viaje (D22).
+
+**Lo que se decide con JP después** (Mateo y JP):
+
+3. **Qué es el "cierre"** del 50 % restante al transportista: la entrega con evidencia o el día 30. Si es la entrega, Fulmis financia hasta el 70 % del flete durante 30 días; si es el día 30, el 20 %.
+4. **Impago del cliente:** quién absorbe el 70 % si el cliente no paga (Fulmis o el transportista) y qué pasa con la cuenta del cliente.
+5. **Comisión por el adelanto:** si se cobra al transportista por recibir el 50 % al inicio y cuánto (Uber Freight cobra 2.5 % por su Quick Pay).
+6. **Facturación y regulación:** quién emite el CFDI del flete si el dinero pasa por la plataforma, y si adelantar pagos requiere alguna figura regulada. Se revisa con el contador.
+7. **Duración del piloto extendido** (D36).

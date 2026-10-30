@@ -312,6 +312,34 @@ export async function loadWithNegotiation(
   };
 }
 
+/**
+ * The chat of the carrier's negotiation on a load it can no longer see
+ * (contracted with another carrier, loads_select): the negotiation and its
+ * conversation stay readable, so a message notification still opens the chat.
+ * Null when there is none.
+ */
+export async function hiddenLoadConversationId(
+  client: Supabase,
+  companyId: string,
+  loadId: string,
+): Promise<string | null> {
+  const negotiation = await client
+    .from('negotiations')
+    .select('id')
+    .eq('load_id', loadId)
+    .eq('carrier_company_id', companyId)
+    .maybeSingle();
+  if (negotiation.error) throw negotiation.error;
+  if (!negotiation.data) return null;
+  const conversation = await client
+    .from('conversations')
+    .select('id')
+    .eq('negotiation_id', negotiation.data.id)
+    .maybeSingle();
+  if (conversation.error) throw conversation.error;
+  return conversation.data?.id ?? null;
+}
+
 export interface OfferInput {
   amountCents: number;
   conditions?: string | undefined;

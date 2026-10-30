@@ -46,6 +46,24 @@ describe('pushTarget', () => {
     expect(pushTarget({ ...message, tripId: '../x' }, 'operator')).toBeNull();
   });
 
+  it('opens the chat with the shipper for a message of it: the trip or the negotiation', () => {
+    const loadId = '5eed0005-0000-4000-8000-000000000001';
+    const negotiationId = '5eed0006-0000-4000-8000-000000000004';
+    // The push payload carries the ids and the type, not the kind.
+    const trip = { tripId, loadId, conversationId: tripId, type: 'chat_message' };
+    const negotiation = { negotiationId, loadId, conversationId: tripId, type: 'chat_message' };
+    expect(pushTarget(trip, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId, chat: 'cliente' },
+    });
+    expect(pushTarget(negotiation, 'carrier')).toEqual({
+      pathname: '/load/[id]',
+      params: { id: loadId },
+    });
+    expect(pushTarget(trip, 'operator')).toBeNull();
+    expect(pushTarget({ ...negotiation, loadId: '../x' }, 'carrier')).toBeNull();
+  });
+
   it('ignores other areas, other payloads and malformed ids', () => {
     expect(pushTarget({ tripId }, 'auth')).toBeNull();
     expect(pushTarget({ tripId: '../x' }, 'carrier')).toBeNull();

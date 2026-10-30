@@ -536,8 +536,10 @@ select is(
   (select count(*) from public.notifications where user_id <> 'a7000000-0000-4000-8000-000000000001'), 0::bigint,
   'a user sees only their own notifications'
 );
-select is((select count(*) from public.notifications), 5::bigint,
-  'the shipper has its offer, acceptance and trip notifications');
+-- Plus one chat_message per conversation the carrier wrote in (negotiation A
+-- and the trip): grouped, the two messages of A give a single notification.
+select is((select count(*) from public.notifications), 7::bigint,
+  'the shipper has its offer, acceptance, trip and chat notifications');
 select throws_ok($$ update public.notifications set read_at = now() $$, '42501', null,
   'clients cannot update notifications directly');
 select throws_ok($$ delete from public.notifications $$, '42501', null,
@@ -546,7 +548,7 @@ insert into tests.vals
 select 'notif1', id from public.notifications
 where type = 'offer_received' and data ->> 'offerId' = tests.val('offerA')::text;
 select is(public.mark_notifications_read(array[tests.val('notif1')]), 1, 'marks the given notifications as read');
-select is(public.mark_notifications_read(), 4, 'or all of them');
+select is(public.mark_notifications_read(), 6, 'or all of them');
 select is(public.mark_notifications_read(), 0, 'already read ones are not counted again');
 select tests.login('a7000000-0000-4000-8000-000000000002');
 select is(public.mark_notifications_read(array[tests.val('notif1')]), 0,

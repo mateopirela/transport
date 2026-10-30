@@ -1,7 +1,13 @@
 import { carrierLoadsCopy, mobileErrorCopy } from '@transport/shared';
 import { describe, expect, it, vi } from 'vitest';
 
-import { emptyLegs, unitLabel, unitRecommendations, type CarrierUnit } from './loads-api';
+import {
+  emptyLegs,
+  hiddenLoadConversationId,
+  unitLabel,
+  unitRecommendations,
+  type CarrierUnit,
+} from './loads-api';
 import { offerErrorMessage } from './offer-errors';
 import { centsToPesosInput, parseOfferDraft } from './offer-form';
 import type { Supabase } from './supabase';
@@ -183,5 +189,51 @@ describe('emptyLegs', () => {
   it('names units by fleet number, else plate', () => {
     expect(unitLabel({ fleet_number: 'CS53-01', plate: 'ABC' })).toBe('CS53-01');
     expect(unitLabel({ fleet_number: null, plate: 'ABC' })).toBe('ABC');
+  });
+});
+
+describe('hiddenLoadConversationId', () => {
+  const LOAD = '5eed0005-0000-4000-8000-000000000001';
+  const COMPANY = '5eed0002-0000-4000-8000-000000000004';
+
+  /** `from(t).select().eq()….maybeSingle()` over in-memory rows (as RLS left them). */
+  function fakeClient(tables: Record<string, Record<string, unknown>[]>) {
+    return {
+      from: (table: string) => {
+        const filters: Record<string, unknown> = {};
+        const builder = {
+          select: () => builder,
+          eq: (key: string, value: unknown) => {
+            filters[key] = value;
+            return builder;
+          },
+          maybeSingle: () =>
+            Promise.resolve({
+              data:
+                (tables[table] ?? []).find((row) =>
+                  Object.entries(filters).every(([k, v]) => row[k] === v),
+                ) ?? null,
+              error: null,
+            }),
+        };
+        return builder;
+      },
+    } as unknown as Supabase;
+  }
+
+  it('finds the chat of the negotiation on a load another carrier won', async () => {
+    const client = fakeClient({
+      negotiations: [{ id: 'n1', load_id: LOAD, carrier_company_id: COMPANY }],
+      conversations: [{ id: 'c1', negotiation_id: 'n1' }],
+    });
+    await expect(hiddenLoadConversationId(client, COMPANY, LOAD)).resolves.toBe('c1');
+  });
+
+  it('is null without a negotiation of the company', async () => {
+    const client = fakeClient({
+      negotiations: [{ id: 'n1', load_id: LOAD, carrier_company_id: 'other' }],
+      conversations: [{ id: 'c1', negotiation_id: 'n1' }],
+    });
+    await expect(hiddenLoadConversationId(client, COMPANY, LOAD)).resolves.toBeNull();
   });
 });

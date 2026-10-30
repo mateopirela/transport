@@ -349,11 +349,12 @@ select ok(
   'a photo without text has no preview (the copy says "📷 Foto")'
 );
 
--- Notifications of the chat with the shipper: none (out of scope, H.2).
+-- The chat with the shipper never notifies as internal (it has its own
+-- chat_message, 49_chat_message_notifications).
 select is(
   (select count(*)::int from public.notifications where type = 'internal_message'
    and data ->> 'conversationId' = tests.val('shipper_chat')::text),
-  0, 'messages to the shipper do not notify'
+  0, 'messages to the shipper do not notify as internal'
 );
 
 -- ---------------------------------------------------------------------------

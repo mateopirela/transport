@@ -4698,7 +4698,8 @@ export interface Database {
         | 'trip_document_added'
         | 'vehicle_release_pending'
         | 'vehicle_released'
-        | 'internal_message';
+        | 'internal_message'
+        | 'chat_message';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -4983,6 +4984,7 @@ export const Constants = {
         'vehicle_release_pending',
         'vehicle_released',
         'internal_message',
+        'chat_message',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

@@ -1181,7 +1181,7 @@ Ola HB   H2 (H1) · H5 (H4)
 Cada bloque arranca con el valor por defecto de abajo; cambiarlo es un dato o un bloque pequeño:
 
 1. **Chat del operador con el cliente:** por defecto, el operador no lo ve (D28). ¿JP lo confirma?
-2. **Avisos de mensajes del chat con el cliente y de la negociación:** hoy no existen; H1 solo los agrega para el chat interno.
+2. **Avisos de mensajes del chat con el cliente y de la negociación:** resuelto después de H1: `chat_message` (trigger `notify_chat_message`), con las mismas reglas que `internal_message` (solo push y bandeja, agrupados 10 minutos, nunca al operador).
 3. **Monitoristas:** ¿se les da acceso (rol de solo lectura del viaje y del chat interno) mientras llega la integración de GPS (D17)?
 4. **Precios y planes** de la suscripción (¿por empresa, por camión o por usuario?), fecha de fin del piloto, factura CFDI y OXXO (H3).
 5. **Tiendas:** ¿se puede mencionar o enlazar la web de pago desde la app? Por defecto no (D30).

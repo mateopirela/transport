@@ -36,6 +36,7 @@ import {
 } from '../../../components/ui';
 import {
   emptyLegs,
+  hiddenLoadConversationId,
   listCarrierUnits,
   loadWithNegotiation,
   watchLoadOffers,
@@ -67,13 +68,16 @@ export default function LoadDetail() {
       ]);
       // Compatible units nearest first; the unit it was recommended for leads.
       const l = negotiation?.load;
-      const [legs, pickupDwell] = await Promise.all([
+      const [legs, pickupDwell, hiddenChatId] = await Promise.all([
         negotiation ? emptyLegs(client, id, units) : Promise.resolve([]),
         // H5: the typical waiting and loading time at its pickup, at that hour.
         l ? loadPickupDwell(client, l) : Promise.resolve(null),
+        // A load won by another carrier: its negotiation's chat stays (the
+        // notification of a message opens here).
+        negotiation ? Promise.resolve(null) : hiddenLoadConversationId(client, companyId, id),
       ]);
       legs.sort((a, b) => Number(b.vehicleId === vehicleId) - Number(a.vehicleId === vehicleId));
-      return { negotiation, units, legs, roads, pickupDwell };
+      return { negotiation, units, legs, roads, pickupDwell, hiddenChatId };
     },
     [id, vehicleId],
   );
@@ -93,7 +97,15 @@ export default function LoadDetail() {
         {state.status === 'error' ? (
           <LoadError onRetry={() => void reload()} />
         ) : state.status === 'ready' && carrier ? (
-          <Notice tone="warning">{copy.notFound}</Notice>
+          <>
+            <Notice tone="warning">{copy.notFound}</Notice>
+            {state.data.hiddenChatId ? (
+              <>
+                <SectionHeader title={carrierLoadsCopy.chat.title} />
+                <ChatPanel client={carrier.client} conversationId={state.data.hiddenChatId} />
+              </>
+            ) : null}
+          </>
         ) : (
           <Skeleton />
         )}

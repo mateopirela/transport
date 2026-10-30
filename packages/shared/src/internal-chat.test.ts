@@ -9,6 +9,8 @@ import {
 import { notificationContent } from './copy/notifications';
 import { QUICK_REPORTS } from './copy/internal-chat';
 import {
+  chatMessageRoutes,
+  chatMessageTarget,
   hidesInternalChat,
   internalMessagePreview,
   internalMessageRoutes,
@@ -68,6 +70,87 @@ describe('internal_message notification (H1)', () => {
     expect(notificationEmail('internal_message', data, { role: 'manager' }).subject).toContain(
       'Mensaje de Pedro López',
     );
+  });
+});
+
+describe('chat_message notification (chat with the shipper)', () => {
+  const LOAD = '5eed0005-0000-4000-8000-000000000001';
+  const NEGOTIATION = '5eed0006-0000-4000-8000-000000000004';
+  const trip = {
+    conversationId: CONVERSATION,
+    kind: 'trip',
+    tripId: TRIP,
+    senderName: 'Ana Torres',
+    preview: '¿A qué hora llegan?',
+    loadId: LOAD,
+    originCity: 'Monterrey',
+    destinationCity: 'Guadalajara',
+  };
+  const negotiation = {
+    ...trip,
+    kind: 'negotiation',
+    tripId: undefined,
+    negotiationId: NEGOTIATION,
+  };
+
+  it('says who wrote and previews the text, or "📷 Foto"', () => {
+    expect(notificationContent('chat_message', trip)).toEqual({
+      title: 'Mensaje de Ana Torres',
+      body: '¿A qué hora llegan?',
+    });
+    expect(notificationContent('chat_message', { ...trip, preview: null }).body).toBe('📷 Foto');
+  });
+
+  it('names the trip or the negotiation without a sender', () => {
+    expect(notificationContent('chat_message', { ...trip, senderName: null }).title).toBe(
+      'Mensaje del viaje Monterrey → Guadalajara',
+    );
+    expect(notificationContent('chat_message', { ...negotiation, senderName: '' }).title).toBe(
+      'Mensaje de la negociación Monterrey → Guadalajara',
+    );
+  });
+
+  it('leads to the trip, on the chat with the shipper, or to the negotiation', () => {
+    expect(chatMessageTarget(trip)).toEqual({ kind: 'trip', tripId: TRIP });
+    expect(chatMessageRoutes(trip)).toEqual({
+      shipperWeb: `/cliente/viajes/${TRIP}`,
+      carrierWeb: `/transportista/viajes/${TRIP}?chat=cliente`,
+      carrierApp: `/trip/${TRIP}?chat=cliente`,
+    });
+    expect(chatMessageRoutes(negotiation)).toEqual({
+      shipperWeb: `/cliente/cargas/${LOAD}/negociaciones/${NEGOTIATION}`,
+      carrierWeb: `/transportista/negociaciones/${NEGOTIATION}`,
+      carrierApp: `/load/${LOAD}`,
+    });
+    // The push payload has no kind: the ids decide.
+    expect(chatMessageTarget({ negotiationId: NEGOTIATION, loadId: LOAD })).toEqual({
+      kind: 'negotiation',
+      negotiationId: NEGOTIATION,
+      loadId: LOAD,
+    });
+    expect(chatMessageTarget({ tripId: TRIP.toUpperCase() })).toEqual({
+      kind: 'trip',
+      tripId: TRIP,
+    });
+    // A kind that contradicts the ids, or malformed ids, lead nowhere.
+    expect(chatMessageTarget({ kind: 'negotiation', tripId: TRIP })).toBeNull();
+    expect(
+      chatMessageTarget({ kind: 'trip', negotiationId: NEGOTIATION, loadId: LOAD }),
+    ).toBeNull();
+    expect(chatMessageRoutes({ tripId: '../x' })).toBeNull();
+    expect(chatMessageRoutes(null)).toBeNull();
+    expect(tripChatTab('cliente')).toBe('shipper');
+  });
+
+  it('is sent by push only, and the email link (if ever) keeps each chat on its tab', () => {
+    expect(PUSH_ONLY_NOTIFICATION_TYPES).toContain('chat_message');
+    expect(notificationWebPath('coordinator', trip)).toBe(
+      `/transportista/viajes/${TRIP}?chat=cliente`,
+    );
+    expect(notificationWebPath('manager', negotiation)).toBe(
+      `/transportista/negociaciones/${NEGOTIATION}`,
+    );
+    expect(notificationWebPath('shipper', trip)).toBe(`/cliente/viajes/${TRIP}`);
   });
 });
 

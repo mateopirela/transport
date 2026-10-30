@@ -46,3 +46,6 @@ auditConfig:
     # zod 3, through @expo/cli (Expo CLI only; the apps use zod 4.6.7). The
     # fix exists only in zod 4, which @expo/cli 57 does not support yet.
     - GHSA-mrhx-c7xc-m3w5
+    # decode-uri-component 0.2.2, through query-string 7 in expo-router. The
+    # fix (0.5.1) is ESM-only and breaks query-string 7; wait for expo-router.
+    - GHSA-qr28-fpjm-wq7f

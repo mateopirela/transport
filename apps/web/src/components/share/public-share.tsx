@@ -61,10 +61,10 @@ export function ShareUnavailable() {
   );
 }
 
-function Details({ rows }: { rows: [string, string | null][] }) {
+function Details({ rows, footer }: { rows: [string, string | null][]; footer?: string | null }) {
   const details = rows.filter((row): row is [string, string] => row[1] !== null);
   return (
-    <Group>
+    <Group footer={footer}>
       {details.map(([label, value]) => (
         <ValueRow key={label} label={label}>
           {value}
@@ -164,6 +164,7 @@ export function SharedTrip({ data }: { data: PublicSharedTrip }) {
             data.estimatedUnloadEndAt ? formatDateTime(data.estimatedUnloadEndAt) : null,
           ],
         ]}
+        footer={data.estimatedUnloadEndAt ? c.unloadEstimateHint : null}
       />
 
       <section className="space-y-3">

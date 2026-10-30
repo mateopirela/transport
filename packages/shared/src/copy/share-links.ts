@@ -66,6 +66,9 @@ export const shareLinksCopy = {
     unitValue: (type: string, plate: string) => `${type} · placas ${plate}`,
     notAssigned: 'Por asignar',
     unloadEstimate: 'Fin estimado de descarga',
+    /** Under the details when there is an estimate (H5): where it comes from. */
+    unloadEstimateHint:
+      'El fin estimado de descarga se calcula con la ruta y el tiempo típico en el sitio de entrega. Cuando empieza la descarga, lo actualiza el operador.',
     timeline: 'Línea de tiempo',
     timelineEmpty: 'Aún no hay eventos.',
     position: 'Última ubicación',

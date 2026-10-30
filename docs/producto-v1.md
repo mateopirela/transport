@@ -58,7 +58,7 @@
   - confirmación de entrega
   - **fin estimado de descarga** y en qué se basa (estimado del operador, viajes medidos en el sitio o 4 h por defecto) (D32)
 - **Tiempo típico en tu sitio** (D32): en cada carga y viaje, cuánto tardan los camiones en cargar y descargar en sus propios sitios (espera + maniobra), medido con sus viajes anteriores.
-- **Compartir** una carga o el seguimiento de un viaje con un enlace público de solo lectura (D23).
+- **Compartir** una carga o el seguimiento de un viaje con un enlace público de solo lectura (D23). El seguimiento público muestra el mismo fin estimado de descarga que ve el cliente, solo la hora: sin decir en cuántos viajes se basa.
 - Reportar incidencias.
 
 ### Gerente (app y web)

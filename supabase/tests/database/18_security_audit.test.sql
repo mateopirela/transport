@@ -269,6 +269,8 @@ select set_eq(
     'trip_events_record_dwell',
     -- H1: a message of the internal trip chat.
     'notify_internal_message',
+    -- A message of the chat with the shipper (trip or negotiation).
+    'notify_chat_message',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

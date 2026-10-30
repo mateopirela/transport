@@ -1,4 +1,4 @@
-import { INTERNAL_CHAT_PARAM } from '@transport/shared';
+import { chatMessageTarget, INTERNAL_CHAT_PARAM, SHIPPER_CHAT_PARAM } from '@transport/shared';
 
 export type PushSkipReason = 'no_project_id' | 'not_a_device' | 'permission_denied';
 
@@ -34,6 +34,7 @@ export type PushTarget =
   | { pathname: '/trip' }
   | { pathname: '/chat/[tripId]'; params: { tripId: string } }
   | { pathname: '/trip/[id]'; params: { id: string; chat?: string } }
+  | { pathname: '/load/[id]'; params: { id: string } }
   | { pathname: '/vehicle/[id]'; params: { id: string } };
 
 /**
@@ -54,6 +55,15 @@ export function pushTarget(data: unknown, area: string): PushTarget | null {
     UUID.test(vehicleId)
   ) {
     return { pathname: '/vehicle/[id]', params: { id: vehicleId } };
+  }
+  // A message of the chat with the shipper: the carrier staff's trip, on the
+  // shipper's tab, or the load with its negotiation. Never the operator (D28).
+  if (ids.type === 'chat_message') {
+    const target = area === 'carrier' ? chatMessageTarget(ids) : null;
+    if (!target) return null;
+    return target.kind === 'trip'
+      ? { pathname: '/trip/[id]', params: { id: target.tripId, chat: SHIPPER_CHAT_PARAM } }
+      : { pathname: '/load/[id]', params: { id: target.loadId } };
   }
   const tripId = ids.tripId;
   if (typeof tripId !== 'string' || !UUID.test(tripId)) return null;

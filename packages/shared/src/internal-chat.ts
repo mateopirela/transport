@@ -7,6 +7,9 @@ import { internalChatCopy } from './copy/internal-chat';
 /** `?chat=interno`: the trip screen opens with the internal chat tab. */
 export const INTERNAL_CHAT_PARAM = 'interno';
 
+/** `?chat=cliente`: the trip screen opens with the chat with the shipper (also the default). */
+export const SHIPPER_CHAT_PARAM = 'cliente';
+
 export type TripChatTab = 'shipper' | 'internal';
 
 /** The tab of a trip screen's `chat` query param (the shipper's by default). */
@@ -34,6 +37,62 @@ export function internalMessageRoutes(tripId: unknown): {
     operatorApp: `/chat/${id}`,
     carrierApp: `/trip/${id}?chat=${INTERNAL_CHAT_PARAM}`,
     web: `/transportista/viajes/${id}?chat=${INTERNAL_CHAT_PARAM}`,
+  };
+}
+
+/** The conversation a `chat_message` notification is about: the trip or the negotiation chat. */
+export type ChatMessageTarget =
+  { kind: 'trip'; tripId: string } | { kind: 'negotiation'; negotiationId: string; loadId: string };
+
+function uuidOf(data: unknown, key: string): string | null {
+  const value =
+    typeof data === 'object' && data !== null ? (data as Record<string, unknown>)[key] : null;
+  return typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * The trip or the negotiation of a `chat_message` notification, from its
+ * data: `kind` and its ids (the push payload only carries the ids, so without
+ * `kind` it follows them). Null when the ids are not UUIDs.
+ */
+export function chatMessageTarget(data: unknown): ChatMessageTarget | null {
+  const kind =
+    typeof data === 'object' && data !== null ? (data as Record<string, unknown>).kind : undefined;
+  const tripId = uuidOf(data, 'tripId');
+  if (kind !== 'negotiation' && tripId) return { kind: 'trip', tripId };
+  const negotiationId = uuidOf(data, 'negotiationId');
+  const loadId = uuidOf(data, 'loadId');
+  if (kind !== 'trip' && negotiationId && loadId) {
+    return { kind: 'negotiation', negotiationId, loadId };
+  }
+  return null;
+}
+
+/**
+ * Where a `chat_message` notification leads: the trip (on the chat with the
+ * shipper) or the negotiation, in the shipper's web, the carrier web and the
+ * carrier app (where the negotiation lives in the load screen). The operator
+ * never gets one (D28). Null when the data has no valid trip or negotiation.
+ */
+export function chatMessageRoutes(data: unknown): {
+  shipperWeb: string;
+  carrierWeb: string;
+  carrierApp: string;
+} | null {
+  const target = chatMessageTarget(data);
+  if (!target) return null;
+  if (target.kind === 'trip') {
+    const id = target.tripId;
+    return {
+      shipperWeb: `/cliente/viajes/${id}`,
+      carrierWeb: `/transportista/viajes/${id}?chat=${SHIPPER_CHAT_PARAM}`,
+      carrierApp: `/trip/${id}?chat=${SHIPPER_CHAT_PARAM}`,
+    };
+  }
+  return {
+    shipperWeb: `/cliente/cargas/${target.loadId}/negociaciones/${target.negotiationId}`,
+    carrierWeb: `/transportista/negociaciones/${target.negotiationId}`,
+    carrierApp: `/load/${target.loadId}`,
   };
 }
 

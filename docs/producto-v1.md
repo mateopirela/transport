@@ -137,6 +137,7 @@
   - una unidad pendiente de liberar
   - un documento aprobado, rechazado o por vencer
   - un mensaje del chat interno del viaje (solo push y bandeja, nunca correo; los mensajes seguidos se agrupan en un aviso, D28)
+  - un mensaje del chat del viaje o de la negociación entre cliente y transportista (al cliente, al Gerente y a los coordinadores de la unidad de negocio, nunca al operador; solo push y bandeja, nunca correo; agrupados como los del chat interno)
   - la prueba piloto por terminar (14 días antes) o una suscripción no activa después del piloto (banner en la web y la app del transportista, D30)
 - Alertas de **documentos por vencer** (licencias, seguros y demás documentos con vigencia).
 - Aviso de privacidad (LFPDPPP) y términos, con consentimiento de ubicación registrado.

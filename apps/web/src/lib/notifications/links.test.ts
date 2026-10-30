@@ -1,4 +1,4 @@
-import { NOTIFICATION_TYPES } from '@transport/shared';
+import { chatMessageRoutes, NOTIFICATION_TYPES } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { chatAttachmentHref } from '../routing';
@@ -42,6 +42,39 @@ describe('notificationHref', () => {
     );
     expect(notificationHref('internal_message', { tripId: 'x' }, 'transportista')).toBeNull();
     expect(notificationHref('internal_message', data)).toBeNull();
+  });
+
+  it('opens the chat with the other party: the trip or the negotiation', () => {
+    const trip = { kind: 'trip', tripId: NEGOTIATION, conversationId: LOAD, loadId: LOAD };
+    const negotiation = {
+      kind: 'negotiation',
+      negotiationId: NEGOTIATION,
+      conversationId: LOAD,
+      loadId: LOAD,
+    };
+    expect(notificationHref('chat_message', trip)).toBe(`/cliente/viajes/${NEGOTIATION}`);
+    expect(notificationHref('chat_message', trip, 'transportista')).toBe(
+      `/transportista/viajes/${NEGOTIATION}?chat=cliente`,
+    );
+    expect(notificationHref('chat_message', negotiation)).toBe(
+      `/cliente/cargas/${LOAD}/negociaciones/${NEGOTIATION}`,
+    );
+    expect(notificationHref('chat_message', negotiation, 'transportista')).toBe(
+      `/transportista/negociaciones/${NEGOTIATION}`,
+    );
+    // The same routes as the shared helper.
+    expect(chatMessageRoutes(trip)).toMatchObject({
+      shipperWeb: notificationHref('chat_message', trip),
+      carrierWeb: notificationHref('chat_message', trip, 'transportista'),
+    });
+    expect(chatMessageRoutes(negotiation)).toMatchObject({
+      shipperWeb: notificationHref('chat_message', negotiation),
+      carrierWeb: notificationHref('chat_message', negotiation, 'transportista'),
+    });
+    expect(notificationHref('chat_message', { kind: 'trip', tripId: '../x' })).toBeNull();
+    expect(
+      notificationHref('chat_message', { negotiationId: NEGOTIATION }, 'transportista'),
+    ).toBeNull();
   });
 
   it('sends the carrier staff to their negotiation or load (G10a)', () => {

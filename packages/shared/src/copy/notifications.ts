@@ -176,6 +176,17 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         body: text(data, 'preview') ?? internalChatCopy.photoPreview,
       };
     }
+    // A message of the chat with the shipper: of the trip or of the
+    // negotiation (`kind`). The sender is the person for their colleagues and
+    // their company for the other party. Same preview as the internal chat.
+    case 'chat_message': {
+      const sender = text(data, 'senderName');
+      const where = text(data, 'kind') === 'negotiation' ? 'de la negociación' : 'del viaje';
+      return {
+        title: sender ? `Mensaje de ${sender}` : `Mensaje ${where}${route(data)}`,
+        body: text(data, 'preview') ?? internalChatCopy.photoPreview,
+      };
+    }
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');
       const since =

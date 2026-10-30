@@ -1,7 +1,13 @@
 // Where a notification leads in the web (B14 for the shipper, G10a for the
 // carrier staff). Pure: notification data is JSON written by the B07
 // triggers, so every id is validated before use.
-import { INTERNAL_CHAT_PARAM, uuidField, type NotificationType } from '@transport/shared';
+import {
+  chatMessageTarget,
+  INTERNAL_CHAT_PARAM,
+  SHIPPER_CHAT_PARAM,
+  uuidField,
+  type NotificationType,
+} from '@transport/shared';
 
 import {
   carrierLoadPath,
@@ -91,6 +97,15 @@ export function notificationHref(
         const tripId = id(data, 'tripId');
         return tripId && `${carrierTripPath(tripId)}?chat=${INTERNAL_CHAT_PARAM}`;
       }
+      // A message of the chat with the shipper: the trip, on the shipper's
+      // tab, or the negotiation.
+      case 'chat_message': {
+        const target = chatMessageTarget(data);
+        if (!target) return null;
+        return target.kind === 'trip'
+          ? `${carrierTripPath(target.tripId)}?chat=${SHIPPER_CHAT_PARAM}`
+          : carrierNegotiationPath(target.negotiationId);
+      }
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6).
       case 'trip_location_stale':
@@ -111,6 +126,14 @@ export function notificationHref(
       const tripId = id(data, 'tripId');
       if (tripId) return tripPath(tripId);
       return loadId && loadPath(loadId);
+    }
+    // A message of the chat with the carrier: the trip or the negotiation.
+    case 'chat_message': {
+      const target = chatMessageTarget(data);
+      if (!target) return null;
+      return target.kind === 'trip'
+        ? tripPath(target.tripId)
+        : negotiationPath(target.loadId, target.negotiationId);
     }
     // G6: the carrier's documents shared on the trip, or a document of it.
     case 'documents_shared':

@@ -2,7 +2,7 @@
 // users (Cliente and Admin, D06). Title and body come from notificationContent,
 // so push, email and the in-app inbox always say the same thing.
 import type { NotificationType, UserRole } from '../enums';
-import { INTERNAL_CHAT_PARAM } from '../internal-chat';
+import { INTERNAL_CHAT_PARAM, SHIPPER_CHAT_PARAM } from '../internal-chat';
 import { authCopy } from './auth';
 import { notificationContent } from './notifications';
 
@@ -20,9 +20,13 @@ export const notificationEmailCopy = {
 
 /**
  * Types sent by push and kept in the inbox, never by email: the messages of
- * the internal trip chat (H1) are too frequent for the mailbox.
+ * the internal trip chat (H1) and of the chat with the shipper are too
+ * frequent for the mailbox.
  */
-export const PUSH_ONLY_NOTIFICATION_TYPES: readonly NotificationType[] = ['internal_message'];
+export const PUSH_ONLY_NOTIFICATION_TYPES: readonly NotificationType[] = [
+  'internal_message',
+  'chat_message',
+];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -44,9 +48,11 @@ export function notificationWebPath(role: UserRole | null, data: unknown): strin
   const loadId = uuid(data, 'loadId');
   const tripId = uuid(data, 'tripId');
   if (role === 'manager' || role === 'coordinator') {
-    // The internal trip chat (H1) carries its conversation: the internal tab.
+    // A chat message carries its conversation: the internal trip chat (H1) on
+    // its tab; the trip chat with the shipper (`kind` 'trip') on the shipper's.
     if (tripId && uuid(data, 'conversationId')) {
-      return `/transportista/viajes/${tripId}?chat=${INTERNAL_CHAT_PARAM}`;
+      const shipperChat = (data as Record<string, unknown>).kind === 'trip';
+      return `/transportista/viajes/${tripId}?chat=${shipperChat ? SHIPPER_CHAT_PARAM : INTERNAL_CHAT_PARAM}`;
     }
     const negotiationId = uuid(data, 'negotiationId');
     if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;

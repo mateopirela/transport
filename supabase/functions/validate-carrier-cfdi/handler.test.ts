@@ -162,22 +162,105 @@ Deno.test('the PDF is optional for the carrier', async () => {
   assert.equal(JSON.parse(String(record?.init.body)).p_pdf_path, null);
 });
 
-Deno.test('says every failed rule of the XML and the PDF, before storing anything', async () => {
-  const { deps, calls } = setup();
+Deno.test(
+  'says every failed rule of the XML, the trip and the PDF, before storing anything',
+  async () => {
+    // What the database answers for a null UUID and currency, plus the trip's rules.
+    const { deps, calls } = setup({
+      check: () =>
+        ok({
+          failures: ['receiver_mismatch', 'total_mismatch', 'currency', 'uuid_taken'],
+          validation: 'validated',
+        }),
+    });
+    const response = await handleValidateCarrierCfdi(
+      request({
+        xml: syntheticCfdi({ currency: 'USD', unstamped: true }),
+        pdf: new TextEncoder().encode('not a pdf'),
+      }),
+      deps,
+    );
+    assert.equal(response.status, 422);
+    // Each once: the database's rule on a field the parser refused is not repeated.
+    assert.deepEqual(await response.json(), {
+      error: 'invalid_cfdi',
+      failures: ['currency', 'uuid', 'receiver_mismatch', 'total_mismatch', 'pdf_invalid'],
+    });
+    const [check] = called(calls, '/rpc/check_freight_invoice_service');
+    assert.deepEqual(JSON.parse(String(check?.init.body)), {
+      p_user_id: USER,
+      p_trip_id: TRIP,
+      p_direction: 'carrier_to_fulmis',
+      p_cfdi_uuid: null,
+      p_issuer_rfc: 'FLI040404CD4',
+      p_receiver_rfc: 'FUL201015AB1',
+      p_total_cents: 970_000,
+      p_currency: null,
+    });
+    assert.equal(called(calls, '/rpc/record_freight_invoice_service').length, 0);
+    assert.ok(!calls.some((call) => call.url.includes('/storage/')));
+  },
+);
+
+Deno.test('an RFC, version or date of the wrong form still gets the trip rules', async () => {
+  const { deps, calls } = setup({
+    check: () => ok({ failures: ['issuer_mismatch', 'total_mismatch'], validation: 'validated' }),
+  });
   const response = await handleValidateCarrierCfdi(
     request({
-      xml: syntheticCfdi({ currency: 'USD', unstamped: true }),
-      pdf: new TextEncoder().encode('not a pdf'),
+      xml: syntheticCfdi({ issuerRfc: 'XX', version: '3.3', issuedAt: '2026-11-06' }),
     }),
     deps,
   );
   assert.equal(response.status, 422);
   assert.deepEqual(await response.json(), {
     error: 'invalid_cfdi',
-    failures: ['currency', 'uuid', 'pdf_invalid'],
+    failures: ['version', 'issuer_rfc', 'issued_at', 'total_mismatch'],
   });
-  assert.equal(called(calls, '/rpc/check_freight_invoice_service').length, 0);
+  const [check] = called(calls, '/rpc/check_freight_invoice_service');
+  const body = JSON.parse(String(check?.init.body));
+  assert.equal(body.p_issuer_rfc, null);
+  assert.equal(body.p_cfdi_uuid, SYNTHETIC_UUID);
   assert.ok(!calls.some((call) => call.url.includes('/storage/')));
+
+  // A valid XML with a wrong PDF also gets them.
+  const pdf = setup({
+    check: () => ok({ failures: ['already_invoiced'], validation: 'validated' }),
+  });
+  const wrongPdf = await handleValidateCarrierCfdi(
+    request({ pdf: new TextEncoder().encode('not a pdf') }),
+    pdf.deps,
+  );
+  assert.deepEqual((await wrongPdf.json()).failures, ['already_invoiced', 'pdf_invalid']);
+  assert.ok(!pdf.calls.some((call) => call.url.includes('/storage/')));
+
+  // Without access to the trip, the same 404 as with a valid CFDI.
+  const stranger = setup({
+    check: () => ok({ code: '42501', message: 'trip not available' }, 403),
+  });
+  const denied = await handleValidateCarrierCfdi(
+    request({ xml: syntheticCfdi({ currency: 'USD' }) }),
+    stranger.deps,
+  );
+  assert.equal(denied.status, 404);
+  assert.deepEqual(await denied.json(), { error: 'not_found' });
+});
+
+Deno.test('an XML that is not a readable CFDI gets only its reason', async () => {
+  for (const [xml, failure] of [
+    ['<cfdi:Comprobante', 'malformed'],
+    ['<a/>', 'not_cfdi'],
+    [
+      syntheticCfdi().replace('<cfdi:Receptor', '<cfdi:Emisor Rfc="AAA010101AAA"/><cfdi:Receptor'),
+      'malformed',
+    ],
+  ] as const) {
+    const { deps, calls } = setup();
+    const response = await handleValidateCarrierCfdi(request({ xml }), deps);
+    assert.equal(response.status, 422);
+    assert.deepEqual((await response.json()).failures, [failure]);
+    assert.equal(called(calls, '/rpc/check_freight_invoice_service').length, 0);
+  }
 });
 
 Deno.test('rejects a DTD and a missing XML', async () => {

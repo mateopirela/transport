@@ -250,9 +250,11 @@ select set_eq(
     'trip_cargo_insurance', 'trip_checklist', 'trip_document_readable', 'trip_document_object_readable',
     'accept_terms',
     -- Freight ledger (I3): each side reads its own columns; the admin reads
-    -- both and records payments, terms and commissions, audited (53_freight_ledger).
+    -- both and records payments, terms and commissions, audited (53_freight_ledger);
+    -- only the admin reads a carrier's commission override (61_freight_payment_gate).
     'shipper_freight_ledger', 'carrier_freight_ledger', 'admin_freight_ledger', 'admin_record_freight_payment',
     'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review',
+    'admin_company_commission_bps',
     -- Brokered loads (I6): the client requests and approves, the admin quotes
     -- and lists; the client reads its loads with its own prices only, and the
     -- policies ask whether a load is brokered (57_brokered_loads).

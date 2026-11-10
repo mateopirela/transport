@@ -232,6 +232,10 @@ describe('freightAdminErrorText', () => {
     expect(
       freightAdminErrorText({ code: '55000', message: 'no review pending for this trip' }),
     ).toBe(e.noReview);
+    // D33-E1: no payment to the carrier before the client paid.
+    expect(
+      freightAdminErrorText({ code: '55000', message: 'the client has not paid this trip yet' }),
+    ).toBe(e.clientUnpaid);
     expect(freightAdminErrorText({ code: 'XX000' })).toBe(e.generic);
   });
 });

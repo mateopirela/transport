@@ -36,8 +36,18 @@ export interface UnlistedDocument {
   requiresExpiry: boolean;
 }
 
+/**
+ * The columns of `companies` a signed-in user may read: every one but
+ * `commission_bps`, the carrier's commission override, which only admins read
+ * (admin_company_commission_bps; I3).
+ */
+export const COMPANY_COLUMNS =
+  'id, type, legal_name, rfc, status, status_reason, contact_name, contact_email, contact_phone, created_by, created_at, updated_at, archived_at, is_owner_operator, fiscal_street, fiscal_exterior_number, fiscal_interior_number, fiscal_neighborhood, fiscal_postal_code, fiscal_municipality, fiscal_state, legal_representative_name, payment_terms_days' as const;
+
+export type ReadableCompany = Omit<Tables<'companies'>, 'commission_bps'>;
+
 export interface CompanyVerification {
-  company: Tables<'companies'>;
+  company: ReadableCompany;
   /** The company's own documents first, then each active vehicle and operator. */
   owners: OwnerVerification[];
   /**
@@ -59,7 +69,7 @@ export async function loadCompanyVerification(
 ): Promise<CompanyVerification | null> {
   const { data: company, error } = await supabase
     .from('companies')
-    .select('*')
+    .select(COMPANY_COLUMNS)
     .eq('id', companyId)
     .maybeSingle();
   if (error) throw new Error(`Could not load company: ${error.message}`);

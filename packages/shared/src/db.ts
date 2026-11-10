@@ -3934,6 +3934,7 @@ export interface Database {
           target_price_cents: number;
         }[];
       };
+      admin_company_commission_bps: { Args: { p_company_id: string }; Returns: number };
       admin_create_offer: {
         Args: {
           p_accept?: boolean;

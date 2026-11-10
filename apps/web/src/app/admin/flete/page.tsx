@@ -40,6 +40,7 @@ import {
   FREIGHT_FILTERS,
   matchesFreightFilter,
   parseFreightFilter,
+  carrierWaitsForClient,
   payableDirections,
   type FreightFilter,
 } from '@/lib/freight/filters';
@@ -295,6 +296,9 @@ function LedgerCard({
               </li>
             ))}
           </ul>
+        )}
+        {carrierWaitsForClient(row) && (
+          <p className="text-subhead text-text-dim">{c.carrierWaitsForClient}</p>
         )}
         {directions.length > 0 && (
           <RecordPaymentForm tripId={row.trip_id} directions={directions} />

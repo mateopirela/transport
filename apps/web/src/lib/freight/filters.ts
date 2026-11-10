@@ -63,12 +63,18 @@ export function matchesFreightFilter(row: FreightFilterRow, filter: FreightFilte
 export function payableDirections(row: {
   client_status: FreightClientStatus;
   carrier_status: FreightCarrierStatus;
+  quick_pay_approved_at?: string | null;
 }): FreightPaymentDirection[] {
   const directions: FreightPaymentDirection[] = [];
   if (row.client_status !== 'paid' && row.client_status !== 'cancelled') {
     directions.push('client_to_fulmis');
   }
+  // D33-E1: the carrier is paid once the client paid; before, only with an
+  // approved quick pay (D38). admin_record_freight_payment enforces it too.
+  const clientSettled =
+    row.client_status === 'paid' || (row.quick_pay_approved_at ?? null) !== null;
   if (
+    clientSettled &&
     row.carrier_status !== 'paid' &&
     row.carrier_status !== 'cancelled' &&
     row.carrier_status !== 'quick_pay_requested'
@@ -76,4 +82,22 @@ export function payableDirections(row: {
     directions.push('fulmis_to_carrier');
   }
   return directions;
+}
+
+/**
+ * Whether the carrier's side is owed but waits for the client (D33-E1): not
+ * paid nor cancelled, no quick pay requested or approved, and the client has
+ * not paid in full. The admin page says so instead of offering the payment.
+ */
+export function carrierWaitsForClient(row: {
+  client_status: FreightClientStatus;
+  carrier_status: FreightCarrierStatus;
+  quick_pay_approved_at?: string | null;
+}): boolean {
+  return (
+    (row.carrier_status === 'pending' || row.carrier_status === 'on_hold') &&
+    row.client_status !== 'paid' &&
+    row.client_status !== 'cancelled' &&
+    (row.quick_pay_approved_at ?? null) === null
+  );
 }

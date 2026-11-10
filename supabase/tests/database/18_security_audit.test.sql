@@ -251,7 +251,7 @@ select set_eq(
     'accept_terms',
     -- Freight ledger (I3): each side reads its own columns; the admin reads
     -- both and records payments, terms and commissions, audited (53_freight_ledger);
-    -- only the admin reads a carrier's commission override (61_freight_payment_gate).
+    -- only the admin reads a carrier's commission override (62_freight_payment_gate).
     'shipper_freight_ledger', 'carrier_freight_ledger', 'admin_freight_ledger', 'admin_record_freight_payment',
     'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review',
     'admin_company_commission_bps',

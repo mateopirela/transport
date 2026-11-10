@@ -60,6 +60,25 @@ test('the admin uploads the client CFDI, the client downloads it and the carrier
     await expect(form.getByText(freightInvoiceFailureLabels.receiver_mismatch)).toBeVisible();
   });
 
+  await test.step('a CFDI dated out of range (9999-12-31) is refused with the reason', async () => {
+    // Year 10000 in UTC once read in Mexico City: the page could not show it.
+    const form = section.getByTestId('invoice-upload-fulmis_to_client');
+    await form.getByLabel(f.admin.xml, { exact: true }).setInputFiles(
+      xmlFile(
+        syntheticCfdi({
+          issuerRfc: 'FUL201015AB1',
+          receiverRfc: 'ADN150301KQ2',
+          total: '40000.00',
+          uuid: clientUuid,
+          issuedAt: '9999-12-31T23:59:59',
+        }),
+      ),
+    );
+    await form.getByLabel(f.admin.pdf, { exact: true }).setInputFiles(SAMPLE_PDF);
+    await form.getByRole('button', { name: f.admin.submit, exact: true }).click();
+    await expect(form.getByText(freightInvoiceFailureLabels.issued_at)).toBeVisible();
+  });
+
   await test.step('the right CFDI is registered and the paid trip stays paid', async () => {
     const form = section.getByTestId('invoice-upload-fulmis_to_client');
     await form.getByLabel(f.admin.xml, { exact: true }).setInputFiles(

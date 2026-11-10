@@ -38,6 +38,8 @@ export const freightInvoiceFailureLabels = {
 export const freightInvoicesCopy = {
   /** "Folio fiscal 1A2B… · 6 nov 2026". */
   invoiceLine: (uuid: string, date: string) => `Folio fiscal ${uuid.toUpperCase()} · ${date}`,
+  /** In place of the date when a stored CFDI's date cannot be read. */
+  invalidIssuedAt: 'fecha no válida',
   downloadPdf: 'PDF',
   downloadXml: 'XML',
   download: (kind: string) => `Descargar ${kind}`,

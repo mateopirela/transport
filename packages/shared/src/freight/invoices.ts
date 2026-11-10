@@ -4,6 +4,8 @@
 // The rules live in Postgres (…_freight_invoices.sql) and in cfdi.ts.
 import { freightInvoiceFailureLabels, freightInvoicesCopy } from '../copy/freight-invoices';
 import type { FreightInvoiceDirection } from '../enums';
+import { formatCalendarDate } from '../formatters';
+import { toMexicoCityDate } from '../verification';
 
 export const FULMIS_SETTING_KEYS = {
   rfc: 'fulmis.rfc',
@@ -98,4 +100,18 @@ export function freightInvoiceUploadErrors(status: number | null, body: unknown)
 /** The short form of a CFDI's UUID shown in lists: its first 8 characters in capitals. */
 export function shortCfdiUuid(uuid: string): string {
   return uuid.slice(0, 8).toUpperCase();
+}
+
+/**
+ * The day a CFDI was issued, in Mexico City, as lists show it ("6 nov 2026").
+ * A stored date the app cannot read (one past year 9999 in UTC, registered
+ * before the range check) shows as "fecha no válida" instead of breaking the
+ * whole page: there is no way to replace a registered invoice.
+ */
+export function formatInvoiceIssuedDate(issuedAt: string): string {
+  try {
+    return formatCalendarDate(toMexicoCityDate(issuedAt));
+  } catch {
+    return freightInvoicesCopy.invalidIssuedAt;
+  }
 }

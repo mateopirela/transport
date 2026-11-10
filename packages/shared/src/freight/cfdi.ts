@@ -264,7 +264,27 @@ export function cfdiAmountCents(value: string | undefined): number | null {
   return total <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(total) : null;
 }
 
-function isValidDateTime(value: string | undefined): value is string {
+/**
+ * Earliest `Fecha` taken: CFDI 4.0 came into force on 2022-01-01. Mirrored by
+ * record_freight_invoice_service and the freight_invoices_issued_at_range check.
+ */
+export const CFDI_MIN_ISSUED_AT = '2022-01-01T00:00:00';
+/**
+ * How far past the current time a `Fecha` may be (milliseconds). The SAT does
+ * not stamp a CFDI dated in the future; the margin covers clocks and the
+ * issuer's time zone. Mirrored by record_freight_invoice_service.
+ */
+export const CFDI_FUTURE_MARGIN_MS = 24 * 60 * 60 * 1000;
+/** Mexico City's offset from UTC (no daylight saving time since 2022). */
+const MEXICO_CITY_OFFSET_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Whether `Fecha` is a real date and time (no zone) within the plausible
+ * range: from CFDI_MIN_ISSUED_AT to `now` plus CFDI_FUTURE_MARGIN_MS, read in
+ * Mexico City. A date out of it (year 0100, 9999-12-31…) is not a CFDI the SAT
+ * stamped, and one past 9999 in UTC cannot even be read back by the app.
+ */
+function isValidDateTime(value: string | undefined, now: Date): value is string {
   const match = DATE_TIME.exec(value ?? '');
   if (!match) return false;
   const [, y, mo, d, h, mi, s] = match.map(Number) as [
@@ -277,13 +297,19 @@ function isValidDateTime(value: string | undefined): value is string {
     number,
   ];
   const date = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
-  return (
+  // Years 0–99 are years 1900–1999 for Date.UTC; set the real year.
+  date.setUTCFullYear(y);
+  const real =
     date.getUTCFullYear() === y &&
     date.getUTCMonth() === mo - 1 &&
     date.getUTCDate() === d &&
     h < 24 &&
     mi < 60 &&
-    s < 60
+    s < 60;
+  return (
+    real &&
+    (value as string) >= CFDI_MIN_ISSUED_AT &&
+    date.getTime() + MEXICO_CITY_OFFSET_MS <= now.getTime() + CFDI_FUTURE_MARGIN_MS
   );
 }
 
@@ -294,9 +320,10 @@ function utf8Length(value: string): number {
 
 /**
  * Reads a CFDI 4.0 of income (`TipoDeComprobante="I"`) in MXN with its stamp,
- * or says every reason it is not one. Never throws.
+ * or says every reason it is not one. Never throws. `now` bounds its `Fecha`
+ * (no later than a day past it).
  */
-export function parseCfdi(xml: string): CfdiParseResult {
+export function parseCfdi(xml: string, now: Date = new Date()): CfdiParseResult {
   if (xml.length > CFDI_XML_MAX_BYTES || utf8Length(xml) > CFDI_XML_MAX_BYTES) {
     return { ok: false, issues: ['too_large'] };
   }
@@ -353,7 +380,7 @@ export function parseCfdi(xml: string): CfdiParseResult {
   const receiverRfc = cfdiRfc(attr(receiver, 'Rfc'));
   if (!receiverRfc) issues.push('receiver_rfc');
   const issuedAt = attr(comprobante, 'Fecha');
-  if (!isValidDateTime(issuedAt)) issues.push('issued_at');
+  if (!isValidDateTime(issuedAt, now)) issues.push('issued_at');
   const uuid = (attr(stamp, 'UUID') ?? '').trim().toLowerCase();
   if (!UUID.test(uuid)) issues.push('uuid');
 

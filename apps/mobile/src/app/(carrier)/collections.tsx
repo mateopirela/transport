@@ -2,6 +2,7 @@ import {
   collectionsTotals,
   formatBasisPoints,
   formatCalendarDate,
+  formatInvoiceIssuedDate,
   formatMxn,
   freightCarrierStatusLabels,
   freightCarrierStatusTone,
@@ -103,7 +104,7 @@ function CfdiCell({
         title={f.carrier.column}
         subtitle={f.invoiceLine(
           shortCfdiUuid(invoice.cfdiUuid),
-          formatCalendarDate(toMexicoCityDate(invoice.issuedAt)),
+          formatInvoiceIssuedDate(invoice.issuedAt),
         )}
         pill={{
           label: freightInvoiceValidationLabels[invoice.validation],

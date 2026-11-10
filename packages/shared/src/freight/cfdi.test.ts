@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { freightInvoiceFailureLabels, freightInvoicesCopy } from '../copy/freight-invoices';
 import {
+  CFDI_MIN_ISSUED_AT,
   CFDI_XML_MAX_BYTES,
   cfdiAmountCents,
   cfdiRfc,
@@ -11,6 +12,7 @@ import {
 } from './cfdi';
 import { SYNTHETIC_UUID, syntheticCfdi } from './cfdi-fixtures';
 import {
+  formatInvoiceIssuedDate,
   freightInvoiceUploadErrors,
   isFreightInvoiceFailure,
   normalizeFulmisSetting,
@@ -101,6 +103,26 @@ describe('parseCfdi', () => {
     expect(issues(parseCfdi(syntheticCfdi({ uuid: 'not-a-uuid' })))).toEqual(['uuid']);
     expect(issues(parseCfdi(syntheticCfdi({ total: '0.00' })))).toEqual(['total']);
     expect(issues(parseCfdi(syntheticCfdi({ issuedAt: '2026-11-06' })))).toEqual(['issued_at']);
+  });
+
+  it('takes only a Fecha from CFDI 4.0 (2022) up to a day past now, read in Mexico City', () => {
+    const now = new Date('2026-11-10T18:00:00Z'); // 12:00 in Mexico City
+    const at = (issuedAt: string) => issues(parseCfdi(syntheticCfdi({ issuedAt }), now));
+    // 9999-12-31 after 18:00 is year 10000 in UTC: the app could not read it back.
+    expect(at('9999-12-31T23:59:59')).toEqual(['issued_at']);
+    expect(at('0100-01-01T00:00:00')).toEqual(['issued_at']);
+    expect(at('0001-01-01T00:00:00')).toEqual(['issued_at']);
+    expect(at('2021-12-31T23:59:59')).toEqual(['issued_at']);
+    expect(at(CFDI_MIN_ISSUED_AT)).toEqual([]);
+    expect(at('2026-11-10T12:00:00')).toEqual([]);
+    // Up to a day past now (clocks, the issuer's time zone), not more.
+    expect(at('2026-11-11T12:00:00')).toEqual([]);
+    expect(at('2026-11-11T12:00:01')).toEqual(['issued_at']);
+    expect(at('2027-01-01T00:00:00')).toEqual(['issued_at']);
+    // Without `now`, the current time.
+    expect(issues(parseCfdi(syntheticCfdi({ issuedAt: '9999-12-31T23:59:59' })))).toEqual([
+      'issued_at',
+    ]);
   });
 
   it('rejects a DTD or entity declaration before parsing (XXE, billion laughs)', () => {
@@ -267,5 +289,16 @@ describe('freightInvoiceUploadErrors', () => {
     expect(isFreightInvoiceFailure('uuid_taken')).toBe(true);
     expect(isFreightInvoiceFailure('toString')).toBe(false);
     expect(shortCfdiUuid(SYNTHETIC_UUID)).toBe('6F3A1B2C');
+  });
+
+  it('shows the issue day in Mexico City, and a stored date it cannot read without throwing', () => {
+    expect(formatInvoiceIssuedDate('2026-11-06T16:00:00+00:00')).toBe('6 nov 2026');
+    // 05:30 UTC is still the day before in Mexico City (UTC-6).
+    expect(formatInvoiceIssuedDate('2026-11-07T05:30:00+00:00')).toBe('6 nov 2026');
+    // How PostgREST returns 9999-12-31 23:59:59 in Mexico City: year 10000 in UTC.
+    expect(formatInvoiceIssuedDate('10000-01-01T05:59:59+00:00')).toBe(
+      freightInvoicesCopy.invalidIssuedAt,
+    );
+    expect(formatInvoiceIssuedDate('')).toBe(freightInvoicesCopy.invalidIssuedAt);
   });
 });

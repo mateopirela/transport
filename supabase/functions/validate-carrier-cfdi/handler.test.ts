@@ -196,6 +196,25 @@ Deno.test('rejects a DTD and a missing XML', async () => {
   assert.deepEqual((await missing.json()).failures, ['xml_missing']);
 });
 
+Deno.test('refuses a CFDI dated out of range before storing anything', async () => {
+  // 9999-12-31 after 18:00 in Mexico City is year 10000 in UTC (unreadable by the apps).
+  for (const issuedAt of ['9999-12-31T23:59:59', '0100-01-01T00:00:00']) {
+    const { deps, calls } = setup();
+    const response = await handleValidateCarrierCfdi(
+      request({ xml: syntheticCfdi({ issuedAt }) }),
+      deps,
+    );
+    assert.equal(response.status, 422);
+    assert.deepEqual((await response.json()).failures, ['issued_at']);
+    assert.equal(called(calls, '/rpc/record_freight_invoice_service').length, 0);
+    assert.equal(
+      calls.filter((call) => call.url.includes('/storage/')).length,
+      0,
+      'nothing is stored',
+    );
+  }
+});
+
 Deno.test('passes on the rules the database refuses (receiver, total)', async () => {
   const { deps, calls } = setup({
     check: () => ok({ failures: ['receiver_mismatch', 'total_mismatch'], validation: 'validated' }),

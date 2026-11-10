@@ -45,8 +45,13 @@ export type ClientLoad = Omit<
 /** Rows per page of the loads list. */
 export const LOADS_PAGE_SIZE = 25;
 
+/**
+ * Columns of the loads list. created_at is here because the list is ordered by
+ * it: on an RPC (client_loads) PostgREST orders the selected record, so a
+ * column outside the select fails with 42703 (unlike a filter, or a table).
+ */
 const LIST_COLUMNS =
-  'id, status, origin_city, origin_state, destination_city, destination_state, pickup_window_start, unit_type, proposed_price_cents, brokered, brokered_status';
+  'id, status, origin_city, origin_state, destination_city, destination_state, pickup_window_start, unit_type, proposed_price_cents, brokered, brokered_status, created_at';
 
 export type ClientLoadListRow = Pick<
   ClientLoad,
@@ -61,6 +66,7 @@ export type ClientLoadListRow = Pick<
   | 'proposed_price_cents'
   | 'brokered'
   | 'brokered_status'
+  | 'created_at'
 >;
 
 /**

@@ -121,10 +121,14 @@ export function notificationHref(
         return tripId && `${carrierTripPath(tripId)}#${BACKHAUL_SECTION_ID}`;
       }
       // The location reminder is for the operator (B09); the shared documents,
-      // for the shipper (G6).
+      // for the shipper (G6). I6: brokered loads are the client's and the
+      // admin's; the carrier negotiates them as any other load (offers above).
       case 'trip_location_stale':
       case 'documents_shared':
       case 'freight_overdue':
+      case 'brokered_load_requested':
+      case 'brokered_load_quoted':
+      case 'brokered_load_contracted':
         return null;
     }
   }
@@ -168,6 +172,17 @@ export function notificationHref(
     case 'freight_payment_received':
     case 'freight_overdue':
       return paths.shipperPortfolio;
+    // I6 (D39): the client's quote, on its load; the carrier Transport found,
+    // on the trip. A new request is the admins'.
+    case 'brokered_load_quoted':
+      return loadId && loadPath(loadId);
+    case 'brokered_load_contracted': {
+      const tripId = id(data, 'tripId');
+      if (tripId) return tripPath(tripId);
+      return loadId && loadPath(loadId);
+    }
+    case 'brokered_load_requested':
+      return null;
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
     case 'internal_message':

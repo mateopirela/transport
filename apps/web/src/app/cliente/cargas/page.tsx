@@ -1,4 +1,5 @@
 import {
+  brokeredCopy,
   formatDate,
   formatMxn,
   LOAD_STATUSES,
@@ -70,9 +71,12 @@ export default async function LoadsPage({ searchParams }: PageProps<'/cliente/ca
               subtitle={[
                 `${c.columns.pickup} ${formatDate(load.pickup_window_start)}`,
                 unitTypeLabels[load.unit_type],
-                formatMxn(load.proposed_price_cents),
+                // A load sent to the platform (I6): the client's price, once quoted.
+                load.proposed_price_cents === null
+                  ? brokeredCopy.shipper.toQuote
+                  : formatMxn(load.proposed_price_cents),
               ].join(' · ')}
-              trailing={<LoadStatusBadge status={load.status} />}
+              trailing={<LoadStatusBadge status={load.status} quoteStatus={load.brokered_status} />}
             />
           ))}
         </Group>

@@ -59,12 +59,15 @@ export type AdminFreightRow = Omit<
   | 'client_amount_cents'
   | 'commission_cents'
   | 'carrier_net_cents'
+  | 'margin_cents'
   | 'client_paid_cents'
   | 'carrier_paid_cents'
 > & {
   client_amount_cents: number;
   commission_cents: number;
   carrier_net_cents: number;
+  /** A brokered load's margin (I6): the client's price minus the carrier's. */
+  margin_cents: number;
   client_paid_cents: number;
   carrier_paid_cents: number;
   payments: AdminFreightPayment[];
@@ -166,6 +169,7 @@ export async function loadAdminFreight(supabase: Supabase): Promise<AdminFreight
     client_amount_cents: toCents(row.client_amount_cents),
     commission_cents: toCents(row.commission_cents),
     carrier_net_cents: toCents(row.carrier_net_cents),
+    margin_cents: toCents(row.margin_cents),
     client_paid_cents: toCents(row.client_paid_cents),
     carrier_paid_cents: toCents(row.carrier_paid_cents),
     payments: adminPayments(row.payments),

@@ -19,7 +19,8 @@ export default async function EditLoadPage({ params }: PageProps<'/cliente/carga
   const load = await getCompanyLoad(supabase, companyId, id);
   if (!load) notFound();
   // Contracted or closed loads are read-only (update_load refuses them too).
-  if (!shipperLoadActions(load.status).edit) redirect(loadPath(load.id));
+  // Neither are the loads sent to the platform (I6).
+  if (!shipperLoadActions(load.status, load.brokered).edit) redirect(loadPath(load.id));
   return (
     <>
       <PageHeader title={c.editTitle} description={c.editDescription} />

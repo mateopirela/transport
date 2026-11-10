@@ -97,9 +97,9 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
   const { supabase, companyId } = await shipperContext(tripPath(id));
   const data = await getCompanyTrip(supabase, companyId, id);
   const viewer = await getViewer();
-  if (!data?.trip.load || !viewer) notFound();
+  const load = data?.trip.load;
+  if (!data || !load || !viewer) notFound();
   const { trip, parties, events, incidents, evidence, documents, locations } = data;
-  const load = trip.load;
   const [chat, sharedDocuments, decisions, endEstimate, siteDwells] = await Promise.all([
     data.conversationId ? getChat(supabase, data.conversationId, companyId) : null,
     getSharedDocuments(supabase, trip.id),

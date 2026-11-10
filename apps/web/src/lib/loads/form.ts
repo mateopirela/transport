@@ -117,6 +117,46 @@ export function parseLoadForm(
   };
 }
 
+/** The checkbox of the new load form that sends it to the platform (I6). */
+export const BROKERED_FIELD = 'brokered';
+
+/** Whether the submitted form asks the platform to find the carrier (I6, D39). */
+export function isBrokeredForm(entries: Record<string, string>): boolean {
+  return entries[BROKERED_FIELD] === 'on';
+}
+
+export type ParsedBrokeredLoadForm =
+  | { success: true; data: LoadFormValues; targetPriceCents: number | null }
+  | { success: false; state: FormState };
+
+/**
+ * A load sent to the platform (I6): the same fields, except that the price is
+ * the client's optional target ("Por cotizar" when empty). The RPC ignores
+ * the load's price (Transport sets the carriers' rate), so an empty target
+ * only stands in for it to validate the rest.
+ */
+export function parseBrokeredLoadForm(
+  entries: Record<string, string>,
+  specialRequirements: readonly string[],
+): ParsedBrokeredLoadForm {
+  const target = entries.price?.trim() ?? '';
+  const parsed = parseLoadForm(
+    { ...entries, price: target === '' ? '1' : target },
+    specialRequirements,
+  );
+  if (!parsed.success) {
+    return {
+      success: false,
+      state: { ...parsed.state, values: { ...parsed.state.values, price: entries.price ?? '' } },
+    };
+  }
+  return {
+    success: true,
+    data: parsed.data,
+    targetPriceCents: target === '' ? null : parsed.data.proposedPriceCents,
+  };
+}
+
 /** Cents → the text a person would type: 1250050 → "12500.50". */
 export function centsToPesosText(cents: number | string): string {
   const value = toCents(cents);
@@ -130,7 +170,11 @@ export function toLocalInput(timestamp: string): string {
   return `${date}T${time}`;
 }
 
-type LoadRow = Tables<'loads'>;
+/** The columns of a load the edit form fills (its price is null only for a brokered load, I6). */
+type LoadRow = Omit<
+  Tables<'loads'>,
+  'proposed_price_cents' | 'origin_location' | 'destination_location'
+> & { proposed_price_cents: number | null };
 
 /** A stored load → the form's initial values (edit screen). */
 export function loadToFormValues(load: LoadRow): Record<string, string> {
@@ -155,7 +199,7 @@ export function loadToFormValues(load: LoadRow): Record<string, string> {
     volumeM3: load.volume_m3 === null ? '' : String(load.volume_m3),
     unitType: load.unit_type,
     specialRequirements: load.special_requirements.join(','),
-    price: centsToPesosText(load.proposed_price_cents),
+    price: load.proposed_price_cents === null ? '' : centsToPesosText(load.proposed_price_cents),
     notes: load.notes ?? '',
   };
 }

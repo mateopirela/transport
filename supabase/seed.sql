@@ -19,6 +19,8 @@
 --   * The freight ledger of every trip (I3): the shippers' payment terms, a
 --     $10,000 Escobedo -> Saltillo trip delivered four days ago (load 25) and an
 --     older trip already paid on both sides.
+--   * A brokered load (I6): $12,000 to the client, published at $10,800 to
+--     the carriers (load 26).
 --
 -- Rows are inserted directly as the database owner (RLS does not apply), with
 -- timestamps relative to the hour of the reset so the demo always looks
@@ -797,6 +799,30 @@ set client_paid_cents = client_amount_cents, client_status = 'paid',
     carrier_paid_cents = carrier_net_cents, carrier_status = 'paid'
 where trip_id = '5eed0008-0000-4000-8000-000000000006';
 
+-- ---------------------------------------------------------------------------
+-- Brokered load (I6, D39). Load 26 is the acceptance load of I6: Aceros del
+-- Norte sent its Apodaca -> Zapopan trip to the platform, Transport quoted
+-- $12,000 to the client and $10,800 to the carriers, and the client approved:
+-- the carriers see it published at $10,800 ("Publicada por Transport"), the
+-- client sees $12,000, and the margin is the admins' only.
+select pg_temp.seed_load('5eed0005-0000-4000-8000-000000000026', '5eed0002-0000-4000-8000-000000000001',
+                         '5eed0001-0000-4000-8000-000000000002',
+                         array['Carretera Miguel Alemán Km 21, Parque Industrial', 'Apodaca', 'Nuevo León'],
+                         25.7817, -100.1886,
+                         array['Av. Vallarta 6503, Col. Ciudad Granja', 'Zapopan', 'Jalisco'], 20.6770, -103.4370,
+                         '3 days', 8, '4 days', 8, 'palletized', 'Láminas de acero en tarimas', 9000,
+                         40, 'torton', '{}', 1080000, null);
+
+update public.loads set brokered = true where id = '5eed0005-0000-4000-8000-000000000026';
+
+insert into public.load_client_prices (
+  load_id, shipper_company_id, status, client_price_cents, quoted_at, quoted_by, approved_at, approved_by, created_at
+)
+values ('5eed0005-0000-4000-8000-000000000026', '5eed0002-0000-4000-8000-000000000001', 'approved', 1200000,
+        pg_temp.at('-20 hours'), '5eed0001-0000-4000-8000-000000000001',
+        pg_temp.at('-18 hours'), '5eed0001-0000-4000-8000-000000000002', pg_temp.at('-1 day'));
+
+-- ---------------------------------------------------------------------------
 -- GPS points of the trip in unloading along the corridor (MTY, Saltillo,
 -- Matehuala, San Luis Potosí, Ojuelos, Lagos de Moreno, Tepatitlán, GDL).
 insert into public.trip_locations (trip_id, recorded_at, latitude, longitude, accuracy_m, speed_mps, heading_deg)

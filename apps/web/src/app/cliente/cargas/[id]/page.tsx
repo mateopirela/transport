@@ -1,4 +1,6 @@
 import {
+  brokeredClientStage,
+  brokeredCopy,
   cargoTypeLabels,
   clientTripsCopy,
   formatDateTime,
@@ -14,6 +16,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Notice } from '@/components/auth-forms';
+import { ApproveQuoteButton } from '@/components/loads/brokered-quote';
 import { CancelLoadForm, PublishLoadButton } from '@/components/loads/load-actions';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
@@ -36,6 +39,7 @@ import { findLoadTrip } from '@/lib/trips/queries';
 import { cn } from '@/lib/utils';
 
 const c = loadsCopy.detail;
+const b = brokeredCopy.shipper;
 const number = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
 
 export const metadata: Metadata = { title: loadsCopy.list.title };
@@ -49,7 +53,14 @@ export default async function LoadDetailPage({
   const load = await getCompanyLoad(supabase, companyId, id);
   if (!load) notFound();
   const { aviso } = await searchParams;
-  const offers = load.status === 'draft' ? [] : await getOfferBoard(supabase, load);
+  // A load sent to the platform (I6) is negotiated by Transport: the client
+  // never sees the carriers' offers (nor can read them).
+  const direct =
+    !load.brokered && load.proposed_price_cents !== null
+      ? { ...load, proposed_price_cents: load.proposed_price_cents }
+      : null;
+  const offers = direct && direct.status !== 'draft' ? await getOfferBoard(supabase, direct) : [];
+  const stage = brokeredClientStage(load.brokered_status, load.status);
   const decisions = await getProviderDecisions(supabase, {
     shipperCompanyId: companyId,
     carrierCompanyIds: offers.map((row) => row.carrierCompanyId),
@@ -57,7 +68,7 @@ export default async function LoadDetailPage({
   const providerStates = Object.fromEntries(
     [...decisions].map(([carrierId, decision]) => [carrierId, decision.status]),
   );
-  const actions = shipperLoadActions(load.status);
+  const actions = shipperLoadActions(load.status, load.brokered);
   // accept_offer creates the trip together with the acceptance (B06).
   const trip = load.accepted_offer_id ? await findLoadTrip(supabase, companyId, load.id) : null;
   const tripId = trip?.id ?? null;
@@ -89,7 +100,23 @@ export default async function LoadDetailPage({
         ? c.noRequirements
         : load.special_requirements.map((r) => specialRequirementLabels[r]).join(', '),
     ],
-    [c.price, formatMxn(load.proposed_price_cents)],
+    ...(load.brokered
+      ? ([
+          [
+            b.priceLabel,
+            load.proposed_price_cents === null ? b.toQuote : formatMxn(load.proposed_price_cents),
+          ],
+          [
+            b.targetLabel,
+            load.target_price_cents === null ? null : formatMxn(load.target_price_cents),
+          ],
+        ] satisfies [string, string | null][])
+      : ([
+          [
+            c.price,
+            load.proposed_price_cents === null ? null : formatMxn(load.proposed_price_cents),
+          ],
+        ] satisfies [string, string | null][])),
     [c.agreedPrice, load.agreed_price_cents === null ? null : formatMxn(load.agreed_price_cents)],
     [c.notes, load.notes],
     [c.created, formatDateTime(load.created_at)],
@@ -113,7 +140,7 @@ export default async function LoadDetailPage({
       </Link>
       <PageHeader
         title={`${load.origin_city} → ${load.destination_city}`}
-        status={<LoadStatusBadge status={load.status} />}
+        status={<LoadStatusBadge status={load.status} quoteStatus={load.brokered_status} />}
         description={`${load.origin_address} → ${load.destination_address}`}
         action={
           // The one primary: follow the trip once contracted, publish a draft.
@@ -140,11 +167,14 @@ export default async function LoadDetailPage({
               </Link>
             )}
             {actions.publish && <PublishLoadButton loadId={load.id} />}
+            {stage === 'quoted' && load.proposed_price_cents !== null && (
+              <ApproveQuoteButton loadId={load.id} priceCents={load.proposed_price_cents} />
+            )}
           </>
         }
       />
 
-      {load.status === 'draft' && (
+      {load.status === 'draft' && !load.brokered && (
         <div className="mb-8 space-y-3">
           {aviso === 'no-publicada' && <Notice tone="error">{c.publishFailed}</Notice>}
           <Notice tone="info">{c.draftNotice}</Notice>
@@ -166,21 +196,33 @@ export default async function LoadDetailPage({
             />
           </section>
 
-          <section className="space-y-3">
-            <div className="space-y-1 px-1">
-              <h2 className="text-title2 text-text">{o.title}</h2>
-              <p className="text-subhead text-text-dim">
-                {o.description} {o.live}
-              </p>
-            </div>
-            {offers.length > 0 ? (
-              <OfferBoard loadId={load.id} rows={offers} providerStates={providerStates} />
-            ) : (
-              <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
-                {load.status === 'draft' ? o.emptyDraft : o.empty}
-              </p>
-            )}
-          </section>
+          {load.brokered ? (
+            <section className="space-y-3" data-testid="brokered-load">
+              <h2 className="px-1 text-title2 text-text">{b.title}</h2>
+              {stage ? (
+                <Notice tone="info">
+                  {b.stageHelp[stage]}
+                  {stage === 'quoted' && ` ${b.cancelHint}`}
+                </Notice>
+              ) : null}
+            </section>
+          ) : (
+            <section className="space-y-3">
+              <div className="space-y-1 px-1">
+                <h2 className="text-title2 text-text">{o.title}</h2>
+                <p className="text-subhead text-text-dim">
+                  {o.description} {o.live}
+                </p>
+              </div>
+              {offers.length > 0 ? (
+                <OfferBoard loadId={load.id} rows={offers} providerStates={providerStates} />
+              ) : (
+                <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
+                  {load.status === 'draft' ? o.emptyDraft : o.empty}
+                </p>
+              )}
+            </section>
+          )}
         </div>
 
         <aside className="space-y-6">

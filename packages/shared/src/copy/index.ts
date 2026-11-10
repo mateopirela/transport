@@ -5,6 +5,7 @@ export * from './appearance';
 export * from './auth';
 export * from './backhaul';
 export * from './billing';
+export * from './brokered';
 export * from './cargo-insurance';
 export * from './carrier-loads';
 export * from './carrier-trips';

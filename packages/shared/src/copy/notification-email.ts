@@ -53,8 +53,19 @@ export function notificationWebPath(
   // The freight ledger (I3): the admin's reconciliation, the carrier's
   // "Cobranza" and the client's "Cartera".
   const freight = uuid(data, 'ledgerId') !== null;
-  if (role === 'admin') return freight ? '/admin/flete' : '/admin';
   const loadId = uuid(data, 'loadId');
+  if (role === 'admin') {
+    if (freight) return '/admin/flete';
+    // A brokered load (I6): sent by a client, or a carrier's offer to
+    // Transport (marked `brokered`), in the admin's inbox of brokered loads.
+    const brokered =
+      type === 'brokered_load_requested' ||
+      (typeof data === 'object' &&
+        data !== null &&
+        (data as Record<string, unknown>).brokered === true);
+    if (brokered) return loadId ? `/admin/intermediadas/${loadId}` : '/admin/intermediadas';
+    return '/admin';
+  }
   const tripId = uuid(data, 'tripId');
   if (role === 'manager' || role === 'coordinator') {
     if (freight) return '/transportista/cobranza';

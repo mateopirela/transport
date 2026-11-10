@@ -191,6 +191,12 @@ function LedgerCard({
               {formatMxn(row.commission_cents)}
             </Fact>
             <Fact label={c.net}>{formatMxn(row.carrier_net_cents)}</Fact>
+            {/* A brokered load (I6, D39): Fulmis's income is the margin, not a commission. */}
+            {row.margin_cents > 0 && (
+              <Fact label={c.margin}>
+                <span data-testid="freight-margin">{formatMxn(row.margin_cents)}</span>
+              </Fact>
+            )}
             <Fact label={c.dueOn}>
               {dueLabel(row.carrier_due_on, freightCopy.dueOnAfterDelivery)}
             </Fact>

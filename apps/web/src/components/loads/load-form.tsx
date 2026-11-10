@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  brokeredCopy,
   CARGO_TYPES,
   cargoTypeLabels,
   loadsCopy,
@@ -21,12 +22,20 @@ import { Select as SelectControl } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { formEntries, type FormState } from '@/lib/forms';
 import { saveLoad } from '@/lib/loads/actions';
-import { parseLoadForm, placeFromValues, type PlaceValue } from '@/lib/loads/form';
+import {
+  BROKERED_FIELD,
+  isBrokeredForm,
+  parseBrokeredLoadForm,
+  parseLoadForm,
+  placeFromValues,
+  type PlaceValue,
+} from '@/lib/loads/form';
 
 import { PlaceField } from './place-field';
 import { RouteMap, type RoutePoint } from './route-map';
 
 const c = loadsCopy.form;
+const b = brokeredCopy.shipper;
 
 const cargoOptions = toOptions(CARGO_TYPES, cargoTypeLabels);
 const unitOptions = toOptions(UNIT_TYPES, unitTypeLabels);
@@ -55,6 +64,8 @@ export function LoadForm({
   const [destination, setDestination] = useState(() =>
     placeFromValues(initialValues, 'destination'),
   );
+  // I6: a new load can be sent to the platform; its price is then an optional target.
+  const [brokered, setBrokered] = useState(() => state.values?.[BROKERED_FIELD] === 'on');
   const view: FormState = { values: state.values, fieldErrors: clientErrors ?? state.fieldErrors };
   const errors = view.fieldErrors ?? {};
   const error = clientErrors ? c.fixErrors : state.error;
@@ -62,7 +73,11 @@ export function LoadForm({
   function validate(event: React.FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     const requirements = formData.getAll('specialRequirements').map(String);
-    const result = parseLoadForm(formEntries(formData), requirements);
+    const entries = formEntries(formData);
+    const result =
+      !loadId && isBrokeredForm(entries)
+        ? parseBrokeredLoadForm(entries, requirements)
+        : parseLoadForm(entries, requirements);
     if (result.success) {
       setClientErrors(null);
       return;
@@ -125,8 +140,29 @@ export function LoadForm({
       </Section>
 
       <Section title={c.sections.price}>
+        {!loadId && (
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 px-1 py-1 text-callout text-text">
+            <input
+              type="checkbox"
+              name={BROKERED_FIELD}
+              checked={brokered}
+              onChange={(event) => setBrokered(event.currentTarget.checked)}
+              className="mt-1 size-4 shrink-0 accent-accent"
+            />
+            <span className="space-y-0.5">
+              <span className="block">{b.toggle}</span>
+              <span className="block text-subhead text-text-dim">{b.toggleHint}</span>
+            </span>
+          </label>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field name="price" label={c.price} hint={c.priceHint} inputMode="decimal" state={view} />
+          <Field
+            name="price"
+            label={brokered ? b.targetPrice : c.price}
+            hint={brokered ? b.targetPriceHint : c.priceHint}
+            inputMode="decimal"
+            state={view}
+          />
         </div>
         <FieldFrame label={c.notes} htmlFor="field-notes" error={errors.notes}>
           <Textarea
@@ -147,6 +183,10 @@ export function LoadForm({
         {loadId ? (
           <Button type="submit" disabled={pending} loading={pending}>
             {pending ? c.pending : c.saveChanges}
+          </Button>
+        ) : brokered ? (
+          <Button type="submit" disabled={pending} loading={pending}>
+            {pending ? c.pending : b.submit}
           </Button>
         ) : (
           <>

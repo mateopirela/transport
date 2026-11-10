@@ -1,4 +1,5 @@
 import {
+  brokeredCopy,
   carrierLoadsCopy,
   carrierNegotiationState,
   formatDateTime,
@@ -255,7 +256,7 @@ export function useNegotiation({
               return (
                 <StatusRow
                   key={o.id}
-                  title={`${copy.negotiation.side[o.side]} · ${formatMxn(o.amount_cents)}`}
+                  title={`${o.side === 'shipper' && load.brokered ? brokeredCopy.counterpart : copy.negotiation.side[o.side]} · ${formatMxn(o.amount_cents)}`}
                   lines={[
                     formatDateTime(o.created_at),
                     // The conditions in full: the carrier reads them before accepting.

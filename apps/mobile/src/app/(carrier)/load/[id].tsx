@@ -1,4 +1,5 @@
 import {
+  brokeredCopy,
   cargoTypeLabels,
   carrierLoadsCopy,
   defaultAxleCount,
@@ -15,7 +16,7 @@ import {
 } from '@transport/shared';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
@@ -28,6 +29,7 @@ import {
   Group,
   LoadError,
   Notice,
+  Pill,
   Screen,
   SectionHeader,
   Skeleton,
@@ -172,6 +174,12 @@ function LoadBody({
         <Text accessibilityRole="header" style={type.title2}>
           {route}
         </Text>
+        {/* I6: all a carrier learns about a brokered load; its price is the rate. */}
+        {l.brokered ? (
+          <View style={{ flexDirection: 'row' }}>
+            <Pill label={brokeredCopy.badge} tone="accent" />
+          </View>
+        ) : null}
 
         {section}
 
@@ -233,7 +241,9 @@ function LoadBody({
           <ChatPanel client={carrier.client} conversationId={negotiation.conversationId} />
         ) : (
           <Group>
-            <TextCell tone="dim">{carrierLoadsCopy.chat.unavailable}</TextCell>
+            <TextCell tone="dim">
+              {l.brokered ? brokeredCopy.carrierChatClosed : carrierLoadsCopy.chat.unavailable}
+            </TextCell>
           </Group>
         )}
       </Screen>

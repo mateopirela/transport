@@ -29,6 +29,43 @@ export interface TripParties {
   operatorName: string | null;
 }
 
+interface TripLoadSummary {
+  origin_city: string;
+  origin_state: string;
+  destination_city: string;
+  destination_state: string;
+  pickup_window_start: string;
+}
+
+interface TripLoad extends TripLoadSummary {
+  origin_lat: number;
+  origin_lng: number;
+  destination_lat: number;
+  destination_lng: number;
+  agreed_price_cents: number | null;
+}
+
+/**
+ * The loads of the shipper's trips, from client_loads (I6): the client cannot
+ * read the row of a load it sent to the platform, and its agreed price is the
+ * client's, never the carrier's.
+ */
+async function tripLoads<T extends TripLoadSummary>(
+  supabase: Supabase,
+  loadIds: string[],
+  columns: string,
+): Promise<Map<string, T>> {
+  const loads = new Map<string, T>();
+  if (loadIds.length === 0) return loads;
+  const { data, error } = await supabase
+    .rpc('client_loads')
+    .select(`id, ${columns}`)
+    .in('id', loadIds);
+  if (error) throw new Error(`Trip loads query failed: ${error.message}`);
+  for (const row of data as unknown as (T & { id: string })[]) loads.set(row.id, row);
+  return loads;
+}
+
 /**
  * Carrier, unit and operator of the shipper's trips (shipper_trip_parties:
  * the shipper cannot read the carrier's fleet tables directly).
@@ -64,9 +101,7 @@ export async function listCompanyTrips(
   const finished = `(${FINISHED_TRIP_STATUSES.join(',')})`;
   let query = supabase
     .from('trips')
-    .select(`id, status, created_at, load:loads!trips_load_id_fkey(${LOAD_SUMMARY})`, {
-      count: 'exact',
-    })
+    .select('id, status, created_at, load_id', { count: 'exact' })
     .eq('shipper_company_id', companyId);
   query =
     view === 'history'
@@ -77,12 +112,23 @@ export async function listCompanyTrips(
     .order('id')
     .range(from, from + TRIPS_PAGE_SIZE - 1);
   if (error) throw new Error(`Trips query failed: ${error.message}`);
-  const parties = await tripParties(
-    supabase,
-    data.map((trip) => trip.id),
-  );
+  const [parties, loads] = await Promise.all([
+    tripParties(
+      supabase,
+      data.map((trip) => trip.id),
+    ),
+    tripLoads<TripLoadSummary>(
+      supabase,
+      [...new Set(data.map((trip) => trip.load_id))],
+      LOAD_SUMMARY,
+    ),
+  ]);
   return {
-    rows: data.map((trip) => ({ ...trip, parties: parties.get(trip.id) ?? null })),
+    rows: data.map((trip) => ({
+      ...trip,
+      load: loads.get(trip.load_id) ?? null,
+      parties: parties.get(trip.id) ?? null,
+    })),
     total: count ?? data.length,
   };
 }
@@ -94,19 +140,23 @@ export async function listCompanyTrips(
  */
 export async function getCompanyTrip(supabase: Supabase, companyId: string, tripId: string) {
   if (!uuidField.safeParse(tripId).success) return null;
-  const { data: trip, error } = await supabase
+  const { data: row, error } = await supabase
     .from('trips')
     .select(
       `id, load_id, carrier_company_id, status, estimated_unload_end_at, started_at, delivered_at,
-       closed_at, cancelled_at, cancellation_reason, cancellation_reason_code, vehicle_id, created_at,
-       load:loads!trips_load_id_fkey(${LOAD_SUMMARY}, origin_lat, origin_lng,
-         destination_lat, destination_lng, agreed_price_cents)`,
+       closed_at, cancelled_at, cancellation_reason, cancellation_reason_code, vehicle_id, created_at`,
     )
     .eq('id', tripId)
     .eq('shipper_company_id', companyId)
     .maybeSingle();
   if (error) throw new Error(`Trip query failed: ${error.message}`);
-  if (!trip) return null;
+  if (!row) return null;
+  const loads = await tripLoads<TripLoad>(
+    supabase,
+    [row.load_id],
+    `${LOAD_SUMMARY}, origin_lat, origin_lng, destination_lat, destination_lng, agreed_price_cents`,
+  );
+  const trip = { ...row, load: loads.get(row.load_id) ?? null };
 
   const [
     events,

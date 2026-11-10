@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  brokeredCopy,
   carrierLoadsCopy,
   carrierNegotiationState,
   carrierWebCopy,
@@ -75,7 +76,8 @@ export function CarrierNegotiationPanel({
   defaultBusinessUnitId,
   negotiationBusinessUnitId,
 }: {
-  load: { id: string; status: LoadStatus; proposedPriceCents: number } | null;
+  /** `brokered`: published by Transport (I6), which answers the offers. */
+  load: { id: string; status: LoadStatus; proposedPriceCents: number; brokered?: boolean } | null;
   offers: readonly NegotiationOffer[];
   units: readonly PanelUnit[];
   /** Business units the viewer operates; a first offer without a unit needs one when there are several. */
@@ -180,7 +182,10 @@ export function CarrierNegotiationPanel({
                 <li key={offer.id} className={`${groupRow} space-y-1 px-4 py-3`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-headline text-text tabular-nums">
-                      {c.side[offer.side]} · {formatMxn(offer.amount_cents)}
+                      {offer.side === 'shipper' && load?.brokered
+                        ? brokeredCopy.counterpart
+                        : c.side[offer.side]}{' '}
+                      · {formatMxn(offer.amount_cents)}
                     </p>
                     <Pill tone={offer.status === 'accepted' ? 'ok' : 'neutral'}>
                       {offerStatusLabels[offer.status]}

@@ -89,6 +89,10 @@ export type FreightClientStatus = (typeof FREIGHT_CLIENT_STATUSES)[number];
 export const FREIGHT_CARRIER_STATUSES = DB_ENUMS.freight_carrier_status;
 export type FreightCarrierStatus = (typeof FREIGHT_CARRIER_STATUSES)[number];
 
+/** Quote of a brokered load: sent to Transport, priced, approved by the client (load_client_prices, I6). */
+export const BROKERED_QUOTE_STATUSES = DB_ENUMS.brokered_quote_status;
+export type BrokeredQuoteStatus = (typeof BROKERED_QUOTE_STATUSES)[number];
+
 /** Who paid whom in a recorded SPEI payment (freight_payments, I3). */
 export const FREIGHT_PAYMENT_DIRECTIONS = DB_ENUMS.freight_payment_direction;
 export type FreightPaymentDirection = (typeof FREIGHT_PAYMENT_DIRECTIONS)[number];

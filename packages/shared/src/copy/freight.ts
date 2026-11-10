@@ -99,6 +99,8 @@ export const freightCopy = {
     amount: 'Flete',
     commission: 'Comisión',
     net: 'Neto',
+    /** A brokered load (I6, D39): the client's price minus the carrier's. */
+    margin: 'Margen',
     terms: 'Plazo',
     dueOn: 'Vence',
     paid: 'Pagado',

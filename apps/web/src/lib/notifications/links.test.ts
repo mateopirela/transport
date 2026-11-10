@@ -26,6 +26,25 @@ describe('notificationHref', () => {
     );
   });
 
+  it('opens the brokered load of a quote and the trip Transport contracted (I6)', () => {
+    expect(notificationHref('brokered_load_quoted', { loadId: LOAD, amountCents: 1 })).toBe(
+      `/cliente/cargas/${LOAD}`,
+    );
+    expect(
+      notificationHref('brokered_load_contracted', { loadId: LOAD, tripId: NEGOTIATION }),
+    ).toBe(`/cliente/viajes/${NEGOTIATION}`);
+    expect(notificationHref('brokered_load_requested', { loadId: LOAD })).toBeNull();
+    for (const type of [
+      'brokered_load_requested',
+      'brokered_load_quoted',
+      'brokered_load_contracted',
+    ] as const) {
+      expect(
+        notificationHref(type, { loadId: LOAD, tripId: NEGOTIATION }, 'transportista'),
+      ).toBeNull();
+    }
+  });
+
   it('ignores malformed ids and types without a screen', () => {
     expect(
       notificationHref('offer_received', { loadId: '../admin', negotiationId: 'x' }),

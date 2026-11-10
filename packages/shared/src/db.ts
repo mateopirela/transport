@@ -919,6 +919,83 @@ export interface Database {
           },
         ];
       };
+      freight_invoices: {
+        Row: {
+          cfdi_uuid: string;
+          created_at: string;
+          currency: string;
+          direction: Database['public']['Enums']['freight_invoice_direction'];
+          id: string;
+          issued_at: string;
+          issuer_rfc: string;
+          pdf_path: string | null;
+          provider: string;
+          receiver_rfc: string;
+          total_cents: number;
+          trip_id: string;
+          uploaded_by: string | null;
+          validation: Database['public']['Enums']['freight_invoice_validation'];
+          xml_path: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          cfdi_uuid: string;
+          created_at?: string;
+          currency: string;
+          direction: Database['public']['Enums']['freight_invoice_direction'];
+          id?: string;
+          issued_at: string;
+          issuer_rfc: string;
+          pdf_path?: string | null;
+          provider?: string;
+          receiver_rfc: string;
+          total_cents: number;
+          trip_id: string;
+          uploaded_by?: string | null;
+          validation: Database['public']['Enums']['freight_invoice_validation'];
+          xml_path: string;
+        };
+        Update: {
+          cfdi_uuid?: string;
+          created_at?: string;
+          currency?: string;
+          direction?: Database['public']['Enums']['freight_invoice_direction'];
+          id?: string;
+          issued_at?: string;
+          issuer_rfc?: string;
+          pdf_path?: string | null;
+          provider?: string;
+          receiver_rfc?: string;
+          total_cents?: number;
+          trip_id?: string;
+          uploaded_by?: string | null;
+          validation?: Database['public']['Enums']['freight_invoice_validation'];
+          xml_path?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'freight_invoices_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'freight_invoices_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'freight_invoices_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: false;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       freight_ledgers: {
         Row: {
           carrier_due_on: string | null;
@@ -4127,6 +4204,19 @@ export interface Database {
         }[];
       };
       check_backhaul: { Args: { p_source: string; p_trip_id: string }; Returns: undefined };
+      check_freight_invoice_service: {
+        Args: {
+          p_cfdi_uuid: string;
+          p_currency: string;
+          p_direction: Database['public']['Enums']['freight_invoice_direction'];
+          p_issuer_rfc: string;
+          p_receiver_rfc: string;
+          p_total_cents: number;
+          p_trip_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
       check_offer_fields: {
         Args: {
           p_amount_cents: number;
@@ -4313,6 +4403,36 @@ export interface Database {
         Args: { p_due_on: string; p_status: Database['public']['Enums']['freight_client_status'] };
         Returns: Database['public']['Enums']['freight_client_status'];
       };
+      freight_invoice_failures: {
+        Args: {
+          p_cfdi_uuid: string;
+          p_currency: string;
+          p_direction: Database['public']['Enums']['freight_invoice_direction'];
+          p_issuer_rfc: string;
+          p_ledger: Omit<
+            Database['public']['Tables']['freight_ledgers']['Row'],
+            Database['public']['Tables']['freight_ledgers']['ComputedFields']
+          >;
+          p_receiver_rfc: string;
+          p_total_cents: number;
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+        };
+        Returns: Record<string, unknown>;
+      };
+      freight_invoice_uploader_allowed: {
+        Args: {
+          p_direction: Database['public']['Enums']['freight_invoice_direction'];
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+          p_user_id: string;
+        };
+        Returns: boolean;
+      };
       freight_is_valid_commission: { Args: { p_value: Json }; Returns: boolean };
       freight_ledger_create: {
         Args: {
@@ -4328,6 +4448,7 @@ export interface Database {
         Returns: Json;
       };
       freight_today: { Args: Record<PropertyKey, never>; Returns: string };
+      fulmis_rfc: { Args: Record<PropertyKey, never>; Returns: string };
       get_route_distances: {
         Args: { p_legs: Json };
         Returns: {
@@ -4580,6 +4701,23 @@ export interface Database {
         Returns: number;
       };
       rate_limit_policy: { Args: { p_bucket: string }; Returns: Record<string, unknown> };
+      record_freight_invoice_service: {
+        Args: {
+          p_cfdi_uuid: string;
+          p_currency: string;
+          p_direction: Database['public']['Enums']['freight_invoice_direction'];
+          p_issued_at: string;
+          p_issuer_rfc: string;
+          p_pdf_path: string;
+          p_provider?: string;
+          p_receiver_rfc: string;
+          p_total_cents: number;
+          p_trip_id: string;
+          p_user_id: string;
+          p_xml_path: string;
+        };
+        Returns: Json;
+      };
       record_location_consent: {
         Args: { p_platform: string; p_policy_version: string };
         Returns: string;
@@ -5122,6 +5260,8 @@ export interface Database {
         'pending' | 'on_hold' | 'quick_pay_requested' | 'scheduled' | 'paid' | 'cancelled';
       freight_client_status:
         'pending' | 'invoiced' | 'paid' | 'overdue' | 'written_off' | 'cancelled';
+      freight_invoice_direction: 'fulmis_to_client' | 'carrier_to_fulmis';
+      freight_invoice_validation: 'validated' | 'unvalidated';
       freight_payment_direction: 'client_to_fulmis' | 'fulmis_to_carrier';
       incident_kind:
         | 'delay'
@@ -5420,6 +5560,8 @@ export const Constants = {
         'cancelled',
       ],
       freight_client_status: ['pending', 'invoiced', 'paid', 'overdue', 'written_off', 'cancelled'],
+      freight_invoice_direction: ['fulmis_to_client', 'carrier_to_fulmis'],
+      freight_invoice_validation: ['validated', 'unvalidated'],
       freight_payment_direction: ['client_to_fulmis', 'fulmis_to_carrier'],
       incident_kind: [
         'delay',

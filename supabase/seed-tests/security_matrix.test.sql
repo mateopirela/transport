@@ -198,6 +198,27 @@ insert into public.billing_events (stripe_event_id, type, company_id, processed_
 values ('evt_b24fixture', 'customer.subscription.updated', tests.val('carrier_company'), now());
 -- I1: the seed's trip was reminded of its cargo insurance.
 insert into public.cargo_insurance_reminders (trip_id) values (tests.val('trip'));
+-- I5: both CFDI of the seed's trip and their files (Fulmis' to the client,
+-- the carrier's to Fulmis); each side reads only its own direction.
+insert into public.freight_invoices (
+  trip_id, direction, cfdi_uuid, issuer_rfc, receiver_rfc, total_cents, currency, issued_at, validation,
+  xml_path, pdf_path
+)
+select tests.val('trip'), d.direction::public.freight_invoice_direction, d.cfdi_uuid, d.issuer, d.receiver,
+       d.total, 'MXN', now(), 'unvalidated',
+       tests.val('trip') || '/' || d.direction || '/' || d.object || '.xml',
+       tests.val('trip') || '/' || d.direction || '/' || d.object || '.pdf'
+from (values
+  ('fulmis_to_client', 'a2400000-0000-4000-8000-0000000000c1'::uuid, 'FUL201015AB1', 'ADN150301KQ2', 4200000::bigint,
+   'a2400000-0000-4000-8000-0000000000c2'),
+  ('carrier_to_fulmis', 'a2400000-0000-4000-8000-0000000000c3'::uuid, 'TRN120210LP5', 'FUL201015AB1', 4074000::bigint,
+   'a2400000-0000-4000-8000-0000000000c4')
+) as d(direction, cfdi_uuid, issuer, receiver, total, object);
+insert into storage.objects (bucket_id, name, owner_id, metadata)
+select 'invoices', f.path, null, '{"mimetype": "application/xml", "size": 2048}'
+from public.freight_invoices i
+cross join lateral (values (i.xml_path), (i.pdf_path)) as f(path)
+where i.trip_id = tests.val('trip');
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -220,6 +241,12 @@ insert into tests.ownership values
   -- through shipper_freight_ledger and carrier_freight_ledger.
   ('public.freight_ledgers', 'false'),
   ('public.freight_payments', 'false'),
+  -- Freight invoices (I5): each side only its own direction of its trips.
+  ('public.freight_invoices', $$
+     exists (select 1 from public.trips x where x.id = t.trip_id
+             and ((t.direction = 'fulmis_to_client' and x.shipper_company_id = $1)
+                  or (t.direction = 'carrier_to_fulmis' and x.carrier_company_id = $1)))
+  $$),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -310,6 +337,9 @@ insert into tests.ownership values
        when 'chat' then exists (select 1 from public.conversations x where x.id::text = split_part(t.name, '/', 1)
                                 and ($1 = x.carrier_company_id
                                      or ($1 = x.shipper_company_id and x.kind <> 'trip_internal')))
+       when 'invoices' then exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
+                                    and ((split_part(t.name, '/', 2) = 'fulmis_to_client' and x.shipper_company_id = $1)
+                                         or (split_part(t.name, '/', 2) = 'carrier_to_fulmis' and x.carrier_company_id = $1)))
        else false
      end
   $$);
@@ -353,6 +383,10 @@ insert into tests.unit_ownership values
   ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_locations', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_backhaul_checks', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.freight_invoices', $$
+     t.direction = 'carrier_to_fulmis'
+     and exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))
+  $$),
   ('public.messages', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
   ('public.message_reads', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
   ('storage.objects', $$
@@ -366,6 +400,9 @@ insert into tests.unit_ownership values
        when 'trip-documents' then exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
                                           and x.business_unit_id = any ($3))
        when 'chat' then public.conversation_business_unit_id_as_owner(split_part(t.name, '/', 1)::uuid) = any ($3)
+       when 'invoices' then split_part(t.name, '/', 2) = 'carrier_to_fulmis'
+                            and exists (select 1 from public.trips x where x.id::text = split_part(t.name, '/', 1)
+                                        and x.business_unit_id = any ($3))
        else false
      end
   $$);

@@ -30,7 +30,6 @@ export const freightCopy = {
   termsToBeDefined: 'Plazo por definir',
   termsDays: (days: number) => `${days} días`,
   dueOnAfterDelivery: 'Después de la entrega',
-  noInvoice: '—',
   route: (origin: string, destination: string) => `${origin} → ${destination}`,
   /** Cobranza (carrier, app and web). */
   collections: {

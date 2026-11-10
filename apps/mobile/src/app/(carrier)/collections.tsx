@@ -6,12 +6,20 @@ import {
   freightCarrierStatusLabels,
   freightCarrierStatusTone,
   freightCopy,
+  freightInvoiceFailureLabels,
+  freightInvoicesCopy,
+  freightInvoiceValidationLabels,
+  shortCfdiUuid,
   toMexicoCityDate,
+  type FulmisFiscalData,
 } from '@transport/shared';
+import * as DocumentPicker from 'expo-document-picker';
 import { Stack } from 'expo-router';
+import { useState } from 'react';
 
 import {
   Cell,
+  ErrorText,
   Footnote,
   Group,
   LoadError,
@@ -21,20 +29,140 @@ import {
   TextCell,
   ValueRow,
 } from '../../components/ui';
-import { loadCollections, type CollectionRow } from '../../lib/freight-api';
+import {
+  classifyCfdiFiles,
+  loadCarrierInvoices,
+  loadCollections,
+  loadFulmisData,
+  uploadCarrierCfdi,
+  type CarrierInvoice,
+  type CollectionRow,
+} from '../../lib/freight-api';
+import type { Supabase } from '../../lib/supabase';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
 
 const c = freightCopy.collections;
+const f = freightInvoicesCopy;
 
-const load = ({ client }: CarrierContext) => loadCollections(client);
+interface CollectionsData {
+  rows: CollectionRow[];
+  invoices: Map<string, CarrierInvoice>;
+  fulmis: FulmisFiscalData;
+}
+
+const load = async ({ client }: CarrierContext): Promise<CollectionsData> => {
+  const [rows, invoices, fulmis] = await Promise.all([
+    loadCollections(client),
+    loadCarrierInvoices(client),
+    loadFulmisData(client),
+  ]);
+  return { rows, invoices, fulmis };
+};
 
 function dueLabel(row: CollectionRow): string {
   if (row.due_on) return formatCalendarDate(row.due_on);
   return row.delivered_at ? freightCopy.termsToBeDefined : freightCopy.dueOnAfterDelivery;
 }
 
-/** One trip: its route and status, then the freight, the commission, the net, the date and what was paid. */
-function TripGroup({ row }: { row: CollectionRow }) {
+/**
+ * The carrier's CFDI to Fulmis of a trip (I5): its folio and whether it was
+ * validated, or "Subir CFDI": the XML and, optionally, the PDF picked at once
+ * and sent to the Edge Function validate-carrier-cfdi, which says every rule
+ * that failed.
+ */
+function CfdiCell({
+  client,
+  tripId,
+  invoice,
+  onUploaded,
+}: {
+  client: Supabase;
+  tripId: string;
+  invoice: CarrierInvoice | undefined;
+  onUploaded: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [done, setDone] = useState<string | null>(null);
+
+  if (invoice) {
+    return (
+      <Cell
+        icon="document"
+        title={f.carrier.column}
+        subtitle={f.invoiceLine(
+          shortCfdiUuid(invoice.cfdiUuid),
+          formatCalendarDate(toMexicoCityDate(invoice.issuedAt)),
+        )}
+        pill={{
+          label: freightInvoiceValidationLabels[invoice.validation],
+          tone: invoice.validation === 'validated' ? 'ok' : 'amber',
+        }}
+      />
+    );
+  }
+
+  async function upload() {
+    setErrors([]);
+    setDone(null);
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: ['application/xml', 'text/xml', 'application/pdf'],
+      multiple: true,
+      copyToCacheDirectory: true,
+    });
+    if (picked.canceled) return;
+    const files = classifyCfdiFiles(picked.assets);
+    if (files.status === 'invalid') {
+      setErrors([freightInvoiceFailureLabels[files.failure]]);
+      return;
+    }
+    setPending(true);
+    try {
+      const result = await uploadCarrierCfdi(client, tripId, files);
+      if (!result.ok) {
+        setErrors(result.errors);
+        return;
+      }
+      setDone(result.validation === 'validated' ? f.carrier.done : f.carrier.doneUnvalidated);
+      onUploaded();
+    } catch {
+      setErrors([f.errors.generic]);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <Cell
+        icon="document"
+        title={pending ? f.carrier.submitting : f.carrier.upload}
+        subtitle={f.carrier.missing}
+        disabled={pending}
+        onPress={() => void upload()}
+      />
+      {errors.map((line) => (
+        <TextCell key={line}>
+          <ErrorText>{line}</ErrorText>
+        </TextCell>
+      ))}
+      {done ? <TextCell tone="dim">{done}</TextCell> : null}
+    </>
+  );
+}
+
+/** One trip: its route and status, then the freight, the commission, the net, the date, what was paid and its CFDI. */
+function TripGroup({
+  row,
+  client,
+  invoice,
+  onUploaded,
+}: {
+  row: CollectionRow;
+  client: Supabase;
+  invoice: CarrierInvoice | undefined;
+  onUploaded: () => void;
+}) {
   return (
     <Group>
       <Cell
@@ -62,7 +190,33 @@ function TripGroup({ row }: { row: CollectionRow }) {
           )}
         </TextCell>
       ))}
+      <CfdiCell client={client} tripId={row.trip_id} invoice={invoice} onUploaded={onUploaded} />
     </Group>
+  );
+}
+
+/** Who the carrier invoices (I5): Fulmis' fiscal data, or that it is in process. */
+function FulmisGroup({ fulmis }: { fulmis: FulmisFiscalData }) {
+  const facts = (
+    [
+      [f.fulmis.legalName, fulmis.legalName],
+      [f.fulmis.rfc, fulmis.rfc],
+      [f.fulmis.taxRegime, fulmis.taxRegime],
+      [f.fulmis.zip, fulmis.zip],
+    ] as const
+  ).flatMap(([label, value]) => (value === null ? [] : [{ label, value }]));
+  return (
+    <>
+      <SectionHeader title={f.fulmis.title} />
+      {facts.length > 0 ? (
+        <Group>
+          {facts.map((fact) => (
+            <ValueRow key={fact.label} label={fact.label} value={fact.value} />
+          ))}
+        </Group>
+      ) : null}
+      <Footnote>{fulmis.rfc === null ? f.fulmis.inProcess : f.fulmis.help}</Footnote>
+    </>
   );
 }
 
@@ -70,18 +224,19 @@ function TripGroup({ row }: { row: CollectionRow }) {
  * "Más → Cobranza" (I3, D34-E1): what Fulmis pays the carrier for each trip,
  * for the Gerente (the whole company) and the Coordinador (their business
  * units). The totals first ("Por cobrar", "Retenido", "Pagado este mes"),
- * then each trip. Information only: payments are recorded by the admin.
+ * then each trip with its CFDI to Fulmis (I5: "Subir CFDI" when it is
+ * missing). Payments are recorded by the admin.
  */
 export default function Collections() {
-  const { state, reload } = useCarrierData(load);
+  const { carrier, state, reload } = useCarrierData(load);
 
   let content;
-  if (state.status === 'loading') {
+  if (state.status === 'loading' || !carrier) {
     content = <Skeleton rows={4} />;
   } else if (state.status === 'error') {
     content = <LoadError onRetry={() => void reload()} />;
   } else {
-    const rows = state.data;
+    const { rows, invoices, fulmis } = state.data;
     const totals = collectionsTotals(
       rows.map((row) => ({
         status: row.status,
@@ -99,6 +254,7 @@ export default function Collections() {
         </Group>
         {totals.onHoldCents > 0 ? <Footnote>{c.onHoldHelp}</Footnote> : null}
         <Footnote>{c.description}</Footnote>
+        <FulmisGroup fulmis={fulmis} />
         {rows.length === 0 ? (
           <Group>
             <TextCell tone="dim">{c.empty}</TextCell>
@@ -107,7 +263,13 @@ export default function Collections() {
           <>
             <SectionHeader title={c.trip} />
             {rows.map((row) => (
-              <TripGroup key={row.ledger_id} row={row} />
+              <TripGroup
+                key={row.ledger_id}
+                row={row}
+                client={carrier.client}
+                invoice={invoices.get(row.trip_id)}
+                onUploaded={() => void reload()}
+              />
             ))}
           </>
         )}

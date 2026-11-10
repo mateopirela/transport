@@ -47,6 +47,12 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 - **Viaje de aceptación:** Escobedo → Saltillo de Aceros del Norte con Transportes Regios (carga 25), **$10,000** entregado hace cuatro días. Ana ve en **Cartera** (`/cliente/cartera`) $10,000 con vencimiento a 30 días; Jorge y Andrea ven en **Cobranza** (web `/transportista/cobranza` y app "Más → Cobranza") $300 de comisión y **$9,700 netos** con la misma fecha. Nadie ve el lado del otro.
 - **Otros:** un viaje MTY → GDL de hace cinco semanas ya venció (Ana lo ve "Vencido" y Jorge "Retenido") y otro de hace tres semanas está pagado de los dos lados. El trabajo diario `process-freight-due` (pg_cron, 07:00) marca vencidos y retenidos; las pantallas los calculan al leer, así que se ven igual antes de que corra.
 
+### Facturas del flete (I5)
+
+- **Modo manual:** sin PAC (`CFDI_PROVIDER` vacío) la plataforma no emite. El admin sube en **Flete** (`/admin/flete`, "Subir factura emitida") el XML y el PDF del CFDI de Fulmis al cliente; el transportista sube el suyo a Fulmis en **Cobranza** ("Subir CFDI", web y app). Cada XML se valida (emisor, receptor, total, MXN, UUID único) y un error dice cada regla que falló.
+- **Datos fiscales de Fulmis:** vacíos en la seed ("en proceso"); el admin los captura en **Ajustes** (`/admin/ajustes`). Sin RFC, los CFDI quedan "Sin validar" del lado de Fulmis.
+- **Para probar:** cualquier CFDI 4.0 timbrado sirve; los tests generan XML sintéticos con `syntheticCfdi` (`packages/shared/src/freight/cfdi-fixtures.ts`). Con el viaje pagado MTY → GDL de Ana ($40,000; $38,800 netos), el receptor del CFDI del cliente es `ADN150301KQ2` y el emisor del de Transportes Regios, `TRN120210LP5`.
+
 ### Recorrido por perfil (G9)
 
 Con la seed recién cargada, cada perfil tiene algo que ver en la web y en la app (las pruebas de punta a punta recorren lo mismo: `e2e/tests/profiles.spec.ts` y los flujos de Maestro de la tabla de abajo):

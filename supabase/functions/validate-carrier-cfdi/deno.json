@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "../../../packages/shared/src/observability/logger": "../../../packages/shared/src/observability/logger.ts",
+    "../../../packages/shared/src/observability/redact": "../../../packages/shared/src/observability/redact.ts",
+    "../../../packages/shared/src/observability/sentry": "../../../packages/shared/src/observability/sentry.ts"
+  }
+}

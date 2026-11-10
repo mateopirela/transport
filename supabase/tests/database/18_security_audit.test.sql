@@ -133,9 +133,12 @@ select is_empty(
   $$ select p.polname from pg_policy p where p.polrelid = 'storage.objects'::regclass and p.polcmd not in ('r', 'a') $$,
   'no client can update or delete Storage objects (uploads are immutable)'
 );
+-- The `invoices` bucket (I5) has no upload policy on purpose: only the CFDI
+-- Edge Functions write it, with the service role, after validating the XML.
 select is_empty(
   $$ select b.id || ':' || cmd from storage.buckets b cross join (values ('r'), ('a')) as x(cmd)
-     where not exists (
+     where not (b.id = 'invoices' and x.cmd = 'a')
+       and not exists (
        select 1 from pg_policy p
        where p.polrelid = 'storage.objects'::regclass and p.polcmd = x.cmd
          and coalesce(pg_get_expr(p.polqual, p.polrelid), pg_get_expr(p.polwithcheck, p.polrelid))
@@ -299,7 +302,10 @@ select set_eq(
     'companies_create_subscription', 'billing_session_context_service', 'billing_link_customer_service',
     'billing_begin_checkout_service', 'billing_save_checkout_service', 'billing_apply_event_service',
     -- I3: the ledger of each trip follows it (trigger).
-    'freight_ledger_sync_trip'
+    'freight_ledger_sync_trip',
+    -- I5: the validate-carrier-cfdi and issue-client-cfdi Edge Functions check
+    -- the uploader by the JWT's user and every rule (56_freight_invoices).
+    'check_freight_invoice_service', 'record_freight_invoice_service'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

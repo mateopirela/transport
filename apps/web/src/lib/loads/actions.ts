@@ -8,7 +8,7 @@ import { formEntries, refillValues, type FormState } from '../forms';
 import { loadPath, paths } from '../routing';
 import { createClient } from '../supabase/server';
 import { loadErrorMessage } from './errors';
-import { parseLoadForm } from './form';
+import { isBrokeredForm, parseBrokeredLoadForm, parseLoadForm } from './form';
 
 const notConfigured: FormState = { error: authErrors.notConfigured };
 
@@ -26,6 +26,10 @@ function loadIdOf(formData: FormData): string | null {
 export async function saveLoad(_prev: FormState, formData: FormData): Promise<FormState> {
   const entries = formEntries(formData);
   const requirements = formData.getAll('specialRequirements').filter((v) => typeof v === 'string');
+  // A new load the client sends to the platform (I6): its own RPC.
+  if (!formData.has('loadId') && isBrokeredForm(entries)) {
+    return requestBrokeredLoad(entries, requirements);
+  }
   const parsed = parseLoadForm(entries, requirements);
   if (!parsed.success) return { ...parsed.state, error: loadsCopy.form.fixErrors };
   const supabase = await createClient();
@@ -56,6 +60,56 @@ export async function saveLoad(_prev: FormState, formData: FormData): Promise<Fo
 
   revalidatePath(paths.shipper, 'layout');
   redirect(publishFailed ? `${loadPath(loadId)}?aviso=no-publicada` : loadPath(loadId));
+}
+
+/**
+ * Sends a new load to the platform (I6, D39): request_brokered_load with the
+ * client's target price, or none ("Por cotizar"). Transport prices it.
+ */
+async function requestBrokeredLoad(
+  entries: Record<string, string>,
+  requirements: string[],
+): Promise<FormState> {
+  const parsed = parseBrokeredLoadForm(entries, requirements);
+  if (!parsed.success) return { ...parsed.state, error: loadsCopy.form.fixErrors };
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+  const { data, error } = await supabase.rpc('request_brokered_load', {
+    p_load: parsed.data as unknown as Json,
+    p_target_price_cents: parsed.targetPriceCents ?? undefined,
+  });
+  if (error) {
+    return {
+      error: loadErrorMessage(error),
+      values: { ...refillValues(entries), specialRequirements: requirements.join(',') },
+    };
+  }
+  revalidatePath(paths.shipper, 'layout');
+  redirect(loadPath(data));
+}
+
+/**
+ * Approves the price Transport quoted for a brokered load (I6): the one the
+ * client saw, so a price changed meanwhile is refused and shown again.
+ */
+export async function approveBrokeredQuote(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const loadId = loadIdOf(formData);
+  const price = Number(formData.get('priceCents'));
+  if (!loadId || !Number.isSafeInteger(price) || price <= 0) {
+    return { error: loadsCopy.errors.notFound };
+  }
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+  const { error } = await supabase.rpc('approve_brokered_quote', {
+    p_load_id: loadId,
+    p_client_price_cents: price,
+  });
+  revalidatePath(paths.shipper, 'layout');
+  if (error) return { error: loadErrorMessage(error) };
+  return {};
 }
 
 /** Publishes a draft (draft → published). */

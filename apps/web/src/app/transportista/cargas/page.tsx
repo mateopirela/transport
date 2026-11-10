@@ -10,6 +10,7 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { BrokeredTag } from '@/components/carrier/brokered-badge';
 import { loadRoute } from '@/components/carrier/load-details';
 import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
@@ -148,6 +149,7 @@ export default async function CarrierLoadsPage({
                       {c.negotiating}
                     </Pill>
                   )}
+                  {load.brokered && <BrokeredTag className="ml-2" />}
                 </td>
                 <td className="whitespace-nowrap tabular-nums">
                   {formatDate(load.pickup_window_start)}

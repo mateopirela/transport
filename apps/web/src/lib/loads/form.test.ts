@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   centsToPesosText,
   fieldForPath,
+  isBrokeredForm,
   loadToFormValues,
+  parseBrokeredLoadForm,
   parseLoadForm,
   placeFromValues,
   toLoadInput,
@@ -33,6 +35,53 @@ const valid: Record<string, string> = {
   unitType: 'dry_van',
   price: '$32,500.50',
 };
+
+describe('parseBrokeredLoadForm (I6)', () => {
+  it('reads the price as the optional target of the client', () => {
+    const result = parseBrokeredLoadForm({ ...valid, price: '11,500' }, []);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.targetPriceCents).toBe(1_150_000);
+    expect(result.data.origin.city).toBe('Monterrey');
+  });
+
+  it('asks for a quote ("Por cotizar") when the price is empty', () => {
+    for (const price of ['', '   ']) {
+      const result = parseBrokeredLoadForm({ ...valid, price }, []);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.targetPriceCents).toBeNull();
+    }
+    const missing: Record<string, string> = { ...valid };
+    delete missing.price;
+    const result = parseBrokeredLoadForm(missing, []);
+    expect(result.success && result.targetPriceCents).toBeNull();
+  });
+
+  it('refuses a malformed target on the price field', () => {
+    const result = parseBrokeredLoadForm({ ...valid, price: '12.345' }, []);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.state.fieldErrors?.price).toBeTruthy();
+  });
+
+  it('keeps what the client typed when another field fails', () => {
+    for (const price of ['', '9,000']) {
+      const result = parseBrokeredLoadForm({ ...valid, price, weightKg: 'x' }, ['tarp']);
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.state.fieldErrors?.weightKg).toBeTruthy();
+      expect(result.state.fieldErrors?.price).toBeUndefined();
+      expect(result.state.values?.price).toBe(price);
+      expect(result.state.values?.specialRequirements).toBe('tarp');
+    }
+  });
+
+  it('only applies when the checkbox is on', () => {
+    expect(isBrokeredForm({ brokered: 'on' })).toBe(true);
+    expect(isBrokeredForm({})).toBe(false);
+    expect(isBrokeredForm({ brokered: 'off' })).toBe(false);
+  });
+});
 
 describe('parseLoadForm', () => {
   it('turns the form into the schema payload, in Mexico City time and cents', () => {

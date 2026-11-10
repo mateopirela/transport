@@ -3,11 +3,15 @@ import { canTransition, LOAD_STATUSES, type LoadStatus } from '@transport/shared
 /** Statuses in which update_load accepts changes (until the load is contracted). */
 const EDITABLE: readonly LoadStatus[] = ['draft', 'published', 'negotiating'];
 
-/** What the shipper can do with a load in `status`; the RPCs enforce the same rules. */
-export function shipperLoadActions(status: LoadStatus) {
+/**
+ * What the shipper can do with a load in `status`; the RPCs enforce the same
+ * rules. A load sent to the platform (I6) is neither edited nor published by
+ * the client: Transport prices it and the client approves its price.
+ */
+export function shipperLoadActions(status: LoadStatus, brokered = false) {
   return {
-    edit: EDITABLE.includes(status),
-    publish: canTransition('load', status, 'published', 'shipper'),
+    edit: !brokered && EDITABLE.includes(status),
+    publish: !brokered && canTransition('load', status, 'published', 'shipper'),
     cancel: canTransition('load', status, 'cancelled', 'shipper'),
   };
 }

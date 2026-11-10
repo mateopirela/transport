@@ -523,6 +523,8 @@ const steps = [
   { name: '17-manager-subscription', run: () => flow('17-manager-subscription') },
   // I3: read-only, nothing above pays the seed's Escobedo → Saltillo trip.
   { name: '21-carrier-collections', run: () => flow('21-carrier-collections') },
+  // I6: read-only, nothing above offers on the seed's brokered load.
+  { name: '22-brokered-load', run: () => flow('22-brokered-load') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

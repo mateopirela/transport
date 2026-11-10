@@ -13,12 +13,12 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { CarrierLoadBadges } from '@/components/carrier/brokered-badge';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { CarrierNegotiationPanel } from '@/components/carrier/negotiation-panel';
 import { RECOMMENDED_UNIT_PARAM } from '@/components/carrier/recommendation-card';
 import { SuggestedRoute } from '@/components/carrier/suggested-route';
 import { ChatPanel } from '@/components/chat/chat-panel';
-import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
 import { BackLink, PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
@@ -105,7 +105,7 @@ export default async function CarrierLoadPage({
       {back}
       <PageHeader
         title={loadRoute(load)}
-        status={<LoadStatusBadge status={load.status} />}
+        status={<CarrierLoadBadges load={load} />}
         description={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
         action={
           tripId && (
@@ -178,6 +178,7 @@ export default async function CarrierLoadPage({
               id: load.id,
               status: load.status,
               proposedPriceCents: load.proposed_price_cents,
+              brokered: load.brokered,
             }}
             offers={negotiation?.offers ?? []}
             units={carrierUnits.map((u) => ({

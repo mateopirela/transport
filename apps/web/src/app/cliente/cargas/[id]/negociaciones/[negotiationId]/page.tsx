@@ -45,8 +45,10 @@ export default async function NegotiationPage({
 }: PageProps<'/cliente/cargas/[id]/negociaciones/[negotiationId]'>) {
   const { id, negotiationId } = await params;
   const { supabase, companyId } = await shipperContext(negotiationPath(id, negotiationId));
-  const load = await getCompanyLoad(supabase, companyId, id);
-  if (!load) notFound();
+  const found = await getCompanyLoad(supabase, companyId, id);
+  // A load sent to the platform (I6) is negotiated by Transport, not the client.
+  if (!found || found.brokered || found.proposed_price_cents === null) notFound();
+  const load = { ...found, proposed_price_cents: found.proposed_price_cents };
   const board = await getOfferBoard(supabase, load);
   const row = findNegotiation(board, negotiationId);
   const viewer = await getViewer();

@@ -1011,6 +1011,7 @@ export interface Database {
           commission_cents: number;
           created_at: string;
           id: string;
+          margin_cents: number;
           needs_review: boolean;
           review_note: string | null;
           trip_id: string;
@@ -1031,6 +1032,7 @@ export interface Database {
           commission_cents: number;
           created_at?: string;
           id?: string;
+          margin_cents?: number;
           needs_review?: boolean;
           review_note?: string | null;
           trip_id: string;
@@ -1050,6 +1052,7 @@ export interface Database {
           commission_cents?: number;
           created_at?: string;
           id?: string;
+          margin_cents?: number;
           needs_review?: boolean;
           review_note?: string | null;
           trip_id?: string;
@@ -1303,11 +1306,83 @@ export interface Database {
         };
         Relationships: [];
       };
+      load_client_prices: {
+        Row: {
+          approved_at: string | null;
+          approved_by: string | null;
+          brokered: boolean;
+          client_price_cents: number | null;
+          created_at: string;
+          id: string;
+          load_id: string;
+          quoted_at: string | null;
+          quoted_by: string | null;
+          shipper_company_id: string;
+          status: Database['public']['Enums']['brokered_quote_status'];
+          target_price_cents: number | null;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          brokered?: boolean;
+          client_price_cents?: number | null;
+          created_at?: string;
+          id?: string;
+          load_id: string;
+          quoted_at?: string | null;
+          quoted_by?: string | null;
+          shipper_company_id: string;
+          status?: Database['public']['Enums']['brokered_quote_status'];
+          target_price_cents?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          approved_at?: string | null;
+          approved_by?: string | null;
+          brokered?: boolean;
+          client_price_cents?: number | null;
+          created_at?: string;
+          id?: string;
+          load_id?: string;
+          quoted_at?: string | null;
+          quoted_by?: string | null;
+          shipper_company_id?: string;
+          status?: Database['public']['Enums']['brokered_quote_status'];
+          target_price_cents?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'load_client_prices_brokered_fkey';
+            columns: ['load_id', 'brokered'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id', 'brokered'];
+          },
+          {
+            foreignKeyName: 'load_client_prices_load_fkey';
+            columns: ['load_id', 'shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'kpi_load_times';
+            referencedColumns: ['load_id', 'shipper_company_id'];
+          },
+          {
+            foreignKeyName: 'load_client_prices_load_fkey';
+            columns: ['load_id', 'shipper_company_id'];
+            isOneToOne: false;
+            referencedRelation: 'loads';
+            referencedColumns: ['id', 'shipper_company_id'];
+          },
+        ];
+      };
       loads: {
         Row: {
           accepted_offer_id: string | null;
           agreed_price_cents: number | null;
           archived_at: string | null;
+          brokered: boolean;
           cancellation_reason: string | null;
           cancelled_at: string | null;
           cargo_type: Database['public']['Enums']['cargo_type'];
@@ -1352,6 +1427,7 @@ export interface Database {
           accepted_offer_id?: string | null;
           agreed_price_cents?: number | null;
           archived_at?: string | null;
+          brokered?: boolean;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cargo_type: Database['public']['Enums']['cargo_type'];
@@ -1394,6 +1470,7 @@ export interface Database {
           accepted_offer_id?: string | null;
           agreed_price_cents?: number | null;
           archived_at?: string | null;
+          brokered?: boolean;
           cancellation_reason?: string | null;
           cancelled_at?: string | null;
           cargo_type?: Database['public']['Enums']['cargo_type'];
@@ -3809,6 +3886,26 @@ export interface Database {
         Returns: string;
       };
       admin_accept_offer: { Args: { p_offer_id: string }; Returns: string };
+      admin_brokered_loads: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          agreed_price_cents: number;
+          carrier_price_cents: number;
+          client_price_cents: number;
+          destination_city: string;
+          load_id: string;
+          load_status: Database['public']['Enums']['load_status'];
+          origin_city: string;
+          pending_offers: number;
+          pickup_window_end: string;
+          pickup_window_start: string;
+          quote_status: Database['public']['Enums']['brokered_quote_status'];
+          requested_at: string;
+          shipper_company_id: string;
+          shipper_name: string;
+          target_price_cents: number;
+        }[];
+      };
       admin_create_offer: {
         Args: {
           p_accept?: boolean;
@@ -3840,6 +3937,7 @@ export interface Database {
           destination_city: string;
           ledger_id: string;
           load_id: string;
+          margin_cents: number;
           needs_review: boolean;
           origin_city: string;
           payments: Json;
@@ -3867,6 +3965,10 @@ export interface Database {
           role: Database['public']['Enums']['user_role'];
           total_count: number;
         }[];
+      };
+      admin_quote_brokered_load: {
+        Args: { p_carrier_price_cents: number; p_client_price_cents: number; p_load_id: string };
+        Returns: undefined;
       };
       admin_record_freight_payment: {
         Args: {
@@ -3997,6 +4099,7 @@ export interface Database {
           accepted_offer_id: string | null;
           agreed_price_cents: number | null;
           archived_at: string | null;
+          brokered: boolean;
           cancellation_reason: string | null;
           cancelled_at: string | null;
           cargo_type: Database['public']['Enums']['cargo_type'];
@@ -4051,8 +4154,16 @@ export interface Database {
         };
         Returns: string;
       };
+      approve_brokered_quote: {
+        Args: { p_client_price_cents: number; p_load_id: string };
+        Returns: undefined;
+      };
       archive_business_unit: { Args: { p_id: string }; Returns: undefined };
       assert_billing_allows: { Args: { p_company_id: string }; Returns: undefined };
+      assert_brokered_margin: {
+        Args: { p_amount_cents: number; p_load_id: string };
+        Returns: undefined;
+      };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       assert_road_source: {
@@ -4244,6 +4355,53 @@ export interface Database {
         }[];
       };
       clear_vehicle_availability: { Args: { p_vehicle_id: string }; Returns: undefined };
+      client_loads: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_offer_id: string;
+          agreed_price_cents: number;
+          archived_at: string;
+          brokered: boolean;
+          brokered_status: Database['public']['Enums']['brokered_quote_status'];
+          cancellation_reason: string;
+          cancelled_at: string;
+          cargo_type: Database['public']['Enums']['cargo_type'];
+          carrier_company_id: string;
+          contracted_at: string;
+          created_at: string;
+          created_by: string;
+          delivery_window_end: string;
+          delivery_window_start: string;
+          description: string;
+          destination_address: string;
+          destination_city: string;
+          destination_lat: number;
+          destination_lng: number;
+          destination_place_id: string;
+          destination_state: string;
+          id: string;
+          notes: string;
+          origin_address: string;
+          origin_city: string;
+          origin_lat: number;
+          origin_lng: number;
+          origin_place_id: string;
+          origin_state: string;
+          pickup_window_end: string;
+          pickup_window_start: string;
+          proposed_price_cents: number;
+          published_at: string;
+          quoted_at: string;
+          shipper_company_id: string;
+          special_requirements: Database['public']['Enums']['special_requirement'][];
+          status: Database['public']['Enums']['load_status'];
+          target_price_cents: number;
+          unit_type: Database['public']['Enums']['unit_type'];
+          updated_at: string;
+          volume_m3: number;
+          weight_kg: number;
+        }[];
+      };
       company_billing_state: {
         Args: { p_company_id?: string };
         Returns: {
@@ -4497,6 +4655,8 @@ export interface Database {
         Args: { p_email: string; p_nonce: string };
         Returns: undefined;
       };
+      load_brokered: { Args: { p_load_id: string }; Returns: boolean };
+      load_is_brokered: { Args: { p_load_id: string }; Returns: boolean };
       load_negotiation_carriers: {
         Args: { p_load_id: string };
         Returns: {
@@ -4785,6 +4945,10 @@ export interface Database {
           p_occurred_at?: string;
           p_trip_id: string;
         };
+        Returns: string;
+      };
+      request_brokered_load: {
+        Args: { p_load: Json; p_target_price_cents?: number };
         Returns: string;
       };
       request_company_review: {
@@ -5237,6 +5401,7 @@ export interface Database {
     };
     Enums: {
       availability_source: 'manual' | 'trip_estimate' | 'release';
+      brokered_quote_status: 'requested' | 'quoted' | 'approved';
       cargo_type:
         | 'general'
         | 'palletized'
@@ -5306,7 +5471,10 @@ export interface Database {
         | 'freight_payment_received'
         | 'freight_overdue'
         | 'freight_on_hold'
-        | 'backhaul_suggestions';
+        | 'backhaul_suggestions'
+        | 'brokered_load_requested'
+        | 'brokered_load_quoted'
+        | 'brokered_load_contracted';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -5526,6 +5694,7 @@ export const Constants = {
   public: {
     Enums: {
       availability_source: ['manual', 'trip_estimate', 'release'],
+      brokered_quote_status: ['requested', 'quoted', 'approved'],
       cargo_type: [
         'general',
         'palletized',
@@ -5609,6 +5778,9 @@ export const Constants = {
         'freight_overdue',
         'freight_on_hold',
         'backhaul_suggestions',
+        'brokered_load_requested',
+        'brokered_load_quoted',
+        'brokered_load_contracted',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

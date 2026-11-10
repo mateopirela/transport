@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(42);
+select plan(44);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -66,8 +66,15 @@ select ok(
                   where d.owner_id = '5eed0003-0000-4000-8000-000000000007' and d.status <> 'approved'),
   'Iván Garza has his licence approved, so the demo can assign him (G9)'
 );
-select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 25,
-  'twenty-five loads (the 25th, the freight ledger trip of I3)');
+select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 26,
+  'twenty-six loads (the 25th, the freight ledger trip of I3; the 26th, the brokered load of I6)');
+select results_eq(
+  $$ select l.brokered, l.status::text, l.proposed_price_cents, p.status::text, p.client_price_cents
+     from public.loads l join public.load_client_prices p on p.load_id = l.id
+     where l.id = '5eed0005-0000-4000-8000-000000000026' $$,
+  $$ values (true, 'published', 1080000::bigint, 'approved', 1200000::bigint) $$,
+  'the brokered load of I6: published at $10,800 to the carriers, $12,000 to its client'
+);
 select is(
   (select array_agg(distinct status::text order by status::text) from public.loads where id::text like '5eed0005-%'),
   array['cancelled', 'completed', 'contracted', 'draft', 'expired', 'in_progress', 'negotiating', 'published'],
@@ -252,8 +259,8 @@ select ok(
 -- Jorge Villarreal, carrier (Transportes Regios)
 select tests.login('5eed0001-0000-4000-8000-000000000005');
 select is(
-  (select count(*)::int from public.loads where status in ('published', 'negotiating')), 8,
-  'an approved carrier sees every open load'
+  (select count(*)::int from public.loads where status in ('published', 'negotiating')), 9,
+  'an approved carrier sees every open load (the brokered one too, at its rate)'
 );
 select is(
   (select count(*)::int from public.loads where status = 'draft'), 0, 'a carrier never sees drafts'
@@ -306,11 +313,18 @@ select is(
         'vehicle_registration_card'],
   'Ana sees the documents shared on her trip, never an id'
 );
+-- I6: Ana reads her brokered load at her price, never at the carriers' rate.
+select is(
+  (select row(l.proposed_price_cents, (select count(*) from public.loads where id = l.id))::text
+   from public.client_loads() l where l.id = '5eed0005-0000-4000-8000-000000000026'),
+  '(1200000,0)',
+  'Ana sees her brokered load at $12,000 and cannot read its row with the carriers'' rate'
+);
 
 -- Admin
 select tests.login('5eed0001-0000-4000-8000-000000000001');
 select is(
-  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 25, 'the admin sees every load'
+  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 26, 'the admin sees every load'
 );
 
 reset role;

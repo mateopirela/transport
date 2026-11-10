@@ -63,6 +63,8 @@ export const paths = {
   adminSettings: '/admin/ajustes',
   /** The freight ledger (I3): both sides of every trip and the SPEI payments. */
   adminFreight: '/admin/flete',
+  /** Brokered loads (I6): the client's price, the carriers' rate and Transport's negotiation. */
+  adminBrokered: '/admin/intermediadas',
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,
@@ -137,6 +139,9 @@ export const adminCompanyPath = (companyId: string) => `/admin/empresas/${compan
 
 /** Admin load supervision and manual contracting (B16). */
 export const adminLoadPath = (loadId: string) => `/admin/cargas/${loadId}`;
+
+/** Admin brokered load (I6): its prices and the carriers' offers to Transport. */
+export const adminBrokeredPath = (loadId: string) => `/admin/intermediadas/${loadId}`;
 
 /** Admin-only redirect to a short-lived signed URL of a document's file. */
 export const adminDocumentFilePath = (documentId: string) =>

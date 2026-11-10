@@ -165,7 +165,7 @@ export async function emptyLegs(
 }
 
 const LOAD_COLUMNS =
-  'id, status, origin_city, origin_state, origin_lat, origin_lng, destination_city, destination_state, destination_lat, destination_lng, pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end, cargo_type, description, weight_kg, volume_m3, unit_type, special_requirements, proposed_price_cents, notes';
+  'id, status, origin_city, origin_state, origin_lat, origin_lng, destination_city, destination_state, destination_lat, destination_lng, pickup_window_start, pickup_window_end, delivery_window_start, delivery_window_end, cargo_type, description, weight_kg, volume_m3, unit_type, special_requirements, proposed_price_cents, notes, brokered';
 
 export type CarrierLoad = Pick<
   Tables<'loads'>,
@@ -191,6 +191,8 @@ export type CarrierLoad = Pick<
   | 'special_requirements'
   | 'proposed_price_cents'
   | 'notes'
+  // I6: published by Transport ("Publicada por Transport"); its price is the carriers' rate.
+  | 'brokered'
 >;
 
 export interface LoadFilters {

@@ -4,6 +4,7 @@
 import type { NotificationType, TripDocumentKind, TripEventType, TripStatus } from '../enums';
 import { formatMxn } from '../formatters';
 import { backhaulCopy } from './backhaul';
+import { PLATFORM_NAME } from './brokered';
 import { tripDocumentKindLabels, tripEventTypeLabels, tripStatusLabels } from './catalogs';
 import { internalChatCopy } from './internal-chat';
 
@@ -250,6 +251,24 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
           text(data, 'city'),
           text(data, 'vehicleLabel'),
         ),
+      };
+    // I6 (D39): a client sent a load to the platform (the admins); Transport
+    // quoted the client's price (the client, with its price only); Transport
+    // found the carrier (the client, without any amount).
+    case 'brokered_load_requested':
+      return {
+        title: 'Carga por cotizar',
+        body: `Un cliente envió la carga${route(data)} para que ${PLATFORM_NAME} consiga el transportista.`,
+      };
+    case 'brokered_load_quoted':
+      return {
+        title: 'Tu carga tiene precio',
+        body: `${PLATFORM_NAME} cotizó tu carga${route(data)}${amount(data)}. Acéptalo para publicarla.`,
+      };
+    case 'brokered_load_contracted':
+      return {
+        title: 'Tu carga tiene transportista',
+        body: `${PLATFORM_NAME} consiguió el transportista de tu carga${route(data)}. El viaje ya está creado.`,
       };
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');

@@ -1,4 +1,5 @@
 import {
+  brokeredCopy,
   carrierLoadsCopy,
   carrierWebCopy,
   chatCopy,
@@ -9,10 +10,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { CarrierLoadBadges } from '@/components/carrier/brokered-badge';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { CarrierNegotiationPanel } from '@/components/carrier/negotiation-panel';
 import { ChatPanel } from '@/components/chat/chat-panel';
-import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { BackLink, PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { buttonVariants } from '@/components/ui/button';
@@ -57,7 +58,7 @@ export default async function CarrierNegotiationPage({
       <BackLink href={paths.carrierNegotiations}>{c.back}</BackLink>
       <PageHeader
         title={c.title2(load ? loadRoute(load) : c.unavailableLoad)}
-        status={load && <LoadStatusBadge status={load.status} />}
+        status={load && <CarrierLoadBadges load={load} />}
         description={unitName ? fleetCopy.businessUnit(unitName) : undefined}
         action={
           tripId && (
@@ -97,7 +98,12 @@ export default async function CarrierNegotiationPage({
                 area="transportista"
               />
             ) : (
-              <p className="px-1 text-subhead text-text-dim">{carrierLoadsCopy.chat.unavailable}</p>
+              <p className="px-1 text-subhead text-text-dim">
+                {/* I6: Transport negotiates a brokered load with offers only. */}
+                {load?.brokered
+                  ? brokeredCopy.carrierChatClosed
+                  : carrierLoadsCopy.chat.unavailable}
+              </p>
             )}
           </PageSection>
         </div>
@@ -110,6 +116,7 @@ export default async function CarrierNegotiationPage({
                 id: load.id,
                 status: load.status,
                 proposedPriceCents: load.proposed_price_cents,
+                brokered: load.brokered,
               }
             }
             offers={negotiation.offers}

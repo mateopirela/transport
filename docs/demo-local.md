@@ -53,6 +53,10 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 - **Datos fiscales de Fulmis:** vacíos en la seed ("en proceso"); el admin los captura en **Ajustes** (`/admin/ajustes`). Sin RFC, los CFDI quedan "Sin validar" del lado de Fulmis.
 - **Para probar:** cualquier CFDI 4.0 timbrado sirve; los tests generan XML sintéticos con `syntheticCfdi` (`packages/shared/src/freight/cfdi-fixtures.ts`). Con el viaje pagado MTY → GDL de Ana ($40,000; $38,800 netos), el receptor del CFDI del cliente es `ADN150301KQ2` y el emisor del de Transportes Regios, `TRN120210LP5`.
 
+### Cargas intermediadas (I6)
+
+- **Carga de aceptación:** Apodaca → Zapopan (torton) de Aceros del Norte (carga 26), mandada a la plataforma: **$12,000** al cliente y **$10,800** a los transportistas, ya aceptada por Ana y publicada. Ana la ve "Buscando transportista" a $12,000; los transportistas la ven "Publicada por Transport" a $10,800 (web y app "Cargas"). Cuando el admin acepta una oferta de $10,800 en `/admin/intermediadas`, el libro del flete muestra $1,200 de margen solo al admin.
+
 ### Recorrido por perfil (G9)
 
 Con la seed recién cargada, cada perfil tiene algo que ver en la web y en la app (las pruebas de punta a punta recorren lo mismo: `e2e/tests/profiles.spec.ts` y los flujos de Maestro de la tabla de abajo):

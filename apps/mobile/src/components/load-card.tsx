@@ -1,4 +1,5 @@
 import {
+  brokeredCopy,
   APP_LOCALE,
   carrierLoadsCopy,
   dwellCopy,
@@ -104,6 +105,11 @@ export function LoadCell({ load, footer }: { load: CarrierLoad; footer?: string 
         )}
       </Text>
       <Text style={styles.price}>{copy.price(formatMxn(load.proposed_price_cents))}</Text>
+      {load.brokered ? (
+        <View style={styles.pills}>
+          <Pill label={brokeredCopy.badge} tone="accent" />
+        </View>
+      ) : null}
       {footer ? <Text style={styles.accent}>{footer}</Text> : null}
     </Cell>
   );

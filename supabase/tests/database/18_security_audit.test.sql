@@ -252,7 +252,12 @@ select set_eq(
     -- Freight ledger (I3): each side reads its own columns; the admin reads
     -- both and records payments, terms and commissions, audited (53_freight_ledger).
     'shipper_freight_ledger', 'carrier_freight_ledger', 'admin_freight_ledger', 'admin_record_freight_payment',
-    'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review'
+    'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review',
+    -- Brokered loads (I6): the client requests and approves, the admin quotes
+    -- and lists; the client reads its loads with its own prices only, and the
+    -- policies ask whether a load is brokered (57_brokered_loads).
+    'request_brokered_load', 'approve_brokered_quote', 'admin_quote_brokered_load', 'admin_brokered_loads',
+    'client_loads', 'load_is_brokered'
   ],
   'every client-callable security definer function is on the reviewed list'
 );

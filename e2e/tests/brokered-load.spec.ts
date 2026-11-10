@@ -78,6 +78,18 @@ test('the client sends a load to Transport, approves its price and the carriers 
     await expect(ana.getByText('$10,800.00')).toHaveCount(0);
   });
 
+  await test.step('Ana finds it in her loads list, newest first, with her price', async () => {
+    // The list reads client_loads (an RPC) ordered by created_at: the column
+    // has to be in the select or PostgREST fails with 42703 (fix of I6).
+    for (const list of ['/cliente/cargas', '/cliente/cargas?estado=published']) {
+      await ana.goto(list);
+      await expect(ana.getByRole('heading', { name: loadsCopy.list.title })).toBeVisible();
+      const row = ana.locator(`a[href="/cliente/cargas/${loadId}"]`);
+      await expect(row).toContainText('$12,000.00');
+      await expect(ana.getByText('$10,800.00')).toHaveCount(0);
+    }
+  });
+
   await test.step('Jorge sees the load published by Transport at $10,800', async () => {
     const jorge = await browser.newPage();
     await signInOnWeb(jorge, 'jorge');
@@ -88,6 +100,13 @@ test('the client sends a load to Transport, approves its price and the carriers 
     await expect(jorge.getByText('$11,500.00')).toHaveCount(0);
     await jorge.close();
   });
+});
+
+test('a client without brokered loads opens his loads list', async ({ page }) => {
+  await signInOnWeb(page, 'luis');
+  await page.goto('/cliente/cargas');
+  await expect(page.getByRole('heading', { name: loadsCopy.list.title })).toBeVisible();
+  await expect(page.locator(`a[href="/cliente/cargas/${ids.returnLoad}"]`)).toBeVisible();
 });
 
 test('the carrier takes the brokered load at its rate and the margin stays with the admin', async ({

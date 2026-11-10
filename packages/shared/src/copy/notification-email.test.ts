@@ -65,6 +65,22 @@ describe('notification email', () => {
     expect(email.html).toContain(`href="${SITE}/transportista/negociaciones/${SITE_ID}"`);
   });
 
+  it('opens the return loads on "Para el regreso" of the trip, as the inbox (I7)', () => {
+    const data = { tripId: SITE_ID, vehicleId: LOAD, city: 'Guadalajara', loadCount: 3 };
+    for (const role of ['manager', 'coordinator'] as const) {
+      expect(notificationWebPath(role, data, 'backhaul_suggestions')).toBe(
+        `/transportista/viajes/${SITE_ID}#regreso`,
+      );
+      expect(notificationWebPath(role, { tripId: 'x' }, 'backhaul_suggestions')).toBeNull();
+    }
+    const email = notificationEmail('backhaul_suggestions', data, {
+      role: 'manager',
+      siteUrl: SITE,
+    });
+    expect(email.html).toContain(`href="${SITE}/transportista/viajes/${SITE_ID}#regreso"`);
+    expect(email.text).toContain(`${SITE}/transportista/viajes/${SITE_ID}#regreso`);
+  });
+
   it('builds an absolute link from the site URL', () => {
     const email = notificationEmail(
       'offer_received',

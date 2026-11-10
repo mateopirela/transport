@@ -82,8 +82,9 @@ test('the carrier staff negotiate on the web within their business units', async
     ).toBeVisible();
     await expect(hector.getByText(RETURN_ROUTE)).toHaveCount(0);
     await expect(hector.getByText('CS53-01')).toHaveCount(0);
-    await negotiationRows(hector, LEON_ROUTE);
-    await expect(hector.getByText(carrierWebCopy.negotiations.empty)).toBeVisible();
+    // Héctor may have negotiations of his own (backhaul.spec.ts wins a load
+    // for "Regional Monterrey"), never Andrea's.
+    await expect(await negotiationRows(hector, LEON_ROUTE)).toHaveCount(0);
   });
 
   const jorgeContext = await browser.newContext();

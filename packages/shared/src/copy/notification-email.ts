@@ -4,6 +4,7 @@
 import type { NotificationType, UserRole } from '../enums';
 import { INTERNAL_CHAT_PARAM, SHIPPER_CHAT_PARAM } from '../internal-chat';
 import { authCopy } from './auth';
+import { BACKHAUL_SECTION_ID } from './backhaul';
 import { notificationContent } from './notifications';
 
 export interface NotificationEmail {
@@ -41,9 +42,14 @@ function uuid(data: unknown, key: string): string | null {
  * routes as apps/web/src/lib/routing.ts): the shipper's trip (B15) or load;
  * the carrier staff's negotiation or load (G10a; trips come with G10b, until
  * then the load, which links to its trip once there is one). The operator
- * only uses the app (D06-E1).
+ * only uses the app (D06-E1). With the type, the return loads (I7) open the
+ * trip on "Para el regreso", as the web inbox does.
  */
-export function notificationWebPath(role: UserRole | null, data: unknown): string | null {
+export function notificationWebPath(
+  role: UserRole | null,
+  data: unknown,
+  type?: NotificationType,
+): string | null {
   // The freight ledger (I3): the admin's reconciliation, the carrier's
   // "Cobranza" and the client's "Cartera".
   const freight = uuid(data, 'ledgerId') !== null;
@@ -57,6 +63,10 @@ export function notificationWebPath(role: UserRole | null, data: unknown): strin
     if (tripId && uuid(data, 'conversationId')) {
       const shipperChat = (data as Record<string, unknown>).kind === 'trip';
       return `/transportista/viajes/${tripId}?chat=${shipperChat ? SHIPPER_CHAT_PARAM : INTERNAL_CHAT_PARAM}`;
+    }
+    // The return loads of a trip (I7, D40), in its "Para el regreso".
+    if (type === 'backhaul_suggestions') {
+      return tripId ? `/transportista/viajes/${tripId}#${BACKHAUL_SECTION_ID}` : null;
     }
     const negotiationId = uuid(data, 'negotiationId');
     if (negotiationId) return `/transportista/negociaciones/${negotiationId}`;
@@ -102,7 +112,7 @@ export function notificationEmail(
   options: { role: UserRole | null; siteUrl?: string },
 ): NotificationEmail {
   const { title, body } = notificationContent(type, data);
-  const link = absoluteLink(options.siteUrl, notificationWebPath(options.role, data));
+  const link = absoluteLink(options.siteUrl, notificationWebPath(options.role, data, type));
   const subject = `${title} · ${authCopy.appName}`;
 
   const text = [

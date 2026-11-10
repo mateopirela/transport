@@ -22,6 +22,9 @@
 --     trip never checked; `arrival` runs again only when the proximity check
 --     found nothing (the loads may have appeared since). Once a trip notified,
 --     nothing runs again.
+--   * trip_backhaul(trip): what "Para el regreso" shows, only while the trip
+--     still ends its unit's chain of trips (once the unit wins its next trip,
+--     its recommendations start elsewhere).
 --   * Triggers: after an `arrived_at_delivery` event (trip_events), and after
 --     each batch of GPS points (trip_locations, per statement) with a point
 --     within 50 km of the destination. trip_events_suggest_backhaul must fire
@@ -34,8 +37,9 @@
 --
 -- Lock order: the triggers run inside record_trip_event (trip row for update)
 -- and record_trip_locations (trip row for share). check_backhaul only reads
--- the matching and writes its own row (insert … on conflict, so two batches
--- at the same time insert one row and notify once) and the notifications.
+-- the matching and writes its own row (claimed first with insert … on
+-- conflict, so two batches at the same time insert one row, run the search
+-- once and notify once) and the notifications.
 
 -- ---------------------------------------------------------------------------
 -- 1. trip_backhaul_checks
@@ -99,7 +103,7 @@ declare
   v_trip record;
   v_chain record;
   v_count integer := 0;
-  v_notified boolean;
+  v_claimed boolean;
 begin
   select t.id, t.status, t.vehicle_id, t.load_id, t.carrier_company_id, t.business_unit_id, l.destination_city
   into v_trip
@@ -112,12 +116,25 @@ begin
      or v_trip.status not in ('in_transit', 'at_delivery', 'unloading') then
     return;
   end if;
-  -- Once per trip (shouldCheckBackhaul).
-  if exists (
-    select 1 from public.trip_backhaul_checks c
-    where c.trip_id = p_trip_id
-      and (p_source = 'proximity' or c.source = 'arrival' or c.notified_at is not null)
-  ) then
+  -- Once per trip (shouldCheckBackhaul), claimed before the search so that
+  -- only one caller runs it: a proximity check inserts the trip's row (a
+  -- second batch at the same time waits on the primary key and then does
+  -- nothing); an arrival takes it over only after a proximity check without
+  -- notice (the row lock makes a concurrent caller re-read it and give up).
+  if p_source = 'proximity' then
+    insert into public.trip_backhaul_checks (trip_id, vehicle_id, source, load_count)
+    values (p_trip_id, v_trip.vehicle_id, 'proximity', 0)
+    on conflict (trip_id) do nothing
+    returning true into v_claimed;
+  else
+    insert into public.trip_backhaul_checks as c (trip_id, vehicle_id, source, load_count)
+    values (p_trip_id, v_trip.vehicle_id, 'arrival', 0)
+    on conflict (trip_id) do update
+      set source = 'arrival', vehicle_id = excluded.vehicle_id, checked_at = now()
+      where c.notified_at is null and c.source = 'proximity'
+    returning true into v_claimed;
+  end if;
+  if not coalesce(v_claimed, false) then
     return;
   end if;
 
@@ -132,22 +149,12 @@ begin
           <= m.pickup_window_end;
   end if;
 
-  insert into public.trip_backhaul_checks as c (trip_id, vehicle_id, source, available_from, load_count, notified_at)
-  values (
-    p_trip_id, v_trip.vehicle_id, p_source,
-    case when v_chain.load_id = v_trip.load_id then v_chain.available_from end,
-    v_count, case when v_count > 0 then now() end
-  )
-  on conflict (trip_id) do update
-    set source = excluded.source,
-        checked_at = now(),
-        available_from = excluded.available_from,
-        load_count = excluded.load_count,
-        notified_at = excluded.notified_at
-    -- Only an arrival after a proximity check without notice.
-    where c.notified_at is null and c.source = 'proximity' and excluded.source = 'arrival'
-  returning c.notified_at is not null into v_notified;
-  if not coalesce(v_notified, false) then
+  update public.trip_backhaul_checks
+  set available_from = case when v_chain.load_id = v_trip.load_id then v_chain.available_from end,
+      load_count = v_count,
+      notified_at = case when v_count > 0 then now() end
+  where trip_id = p_trip_id;
+  if v_count = 0 then
     return;
   end if;
 
@@ -183,6 +190,50 @@ end;
 $$;
 
 revoke all on function public.check_backhaul(uuid, text) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2b. What the trip screens show: "Para el regreso"
+-- ---------------------------------------------------------------------------
+-- "Para el regreso" of a trip, for the staff of its business unit (the same
+-- readers as trip_backhaul_checks) and admins: one row when the trip was
+-- checked, is still in progress and still ends its unit's chain of trips,
+-- with when the unit is free now. No row otherwise, nor for anyone else: once
+-- the unit won its next trip (its recommendations start where that one ends),
+-- the trip has nothing to suggest. No money (I.0.3).
+create function public.trip_backhaul(p_trip_id uuid)
+returns table (available_from timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_trip record;
+  v_chain record;
+begin
+  select t.vehicle_id, t.load_id
+  into v_trip
+  from public.trips t
+  join public.trip_backhaul_checks c on c.trip_id = t.id
+  where t.id = p_trip_id
+    and t.vehicle_id is not null
+    and t.status in ('in_transit', 'at_delivery', 'unloading')
+    and (t.carrier_company_id = public.auth_fleet_company_id()
+         or t.business_unit_id = any (public.auth_business_unit_ids())
+         or public.is_admin());
+  if not found then
+    return;
+  end if;
+  select * into v_chain from public.vehicle_trip_chain_end(v_trip.vehicle_id);
+  if v_chain.load_id is distinct from v_trip.load_id then
+    return;
+  end if;
+  return query select v_chain.available_from;
+end;
+$$;
+
+revoke all on function public.trip_backhaul(uuid) from public, anon;
+grant execute on function public.trip_backhaul(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Triggers: the arrival at the delivery and the operator's location

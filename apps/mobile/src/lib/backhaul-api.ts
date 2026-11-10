@@ -10,8 +10,9 @@ import type { Supabase } from './supabase';
 
 // "Para el regreso" of a trip in progress in the app (I7, D40), the same read
 // as the carrier web (apps/web/src/lib/carrier/backhaul.ts): once Postgres
-// checked the trip (trip_backhaul_checks, RLS: the staff of its business
-// unit), the best return loads of its unit from the unit's recommendations.
+// checked the trip and while it still ends its unit's chain of trips
+// (trip_backhaul, only for the staff of its business unit), the best return
+// loads of its unit from the unit's recommendations.
 // An extra of the screen: a failure answers null and the trip still shows.
 
 export interface TripBackhaul {
@@ -27,11 +28,7 @@ export async function tripBackhaul(
   const { vehicleId } = trip;
   if (!vehicleId || !isBackhaulTripStatus(trip.status)) return null;
   try {
-    const { data, error } = await client
-      .from('trip_backhaul_checks')
-      .select('available_from')
-      .eq('trip_id', trip.id)
-      .maybeSingle();
+    const { data, error } = await client.rpc('trip_backhaul', { p_trip_id: trip.id }).maybeSingle();
     if (error || !data) return null;
     const { recommendations } = await unitRecommendations(client, vehicleId);
     return {

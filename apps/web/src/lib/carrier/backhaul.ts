@@ -11,9 +11,11 @@ import type { Supabase } from '../viewer';
 import { unitRecommendations } from './loads';
 
 // "Para el regreso" of a trip in progress (I7, D40): once Postgres checked the
-// trip (on arrival or within 50 km of the destination, trip_backhaul_checks,
-// which RLS shows only to the staff of its business unit), the best return
-// loads of its unit, from the same recommendations as the home feed.
+// trip (on arrival or within 50 km of the destination) and while it still ends
+// its unit's chain of trips (trip_backhaul, only for the staff of its business
+// unit), the best return loads of its unit, from the same recommendations as
+// the home feed. Once the unit wins its next trip its recommendations start
+// where that one ends, so they are not shown here.
 
 export interface TripBackhaul {
   /** When the unit is free at the destination (null when unknown). */
@@ -27,11 +29,7 @@ export async function tripBackhaul(
 ): Promise<TripBackhaul | null> {
   if (!trip.vehicle_id || !isBackhaulTripStatus(trip.status)) return null;
   const [check, vehicle] = await Promise.all([
-    supabase
-      .from('trip_backhaul_checks')
-      .select('available_from')
-      .eq('trip_id', trip.id)
-      .maybeSingle(),
+    supabase.rpc('trip_backhaul', { p_trip_id: trip.id }).maybeSingle(),
     supabase
       .from('vehicles')
       .select('id, kind, unit_type, axle_count')

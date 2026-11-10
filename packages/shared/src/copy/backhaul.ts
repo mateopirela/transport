@@ -1,6 +1,13 @@
 // Spanish copy of the return loads (I7, D40): the notification when a trip
 // reaches its destination and the "Para el regreso" section of the trip.
 
+/**
+ * Anchor of "Para el regreso" in the carrier web's trip page, where the
+ * notification leads (inbox and email). Here, with the copy, so the email
+ * dispatcher reads it without the matching code.
+ */
+export const BACKHAUL_SECTION_ID = 'regreso';
+
 const loads = (n: number) => (n === 1 ? '1 carga' : `${n} cargas`);
 
 export const backhaulCopy = {

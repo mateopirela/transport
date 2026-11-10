@@ -15,9 +15,6 @@ export const BACKHAUL_RADIUS_KM = 150;
 /** Return loads shown in "Para el regreso": the same 3 as the home feed. */
 export const BACKHAUL_SUGGESTIONS = RETURN_TRIPS_PER_UNIT;
 
-/** Anchor of "Para el regreso" in the carrier web's trip page (where the notification leads). */
-export const BACKHAUL_SECTION_ID = 'regreso';
-
 /** From the end of the loading until the unloading ends. */
 export const BACKHAUL_TRIP_STATUSES = [
   'in_transit',

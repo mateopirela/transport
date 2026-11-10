@@ -18,7 +18,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(36);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -356,6 +356,54 @@ select ok(
   and not has_function_privilege('authenticated', 'public.trip_events_suggest_backhaul()', 'execute')
   and not has_function_privilege('authenticated', 'public.trip_locations_suggest_backhaul()', 'execute'),
   'clients cannot run the check nor its triggers'
+);
+
+-- ---------------------------------------------------------------------------
+-- trip_backhaul: what "Para el regreso" shows, and to whom
+-- ---------------------------------------------------------------------------
+create function tests.backhaul_of(p_trip text)
+returns text
+language sql
+as $$
+  select case when count(*) = 0 then 'none'
+              when bool_and(b.available_from is not null) then 'free'
+              else 'unknown' end
+  from public.trip_backhaul(tests.val(p_trip)) b;
+$$;
+grant execute on function tests.backhaul_of(text) to authenticated;
+
+set local role authenticated;
+select tests.login('a5100000-0000-4000-8000-000000000002');
+select is(tests.backhaul_of('trip_v') || ',' || tests.backhaul_of('trip_w'), 'free,free',
+  'the manager sees "Para el regreso" of the checked trips that end their unit''s chain');
+select is(tests.backhaul_of('trip_y'), 'none',
+  'nor of a trip whose unit already has its next trip: its recommendations start elsewhere');
+select tests.login('a5100000-0000-4000-8000-000000000003');
+select is(tests.backhaul_of('trip_v') || ',' || tests.backhaul_of('trip_w'), 'free,none',
+  'the coordinator of unit A sees unit A''s only');
+select tests.login('a5100000-0000-4000-8000-000000000005');
+select is(tests.backhaul_of('trip_v'), 'none', 'the operator sees none');
+select tests.login('a5100000-0000-4000-8000-000000000001');
+select is(tests.backhaul_of('trip_v'), 'none', 'the shipper sees none');
+select tests.login('a5100000-0000-4000-8000-000000000007');
+select is(tests.backhaul_of('trip_v'), 'none', 'another carrier sees none');
+select tests.login('a5100000-0000-4000-8000-000000000008');
+select is(tests.backhaul_of('trip_v'), 'free', 'the admin sees it');
+
+-- V wins its next trip (GDL → MTY) while still at the delivery: the trip no
+-- longer ends the unit's chain, so its return loads are gone.
+select tests.login('a5100000-0000-4000-8000-000000000002');
+insert into tests.vals select 'offer_v_next', public.make_offer(tests.val('return_v'), 3000000, null, 'e5100000-0000-4000-8000-00000000000a');
+select tests.login('a5100000-0000-4000-8000-000000000001');
+insert into tests.vals select 'trip_v_next', public.accept_offer(tests.val('offer_v_next'));
+select tests.login('a5100000-0000-4000-8000-000000000002');
+select is(tests.backhaul_of('trip_v'), 'none',
+  'once the unit wins its next trip, the trip it is finishing shows no return loads');
+reset role;
+
+select ok(
+  not has_function_privilege('anon', 'public.trip_backhaul(uuid)', 'execute'),
+  'trip_backhaul needs a session'
 );
 
 select * from finish();

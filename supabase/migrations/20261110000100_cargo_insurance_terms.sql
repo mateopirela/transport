@@ -76,12 +76,14 @@ $$;
 
 revoke all on function public.can_see_trip(uuid) from public, anon, authenticated, service_role;
 
--- The approved annual policy of the trip's shipper that covers the trip:
--- valid when the trip left or, before that, both now and when the pickup
--- window opens. An approved policy that expired later (status `expired`)
--- still covered the trips that left before. The latest expiry wins.
--- Internal: callers check who sees the trip.
-create function public.annual_cargo_policy(p_trip_id uuid)
+-- The approved annual policy of the trip's shipper that covers the trip: still
+-- valid at the reference instant and when the pickup window opens. The
+-- reference is p_at when given (the departure being recorded, which an
+-- offline phone may send late), else when the trip left, else now. An
+-- approved policy that expired later (status `expired`) still covered the
+-- trips that left before. The latest expiry wins. Internal: callers check who
+-- sees the trip. Mirror: cargoInsuranceReferenceInstant (packages/shared).
+create function public.annual_cargo_policy(p_trip_id uuid, p_at timestamptz default null)
 returns table (document_id uuid, expires_at timestamptz, approved_at timestamptz)
 language sql
 stable
@@ -97,12 +99,12 @@ as $$
     and r.code = 'cargo_insurance_policy'
     and d.archived_at is null
     and d.status in ('approved', 'expired')
-    and d.expires_at > coalesce(t.started_at, greatest(now(), l.pickup_window_start))
+    and d.expires_at > greatest(coalesce(p_at, t.started_at, now()), l.pickup_window_start)
   order by d.expires_at desc, d.id
   limit 1;
 $$;
 
-revoke all on function public.annual_cargo_policy(uuid) from public, anon, authenticated, service_role;
+revoke all on function public.annual_cargo_policy(uuid, timestamptz) from public, anon, authenticated, service_role;
 
 -- Whether the trip has its proof of cargo insurance: the policy of the trip
 -- or a covering annual policy. Internal.
@@ -324,7 +326,8 @@ begin
     from public.trip_document_requirements r
     where r.blocks_departure
       and not exists (select 1 from public.trip_documents d where d.trip_id = v_trip.id and d.kind = r.kind)
-      and not (r.kind = 'cargo_insurance' and exists (select 1 from public.annual_cargo_policy(v_trip.id)));
+      -- At the recorded departure, not at the sync (offline queue, B21).
+      and not (r.kind = 'cargo_insurance' and exists (select 1 from public.annual_cargo_policy(v_trip.id, p_occurred_at)));
     if v_missing_documents is not null then
       raise exception 'trip documents are missing: %', v_missing_documents using errcode = '55000';
     end if;

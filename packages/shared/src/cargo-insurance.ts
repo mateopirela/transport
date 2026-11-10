@@ -26,13 +26,13 @@ export interface InsuredTripDates {
 }
 
 /**
- * The instant an annual policy must still be valid at: when the trip left
- * or, before that, both now and when the pickup window opens.
+ * The instant an annual policy must still be valid at: the later of when the
+ * pickup window opens and when the trip left (or now, before it leaves).
  */
 export function cargoInsuranceReferenceInstant(trip: InsuredTripDates, now: Date): Date {
-  if (trip.startedAt) return new Date(trip.startedAt);
   const pickup = new Date(trip.pickupWindowStart);
-  return pickup.getTime() > now.getTime() ? pickup : now;
+  const at = trip.startedAt ? new Date(trip.startedAt) : now;
+  return pickup.getTime() > at.getTime() ? pickup : at;
 }
 
 /**

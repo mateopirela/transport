@@ -34,6 +34,12 @@ describe('cargoInsuranceReferenceInstant', () => {
     ).toEqual(NOW);
   });
 
+  it('is the pickup for a trip that left early to it', () => {
+    expect(
+      cargoInsuranceReferenceInstant({ pickupWindowStart: day(1), startedAt: day(-1) }, NOW),
+    ).toEqual(new Date(day(1)));
+  });
+
   it('is the departure once the trip left', () => {
     expect(
       cargoInsuranceReferenceInstant({ pickupWindowStart: day(-5), startedAt: day(-4) }, NOW),

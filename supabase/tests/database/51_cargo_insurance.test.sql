@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(52);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -391,6 +391,22 @@ select lives_ok($$ select tests.depart(tests.val('t3')) $$, 'and the trip leaves
 select tests.login('a5100000-0000-4000-8000-000000000006');
 update public.trip_document_requirements set blocks_departure = true where kind = 'cargo_insurance';
 
+-- A departure recorded offline (B21) is checked at its own time, not at the
+-- sync: the policy expired yesterday, the pickup was three days ago.
+reset role;
+update public.loads
+set pickup_window_start = now() - interval '3 days', pickup_window_end = now() - interval '70 hours'
+where id = (select load_id from public.trips where id = tests.val('t3'));
+select isnt(
+  (select expires_at from public.annual_cargo_policy(tests.val('t3'), now() - interval '2 days')), null,
+  'a departure recorded while the policy was valid is covered, even when it syncs later'
+);
+select is(
+  (select expires_at from public.annual_cargo_policy(tests.val('t3'))), null,
+  'a trip that left after the policy expired is not'
+);
+set local role authenticated;
+
 -- ---------------------------------------------------------------------------
 -- 24 hours before the pickup: the shipper and the carrier staff, once
 -- ---------------------------------------------------------------------------
@@ -419,6 +435,13 @@ select throws_ok(
   $$ select count(*) from public.cargo_insurance_reminders $$,
   '42501', null, 'nobody reads the reminders table'
 );
+select throws_ok(
+  $$ insert into public.cargo_insurance_reminders (trip_id) values (tests.val('t1')) $$,
+  '42501', null, 'nor inserts a reminder'
+);
+select throws_ok($$ update public.cargo_insurance_reminders set sent_at = now() $$, '42501', null,
+  'nor updates one');
+select throws_ok($$ delete from public.cargo_insurance_reminders $$, '42501', null, 'nor deletes one');
 
 -- ---------------------------------------------------------------------------
 -- Accepted terms
@@ -451,6 +474,19 @@ select throws_ok(
 select is(
   (select count(*)::int from public.terms_acceptances where user_id <> 'a5100000-0000-4000-8000-000000000005'),
   0, 'each account reads only its own acceptances'
+);
+select throws_ok(
+  $$ update public.terms_acceptances set accepted_at = now()
+     where user_id = 'a5100000-0000-4000-8000-000000000005' $$,
+  '42501', null, 'an account cannot change its acceptance'
+);
+select throws_ok(
+  $$ delete from public.terms_acceptances where user_id = 'a5100000-0000-4000-8000-000000000005' $$,
+  '42501', null, 'nor delete it'
+);
+select throws_ok(
+  $$ delete from public.terms_acceptances where user_id = 'a5100000-0000-4000-8000-000000000001' $$,
+  '42501', null, 'nor another company''s'
 );
 select tests.login('a5100000-0000-4000-8000-000000000006');
 select is(

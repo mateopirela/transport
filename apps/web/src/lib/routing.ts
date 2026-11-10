@@ -55,6 +55,8 @@ export const paths = {
   adminIncidents: '/admin/incidencias',
   adminRoads: '/admin/carreteras',
   adminSubscriptions: '/admin/suscripciones',
+  /** Platform settings (I2): the pilot's support number and hours. */
+  adminSettings: '/admin/ajustes',
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,

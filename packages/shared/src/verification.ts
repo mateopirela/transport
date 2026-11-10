@@ -264,3 +264,36 @@ export function auditChangedFields(oldData: unknown, newData: unknown): string[]
     )
     .sort();
 }
+
+// ---------------------------------------------------------------------------
+// Fiscal address
+// ---------------------------------------------------------------------------
+
+export type FiscalAddress = Pick<
+  Tables<'companies'>,
+  | 'fiscal_street'
+  | 'fiscal_exterior_number'
+  | 'fiscal_interior_number'
+  | 'fiscal_neighborhood'
+  | 'fiscal_postal_code'
+  | 'fiscal_municipality'
+  | 'fiscal_state'
+>;
+
+/**
+ * The fiscal address (D16) in one line: "street number interior, colonia,
+ * C.P., municipio, estado", skipping what is missing. Empty when nothing is.
+ */
+export function fiscalAddressLine(company: FiscalAddress): string {
+  return [
+    [company.fiscal_street, company.fiscal_exterior_number, company.fiscal_interior_number]
+      .filter(Boolean)
+      .join(' '),
+    company.fiscal_neighborhood,
+    company.fiscal_postal_code,
+    company.fiscal_municipality,
+    company.fiscal_state,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}

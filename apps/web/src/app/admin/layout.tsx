@@ -1,4 +1,11 @@
-import { adminBillingCopy, adminCopy, adminOpsCopy, roadsCopy, shellCopy } from '@transport/shared';
+import {
+  adminBillingCopy,
+  adminCopy,
+  adminOpsCopy,
+  adminSettingsCopy,
+  roadsCopy,
+  shellCopy,
+} from '@transport/shared';
 
 import { AppShell } from '@/components/app-shell';
 import { paths } from '@/lib/routing';
@@ -14,6 +21,7 @@ const NAV = [
   { href: paths.adminSubscriptions, label: adminBillingCopy.nav },
   { href: paths.adminUsers, label: adminCopy.nav.users },
   { href: paths.adminAudit, label: adminCopy.nav.audit },
+  { href: paths.adminSettings, label: adminSettingsCopy.nav },
 ] as const;
 
 /** Admin area: only `admin` profiles (also checked by the proxy and each page). */

@@ -1,4 +1,11 @@
-import { adminOpsCopy, formatDate, TRIP_STATUSES, tripStatusLabels } from '@transport/shared';
+import {
+  adminOpsCopy,
+  formatDate,
+  supportCopy,
+  TRIP_STATUSES,
+  tripFolio,
+  tripStatusLabels,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -39,7 +46,13 @@ export default async function AdminTripsPage({ searchParams }: PageProps<'/admin
             const openIncidents = trip.incidents.length;
             return (
               <tr key={trip.id}>
-                <td className="font-semibold">{trip.load ? formatRoute(trip.load) : ''}</td>
+                <td>
+                  <p className="font-semibold">{trip.load ? formatRoute(trip.load) : ''}</p>
+                  {/* The folio "Ayuda" sends by WhatsApp (I2), so support finds the trip. */}
+                  <p className="text-footnote text-text-dim tabular-nums">
+                    {supportCopy.folio(tripFolio(trip.id) ?? '')}
+                  </p>
+                </td>
                 <td>{trip.shipper?.legal_name ?? ''}</td>
                 <td>{trip.carrier?.legal_name ?? ''}</td>
                 <td className="whitespace-nowrap tabular-nums">

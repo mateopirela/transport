@@ -32,6 +32,7 @@ export * from './share-links';
 export * from './trip-link';
 export * from './shared-documents';
 export * from './state-machines';
+export * from './support';
 export * from './tracking';
 export * from './trip-checklist';
 export * from './trips';

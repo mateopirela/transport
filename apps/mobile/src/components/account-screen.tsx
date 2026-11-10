@@ -14,12 +14,14 @@ import { Text } from 'react-native';
 import { useSession } from '../providers/session';
 import { useTheme } from '../theme';
 import { AppearancePicker } from './appearance-picker';
+import { HelpCell } from './help-cell';
 import { LegalLinks } from './legal-links';
 import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader } from './ui';
 
 /**
  * "Más" tab, as the phone's own settings: what the screen adds (`children`,
- * e.g. the carrier's links), then the account in groups: who is signed in,
+ * e.g. the carrier's links), "Ayuda" when support has a number (I2), then
+ * the account in groups: who is signed in,
  * the appearance, the legal documents and, last, signing out.
  */
 export function AccountScreen({ children }: { children?: ReactNode }) {
@@ -45,6 +47,7 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
     <Screen title={nav.more}>
       {profile && !profile.phone && session ? <CompletePhone userId={session.user.id} /> : null}
       {children}
+      <HelpCell />
       <SectionHeader title={nav.account} />
       <Group>
         {profile?.companyName ? (

@@ -24,6 +24,7 @@ import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
 import { DetailRow } from '../../../components/detail-row';
 import { CargoInsuranceSection } from '../../../components/cargo-insurance-section';
+import { HelpCell } from '../../../components/help-cell';
 import { SharedDocumentsSection } from '../../../components/shared-documents-section';
 import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
@@ -318,6 +319,9 @@ function TripBody({
             onCancelled={reload}
           />
         ) : null}
+
+        {/* "Ayuda" with this trip's folio (I2). */}
+        <HelpCell tripId={trip.id} />
       </Screen>
       {action ? <KeyboardBottomBar action={action} onHeight={setBarHeight} /> : null}
     </>

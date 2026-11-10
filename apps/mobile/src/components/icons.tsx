@@ -31,6 +31,7 @@ const GLYPHS = {
   people: 'people-outline',
   company: 'business-outline',
   chat: 'chatbubble-outline',
+  help: 'help-buoy-outline',
   send: 'send-outline',
   share: 'share-outline',
   link: 'link-outline',

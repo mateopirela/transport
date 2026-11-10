@@ -1,3 +1,4 @@
+import { TERMS_VERSION } from '@transport/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAuthActions, type AuthBackend, type PendingInvitationStore } from './auth';
@@ -23,6 +24,7 @@ function setup(overrides: Partial<AuthBackend> = {}) {
     redeemInvitation: vi.fn(async () => ({ error: null, kind: 'operator' as const })),
     registerCompany: vi.fn(async () => ({ error: null })),
     updatePhone: vi.fn(async () => ({ error: null })),
+    acceptTerms: vi.fn(async () => ({ error: null })),
     ...overrides,
   };
   const actions = createAuthActions(backend, pending, { redirectTo: 'transport://auth/callback' });
@@ -72,6 +74,7 @@ describe('signUpCarrier', () => {
         full_name: 'Ana',
         phone: '+528112345678',
         pending_company_kind: 'owner_operator',
+        terms_version: TERMS_VERSION,
       },
     });
   });
@@ -97,6 +100,7 @@ describe('signUpCoordinator (G1b)', () => {
       role: 'coordinator',
       full_name: 'Andrea',
       phone: '+528112345678',
+      terms_version: TERMS_VERSION,
     });
   });
 
@@ -112,6 +116,19 @@ describe('signUpCoordinator (G1b)', () => {
   });
 });
 
+describe('acceptTerms (I1)', () => {
+  it('accepts the current version of the terms', async () => {
+    const { actions, backend } = setup();
+    expect(await actions.acceptTerms()).toEqual({ ok: true, value: undefined });
+    expect(backend.acceptTerms).toHaveBeenCalledWith(TERMS_VERSION);
+  });
+
+  it('reports a failure', async () => {
+    const { actions } = setup({ acceptTerms: async () => ({ error: { message: 'Network' } }) });
+    expect((await actions.acceptTerms()).ok).toBe(false);
+  });
+});
+
 describe('redeemOperatorInvitation (D15-E1)', () => {
   const input = {
     token: TOKEN,
@@ -123,7 +140,10 @@ describe('redeemOperatorInvitation (D15-E1)', () => {
   it('redeems through the Edge Function and signs in with the phone', async () => {
     const { actions, backend } = setup();
     expect(await actions.redeemOperatorInvitation(input)).toEqual({ ok: true, value: 'signed_in' });
-    expect(backend.redeemInvitation).toHaveBeenCalledWith(input);
+    expect(backend.redeemInvitation).toHaveBeenCalledWith({
+      ...input,
+      termsVersion: TERMS_VERSION,
+    });
     expect(backend.signIn).toHaveBeenCalledWith('528110000013@tel.transport.invalid', 'camion2026');
   });
 

@@ -1,4 +1,6 @@
 import {
+  cargoInsuranceCopy,
+  formatDate,
   formatDateTime,
   groupTripChecklist,
   isTripDocumentCode,
@@ -6,6 +8,7 @@ import {
   tripChecklistCopy as copy,
   tripChecklistPending,
   tripDocumentKindLabels,
+  type CargoInsuranceState,
   type TripChecklistRow,
 } from '@transport/shared';
 import { Fragment } from 'react';
@@ -33,7 +36,14 @@ function responsibleLabel(responsible: string): string {
  * photos and the signed delivery, with who does it and whether it is done.
  * Read-only; the uploads live next to it.
  */
-export function TripChecklist({ rows }: { rows: readonly TripChecklistRow[] }) {
+export function TripChecklist({
+  rows,
+  cargoInsurance = null,
+}: {
+  rows: readonly TripChecklistRow[];
+  /** I1: an annual policy marks the insurance done; the row says so. */
+  cargoInsurance?: CargoInsuranceState | null;
+}) {
   const styles = STYLES[useTheme().theme];
   const groups = groupTripChecklist(rows);
   const pending = tripChecklistPending(rows);
@@ -52,7 +62,11 @@ export function TripChecklist({ rows }: { rows: readonly TripChecklistRow[] }) {
                   {row.required ? copy.required : copy.optional}
                 </Text>
                 <Text style={row.done_at ? styles.done : styles.pending}>
-                  {row.done_at ? copy.done(formatDateTime(row.done_at)) : copy.pending}
+                  {row.code === 'cargo_insurance' && cargoInsurance?.kind === 'annual_policy'
+                    ? cargoInsuranceCopy.state.annual_policy(formatDate(cargoInsurance.expiresAt))
+                    : row.done_at
+                      ? copy.done(formatDateTime(row.done_at))
+                      : copy.pending}
                 </Text>
               </Cell>
             ))}

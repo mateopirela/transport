@@ -17,6 +17,7 @@ import {
   carrierUnitPath,
   loadPath,
   negotiationPath,
+  paths,
   tripPath,
   type WebArea,
 } from '../routing';
@@ -76,8 +77,10 @@ export function notificationHref(
       case 'document_expiring':
         return carrierDocumentHref(data);
       // G6: a document of the trip uploaded by the shipper; the shipper's
-      // decision about the company, on its latest trip or negotiation.
-      case 'trip_document_added': {
+      // decision about the company, on its latest trip or negotiation. I1:
+      // the shipper has not proved the cargo insurance of a trip.
+      case 'trip_document_added':
+      case 'cargo_insurance_missing': {
         const tripId = id(data, 'tripId');
         return tripId && carrierTripPath(tripId);
       }
@@ -136,23 +139,25 @@ export function notificationHref(
         : negotiationPath(target.loadId, target.negotiationId);
     }
     // G6: the carrier's documents shared on the trip, or a document of it.
+    // I1: the trip, where the shipper uploads the policy of the trip.
     case 'documents_shared':
-    case 'trip_document_added': {
+    case 'trip_document_added':
+    case 'cargo_insurance_missing': {
       const tripId = id(data, 'tripId');
       return tripId && tripPath(tripId);
     }
+    // The company documents: "Documentos de la empresa" (I1).
+    case 'document_approved':
+    case 'document_rejected':
+    case 'document_expiring':
+      return paths.shipperCompany;
     // Carrier-only (matching), operator-only (location reminder, B09; taken
-    // off a trip, F2) or company documents, which have no screen for an
-    // approved shipper.
-    // The internal trip chat is the carrier's only (H1, D28).
+    // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
     case 'internal_message':
     case 'load_match':
     case 'provider_status_changed':
     case 'trip_location_stale':
     case 'trip_unassigned':
-    case 'document_approved':
-    case 'document_rejected':
-    case 'document_expiring':
     case 'vehicle_release_pending':
     case 'vehicle_released':
       return null;

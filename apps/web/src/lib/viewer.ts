@@ -1,5 +1,10 @@
 import type { createServerClient } from '@supabase/ssr';
-import type { Database, UserRole, VerificationStatus } from '@transport/shared';
+import {
+  TERMS_VERSION,
+  type Database,
+  type UserRole,
+  type VerificationStatus,
+} from '@transport/shared';
 
 export type Supabase = ReturnType<typeof createServerClient<Database>>;
 
@@ -15,6 +20,8 @@ export interface ViewerDetails {
     status: VerificationStatus;
     statusReason: string | null;
   } | null;
+  /** Whether the account accepted the current version of the terms (I1). */
+  termsAccepted: boolean;
 }
 
 /**
@@ -28,8 +35,11 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, full_name, company:companies(id, legal_name, rfc, status, status_reason)')
+    .select(
+      'role, full_name, company:companies(id, legal_name, rfc, status, status_reason), terms_acceptances(terms_version)',
+    )
     .eq('id', userId)
+    .eq('terms_acceptances.terms_version', TERMS_VERSION)
     .maybeSingle();
   if (!profile) return null;
 
@@ -45,5 +55,6 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
       status: company.status,
       statusReason: company.status_reason,
     },
+    termsAccepted: profile.terms_acceptances.length > 0,
   };
 }

@@ -133,8 +133,8 @@ select results_eq(
 );
 select is(
   (select count(*)::int from public.document_requirements),
-  11,
-  'the requirement catalog is seeded: the provisional list of B03 plus the D16 rows (archived ones kept)'
+  12,
+  'the requirement catalog is seeded: the provisional list of B03 plus the D16 rows (archived ones kept) and the cargo insurance (I1)'
 );
 
 -- ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ set local role authenticated;
 
 select is(
   (select count(*)::int from public.document_requirements),
-  11,
+  12,
   'members read the requirement catalog'
 );
 select throws_ok(

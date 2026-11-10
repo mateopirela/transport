@@ -11,7 +11,7 @@ type Functions = Database['public']['Functions'];
 describe('generated database types (B15, G3)', () => {
   it('types trip_documents', () => {
     expectTypeOf<Tables<'trip_documents'>['kind']>().toEqualTypeOf<
-      'service_order' | 'carta_porte' | 'invoice' | 'other'
+      'service_order' | 'carta_porte' | 'invoice' | 'cargo_insurance' | 'other'
     >();
     expectTypeOf<Tables<'trip_documents'>['storage_path']>().toEqualTypeOf<string>();
   });
@@ -49,7 +49,22 @@ describe('generated database types (B15, G3)', () => {
       'Orden de servicio',
       'CFDI con complemento Carta Porte',
       'Factura',
+      'Seguro de la mercancía',
       'Otro documento',
     ]);
+  });
+
+  it('types the cargo insurance and the accepted terms (I1)', () => {
+    expectTypeOf<
+      Tables<'trip_document_requirements'>['shareable_with_carrier']
+    >().toEqualTypeOf<boolean>();
+    expectTypeOf<Functions['trip_cargo_insurance']['Args']>().toEqualTypeOf<{
+      p_trip_id: string;
+    }>();
+    expectTypeOf<
+      Functions['trip_cargo_insurance']['Returns'][number]['required']
+    >().toEqualTypeOf<boolean>();
+    expectTypeOf<Tables<'terms_acceptances'>['terms_version']>().toEqualTypeOf<string>();
+    expectTypeOf<Functions['accept_terms']['Returns']>().toEqualTypeOf<string>();
   });
 });

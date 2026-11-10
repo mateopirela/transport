@@ -90,6 +90,27 @@ describe('notification content', () => {
     );
   });
 
+  it('asks the shipper for the cargo insurance and warns the carrier (I1)', () => {
+    const shipper = notificationContent('cargo_insurance_missing', {
+      ...ROUTE,
+      audience: 'shipper',
+      blocksDeparture: true,
+    });
+    expect(shipper.title).toBe('Comprueba el seguro de tu mercancía');
+    expect(shipper.body).toBe(
+      'Sube la póliza o el certificado del viaje Monterrey → Guadalajara, o tu póliza anual vigente en Documentos de la empresa. Sin seguro, el viaje no puede salir.',
+    );
+    expect(
+      notificationContent('cargo_insurance_missing', { ...ROUTE, audience: 'carrier' }).body,
+    ).toBe(
+      'El cliente aún no comprueba el seguro de la mercancía del viaje Monterrey → Guadalajara.',
+    );
+    // Without data: the shipper's text, without the block.
+    expect(notificationContent('cargo_insurance_missing', null).body).toBe(
+      'Sube la póliza o el certificado del viaje, o tu póliza anual vigente en Documentos de la empresa.',
+    );
+  });
+
   it('names the document and the reason of a rejection', () => {
     const data = { requirementName: 'Comprobante de domicilio', reviewNotes: 'Es ilegible.' };
     expect(notificationContent('document_approved', data).body).toBe(

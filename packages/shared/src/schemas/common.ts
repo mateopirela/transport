@@ -58,6 +58,19 @@ export const mxPhoneField = z.string({ error: m.phone }).transform((value, ctx) 
   return z.NEVER;
 });
 
+/**
+ * The terms checkbox of every sign-up form (I1, D35-E1): it must be ticked.
+ * A web form sends `on`; the app, `true`.
+ */
+export const termsAcceptedField = z
+  .union([z.literal(true), z.literal('on'), z.literal('true')], { error: m.acceptTerms })
+  .transform(() => true as const);
+
+/** A version of the terms (TERMS_VERSION): a date, as terms_acceptances keeps it. */
+export const termsVersionField = z
+  .string({ error: m.termsVersion })
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, { error: m.termsVersion });
+
 /** Mexican postal code: exactly 5 digits. */
 export const postalCodeField = z
   .string({ error: m.postalCode })

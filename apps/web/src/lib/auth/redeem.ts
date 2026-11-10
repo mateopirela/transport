@@ -37,6 +37,8 @@ export async function redeemInvitation(body: {
   fullName?: string;
   phone?: string;
   email?: string;
+  /** The version of the terms accepted with the checkbox (I1). */
+  termsVersion?: string;
 }): Promise<RedeemOutcome> {
   const supabase = createBrowserSupabase();
   if (!supabase) return { ok: false, error: 'generic' };

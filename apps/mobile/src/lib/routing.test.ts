@@ -12,6 +12,34 @@ const profile = (overrides: Partial<ProfileSnapshot>): ProfileSnapshot => ({
 const signedIn = (p: ProfileSnapshot | null, profileError = false) =>
   ({ status: 'signed_in', profile: p, profileError }) as const;
 
+describe('the current terms (I1)', () => {
+  it('come first for every account the app serves', () => {
+    for (const role of ['manager', 'coordinator', 'operator'] as const) {
+      expect(
+        resolveArea(
+          signedIn(
+            profile({ role, companyId: 'c1', companyStatus: 'approved', termsAccepted: false }),
+          ),
+        ),
+      ).toBe('terms');
+    }
+    expect(resolveArea(signedIn(profile({ role: 'manager', termsAccepted: false })))).toBe('terms');
+    expect(redirectFor('terms', ['(carrier)', 'home'])).toBe('/terms');
+    expect(redirectFor('terms', ['terms'])).toBeNull();
+  });
+
+  it('do not stop an account that accepted them, nor the web roles', () => {
+    expect(
+      resolveArea(
+        signedIn(profile({ companyId: 'c1', companyStatus: 'approved', termsAccepted: true })),
+      ),
+    ).toBe('carrier');
+    expect(resolveArea(signedIn(profile({ role: 'shipper', termsAccepted: false })))).toBe(
+      'unsupported',
+    );
+  });
+});
+
 describe('resolveArea', () => {
   it('waits for the stored session and the profile', () => {
     expect(resolveArea({ status: 'loading' })).toBe('loading');

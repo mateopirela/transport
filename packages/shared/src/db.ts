@@ -169,6 +169,44 @@ export interface Database {
           },
         ];
       };
+      cargo_insurance_reminders: {
+        Row: {
+          sent_at: string;
+          trip_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          sent_at?: string;
+          trip_id: string;
+        };
+        Update: {
+          sent_at?: string;
+          trip_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cargo_insurance_reminders_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'cargo_insurance_reminders_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'cargo_insurance_reminders_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       carrier_road_preferences: {
         Row: {
           archived_at: string | null;
@@ -2443,11 +2481,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      terms_acceptances: {
+        Row: {
+          accepted_at: string;
+          id: string;
+          ip: unknown;
+          terms_version: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          accepted_at?: string;
+          id?: string;
+          ip?: unknown;
+          terms_version: string;
+          user_id: string;
+        };
+        Update: {
+          accepted_at?: string;
+          id?: string;
+          ip?: unknown;
+          terms_version?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'terms_acceptances_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trip_document_requirements: {
         Row: {
           blocks_departure: boolean;
           is_required: boolean;
           kind: Database['public']['Enums']['trip_document_kind'];
+          shareable_with_carrier: boolean;
           sort_order: number;
           stage: Database['public']['Enums']['trip_document_stage'];
           updated_at: string;
@@ -2458,6 +2530,7 @@ export interface Database {
           blocks_departure?: boolean;
           is_required?: boolean;
           kind: Database['public']['Enums']['trip_document_kind'];
+          shareable_with_carrier?: boolean;
           sort_order?: number;
           stage: Database['public']['Enums']['trip_document_stage'];
           updated_at?: string;
@@ -2467,6 +2540,7 @@ export interface Database {
           blocks_departure?: boolean;
           is_required?: boolean;
           kind?: Database['public']['Enums']['trip_document_kind'];
+          shareable_with_carrier?: boolean;
           sort_order?: number;
           stage?: Database['public']['Enums']['trip_document_stage'];
           updated_at?: string;
@@ -3437,6 +3511,7 @@ export interface Database {
     Functions: {
       accept_coordinator_invitation: { Args: { p_token: string }; Returns: string };
       accept_offer: { Args: { p_offer_id: string }; Returns: string };
+      accept_terms: { Args: { p_ip?: unknown; p_terms_version: string }; Returns: string };
       add_trip_document: {
         Args: {
           p_file_name: string;
@@ -3574,6 +3649,14 @@ export interface Database {
           p_to_hour: number;
         };
         Returns: string;
+      };
+      annual_cargo_policy: {
+        Args: { p_trip_id: string };
+        Returns: {
+          approved_at: string;
+          document_id: string;
+          expires_at: string;
+        }[];
       };
       apply_load_payload: {
         Args: {
@@ -3748,6 +3831,7 @@ export interface Database {
       billing_settings: { Args: Record<PropertyKey, never>; Returns: Record<string, unknown> };
       business_unit_name: { Args: { p_name: string }; Returns: string };
       can_operate_unit: { Args: { p_unit_id: string }; Returns: boolean };
+      can_see_trip: { Args: { p_trip_id: string }; Returns: boolean };
       cancel_load: { Args: { p_load_id: string; p_reason?: string }; Returns: undefined };
       cancel_trip:
         | { Args: { p_reason: string; p_trip_id: string }; Returns: undefined }
@@ -3759,6 +3843,16 @@ export interface Database {
             };
             Returns: undefined;
           };
+      cargo_insurance_notice_data: {
+        Args: {
+          p_audience: string;
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+        };
+        Returns: Json;
+      };
       check_offer_fields: {
         Args: {
           p_amount_cents: number;
@@ -4150,6 +4244,7 @@ export interface Database {
         Returns: undefined;
       };
       notify_matches_for_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined };
+      notify_shipper_cargo_insurance: { Args: { p_trip_id: string }; Returns: undefined };
       open_internal_share: { Args: { p_token: string }; Returns: Json };
       open_trip_operator_link: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
@@ -4226,6 +4321,7 @@ export interface Database {
         };
         Returns: string;
       };
+      remind_cargo_insurance: { Args: Record<PropertyKey, never>; Returns: number };
       remind_stale_trip_locations: { Args: { p_stale_after?: string }; Returns: number };
       remove_company_member: { Args: { p_profile_id: string }; Returns: undefined };
       rename_business_unit: { Args: { p_id: string; p_name: string }; Returns: undefined };
@@ -4455,6 +4551,17 @@ export interface Database {
         };
         Returns: undefined;
       };
+      trip_cargo_insurance: {
+        Args: { p_trip_id: string };
+        Returns: {
+          annual_policy_approved_at: string;
+          annual_policy_expires_at: string;
+          blocks_departure: boolean;
+          required: boolean;
+          trip_policy_at: string;
+        }[];
+      };
+      trip_cargo_insured: { Args: { p_trip_id: string }; Returns: boolean };
       trip_checklist: {
         Args: { p_trip_id: string };
         Returns: {
@@ -4464,6 +4571,18 @@ export interface Database {
           responsible: string;
           stage: string;
         }[];
+      };
+      trip_document_object_readable: {
+        Args: { p_name: string; p_owner_id: string };
+        Returns: boolean;
+      };
+      trip_document_readable: {
+        Args: {
+          p_kind: Database['public']['Enums']['trip_document_kind'];
+          p_trip_id: string;
+          p_uploaded_by: string;
+        };
+        Returns: boolean;
       };
       trip_end_estimate: {
         Args: { p_shipper_view?: boolean; p_trip_id: string };
@@ -4699,7 +4818,8 @@ export interface Database {
         | 'vehicle_release_pending'
         | 'vehicle_released'
         | 'internal_message'
-        | 'chat_message';
+        | 'chat_message'
+        | 'cargo_insurance_missing';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -4733,7 +4853,7 @@ export interface Database {
         | 'documentation'
         | 'other';
       trip_cancellation_side: 'shipper' | 'carrier' | 'admin';
-      trip_document_kind: 'service_order' | 'carta_porte' | 'invoice' | 'other';
+      trip_document_kind: 'service_order' | 'carta_porte' | 'invoice' | 'cargo_insurance' | 'other';
       trip_document_stage: 'before_departure' | 'billing';
       trip_event_type:
         | 'created'
@@ -4985,6 +5105,7 @@ export const Constants = {
         'vehicle_released',
         'internal_message',
         'chat_message',
+        'cargo_insurance_missing',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],
@@ -5021,7 +5142,7 @@ export const Constants = {
         'other',
       ],
       trip_cancellation_side: ['shipper', 'carrier', 'admin'],
-      trip_document_kind: ['service_order', 'carta_porte', 'invoice', 'other'],
+      trip_document_kind: ['service_order', 'carta_porte', 'invoice', 'cargo_insurance', 'other'],
       trip_document_stage: ['before_departure', 'billing'],
       trip_event_type: [
         'created',

@@ -280,7 +280,7 @@ export async function handleRedeem(request: Request, deps: Dependencies): Promis
 async function redeemOperator(body: unknown, backend: Backend, log: Logger): Promise<Response> {
   const parsed = operatorRedeemSchema.safeParse(body);
   if (!parsed.success) return fail('invalid_body', 400, { fields: fieldIssues(parsed.error) });
-  const { token, fullName, phone, password, email } = parsed.data;
+  const { token, fullName, phone, password, email, termsVersion } = parsed.data;
   const authEmail = phoneAuthEmail(phone);
 
   // 3. The account, then the link; the account is removed if the link fails.
@@ -303,13 +303,15 @@ async function redeemOperator(body: unknown, backend: Backend, log: Logger): Pro
       email: authEmail,
       password,
       // Read by handle_new_user (B01): role, name and phone of the profile,
-      // and the nonce of the provisioning ticket.
+      // and the nonce of the provisioning ticket; and by
+      // record_sign_up_terms_acceptance (I1): the terms the person accepted.
       userMetadata: {
         role: 'operator',
         full_name: fullName,
         phone,
         provisioning_nonce: nonce,
         ...(email ? { contact_email: email } : {}),
+        ...(termsVersion ? { terms_version: termsVersion } : {}),
       },
     });
   // Deletes an operator account of this phone that never got linked: this

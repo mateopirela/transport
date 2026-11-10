@@ -6,7 +6,7 @@ import type { TripChecklistResponsible, TripChecklistStage } from '../trip-check
 
 export const tripChecklistCopy = {
   title: 'Documentos del viaje',
-  help: 'Lo que el viaje necesita, por etapa. Lo que falta se avisa; no detiene la salida (D22).',
+  help: 'Lo que el viaje necesita, por etapa. Lo que falta se avisa; solo el seguro de la mercancía detiene la salida (D22, D35-E1).',
   stages: {
     before_departure: 'Antes de salir',
     pickup: 'Al recoger',

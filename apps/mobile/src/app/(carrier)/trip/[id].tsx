@@ -23,6 +23,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
 import { DetailRow } from '../../../components/detail-row';
+import { CargoInsuranceSection } from '../../../components/cargo-insurance-section';
 import { SharedDocumentsSection } from '../../../components/shared-documents-section';
 import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
@@ -240,6 +241,8 @@ function TripBody({
           />
         ) : null}
 
+        {detail.cargoInsurance ? <CargoInsuranceSection state={detail.cargoInsurance} /> : null}
+
         <TripDocumentsSection
           client={carrier.client}
           tripId={trip.id}
@@ -247,6 +250,7 @@ function TripBody({
           documents={detail.documents}
           checklist={detail.checklist}
           uploadableKinds={detail.uploadableKinds}
+          cargoInsurance={detail.cargoInsurance}
           onChanged={reload}
         />
 

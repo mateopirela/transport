@@ -1,4 +1,4 @@
-import { carrierSignUpSchema, validationMessages } from '@transport/shared';
+import { carrierSignUpSchema, TERMS_VERSION, validationMessages } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { invitationTokenParam, parseAuthRedirect } from './deep-links';
@@ -195,6 +195,7 @@ describe('validateForm', () => {
       phone: '8112345678',
       password: 'camion2026',
       passwordConfirmation: 'camion2026',
+      acceptTerms: true,
     });
     expect(valid.ok && valid.data.email).toBe('ana@x.mx');
 
@@ -254,6 +255,7 @@ describe('toProfileDetails', () => {
           status_reason: 'Falta RFC',
           is_owner_operator: true,
         },
+        terms_acceptances: [{ terms_version: TERMS_VERSION }],
       }),
     ).toEqual({
       role: 'manager',
@@ -264,6 +266,7 @@ describe('toProfileDetails', () => {
       companyName: 'Fletes Ana',
       companyStatusReason: 'Falta RFC',
       isOwnerOperator: true,
+      termsAccepted: true,
     });
   });
 
@@ -275,12 +278,15 @@ describe('toProfileDetails', () => {
         full_name: null,
         phone: null,
         companies: null,
+        terms_acceptances: [],
       }),
     ).toMatchObject({
       companyId: null,
       companyStatus: null,
       companyName: null,
       isOwnerOperator: false,
+      // I1: without the current terms the app asks for them first.
+      termsAccepted: false,
     });
   });
 });

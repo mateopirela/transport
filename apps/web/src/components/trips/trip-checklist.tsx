@@ -1,4 +1,6 @@
 import {
+  cargoInsuranceCopy,
+  formatDate,
   formatDateTime,
   groupTripChecklist,
   isTripDocumentCode,
@@ -6,6 +8,7 @@ import {
   tripChecklistCopy as c,
   tripChecklistPending,
   tripDocumentKindLabels,
+  type CargoInsuranceState,
   type TripChecklistRow,
 } from '@transport/shared';
 
@@ -27,7 +30,14 @@ const responsibles: Record<string, string> = c.responsible;
  * The checklist of a trip (D22) by stage: each document, the photos and the
  * signed delivery, with who does it and whether it is done.
  */
-export function TripChecklist({ rows }: { rows: readonly TripChecklistRow[] }) {
+export function TripChecklist({
+  rows,
+  cargoInsurance = null,
+}: {
+  rows: readonly TripChecklistRow[];
+  /** I1: an annual policy marks the insurance done; the row says so. */
+  cargoInsurance?: CargoInsuranceState | null;
+}) {
   const groups = groupTripChecklist(rows);
   const pending = tripChecklistPending(rows);
   return (
@@ -63,7 +73,11 @@ export function TripChecklist({ rows }: { rows: readonly TripChecklistRow[] }) {
                       row.done_at ? 'text-ok-text' : 'text-text-dim',
                     )}
                   >
-                    {row.done_at ? c.done(formatDateTime(row.done_at)) : c.pending}
+                    {row.code === 'cargo_insurance' && cargoInsurance?.kind === 'annual_policy'
+                      ? cargoInsuranceCopy.state.annual_policy(formatDate(cargoInsurance.expiresAt))
+                      : row.done_at
+                        ? c.done(formatDateTime(row.done_at))
+                        : c.pending}
                   </span>
                 </li>
               ))}

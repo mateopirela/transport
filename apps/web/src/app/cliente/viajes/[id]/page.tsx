@@ -29,6 +29,7 @@ import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { SiteDwellGroup, TripEndRow } from '@/components/trips/site-dwell';
 import { ConfirmDeliveryForm, ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripCancelForm } from '@/components/trips/trip-cancel-form';
+import { CargoInsuranceCard } from '@/components/trips/cargo-insurance-card';
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
@@ -240,9 +241,19 @@ export default async function TripPage({ params }: PageProps<'/cliente/viajes/[i
             )}
           </section>
 
+          {data.cargoInsurance && (
+            <CargoInsuranceCard
+              state={data.cargoInsurance}
+              side="shipper"
+              tripId={trip.id}
+              canUpload={trip.status === 'pending_assignment' || trip.status === 'assigned'}
+              companyHref={paths.shipperCompany}
+            />
+          )}
+
           <section className="space-y-4">
             <SectionTitle title={c.documents.title} description={c.documents.description} />
-            <TripChecklist rows={data.checklist} />
+            <TripChecklist rows={data.checklist} cargoInsurance={data.cargoInsurance} />
             {trip.status !== 'cancelled' && (
               <TripDocumentUpload tripId={trip.id} kinds={data.uploadableKinds} />
             )}

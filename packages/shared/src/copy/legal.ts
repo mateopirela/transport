@@ -20,16 +20,41 @@ export interface LegalText {
   sections: readonly LegalSection[];
 }
 
+/**
+ * Version of the terms and the privacy notice every account accepts (I1,
+ * D35-E1), stored in terms_acceptances. Bump it (a new date) whenever
+ * termsOfService or privacyNotice change in substance: the next time each
+ * person signs in, the web and the app ask them to accept again. The demo
+ * seed (supabase/seed.sql) accepts this same version.
+ */
+export const TERMS_VERSION = '2026-11-10';
+
 export const legalCopy = {
   privacyLink: 'Aviso de privacidad',
   termsLink: 'Términos y condiciones',
   draftBanner:
     'Borrador pendiente de revisión legal. Este texto puede cambiar antes del lanzamiento y aún no es la versión definitiva.',
   version: (version: string) => `Versión: ${version}`,
-  signUpConsent: {
-    before: 'Al crear tu cuenta aceptas los',
-    middle: 'y confirmas que leíste el',
+  /** The checkbox of every sign-up form (I1): required. */
+  acceptTerms: {
+    before: 'Acepto los',
+    middle: 'y el',
     after: '.',
+    /** The whole sentence, for screen readers and the app. */
+    label: 'Acepto los términos y condiciones y el aviso de privacidad',
+    required: 'Acepta los términos y condiciones y el aviso de privacidad para continuar.',
+  },
+  /** Screen that asks a signed-in account to accept a new version (I1). */
+  reaccept: {
+    title: 'Términos y condiciones',
+    description:
+      'Para seguir usando la plataforma necesitamos que aceptes la versión vigente de los términos y condiciones y del aviso de privacidad.',
+    changes:
+      'Esta versión aclara que la plataforma no responde por robo, daños ni accidentes de la mercancía; que el cliente asegura su mercancía y comprueba la póliza antes de cada viaje, y que el transportista cubre el deducible en caso de robo.',
+    submit: 'Aceptar y continuar',
+    pending: 'Guardando…',
+    signOut: 'Cerrar sesión',
+    error: 'No pudimos guardar tu aceptación. Intenta de nuevo.',
   },
 } as const;
 
@@ -100,7 +125,7 @@ export const privacyNotice: LegalText = {
 
 export const termsOfService: LegalText = {
   title: 'Términos y condiciones de uso',
-  version: '0.1 (borrador, octubre 2026)',
+  version: '0.2 (borrador, noviembre 2026)',
   draft: true,
   intro:
     'Estos términos regulan el uso de la plataforma Transport, operada por [RAZÓN SOCIAL DEL RESPONSABLE]. Al crear una cuenta los aceptas en nombre propio y de la empresa que representas.',
@@ -123,6 +148,7 @@ export const termsOfService: LegalText = {
       items: [
         'Describir con veracidad la mercancía, su peso, volumen, ventanas y requisitos.',
         'Publicar solo mercancía lícita y declarar cualquier condición especial de manejo.',
+        'Asegurar su mercancía y comprobar la póliza antes de cada viaje: una póliza anual vigente en los documentos de su empresa, o la póliza o el certificado del viaje.',
         'Confirmar la entrega y reportar incidencias en la plataforma.',
       ],
     },
@@ -145,6 +171,12 @@ export const termsOfService: LegalText = {
       title: 'Comunicación y evidencias',
       paragraphs: [
         'La comunicación entre las partes se hace por el chat de la plataforma. Los mensajes, los eventos del viaje y las evidencias no se pueden modificar y se conservan como respaldo de lo acordado.',
+      ],
+    },
+    {
+      title: 'Seguro de la mercancía, robo y accidentes',
+      paragraphs: [
+        'La plataforma no responde por robo, daños ni accidentes de la mercancía durante el viaje. El cliente asegura su mercancía con la aseguradora que elija y comprueba la póliza en la plataforma antes de cada viaje; sin ese comprobante el viaje no sale. En caso de robo, el transportista cubre el deducible de la póliza. [REDACCIÓN DEFINITIVA PENDIENTE DE REVISIÓN LEGAL].',
       ],
     },
     {

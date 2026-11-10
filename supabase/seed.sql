@@ -69,7 +69,9 @@ as $$
     '00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated', p_email,
     extensions.crypt('Demo1234', extensions.gen_salt('bf')), pg_temp.at('-60 days'),
     p_app_meta,
-    jsonb_build_object('role', p_role, 'full_name', p_full_name, 'phone', p_phone),
+    -- I1: every demo account accepted the current terms (TERMS_VERSION in
+    -- packages/shared/src/copy/legal.ts) when it signed up.
+    jsonb_build_object('role', p_role, 'full_name', p_full_name, 'phone', p_phone, 'terms_version', '2026-11-10'),
     pg_temp.at('-60 days'), pg_temp.at('-60 days'),
     '', '', '', ''
   );
@@ -288,7 +290,10 @@ join public.document_requirements r
  and (r.taxpayer_type is null or r.taxpayer_type = public.taxpayer_type_for_rfc(c.rfc))
 cross join lateral (
   select o.owner_id = '5eed0004-0000-4000-8000-000000000006' and r.code = 'vehicle_insurance_policy' as pending
-) p;
+) p
+-- I1: Alimentos de Occidente (Luis) has no annual cargo insurance policy, so
+-- its trips need the policy of each trip before leaving (D35-E1).
+where not (r.code = 'cargo_insurance_policy' and o.owner_id = '5eed0002-0000-4000-8000-000000000002');
 
 -- ---------------------------------------------------------------------------
 -- Availability of the units with a body (the unit of the trip in unloading

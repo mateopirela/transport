@@ -151,6 +151,22 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         body: `Se agregó ${label} al viaje${route(data)}.`,
       };
     }
+    // I1 (D35-E1): the trip has no proof of cargo insurance, at acceptance
+    // or 24 hours before the pickup. The shipper uploads it; the carrier
+    // staff (`audience` carrier) only learns the trip may not leave.
+    case 'cargo_insurance_missing': {
+      const blocks = (data as { blocksDeparture?: unknown } | null)?.blocksDeparture === true;
+      if (text(data, 'audience') === 'carrier') {
+        return {
+          title: 'Falta el seguro de la mercancía',
+          body: `El cliente aún no comprueba el seguro de la mercancía del viaje${route(data)}.${blocks ? ' Sin él, el viaje no puede salir.' : ''}`,
+        };
+      }
+      return {
+        title: 'Comprueba el seguro de tu mercancía',
+        body: `Sube la póliza o el certificado del viaje${route(data)}, o tu póliza anual vigente en Documentos de la empresa.${blocks ? ' Sin seguro, el viaje no puede salir.' : ''}`,
+      };
+    }
     case 'vehicle_release_pending': {
       const unit = text(data, 'vehicleLabel');
       return {

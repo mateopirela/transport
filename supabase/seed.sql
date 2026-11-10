@@ -949,6 +949,24 @@ from (values
 ) as c(unit_name, profile_id)
 join public.business_units b on b.company_id = '5eed0002-0000-4000-8000-000000000004' and b.name = c.unit_name;
 
+-- I7 (D40): the arrival of the trip in unloading (its timeline, above) looked
+-- for its return loads before "Corredor MTY–GDL" had its coordinator, so only
+-- Jorge got the notice. In production Andrea coordinated the unit by then:
+-- check each trip again now, as check_backhaul did at the time, so the
+-- managers and the coordinators of its business unit get it once each.
+do $$
+declare
+  v_check record;
+begin
+  for v_check in select trip_id, source from public.trip_backhaul_checks order by trip_id loop
+    delete from public.notifications
+    where type = 'backhaul_suggestions' and data ->> 'tripId' = v_check.trip_id::text;
+    delete from public.trip_backhaul_checks where trip_id = v_check.trip_id;
+    perform public.check_backhaul(v_check.trip_id, v_check.source);
+  end loop;
+end;
+$$;
+
 -- The hombre-camión (D13).
 update public.companies set is_owner_operator = true where id = '5eed0002-0000-4000-8000-000000000006';
 

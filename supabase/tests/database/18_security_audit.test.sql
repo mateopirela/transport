@@ -255,7 +255,7 @@ select set_eq(
     'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review',
     -- Brokered loads (I6): the client requests and approves, the admin quotes
     -- and lists; the client reads its loads with its own prices only, and the
-    -- policies ask whether a load is brokered (56_brokered_loads).
+    -- policies ask whether a load is brokered (57_brokered_loads).
     'request_brokered_load', 'approve_brokered_quote', 'admin_quote_brokered_load', 'admin_brokered_loads',
     'client_loads', 'load_is_brokered'
   ],

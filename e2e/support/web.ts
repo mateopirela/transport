@@ -5,16 +5,20 @@ import { DEMO_PASSWORD, users, type DemoUser } from './demo';
 
 const f = authCopy.fields;
 
-/** Signs in on the web app ("Correo o teléfono") and waits to leave the sign-in page. */
+/**
+ * Signs in on the web app ("Correo o teléfono") and waits to leave the
+ * sign-in page; with `next`, it lands there instead of the role's home.
+ */
 export async function signInOnWeb(
   page: Page,
   user: DemoUser | { email: string; password: string } | { phone: string; password: string },
+  next?: string,
 ): Promise<void> {
   const { identifier, password } =
     typeof user === 'string'
       ? { identifier: users[user], password: DEMO_PASSWORD }
       : { identifier: 'email' in user ? user.email : user.phone, password: user.password };
-  await page.goto('/login');
+  await page.goto(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
   await page.getByLabel(f.identifier).fill(identifier);
   await page.getByLabel(f.password, { exact: true }).fill(password);
   await page.getByRole('button', { name: authCopy.signIn.submit }).click();

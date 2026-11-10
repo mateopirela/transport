@@ -91,7 +91,7 @@ export function SupportSettingsForms({
         label={c.whatsappLabel}
         hint={c.whatsappHint}
         status={whatsapp ? c.whatsappCurrent(formatPhone(whatsapp)) : c.whatsappNone}
-        value={whatsapp}
+        value={whatsapp ? formatPhone(whatsapp) : null}
         action={setSupportWhatsappAction}
         inputProps={{ type: 'tel', inputMode: 'tel', autoComplete: 'off', maxLength: 24 }}
         testId="support-whatsapp-form"

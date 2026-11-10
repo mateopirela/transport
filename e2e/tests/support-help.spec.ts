@@ -45,8 +45,7 @@ test('"Ayuda" opens the support WhatsApp only when the admin set the number', as
 
   const admin = await browser.newPage();
   await test.step('the admin sets the number and the hours', async () => {
-    await signInOnWeb(admin, 'admin');
-    await admin.goto('/admin/ajustes');
+    await signInOnWeb(admin, 'admin', '/admin/ajustes');
     await expect(admin.getByRole('link', { name: a.nav, exact: true })).toHaveAttribute(
       'aria-current',
       'page',

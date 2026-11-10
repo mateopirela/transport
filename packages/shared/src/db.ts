@@ -3709,6 +3709,7 @@ export interface Database {
           review_note: string;
           shipper_company_id: string;
           shipper_name: string;
+          trip_created_at: string;
           trip_id: string;
           trip_status: Database['public']['Enums']['trip_status'];
         }[];
@@ -4060,6 +4061,7 @@ export interface Database {
           payments: Json;
           pending_cents: number;
           status: Database['public']['Enums']['freight_carrier_status'];
+          trip_created_at: string;
           trip_id: string;
           trip_status: Database['public']['Enums']['trip_status'];
         }[];
@@ -4726,6 +4728,7 @@ export interface Database {
           pending_cents: number;
           status: Database['public']['Enums']['freight_client_status'];
           terms_days: number;
+          trip_created_at: string;
           trip_id: string;
           trip_status: Database['public']['Enums']['trip_status'];
         }[];

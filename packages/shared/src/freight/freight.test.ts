@@ -4,8 +4,11 @@ import {
   addCalendarDays,
   collectionsTotals,
   commissionCents,
+  compareFreightOrder,
   effectiveCarrierStatus,
   effectiveClientStatus,
+  fetchFreightPages,
+  FREIGHT_PAGE_SIZE,
   formatBasisPoints,
   freightCarrierStatusTone,
   freightClientStatusTone,
@@ -230,5 +233,83 @@ describe('freightAdminErrorText', () => {
       freightAdminErrorText({ code: '55000', message: 'no review pending for this trip' }),
     ).toBe(e.noReview);
     expect(freightAdminErrorText({ code: 'XX000' })).toBe(e.generic);
+  });
+});
+
+describe('compareFreightOrder', () => {
+  const key = (
+    ledgerId: string,
+    dueOn: string | null,
+    tripCreatedAt: string,
+    needsReview = false,
+  ) => ({
+    ledgerId,
+    dueOn,
+    tripCreatedAt,
+    needsReview,
+  });
+
+  it('sorts like the RPCs: review, due date (none last), newest trip, ledger id', () => {
+    const rows = [
+      key('f', null, '2026-11-09T10:00:00+00:00'),
+      key('e', '2026-12-04', '2026-11-01T10:00:00+00:00'),
+      key('d', '2026-12-03', '2026-11-01T10:00:00+00:00'),
+      key('c', '2026-12-03', '2026-11-05T10:00:00+00:00'),
+      key('b', '2026-12-03', '2026-11-05T10:00:00+00:00'),
+      key('a', '2026-12-30', '2026-10-01T10:00:00+00:00', true),
+    ];
+    expect([...rows].sort(compareFreightOrder).map((r) => r.ledgerId)).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+      'e',
+      'f',
+    ]);
+  });
+});
+
+describe('fetchFreightPages', () => {
+  const ids = Array.from({ length: FREIGHT_PAGE_SIZE * 2 + 1 }, (_, i) =>
+    String(i).padStart(6, '0'),
+  );
+
+  it('reads past the 1,000-row cap, asking for the rows after the last ledger id', async () => {
+    const afters: (string | null)[] = [];
+    const rows = await fetchFreightPages((after) => {
+      afters.push(after);
+      const data = ids
+        .filter((id) => after === null || id > after)
+        .slice(0, FREIGHT_PAGE_SIZE)
+        .map((ledger_id) => ({ ledger_id }));
+      return Promise.resolve({ data, error: null });
+    }, 'rpc');
+    expect(rows.map((r) => r.ledger_id)).toEqual(ids);
+    expect(afters).toEqual([null, ids[FREIGHT_PAGE_SIZE - 1], ids[FREIGHT_PAGE_SIZE * 2 - 1]]);
+  });
+
+  it('neither skips nor repeats a row when another one leaves between pages', async () => {
+    let live = [...ids];
+    let first = true;
+    const rows = await fetchFreightPages((after) => {
+      const data = live
+        .filter((id) => after === null || id > after)
+        .slice(0, FREIGHT_PAGE_SIZE)
+        .map((ledger_id) => ({ ledger_id }));
+      // A trip of the first page is cancelled while the page loads.
+      if (first) live = live.filter((id) => id !== ids[10]);
+      first = false;
+      return Promise.resolve({ data, error: null });
+    }, 'rpc');
+    expect(rows.map((r) => r.ledger_id)).toEqual(ids);
+  });
+
+  it('fails with the name of the RPC', async () => {
+    await expect(
+      fetchFreightPages(
+        () => Promise.resolve({ data: null, error: { message: 'boom' } }),
+        'carrier_freight_ledger',
+      ),
+    ).rejects.toThrow('carrier_freight_ledger failed: boom');
   });
 });

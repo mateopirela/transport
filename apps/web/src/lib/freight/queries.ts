@@ -1,6 +1,9 @@
 import 'server-only';
 
 import {
+  compareFreightOrder,
+  fetchFreightPages,
+  FREIGHT_PAGE_SIZE,
   FREIGHT_SETTING_KEYS,
   isValidCommissionBps,
   parseFreightPayments,
@@ -11,7 +14,6 @@ import {
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
-import { fetchAllPages } from './pages';
 
 // Reads of the freight ledger (I3). Each side reads its own columns through
 // its RPC (shipper_freight_ledger, carrier_freight_ledger): the client never
@@ -70,9 +72,17 @@ export type AdminFreightRow = Omit<
 
 /** Cartera: the client's side of the trips of the caller's company. */
 export async function loadShipperFreight(supabase: Supabase): Promise<ShipperFreightRow[]> {
-  const data = await fetchAllPages(
-    (from, to) => supabase.rpc('shipper_freight_ledger').range(from, to),
-    'shipper_freight_ledger',
+  const data = await fetchFreightPages((after) => {
+    const query = supabase.rpc('shipper_freight_ledger');
+    return (after ? query.gt('ledger_id', after) : query)
+      .order('ledger_id')
+      .limit(FREIGHT_PAGE_SIZE);
+  }, 'shipper_freight_ledger');
+  data.sort((a, b) =>
+    compareFreightOrder(
+      { dueOn: a.due_on, tripCreatedAt: a.trip_created_at, ledgerId: a.ledger_id },
+      { dueOn: b.due_on, tripCreatedAt: b.trip_created_at, ledgerId: b.ledger_id },
+    ),
   );
   return data.map((row) => ({
     ...row,
@@ -85,9 +95,17 @@ export async function loadShipperFreight(supabase: Supabase): Promise<ShipperFre
 
 /** Cobranza: the carrier's side of the trips the caller operates. */
 export async function loadCarrierFreight(supabase: Supabase): Promise<CarrierFreightRow[]> {
-  const data = await fetchAllPages(
-    (from, to) => supabase.rpc('carrier_freight_ledger').range(from, to),
-    'carrier_freight_ledger',
+  const data = await fetchFreightPages((after) => {
+    const query = supabase.rpc('carrier_freight_ledger');
+    return (after ? query.gt('ledger_id', after) : query)
+      .order('ledger_id')
+      .limit(FREIGHT_PAGE_SIZE);
+  }, 'carrier_freight_ledger');
+  data.sort((a, b) =>
+    compareFreightOrder(
+      { dueOn: a.due_on, tripCreatedAt: a.trip_created_at, ledgerId: a.ledger_id },
+      { dueOn: b.due_on, tripCreatedAt: b.trip_created_at, ledgerId: b.ledger_id },
+    ),
   );
   return data.map((row) => ({
     ...row,
@@ -121,9 +139,27 @@ function adminPayments(value: unknown): AdminFreightPayment[] {
 
 /** Admin: both sides of every trip. */
 export async function loadAdminFreight(supabase: Supabase): Promise<AdminFreightRow[]> {
-  const data = await fetchAllPages(
-    (from, to) => supabase.rpc('admin_freight_ledger').range(from, to),
-    'admin_freight_ledger',
+  const data = await fetchFreightPages((after) => {
+    const query = supabase.rpc('admin_freight_ledger');
+    return (after ? query.gt('ledger_id', after) : query)
+      .order('ledger_id')
+      .limit(FREIGHT_PAGE_SIZE);
+  }, 'admin_freight_ledger');
+  data.sort((a, b) =>
+    compareFreightOrder(
+      {
+        needsReview: a.needs_review,
+        dueOn: a.client_due_on,
+        tripCreatedAt: a.trip_created_at,
+        ledgerId: a.ledger_id,
+      },
+      {
+        needsReview: b.needs_review,
+        dueOn: b.client_due_on,
+        tripCreatedAt: b.trip_created_at,
+        ledgerId: b.ledger_id,
+      },
+    ),
   );
   return data.map((row) => ({
     ...row,

@@ -778,6 +778,10 @@ grant execute on function public.admin_resolve_freight_review(uuid, text) to aut
 -- ---------------------------------------------------------------------------
 -- Reads, one per side (columns by side; never the whole table)
 -- ---------------------------------------------------------------------------
+-- Each read returns its rows in display order (due date, newest trip, ledger
+-- id) and the trip's creation time, so the apps can page them by the ledger
+-- id (immutable and unique: a row that changes or leaves during the read never
+-- makes another one skipped or repeated) and sort them again in that order.
 
 -- The client's side of the trips of the caller's shipper company (Cartera):
 -- the amount, the terms, the due date, the status, what was paid and its own
@@ -792,6 +796,7 @@ returns table (
   destination_city text,
   trip_status public.trip_status,
   delivered_at timestamptz,
+  trip_created_at timestamptz,
   amount_cents bigint,
   terms_days smallint,
   due_on date,
@@ -805,7 +810,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select f.id, t.id, t.load_id, l.origin_city, l.destination_city, t.status, t.delivered_at,
+  select f.id, t.id, t.load_id, l.origin_city, l.destination_city, t.status, t.delivered_at, t.created_at,
          f.client_amount_cents, f.client_terms_days, f.client_due_on,
          public.freight_effective_client_status(f.client_status, f.client_due_on),
          f.client_paid_cents, f.client_amount_cents - f.client_paid_cents,
@@ -842,6 +847,7 @@ returns table (
   destination_city text,
   trip_status public.trip_status,
   delivered_at timestamptz,
+  trip_created_at timestamptz,
   freight_cents bigint,
   commission_bps integer,
   commission_cents bigint,
@@ -857,7 +863,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select f.id, t.id, t.load_id, t.business_unit_id, l.origin_city, l.destination_city, t.status, t.delivered_at,
+  select f.id, t.id, t.load_id, t.business_unit_id, l.origin_city, l.destination_city, t.status, t.delivered_at, t.created_at,
          f.commission_cents + f.carrier_net_cents, f.commission_bps, f.commission_cents, f.carrier_net_cents,
          f.carrier_due_on,
          public.freight_effective_carrier_status(f.carrier_status, f.carrier_due_on, f.client_status),
@@ -892,6 +898,7 @@ returns table (
   destination_city text,
   trip_status public.trip_status,
   delivered_at timestamptz,
+  trip_created_at timestamptz,
   shipper_company_id uuid,
   shipper_name text,
   carrier_company_id uuid,
@@ -921,7 +928,7 @@ begin
     raise exception 'only admins read the freight ledger' using errcode = '42501';
   end if;
   return query
-  select f.id, t.id, t.load_id, l.origin_city, l.destination_city, t.status, t.delivered_at,
+  select f.id, t.id, t.load_id, l.origin_city, l.destination_city, t.status, t.delivered_at, t.created_at,
          t.shipper_company_id, sc.legal_name, t.carrier_company_id, cc.legal_name,
          f.client_amount_cents, f.commission_bps, f.commission_cents, f.carrier_net_cents,
          f.client_terms_days, f.client_due_on,

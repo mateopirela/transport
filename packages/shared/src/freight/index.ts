@@ -159,6 +159,72 @@ export function parseFreightPayments(value: unknown): FreightPayment[] {
   });
 }
 
+/** Rows per request of the ledger reads; PostgREST caps a response (1,000 by default). */
+export const FREIGHT_PAGE_SIZE = 1000;
+
+/** What orders a row of the ledger reads (the ORDER BY of their RPCs). */
+export interface FreightOrderKey {
+  /** The admin's trips to review go first. */
+  needsReview?: boolean;
+  /** The due date of the side (YYYY-MM-DD); trips without one go last. */
+  dueOn: string | null;
+  /** The trip's creation (ISO); the newest first. */
+  tripCreatedAt: string;
+  /** The ledger id: the unique tiebreaker. */
+  ledgerId: string;
+}
+
+function timeOf(iso: string): number {
+  const time = Date.parse(iso);
+  return Number.isNaN(time) ? 0 : time;
+}
+
+/**
+ * The display order of the ledger reads, the same as their RPCs: review
+ * first (admin), due date (none last), newest trip, ledger id. The apps read
+ * the RPCs in pages by ledger id and sort the rows again with this.
+ */
+export function compareFreightOrder(a: FreightOrderKey, b: FreightOrderKey): number {
+  const review = Number(Boolean(b.needsReview)) - Number(Boolean(a.needsReview));
+  if (review !== 0) return review;
+  if (a.dueOn !== b.dueOn) {
+    if (a.dueOn === null) return 1;
+    if (b.dueOn === null) return -1;
+    return a.dueOn < b.dueOn ? -1 : 1;
+  }
+  const created = timeOf(b.tripCreatedAt) - timeOf(a.tripCreatedAt);
+  if (created !== 0) return created;
+  if (a.ledgerId === b.ledgerId) return 0;
+  return a.ledgerId < b.ledgerId ? -1 : 1;
+}
+
+/**
+ * Every row of a ledger read, in pages by ledger id (keyset): each request
+ * asks for the rows after the last id it got. The ledger id never changes, so
+ * a row that changes or leaves while the pages load never makes another row
+ * skipped or repeated (an offset would). `fetchPage(after)` gets up to
+ * FREIGHT_PAGE_SIZE rows with a ledger id above `after` (all when null),
+ * ordered by ledger id.
+ */
+export async function fetchFreightPages<T extends { ledger_id: string }>(
+  fetchPage: (
+    after: string | null,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const { data, error } = await fetchPage(after);
+    if (error) throw new Error(`${label} failed: ${error.message}`);
+    const page = data ?? [];
+    rows.push(...page);
+    const last = page.at(-1);
+    if (page.length < FREIGHT_PAGE_SIZE || !last) return rows;
+    after = last.ledger_id;
+  }
+}
+
 export interface CollectionsRow {
   status: FreightCarrierStatus;
   pendingCents: number;

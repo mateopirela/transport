@@ -1,4 +1,7 @@
 import {
+  compareFreightOrder,
+  fetchFreightPages,
+  FREIGHT_PAGE_SIZE,
   parseFreightPayments,
   toCents,
   type Database,
@@ -27,24 +30,23 @@ export type CollectionRow = Omit<
   payments: FreightPayment[];
 };
 
-/** Rows per request; PostgREST caps a response (1,000 by default). */
-export const COLLECTIONS_PAGE_SIZE = 1000;
-
 /**
- * Every trip of the carrier, in pages: the totals need all of them, never the
- * first 1,000. The RPC orders its rows with a unique tiebreaker (the ledger
- * id), so the pages do not overlap.
+ * Every trip of the carrier, in pages by ledger id (the totals need all of
+ * them, never the first 1,000), in the order of the RPC.
  */
 export async function loadCollections(client: Supabase): Promise<CollectionRow[]> {
-  const data: Row[] = [];
-  for (let from = 0; ; from += COLLECTIONS_PAGE_SIZE) {
-    const { data: page, error } = await client
-      .rpc('carrier_freight_ledger')
-      .range(from, from + COLLECTIONS_PAGE_SIZE - 1);
-    if (error) throw error;
-    data.push(...page);
-    if (page.length < COLLECTIONS_PAGE_SIZE) break;
-  }
+  const data = await fetchFreightPages<Row>((after) => {
+    const query = client.rpc('carrier_freight_ledger');
+    return (after ? query.gt('ledger_id', after) : query)
+      .order('ledger_id')
+      .limit(FREIGHT_PAGE_SIZE);
+  }, 'carrier_freight_ledger');
+  data.sort((a, b) =>
+    compareFreightOrder(
+      { dueOn: a.due_on, tripCreatedAt: a.trip_created_at, ledgerId: a.ledger_id },
+      { dueOn: b.due_on, tripCreatedAt: b.trip_created_at, ledgerId: b.ledger_id },
+    ),
+  );
   return data.map((row) => ({
     ...row,
     freight_cents: toCents(row.freight_cents),

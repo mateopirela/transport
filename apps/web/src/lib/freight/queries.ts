@@ -11,6 +11,7 @@ import {
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
+import { fetchAllPages } from './pages';
 
 // Reads of the freight ledger (I3). Each side reads its own columns through
 // its RPC (shipper_freight_ledger, carrier_freight_ledger): the client never
@@ -69,8 +70,10 @@ export type AdminFreightRow = Omit<
 
 /** Cartera: the client's side of the trips of the caller's company. */
 export async function loadShipperFreight(supabase: Supabase): Promise<ShipperFreightRow[]> {
-  const { data, error } = await supabase.rpc('shipper_freight_ledger');
-  if (error) throw new Error(`shipper_freight_ledger failed: ${error.message}`);
+  const data = await fetchAllPages(
+    (from, to) => supabase.rpc('shipper_freight_ledger').range(from, to),
+    'shipper_freight_ledger',
+  );
   return data.map((row) => ({
     ...row,
     amount_cents: toCents(row.amount_cents),
@@ -82,8 +85,10 @@ export async function loadShipperFreight(supabase: Supabase): Promise<ShipperFre
 
 /** Cobranza: the carrier's side of the trips the caller operates. */
 export async function loadCarrierFreight(supabase: Supabase): Promise<CarrierFreightRow[]> {
-  const { data, error } = await supabase.rpc('carrier_freight_ledger');
-  if (error) throw new Error(`carrier_freight_ledger failed: ${error.message}`);
+  const data = await fetchAllPages(
+    (from, to) => supabase.rpc('carrier_freight_ledger').range(from, to),
+    'carrier_freight_ledger',
+  );
   return data.map((row) => ({
     ...row,
     freight_cents: toCents(row.freight_cents),
@@ -116,8 +121,10 @@ function adminPayments(value: unknown): AdminFreightPayment[] {
 
 /** Admin: both sides of every trip. */
 export async function loadAdminFreight(supabase: Supabase): Promise<AdminFreightRow[]> {
-  const { data, error } = await supabase.rpc('admin_freight_ledger');
-  if (error) throw new Error(`admin_freight_ledger failed: ${error.message}`);
+  const data = await fetchAllPages(
+    (from, to) => supabase.rpc('admin_freight_ledger').range(from, to),
+    'admin_freight_ledger',
+  );
   return data.map((row) => ({
     ...row,
     client_amount_cents: toCents(row.client_amount_cents),

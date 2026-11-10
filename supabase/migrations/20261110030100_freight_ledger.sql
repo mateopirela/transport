@@ -821,7 +821,7 @@ as $$
   join public.loads l on l.id = t.load_id
   where t.shipper_company_id = public.auth_shipper_company_id()
     and f.client_status <> 'cancelled'
-  order by f.client_due_on nulls last, t.created_at desc;
+  order by f.client_due_on nulls last, t.created_at desc, f.id;
 $$;
 
 revoke all on function public.shipper_freight_ledger() from public, anon;
@@ -875,7 +875,7 @@ as $$
   where (t.carrier_company_id = public.auth_fleet_company_id()
          or t.business_unit_id = any (public.auth_business_unit_ids()))
     and f.carrier_status <> 'cancelled'
-  order by f.carrier_due_on nulls last, t.created_at desc;
+  order by f.carrier_due_on nulls last, t.created_at desc, f.id;
 $$;
 
 revoke all on function public.carrier_freight_ledger() from public, anon;
@@ -942,7 +942,7 @@ begin
   join public.loads l on l.id = t.load_id
   join public.companies sc on sc.id = t.shipper_company_id
   join public.companies cc on cc.id = t.carrier_company_id
-  order by f.needs_review desc, f.client_due_on nulls last, t.created_at desc;
+  order by f.needs_review desc, f.client_due_on nulls last, t.created_at desc, f.id;
 end;
 $$;
 

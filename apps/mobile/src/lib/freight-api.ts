@@ -27,9 +27,24 @@ export type CollectionRow = Omit<
   payments: FreightPayment[];
 };
 
+/** Rows per request; PostgREST caps a response (1,000 by default). */
+export const COLLECTIONS_PAGE_SIZE = 1000;
+
+/**
+ * Every trip of the carrier, in pages: the totals need all of them, never the
+ * first 1,000. The RPC orders its rows with a unique tiebreaker (the ledger
+ * id), so the pages do not overlap.
+ */
 export async function loadCollections(client: Supabase): Promise<CollectionRow[]> {
-  const { data, error } = await client.rpc('carrier_freight_ledger');
-  if (error) throw error;
+  const data: Row[] = [];
+  for (let from = 0; ; from += COLLECTIONS_PAGE_SIZE) {
+    const { data: page, error } = await client
+      .rpc('carrier_freight_ledger')
+      .range(from, from + COLLECTIONS_PAGE_SIZE - 1);
+    if (error) throw error;
+    data.push(...page);
+    if (page.length < COLLECTIONS_PAGE_SIZE) break;
+  }
   return data.map((row) => ({
     ...row,
     freight_cents: toCents(row.freight_cents),

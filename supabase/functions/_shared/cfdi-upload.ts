@@ -13,7 +13,10 @@
 //    the PDF must start as a PDF.
 // 4. check_freight_invoice_service (service role only) checks the uploader
 //    and the rules that depend on the trip: issuer, receiver, total, MXN,
-//    unique UUID, one invoice per side, not cancelled, client terms.
+//    unique UUID, one invoice per side, not cancelled, client terms. It runs
+//    also when the XML is a readable CFDI that breaks rules of form (or the PDF
+//    is wrong), so every failed rule is told at once; an unreadable XML gets
+//    only the parser's reason (and the PDF's).
 // 5. Only then the files go to the private `invoices` bucket, under a random
 //    name, and record_freight_invoice_service registers the invoice after
 //    checking everything again under the ledger's lock. If it refuses, the
@@ -25,6 +28,7 @@ import {
   CFDI_XML_MAX_BYTES,
   looksLikePdf,
   parseCfdi,
+  type CfdiFields,
   type CfdiIssue,
 } from '../../../packages/shared/src/freight/cfdi.ts';
 import { createLogger, type Logger } from '../../../packages/shared/src/observability/logger.ts';
@@ -57,6 +61,18 @@ export const RATE_LIMIT_BUCKET = 'freight_invoice_upload';
 /** The request-level failures; the rest come from the parser and the database. */
 type RequestFailure = 'xml_missing' | 'pdf_missing' | 'pdf_invalid' | 'pdf_too_large';
 export type UploadFailure = CfdiIssue | RequestFailure | string;
+
+/**
+ * The database's rule on a field the parser found invalid (and passed as
+ * null): already told by the parser's reason, so it is not repeated.
+ */
+const REPEATED: readonly [keyof CfdiFields, string][] = [
+  ['uuid', 'uuid_taken'],
+  ['issuerRfc', 'issuer_mismatch'],
+  ['receiverRfc', 'receiver_mismatch'],
+  ['totalCents', 'total_mismatch'],
+  ['currency', 'currency'],
+];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const FAILURE = /^[a-z_]{1,40}$/u;
@@ -249,10 +265,9 @@ export async function handleCfdiUpload(
     } catch {
       parsed = { ok: false, issues: ['malformed'] };
     }
-    // Every reason at once: the XML's and the PDF's.
-    if (!parsed.ok) return invalid([...parsed.issues, ...failures]);
-    if (failures.length > 0) return invalid(failures);
-    const cfdi = parsed.cfdi;
+    // An XML that is not a readable CFDI: its reason and the PDF's.
+    if (!parsed.ok && !parsed.fields) return invalid([...parsed.issues, ...failures]);
+    const read: CfdiFields = parsed.ok ? parsed.cfdi : (parsed.fields as CfdiFields);
 
     const rpc = (name: string, args: Record<string, unknown>) =>
       deps.fetch(`${supabaseUrl}/rest/v1/rpc/${name}`, {
@@ -264,11 +279,11 @@ export async function handleCfdiUpload(
       p_user_id: userId,
       p_trip_id: trip,
       p_direction: options.direction,
-      p_cfdi_uuid: cfdi.uuid,
-      p_issuer_rfc: cfdi.issuerRfc,
-      p_receiver_rfc: cfdi.receiverRfc,
-      p_total_cents: cfdi.totalCents,
-      p_currency: cfdi.currency,
+      p_cfdi_uuid: read.uuid,
+      p_issuer_rfc: read.issuerRfc,
+      p_receiver_rfc: read.receiverRfc,
+      p_total_cents: read.totalCents,
+      p_currency: read.currency,
     };
 
     const checked = await rpc('check_freight_invoice_service', fields);
@@ -290,7 +305,17 @@ export async function handleCfdiUpload(
       log.error('check_freight_invoice_service returned an unexpected answer');
       return json({ error: 'upstream_error' }, 502);
     }
-    if (ruleFailures.length > 0) return invalid(ruleFailures);
+    // Every reason at once, each told once: the XML's, the trip's and the PDF's.
+    const repeated = new Set(
+      REPEATED.filter(([field]) => read[field] === null).map(([, failure]) => failure),
+    );
+    const all = new Set<UploadFailure>([
+      ...(parsed.ok ? [] : parsed.issues),
+      ...ruleFailures.filter((failure) => !repeated.has(failure)),
+      ...failures,
+    ]);
+    if (!parsed.ok || all.size > 0) return invalid([...all]);
+    const cfdi = parsed.cfdi;
 
     // The files, under names nobody can guess or reuse.
     const name = deps.randomUUID ?? (() => crypto.randomUUID());

@@ -7,10 +7,13 @@
 //     parsing, so external entities (XXE) and entity expansion ("billion
 //     laughs") are impossible. Only the five predefined entities and numeric
 //     character references are decoded.
-//   * Bounded: at most CFDI_XML_MAX_BYTES, 64 levels, 20,000 elements and 100
-//     attributes per element; one pass, no backtracking regular expressions.
+//   * Bounded: at most CFDI_XML_MAX_BYTES, 64 levels, 20,000 elements, 100
+//     attributes per element and 500 namespace declarations in all; one pass,
+//     no backtracking regular expressions.
 //   * Namespaces resolved: the elements are matched by namespace URI and
-//     local name, not by prefix.
+//     local name, not by prefix. Each element keeps only the namespaces it
+//     declares and a prefix is looked up through its open ancestors (at most
+//     64), so no scope is ever copied.
 //
 // It has no imports on purpose: the Edge Functions (Deno) import this same
 // file. What each file must match (issuer, receiver, total, unique UUID)
@@ -27,6 +30,8 @@ export const TFD_NAMESPACE = 'http://www.sat.gob.mx/TimbreFiscalDigital';
 const MAX_DEPTH = 64;
 const MAX_ELEMENTS = 20_000;
 const MAX_ATTRIBUTES = 100;
+/** Namespace declarations in the whole document; a CFDI with complements has a dozen. */
+const MAX_NAMESPACE_DECLARATIONS = 500;
 
 /** Why an XML is not a CFDI the platform can take; each one has its copy. */
 export type CfdiIssue =
@@ -57,7 +62,25 @@ export interface ParsedCfdi {
   issuedAt: string;
 }
 
-export type CfdiParseResult = { ok: true; cfdi: ParsedCfdi } | { ok: false; issues: CfdiIssue[] };
+/**
+ * What could be read from a CFDI that breaks a rule of form (version, type,
+ * currency, total, an RFC, the date or the UUID): each field the platform
+ * checks against the trip, null when it is the one that is not valid. The
+ * Edge Function checks them anyway, so every failed rule is told at once.
+ */
+export interface CfdiFields {
+  uuid: string | null;
+  issuerRfc: string | null;
+  receiverRfc: string | null;
+  totalCents: number | null;
+  /** `MXN` or null: any other currency is already the `currency` issue. */
+  currency: string | null;
+}
+
+export type CfdiParseResult =
+  | { ok: true; cfdi: ParsedCfdi }
+  /** `fields` only when the XML is a readable CFDI that breaks rules of form. */
+  | { ok: false; issues: CfdiIssue[]; fields?: CfdiFields };
 
 interface XmlElement {
   namespace: string | null;
@@ -120,9 +143,11 @@ function decodeEntities(value: string): string {
 function walkXml(xml: string, visit: (element: XmlElement) => void): void {
   if (/<!DOCTYPE|<!ENTITY/iu.test(xml)) throw new XmlError('dtd');
   const text = xml.charCodeAt(0) === 0xfeff ? xml.slice(1) : xml;
-  const stack: { element: XmlElement; name: string; scope: Map<string, string> }[] = [];
+  // The open elements, each with the namespaces it declares (null: none).
+  const stack: { element: XmlElement; name: string; declared: Map<string, string> | null }[] = [];
   let index = 0;
   let elements = 0;
+  let declarations = 0;
   let rootClosed = false;
 
   const fail = (): never => {
@@ -212,16 +237,22 @@ function walkXml(xml: string, visit: (element: XmlElement) => void): void {
       elements++;
       if (elements > MAX_ELEMENTS || stack.length >= MAX_DEPTH) fail();
       const parentFrame = stack.at(-1);
-      const scope = new Map(parentFrame?.scope ?? []);
+      let declared: Map<string, string> | null = null;
       const attributes = new Map<string, string>();
       for (const [key, value] of raw) {
-        if (key === 'xmlns') scope.set('', value);
-        else if (key.startsWith('xmlns:')) scope.set(key.slice(6), value);
-        else if (!key.includes(':')) attributes.set(key, value);
+        const prefix = key === 'xmlns' ? '' : key.startsWith('xmlns:') ? key.slice(6) : null;
+        if (prefix !== null) {
+          if (++declarations > MAX_NAMESPACE_DECLARATIONS) fail();
+          (declared ??= new Map()).set(prefix, value);
+        } else if (!key.includes(':')) attributes.set(key, value);
       }
       const colon = name.indexOf(':');
       const prefix = colon < 0 ? '' : name.slice(0, colon);
-      const namespace = scope.get(prefix) ?? null;
+      // The nearest declaration wins: the element's own, then its ancestors'.
+      let namespace = declared?.get(prefix) ?? null;
+      for (let level = stack.length - 1; namespace === null && level >= 0; level--) {
+        namespace = stack[level]?.declared?.get(prefix) ?? null;
+      }
       if (prefix !== '' && namespace === null) fail();
       const element: XmlElement = {
         namespace,
@@ -233,7 +264,7 @@ function walkXml(xml: string, visit: (element: XmlElement) => void): void {
       if (selfClosing) {
         if (stack.length === 0) rootClosed = true;
       } else {
-        stack.push({ element, name, scope });
+        stack.push({ element, name, declared });
       }
     }
   }
@@ -385,7 +416,17 @@ export function parseCfdi(xml: string, now: Date = new Date()): CfdiParseResult 
   if (!UUID.test(uuid)) issues.push('uuid');
 
   if (issues.length > 0 || !issuerRfc || !receiverRfc || totalCents === null || !issuedAt) {
-    return { ok: false, issues };
+    return {
+      ok: false,
+      issues,
+      fields: {
+        uuid: UUID.test(uuid) ? uuid : null,
+        issuerRfc,
+        receiverRfc,
+        totalCents: totalCents !== null && totalCents > 0 ? totalCents : null,
+        currency: currency === 'MXN' ? currency : null,
+      },
+    };
   }
   const name = (element: XmlElement | null) => {
     const value = attr(element, 'Nombre')?.trim();

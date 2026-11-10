@@ -105,6 +105,33 @@ describe('parseCfdi', () => {
     expect(issues(parseCfdi(syntheticCfdi({ issuedAt: '2026-11-06' })))).toEqual(['issued_at']);
   });
 
+  it('hands over the fields it read when only rules of form fail', () => {
+    expect(parseCfdi(syntheticCfdi({ currency: 'USD', unstamped: true, version: '3.3' }))).toEqual({
+      ok: false,
+      issues: ['version', 'currency', 'uuid'],
+      fields: {
+        uuid: null,
+        issuerRfc: 'FLI040404CD4',
+        receiverRfc: 'FUL201015AB1',
+        totalCents: 970_000,
+        currency: null,
+      },
+    });
+    const wrongForm = parseCfdi(syntheticCfdi({ receiverRfc: 'XX', total: '0.00' }));
+    expect(!wrongForm.ok && wrongForm.fields).toEqual({
+      uuid: SYNTHETIC_UUID,
+      issuerRfc: 'FLI040404CD4',
+      receiverRfc: null,
+      totalCents: null,
+      currency: 'MXN',
+    });
+    // Not a readable CFDI: no fields.
+    for (const xml of ['<a/>', '<x', '<!DOCTYPE a><a/>']) {
+      const result = parseCfdi(xml);
+      expect(!result.ok && 'fields' in result).toBe(false);
+    }
+  });
+
   it('takes only a Fecha from CFDI 4.0 (2022) up to a day past now, read in Mexico City', () => {
     const now = new Date('2026-11-10T18:00:00Z'); // 12:00 in Mexico City
     const at = (issuedAt: string) => issues(parseCfdi(syntheticCfdi({ issuedAt }), now));
@@ -184,6 +211,39 @@ describe('parseCfdi', () => {
     expect(issues(parseCfdi(deep))).toEqual(['malformed']);
     const wide = `<a>${'<b/>'.repeat(20_001)}</a>`;
     expect(issues(parseCfdi(wide))).toEqual(['malformed']);
+  });
+
+  it('resolves namespaces in linear time and bounds their declarations', () => {
+    // 60 levels of 99 prefixes each and ~19,000 children at the bottom (under
+    // 200 KB): copying every scope to every element would take seconds.
+    const declarations = (level: number) =>
+      Array.from({ length: 99 }, (_, i) => ` xmlns:p${level}_${i}="u"`).join('');
+    const levels = Array.from({ length: 60 }, (_, level) => `<a${declarations(level)}>`).join('');
+    const crowded = `${levels}${'<b/>'.repeat(19_000)}${'</a>'.repeat(60)}`;
+    expect(crowded.length).toBeLessThan(CFDI_XML_MAX_BYTES);
+    const start = performance.now();
+    const result = parseCfdi(crowded);
+    expect(performance.now() - start).toBeLessThan(200);
+    expect(issues(result)).toEqual(['malformed']);
+
+    // Under the cap (5 × 99 declarations) the walk is still linear.
+    const nested = Array.from({ length: 5 }, (_, level) => `<a${declarations(level)}>`).join('');
+    const allowed = `${nested}${'<p0_0:b/>'.repeat(19_000)}${'</a>'.repeat(5)}`;
+    const begin = performance.now();
+    expect(issues(parseCfdi(allowed))).toEqual(['not_cfdi']);
+    expect(performance.now() - begin).toBeLessThan(200);
+
+    // Each element may still declare some, and its own win over its parent's.
+    const shadowed = syntheticCfdi().replace(
+      '<cfdi:Emisor',
+      '<cfdi:Emisor xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:x="u"',
+    );
+    expect(parseCfdi(shadowed).ok).toBe(true);
+    const foreign = syntheticCfdi().replace(
+      '<cfdi:Emisor',
+      '<cfdi:Emisor xmlns:cfdi="http://example.test/cfd"',
+    );
+    expect(issues(parseCfdi(foreign))).toEqual(['issuer_rfc']);
   });
 
   it('ignores the stamp outside the Complemento of the root', () => {

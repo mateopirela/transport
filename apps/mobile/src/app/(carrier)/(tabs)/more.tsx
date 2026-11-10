@@ -1,6 +1,7 @@
 import {
   billingCopy,
   fleetCopy,
+  freightCopy,
   managerCompanyCopy,
   ownerOperatorDocumentsCopy,
 } from '@transport/shared';
@@ -23,6 +24,12 @@ const MY_DOCUMENTS: [string, Href, IconName] = [
   '/my-documents',
   'documents',
 ];
+// What Fulmis pays the carrier for each trip (I3, D34-E1).
+const COLLECTIONS: [string, Href, IconName] = [
+  freightCopy.collections.title,
+  '/collections',
+  'wallet',
+];
 const LINKS: [string, Href, IconName][] = [
   [fleetCopy.onboarding.operators, '/operators', 'people'],
   [fleetCopy.onboarding.routes, '/routes', 'route'],
@@ -30,9 +37,9 @@ const LINKS: [string, Href, IconName][] = [
 
 /**
  * "Más": "Mi empresa" and "Suscripción" (H3, information only) for the Gerente
- * (G4), company documents ("Mis documentos" for a hombre-camión, I2),
- * operators and usual routes (B18) as one group of rows, then "Ayuda" and
- * the account.
+ * (G4), "Cobranza" (I3) for the Gerente and the Coordinador, company
+ * documents ("Mis documentos" for a hombre-camión, I2), operators and
+ * usual routes (B18) as one group of rows, then "Ayuda" and the account.
  */
 export default function MoreTab() {
   const router = useRouter();
@@ -43,10 +50,11 @@ export default function MoreTab() {
     ? [
         [managerCompanyCopy.title, '/my-company', 'company'],
         [billingCopy.title, '/subscription', 'money'],
+        COLLECTIONS,
         documents,
         ...LINKS,
       ]
-    : [documents, ...LINKS];
+    : [COLLECTIONS, documents, ...LINKS];
   return (
     <AccountScreen>
       <Group inset={groupInset.icon}>

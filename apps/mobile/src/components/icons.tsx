@@ -53,6 +53,7 @@ const GLYPHS = {
   trash: 'trash-outline',
   edit: 'create-outline',
   money: 'cash-outline',
+  wallet: 'wallet-outline',
   appearance: 'contrast-outline',
   legal: 'shield-checkmark-outline',
   signOut: 'log-out-outline',

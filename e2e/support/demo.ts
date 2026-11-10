@@ -62,6 +62,8 @@ export const ids = {
   /** Torton JSM-01 of the hombre-camión José Sánchez, and José as its operator (D13). */
   jsmUnit: '5eed0004-0000-4000-8000-000000000008',
   joseOperator: '5eed0003-0000-4000-8000-000000000006',
+  /** Trip Escobedo → Saltillo of Ana with Transportes Regios, $10,000 delivered at 3 % (I3, load 25). */
+  ledgerTrip: '5eed0008-0000-4000-8000-000000000021',
 } as const;
 
 /** Points used for the operator's events (D11: every event has a location). */

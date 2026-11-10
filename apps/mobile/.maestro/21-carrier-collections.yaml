@@ -1,0 +1,37 @@
+# Cobranza (I3, D34-E1): Jorge, the Gerente, opens "Más → Cobranza". The
+# totals come first ("Por cobrar", "Retenido": the seed has a trip whose
+# client is late) and then each trip; the Escobedo → Saltillo trip of the seed
+# ($10,000 at 3 %) shows the freight, the commission, $9,700 net and "Por
+# cobrar". The client's terms and payments are never shown. Read-only: any
+# seed where nobody recorded a payment of that trip.
+appId: ${APP_ID}
+name: Gerente · cobranza
+tags: [carrier, manager]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+- extendedWaitUntil:
+    visible: 'Más, tab.*'
+    timeout: 30000
+- tapOn: 'Más, tab.*'
+- tapOn: 'Cobranza'
+- extendedWaitUntil:
+    visible: 'Por cobrar'
+    timeout: 15000
+- assertVisible: 'Retenido'
+- assertVisible: 'Pagado este mes'
+- assertVisible: 'Retenido: el cliente no ha pagado.*'
+- takeScreenshot: 21-1-collections-totals
+- scrollUntilVisible:
+    element: 'General Escobedo → Saltillo'
+    centerElement: true
+- scrollUntilVisible:
+    element: '\$9,700.00'
+    centerElement: true
+- assertVisible: 'Comisión \(3 %\)'
+- assertVisible: '\$300.00'
+- assertVisible: '\$10,000.00'
+- assertNotVisible: 'Plazo.*'
+- takeScreenshot: 21-2-collections-trip

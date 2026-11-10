@@ -109,10 +109,16 @@ export function notificationHref(
           ? `${carrierTripPath(target.tripId)}?chat=${SHIPPER_CHAT_PARAM}`
           : carrierNegotiationPath(target.negotiationId);
       }
+      // The freight ledger (I3): a payment of Fulmis or a held payment, in
+      // "Cobranza". An overdue client is for the shipper and the admin.
+      case 'freight_payment_received':
+      case 'freight_on_hold':
+        return paths.carrierCollections;
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6).
       case 'trip_location_stale':
       case 'documents_shared':
+      case 'freight_overdue':
         return null;
     }
   }
@@ -151,6 +157,11 @@ export function notificationHref(
     case 'document_rejected':
     case 'document_expiring':
       return paths.shipperCompany;
+    // The freight ledger (I3): the client's payment or its overdue trip, in
+    // "Cartera". A held payment is the carrier's.
+    case 'freight_payment_received':
+    case 'freight_overdue':
+      return paths.shipperPortfolio;
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
     case 'internal_message':
@@ -160,6 +171,7 @@ export function notificationHref(
     case 'trip_unassigned':
     case 'vehicle_release_pending':
     case 'vehicle_released':
+    case 'freight_on_hold':
       return null;
   }
 }

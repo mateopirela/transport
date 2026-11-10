@@ -104,4 +104,13 @@ describe('notification email', () => {
     expect(email.html).not.toContain('<b>');
     expect(email.text).toContain('<b>Póliza</b>');
   });
+
+  it('links the freight notices to Cartera, Cobranza and the admin ledger (I3)', () => {
+    const data = { ledgerId: SITE_ID, tripId: LOAD, loadId: LOAD };
+    expect(notificationWebPath('shipper', data)).toBe('/cliente/cartera');
+    expect(notificationWebPath('manager', data)).toBe('/transportista/cobranza');
+    expect(notificationWebPath('coordinator', data)).toBe('/transportista/cobranza');
+    expect(notificationWebPath('admin', data)).toBe('/admin/flete');
+    expect(notificationWebPath('admin', { tripId: LOAD })).toBe('/admin');
+  });
 });

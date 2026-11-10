@@ -1,6 +1,7 @@
 import {
   billingCopy,
   carrierWebCopy,
+  freightCopy,
   managerCompanyCopy,
   notificationsInboxCopy,
   shellCopy,
@@ -34,6 +35,7 @@ export default async function CarrierLayout({ children }: { children: React.Reac
     { href: paths.carrierNegotiations, label: carrierWebCopy.nav.negotiations },
     { href: paths.carrierTrips, label: carrierWebCopy.nav.trips },
     { href: paths.carrierUnits, match: paths.carrierFleet, label: carrierWebCopy.nav.fleet },
+    { href: paths.carrierCollections, label: freightCopy.collections.title },
     ...(isManager ? [{ href: paths.carrierCompany, label: managerCompanyCopy.title }] : []),
     { href: paths.carrierSubscription, label: billingCopy.title },
     {

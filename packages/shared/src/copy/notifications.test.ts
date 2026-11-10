@@ -163,4 +163,36 @@ describe('notification content', () => {
       'del viaje en las últimas horas.',
     );
   });
+
+  it('tells each side of the freight only its own payment (I3)', () => {
+    const client = notificationContent('freight_payment_received', {
+      ...ROUTE,
+      amountCents: 1_000_000,
+      direction: 'client_to_fulmis',
+    });
+    expect(client).toEqual({
+      title: 'Recibimos tu pago',
+      body: 'Recibimos tu pago de $10,000.00 por el viaje Monterrey → Guadalajara. Gracias.',
+    });
+    const carrier = notificationContent('freight_payment_received', {
+      ...ROUTE,
+      amountCents: 970_000,
+      direction: 'fulmis_to_carrier',
+    });
+    expect(carrier).toEqual({
+      title: 'Fulmis te pagó',
+      body: 'Fulmis te pagó $9,700.00 por el viaje Monterrey → Guadalajara.',
+    });
+  });
+
+  it('warns of an overdue client and a held carrier payment (I3)', () => {
+    expect(notificationContent('freight_overdue', { ...ROUTE, amountCents: 400_000 }).body).toBe(
+      'Venció el pago del viaje Monterrey → Guadalajara (pendiente: $4,000.00).',
+    );
+    expect(notificationContent('freight_on_hold', { ...ROUTE, amountCents: 970_000 })).toEqual({
+      title: 'Pago retenido',
+      body: 'El pago del viaje Monterrey → Guadalajara (pendiente: $9,700.00) está retenido: el cliente no ha pagado. Fulmis se encarga de la cobranza.',
+    });
+    expect(notificationContent('freight_overdue', {}).body).toBe('Venció el pago del viaje.');
+  });
 });

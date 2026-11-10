@@ -44,10 +44,14 @@ function uuid(data: unknown, key: string): string | null {
  * only uses the app (D06-E1).
  */
 export function notificationWebPath(role: UserRole | null, data: unknown): string | null {
-  if (role === 'admin') return '/admin';
+  // The freight ledger (I3): the admin's reconciliation, the carrier's
+  // "Cobranza" and the client's "Cartera".
+  const freight = uuid(data, 'ledgerId') !== null;
+  if (role === 'admin') return freight ? '/admin/flete' : '/admin';
   const loadId = uuid(data, 'loadId');
   const tripId = uuid(data, 'tripId');
   if (role === 'manager' || role === 'coordinator') {
+    if (freight) return '/transportista/cobranza';
     // A chat message carries its conversation: the internal trip chat (H1) on
     // its tab; the trip chat with the shipper (`kind` 'trip') on the shipper's.
     if (tripId && uuid(data, 'conversationId')) {
@@ -65,6 +69,7 @@ export function notificationWebPath(role: UserRole | null, data: unknown): strin
     return loadId ? `/transportista/cargas/${loadId}` : '/transportista/notificaciones';
   }
   if (role !== 'shipper') return null;
+  if (freight) return '/cliente/cartera';
   if (tripId) return `/cliente/viajes/${tripId}`;
   return loadId ? `/cliente/cargas/${loadId}` : '/cliente/notificaciones';
 }

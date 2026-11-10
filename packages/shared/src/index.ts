@@ -13,6 +13,7 @@ export * from './enums';
 export * from './evidence';
 export * from './fleet';
 export * from './formatters';
+export * from './freight';
 export * from './geo';
 export * from './internal-chat';
 export * from './invitation-link';

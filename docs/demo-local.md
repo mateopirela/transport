@@ -40,6 +40,13 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 - **15 cargas** en ambos sentidos y en todos los estados: 6 publicadas, 2 en negociación, 1 borrador, 1 contratada, 1 en curso, 2 completadas, 1 cancelada (contratada por Transportes Regios y cancelada por el cliente antes de salir) y 1 expirada.
 - **5 viajes**: uno MTY → GDL **en descarga** con fin estimado en 2 horas (con línea de tiempo, puntos GPS del corredor, chat con el cliente y chat interno de Pedro con Andrea), uno asignado, dos cerrados y uno GDL → MTY **cancelado** con su chat interno abierto (H1, D20-E1).
 
+### Libro del flete (I3)
+
+- **Plazos de pago:** Aceros del Norte paga a 30 días, Alimentos de Occidente a 15 y Empaques Plásticos Regios queda con "Plazo por definir" (el admin lo fija en el detalle de la empresa).
+- **Comisión:** 3 % (`freight.commission_bps = 300`), editable por el admin en **Flete** (`/admin/flete`); cada viaje la congela al crearse.
+- **Viaje de aceptación:** Escobedo → Saltillo de Aceros del Norte con Transportes Regios (carga 25), **$10,000** entregado hace cuatro días. Ana ve en **Cartera** (`/cliente/cartera`) $10,000 con vencimiento a 30 días; Jorge y Andrea ven en **Cobranza** (web `/transportista/cobranza` y app "Más → Cobranza") $300 de comisión y **$9,700 netos** con la misma fecha. Nadie ve el lado del otro.
+- **Otros:** un viaje MTY → GDL de hace cinco semanas ya venció (Ana lo ve "Vencido" y Jorge "Retenido") y otro de hace tres semanas está pagado de los dos lados. El trabajo diario `process-freight-due` (pg_cron, 07:00) marca vencidos y retenidos; las pantallas los calculan al leer, así que se ven igual antes de que corra.
+
 ### Recorrido por perfil (G9)
 
 Con la seed recién cargada, cada perfil tiene algo que ver en la web y en la app (las pruebas de punta a punta recorren lo mismo: `e2e/tests/profiles.spec.ts` y los flujos de Maestro de la tabla de abajo):

@@ -24,6 +24,49 @@ export interface SupportSettings {
 }
 
 /**
+ * The code points that show nothing: white space (all that
+ * String.prototype.trim removes, and the other controls) and the invisible
+ * format characters (zero-width spaces and joiners, direction marks, the BOM,
+ * the soft hyphen, the Hangul fillers, the blank braille pattern, variation
+ * selectors and tags). Mirrored in SQL by admin_set_platform_setting, whose
+ * first range starts at U+0001 because Postgres text holds no NUL.
+ */
+const INVISIBLE_RANGES: readonly (readonly [number, number])[] = [
+  [0x0000, 0x0020],
+  [0x007f, 0x00a0],
+  [0x00ad, 0x00ad],
+  [0x034f, 0x034f],
+  [0x061c, 0x061c],
+  [0x115f, 0x1160],
+  [0x1680, 0x1680],
+  [0x17b4, 0x17b5],
+  [0x180b, 0x180f],
+  [0x2000, 0x200f],
+  [0x2028, 0x202f],
+  [0x205f, 0x206f],
+  [0x2800, 0x2800],
+  [0x3000, 0x3000],
+  [0x3164, 0x3164],
+  [0xfe00, 0xfe0f],
+  [0xfeff, 0xfeff],
+  [0xffa0, 0xffa0],
+  [0xfff9, 0xfffb],
+  [0x1bca0, 0x1bca3],
+  [0x1d173, 0x1d17a],
+  [0xe0000, 0xe007f],
+  [0xe0100, 0xe01ef],
+];
+
+/** Whether the text shows something, not only white space or invisible characters. */
+function hasVisibleText(text: string): boolean {
+  for (const character of text) {
+    const code = character.codePointAt(0) ?? 0;
+    if (!INVISIBLE_RANGES.some(([from, to]) => code >= from && code <= to)) return true;
+  }
+  return false;
+}
+
+/**
  * The settings from the rows of platform_settings. A missing or malformed
  * value counts as not set, so a bad row never shows a broken "Ayuda".
  */
@@ -35,7 +78,7 @@ export function parseSupportSettings(
   const hours = value(SUPPORT_SETTING_KEYS.hours);
   return {
     whatsapp: isE164Phone(whatsapp as string | null) ? (whatsapp as string) : null,
-    hours: typeof hours === 'string' && hours.trim() !== '' ? hours.trim() : null,
+    hours: typeof hours === 'string' && hasVisibleText(hours) ? hours.trim() : null,
   };
 }
 
@@ -48,10 +91,14 @@ export function normalizeSupportWhatsapp(input: string | null | undefined): stri
   return normalizeMxPhone(input);
 }
 
-/** Whether the support hours text can be saved: 1 to 200 characters after trimming. */
+/**
+ * Whether the support hours text can be saved: 1 to 200 characters after
+ * trimming, at least one of them visible (a text of zero-width spaces would
+ * show an empty schedule in "Ayuda").
+ */
 export function isValidSupportHours(input: string): boolean {
   const text = input.trim();
-  return text.length > 0 && text.length <= SUPPORT_HOURS_MAX_LENGTH;
+  return text.length > 0 && text.length <= SUPPORT_HOURS_MAX_LENGTH && hasVisibleText(text);
 }
 
 /**

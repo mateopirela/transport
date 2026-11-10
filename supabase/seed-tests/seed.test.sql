@@ -66,7 +66,8 @@ select ok(
                   where d.owner_id = '5eed0003-0000-4000-8000-000000000007' and d.status <> 'approved'),
   'Iván Garza has his licence approved, so the demo can assign him (G9)'
 );
-select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 24, 'twenty-four loads');
+select is((select count(*)::int from public.loads where id::text like '5eed0005-%'), 25,
+  'twenty-five loads (the 25th, the freight ledger trip of I3)');
 select is(
   (select array_agg(distinct status::text order by status::text) from public.loads where id::text like '5eed0005-%'),
   array['cancelled', 'completed', 'contracted', 'draft', 'expired', 'in_progress', 'negotiating', 'published'],
@@ -241,7 +242,7 @@ set local role authenticated;
 -- Ana Garza, shipper (Aceros del Norte)
 select tests.login('5eed0001-0000-4000-8000-000000000002');
 select is(
-  (select count(*)::int from public.loads), 9, 'the shipper sees only the loads of its company'
+  (select count(*)::int from public.loads), 10, 'the shipper sees only the loads of its company'
 );
 select ok(
   (select count(*) > 0 from public.trip_locations where trip_id = '5eed0008-0000-4000-8000-000000000001'),
@@ -261,7 +262,7 @@ select is(
 -- Pedro López, operator of the trip in unloading
 select tests.login('5eed0001-0000-4000-8000-000000000008');
 select is(
-  (select count(*)::int from public.trips), 7,
+  (select count(*)::int from public.trips), 8,
   'the operator sees only the trips assigned to it (one of them, cancelled)'
 );
 select results_eq(
@@ -309,7 +310,7 @@ select is(
 -- Admin
 select tests.login('5eed0001-0000-4000-8000-000000000001');
 select is(
-  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 24, 'the admin sees every load'
+  (select count(*)::int from public.loads where id::text like '5eed0005-%'), 25, 'the admin sees every load'
 );
 
 reset role;

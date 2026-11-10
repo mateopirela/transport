@@ -32,6 +32,16 @@ describe('pushTarget', () => {
     });
   });
 
+  it('opens Cobranza for a freight notice of the carrier staff, nothing for others (I3)', () => {
+    const data = { ledgerId: tripId, tripId };
+    expect(pushTarget(data, 'carrier')).toEqual({ pathname: '/collections' });
+    expect(pushTarget(data, 'operator')).toBeNull();
+    expect(pushTarget({ ...data, ledgerId: '../x' }, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId },
+    });
+  });
+
   it('opens the internal chat of the trip for a message of it (H1)', () => {
     const message = { tripId, conversationId: tripId, type: 'internal_message' };
     expect(pushTarget(message, 'operator')).toEqual({

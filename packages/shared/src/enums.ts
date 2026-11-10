@@ -81,6 +81,18 @@ export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
 export const NOTIFICATION_TYPES = DB_ENUMS.notification_type;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+/** What the client owes Fulmis for a trip (freight_ledgers, I3). */
+export const FREIGHT_CLIENT_STATUSES = DB_ENUMS.freight_client_status;
+export type FreightClientStatus = (typeof FREIGHT_CLIENT_STATUSES)[number];
+
+/** What Fulmis owes the carrier for a trip (freight_ledgers, I3). */
+export const FREIGHT_CARRIER_STATUSES = DB_ENUMS.freight_carrier_status;
+export type FreightCarrierStatus = (typeof FREIGHT_CARRIER_STATUSES)[number];
+
+/** Who paid whom in a recorded SPEI payment (freight_payments, I3). */
+export const FREIGHT_PAYMENT_DIRECTIONS = DB_ENUMS.freight_payment_direction;
+export type FreightPaymentDirection = (typeof FREIGHT_PAYMENT_DIRECTIONS)[number];
+
 /** A shipper's decision about a carrier as its provider (provider_approvals, G6). No row = pending. */
 export const PROVIDER_STATUSES = DB_ENUMS.provider_status;
 export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];

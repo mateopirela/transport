@@ -216,6 +216,10 @@ insert into tests.ownership values
   ('public.billing_events', 'false'),
   -- I1: the 24-hour cargo insurance reminders, written only by pg_cron.
   ('public.cargo_insurance_reminders', 'false'),
+  -- Freight ledger (I3): admins only; each side reads its own columns
+  -- through shipper_freight_ledger and carrier_freight_ledger.
+  ('public.freight_ledgers', 'false'),
+  ('public.freight_payments', 'false'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -659,7 +663,16 @@ insert into tests.rpc_calls values
   ('trip_checklist', $$ (select count(*) from public.trip_checklist(tests.val('trip'))) $$),
   ('trip_document_readable', $$ public.trip_document_readable(tests.val('trip'), 'carta_porte', null) $$),
   ('trip_document_object_readable', $$ public.trip_document_object_readable(
-       tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf', null) $$);
+       tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf', null) $$),
+  -- Freight ledger (I3): each side reads its own trips; the admin RPCs.
+  ('shipper_freight_ledger', $$ (select count(*) from public.shipper_freight_ledger() where trip_id = tests.val('trip')) $$),
+  ('carrier_freight_ledger', $$ (select count(*) from public.carrier_freight_ledger() where trip_id = tests.val('trip')) $$),
+  ('admin_freight_ledger', $$ (select count(*) from public.admin_freight_ledger()) $$),
+  ('admin_record_freight_payment', $$ public.admin_record_freight_payment(tests.val('trip'), 'client_to_fulmis', 1000,
+       current_date, 'B24REF') $$),
+  ('admin_set_company_payment_terms', $$ public.admin_set_company_payment_terms(tests.val('shipper_company'), 60) $$),
+  ('admin_set_company_commission', $$ public.admin_set_company_commission(tests.val('carrier_company'), 500) $$),
+  ('admin_resolve_freight_review', $$ public.admin_resolve_freight_review(tests.val('trip'), 'x') $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -802,7 +815,7 @@ select is_empty(
        'add_trip_document', 'trip_point_locations', 'send_message', 'mark_conversation_read',
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link', 'create_trip_operator_link',
-       'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end',
+       'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end', 'carrier_freight_ledger',
        'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
        'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'

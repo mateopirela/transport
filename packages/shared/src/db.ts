@@ -343,6 +343,7 @@ export interface Database {
       companies: {
         Row: {
           archived_at: string | null;
+          commission_bps: number | null;
           contact_email: string | null;
           contact_name: string | null;
           contact_phone: string | null;
@@ -359,6 +360,7 @@ export interface Database {
           is_owner_operator: boolean;
           legal_name: string;
           legal_representative_name: string | null;
+          payment_terms_days: number | null;
           rfc: string;
           status: Database['public']['Enums']['verification_status'];
           status_reason: string | null;
@@ -368,6 +370,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           archived_at?: string | null;
+          commission_bps?: number | null;
           contact_email?: string | null;
           contact_name?: string | null;
           contact_phone?: string | null;
@@ -384,6 +387,7 @@ export interface Database {
           is_owner_operator?: boolean;
           legal_name: string;
           legal_representative_name?: string | null;
+          payment_terms_days?: number | null;
           rfc: string;
           status?: Database['public']['Enums']['verification_status'];
           status_reason?: string | null;
@@ -392,6 +396,7 @@ export interface Database {
         };
         Update: {
           archived_at?: string | null;
+          commission_bps?: number | null;
           contact_email?: string | null;
           contact_name?: string | null;
           contact_phone?: string | null;
@@ -408,6 +413,7 @@ export interface Database {
           is_owner_operator?: boolean;
           legal_name?: string;
           legal_representative_name?: string | null;
+          payment_terms_days?: number | null;
           rfc?: string;
           status?: Database['public']['Enums']['verification_status'];
           status_reason?: string | null;
@@ -909,6 +915,134 @@ export interface Database {
             columns: ['requirement_id'];
             isOneToOne: false;
             referencedRelation: 'document_requirements';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      freight_ledgers: {
+        Row: {
+          carrier_due_on: string | null;
+          carrier_net_cents: number;
+          carrier_paid_cents: number;
+          carrier_status: Database['public']['Enums']['freight_carrier_status'];
+          client_amount_cents: number;
+          client_due_on: string | null;
+          client_paid_cents: number;
+          client_status: Database['public']['Enums']['freight_client_status'];
+          client_terms_days: number | null;
+          commission_bps: number;
+          commission_cents: number;
+          created_at: string;
+          id: string;
+          needs_review: boolean;
+          review_note: string | null;
+          trip_id: string;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          carrier_due_on?: string | null;
+          carrier_net_cents: number;
+          carrier_paid_cents?: number;
+          carrier_status?: Database['public']['Enums']['freight_carrier_status'];
+          client_amount_cents: number;
+          client_due_on?: string | null;
+          client_paid_cents?: number;
+          client_status?: Database['public']['Enums']['freight_client_status'];
+          client_terms_days?: number | null;
+          commission_bps: number;
+          commission_cents: number;
+          created_at?: string;
+          id?: string;
+          needs_review?: boolean;
+          review_note?: string | null;
+          trip_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          carrier_due_on?: string | null;
+          carrier_net_cents?: number;
+          carrier_paid_cents?: number;
+          carrier_status?: Database['public']['Enums']['freight_carrier_status'];
+          client_amount_cents?: number;
+          client_due_on?: string | null;
+          client_paid_cents?: number;
+          client_status?: Database['public']['Enums']['freight_client_status'];
+          client_terms_days?: number | null;
+          commission_bps?: number;
+          commission_cents?: number;
+          created_at?: string;
+          id?: string;
+          needs_review?: boolean;
+          review_note?: string | null;
+          trip_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'freight_ledgers_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'freight_ledgers_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'freight_ledgers_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      freight_payments: {
+        Row: {
+          amount_cents: number;
+          created_at: string;
+          direction: Database['public']['Enums']['freight_payment_direction'];
+          id: string;
+          ledger_id: string;
+          note: string | null;
+          paid_on: string;
+          recorded_by: string | null;
+          spei_reference: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount_cents: number;
+          created_at?: string;
+          direction: Database['public']['Enums']['freight_payment_direction'];
+          id?: string;
+          ledger_id: string;
+          note?: string | null;
+          paid_on: string;
+          recorded_by?: string | null;
+          spei_reference: string;
+        };
+        Update: {
+          amount_cents?: number;
+          created_at?: string;
+          direction?: Database['public']['Enums']['freight_payment_direction'];
+          id?: string;
+          ledger_id?: string;
+          note?: string | null;
+          paid_on?: string;
+          recorded_by?: string | null;
+          spei_reference?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'freight_payments_ledger_id_fkey';
+            columns: ['ledger_id'];
+            isOneToOne: false;
+            referencedRelation: 'freight_ledgers';
             referencedColumns: ['id'];
           },
         ];
@@ -2992,6 +3126,7 @@ export interface Database {
           status: Database['public']['Enums']['trip_status'];
           updated_at: string;
           vehicle_id: string | null;
+          freight_ledger_create: undefined | null;
           sync_trip_document_shares: number | null;
           trip_shareable_documents: {
             document_id: string;
@@ -2999,7 +3134,8 @@ export interface Database {
             owner_type: Database['public']['Enums']['document_owner_type'];
           } | null;
         };
-        ComputedFields: 'sync_trip_document_shares' | 'trip_shareable_documents';
+        ComputedFields:
+          'freight_ledger_create' | 'sync_trip_document_shares' | 'trip_shareable_documents';
         Insert: {
           assigned_at?: string | null;
           business_unit_id: string;
@@ -3547,6 +3683,37 @@ export interface Database {
         };
         Returns: string;
       };
+      admin_freight_ledger: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          carrier_company_id: string;
+          carrier_due_on: string;
+          carrier_name: string;
+          carrier_net_cents: number;
+          carrier_paid_cents: number;
+          carrier_status: Database['public']['Enums']['freight_carrier_status'];
+          client_amount_cents: number;
+          client_due_on: string;
+          client_paid_cents: number;
+          client_status: Database['public']['Enums']['freight_client_status'];
+          client_terms_days: number;
+          commission_bps: number;
+          commission_cents: number;
+          delivered_at: string;
+          destination_city: string;
+          ledger_id: string;
+          load_id: string;
+          needs_review: boolean;
+          origin_city: string;
+          payments: Json;
+          review_note: string;
+          shipper_company_id: string;
+          shipper_name: string;
+          trip_created_at: string;
+          trip_id: string;
+          trip_status: Database['public']['Enums']['trip_status'];
+        }[];
+      };
       admin_list_users: {
         Args: { p_limit?: number; p_offset?: number; p_search?: string };
         Returns: {
@@ -3563,6 +3730,29 @@ export interface Database {
           role: Database['public']['Enums']['user_role'];
           total_count: number;
         }[];
+      };
+      admin_record_freight_payment: {
+        Args: {
+          p_amount_cents: number;
+          p_direction: Database['public']['Enums']['freight_payment_direction'];
+          p_note?: string;
+          p_paid_on: string;
+          p_spei_reference: string;
+          p_trip_id: string;
+        };
+        Returns: string;
+      };
+      admin_resolve_freight_review: {
+        Args: { p_note: string; p_trip_id: string };
+        Returns: undefined;
+      };
+      admin_set_company_commission: {
+        Args: { p_bps: number; p_company_id: string };
+        Returns: undefined;
+      };
+      admin_set_company_payment_terms: {
+        Args: { p_company_id: string; p_days: number };
+        Returns: undefined;
       };
       admin_set_platform_setting: { Args: { p_key: string; p_value: Json }; Returns: undefined };
       admin_set_segment_toll: {
@@ -3853,6 +4043,29 @@ export interface Database {
         };
         Returns: Json;
       };
+      carrier_freight_ledger: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          business_unit_id: string;
+          commission_bps: number;
+          commission_cents: number;
+          delivered_at: string;
+          destination_city: string;
+          due_on: string;
+          freight_cents: number;
+          ledger_id: string;
+          load_id: string;
+          net_cents: number;
+          origin_city: string;
+          paid_cents: number;
+          payments: Json;
+          pending_cents: number;
+          status: Database['public']['Enums']['freight_carrier_status'];
+          trip_created_at: string;
+          trip_id: string;
+          trip_status: Database['public']['Enums']['trip_status'];
+        }[];
+      };
       check_offer_fields: {
         Args: {
           p_amount_cents: number;
@@ -4021,6 +4234,39 @@ export interface Database {
       document_shares_lock: { Args: { p_carrier_company_id: string }; Returns: undefined };
       dwell_hour_band: { Args: { p_at: string }; Returns: string };
       expire_stale_loads: { Args: Record<PropertyKey, never>; Returns: number };
+      freight_commission_cents: {
+        Args: { p_amount_cents: number; p_bps: number };
+        Returns: number;
+      };
+      freight_default_commission_bps: { Args: Record<PropertyKey, never>; Returns: number };
+      freight_due_on: { Args: { p_delivered_at: string; p_terms_days: number }; Returns: string };
+      freight_effective_carrier_status: {
+        Args: {
+          p_client_status: Database['public']['Enums']['freight_client_status'];
+          p_due_on: string;
+          p_status: Database['public']['Enums']['freight_carrier_status'];
+        };
+        Returns: Database['public']['Enums']['freight_carrier_status'];
+      };
+      freight_effective_client_status: {
+        Args: { p_due_on: string; p_status: Database['public']['Enums']['freight_client_status'] };
+        Returns: Database['public']['Enums']['freight_client_status'];
+      };
+      freight_is_valid_commission: { Args: { p_value: Json }; Returns: boolean };
+      freight_ledger_create: {
+        Args: {
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+        };
+        Returns: undefined;
+      };
+      freight_notification_data: {
+        Args: { p_amount_cents: number; p_extra: Json; p_ledger_id: string };
+        Returns: Json;
+      };
+      freight_today: { Args: Record<PropertyKey, never>; Returns: string };
       get_route_distances: {
         Args: { p_legs: Json };
         Returns: {
@@ -4207,6 +4453,10 @@ export interface Database {
         Returns: undefined;
       };
       normalize_mx_phone: { Args: { p_phone: string }; Returns: string };
+      notify_admins: {
+        Args: { p_data: Json; p_type: Database['public']['Enums']['notification_type'] };
+        Returns: undefined;
+      };
       notify_business_unit_coordinators: {
         Args: {
           p_business_unit_id: string;
@@ -4249,6 +4499,7 @@ export interface Database {
       open_trip_operator_link: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
+      process_freight_due: { Args: Record<PropertyKey, never>; Returns: number };
       product_event_properties_valid: {
         Args: { p_name: Database['public']['Enums']['product_event_name']; p_properties: Json };
         Returns: boolean;
@@ -4462,6 +4713,26 @@ export interface Database {
         Returns: Json;
       };
       share_link_record_view: { Args: { p_id: string }; Returns: undefined };
+      shipper_freight_ledger: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          amount_cents: number;
+          delivered_at: string;
+          destination_city: string;
+          due_on: string;
+          ledger_id: string;
+          load_id: string;
+          origin_city: string;
+          paid_cents: number;
+          payments: Json;
+          pending_cents: number;
+          status: Database['public']['Enums']['freight_client_status'];
+          terms_days: number;
+          trip_created_at: string;
+          trip_id: string;
+          trip_status: Database['public']['Enums']['trip_status'];
+        }[];
+      };
       shipper_trip_parties: {
         Args: { p_trip_ids: string[] };
         Returns: {
@@ -4780,6 +5051,11 @@ export interface Database {
       document_share_revoke_reason:
         'trip_closed' | 'trip_cancelled' | 'reassigned' | 'document_replaced' | 'manager_revoked';
       evidence_stage: 'pickup' | 'delivery' | 'incident';
+      freight_carrier_status:
+        'pending' | 'on_hold' | 'quick_pay_requested' | 'scheduled' | 'paid' | 'cancelled';
+      freight_client_status:
+        'pending' | 'invoiced' | 'paid' | 'overdue' | 'written_off' | 'cancelled';
+      freight_payment_direction: 'client_to_fulmis' | 'fulmis_to_carrier';
       incident_kind:
         | 'delay'
         | 'mechanical_failure'
@@ -4819,7 +5095,10 @@ export interface Database {
         | 'vehicle_released'
         | 'internal_message'
         | 'chat_message'
-        | 'cargo_insurance_missing';
+        | 'cargo_insurance_missing'
+        | 'freight_payment_received'
+        | 'freight_overdue'
+        | 'freight_on_hold';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -5064,6 +5343,16 @@ export const Constants = {
         'manager_revoked',
       ],
       evidence_stage: ['pickup', 'delivery', 'incident'],
+      freight_carrier_status: [
+        'pending',
+        'on_hold',
+        'quick_pay_requested',
+        'scheduled',
+        'paid',
+        'cancelled',
+      ],
+      freight_client_status: ['pending', 'invoiced', 'paid', 'overdue', 'written_off', 'cancelled'],
+      freight_payment_direction: ['client_to_fulmis', 'fulmis_to_carrier'],
       incident_kind: [
         'delay',
         'mechanical_failure',
@@ -5106,6 +5395,9 @@ export const Constants = {
         'internal_message',
         'chat_message',
         'cargo_insurance_missing',
+        'freight_payment_received',
+        'freight_overdue',
+        'freight_on_hold',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

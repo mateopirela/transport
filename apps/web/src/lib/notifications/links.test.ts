@@ -172,6 +172,20 @@ describe('notificationHref', () => {
     }
   });
 
+  it('opens Cartera for the shipper and Cobranza for the carrier staff (I3)', () => {
+    const data = { ledgerId: LOAD, tripId: NEGOTIATION };
+    expect(notificationHref('freight_payment_received', data)).toBe('/cliente/cartera');
+    expect(notificationHref('freight_overdue', data)).toBe('/cliente/cartera');
+    expect(notificationHref('freight_on_hold', data)).toBeNull();
+    expect(notificationHref('freight_payment_received', data, 'transportista')).toBe(
+      '/transportista/cobranza',
+    );
+    expect(notificationHref('freight_on_hold', data, 'transportista')).toBe(
+      '/transportista/cobranza',
+    );
+    expect(notificationHref('freight_overdue', data, 'transportista')).toBeNull();
+  });
+
   it('handles every notification type in both areas', () => {
     for (const type of NOTIFICATION_TYPES) {
       expect(() => notificationHref(type, {})).not.toThrow();

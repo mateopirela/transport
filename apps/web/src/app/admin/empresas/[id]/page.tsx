@@ -8,6 +8,7 @@ import {
   fiscalAddressLine,
   formatDate,
   formatDateTime,
+  freightCopy,
   planPriceLabel,
   progressSummary,
   subscriptionStatusLabels,
@@ -22,6 +23,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { CompanyCommissionForm, CompanyTermsForm } from '@/components/freight/admin-freight-forms';
 import { BackLink, PageSection, textLink } from '@/components/page-section';
 import { ValueRow } from '@/components/ui/cell';
 import { Group } from '@/components/ui/group';
@@ -212,6 +214,27 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
               )}
             </Group>
           )}
+
+          {/* The freight ledger (I3): the shipper's terms, the carrier's commission. */}
+          <Group
+            label={freightCopy.admin.title}
+            footer={
+              <Link href={paths.adminFreight} className={textLink}>
+                {freightCopy.admin.title}
+              </Link>
+            }
+          >
+            <div className="px-4 py-4">
+              {company.type === 'shipper' ? (
+                <CompanyTermsForm companyId={company.id} termsDays={company.payment_terms_days} />
+              ) : (
+                <CompanyCommissionForm
+                  companyId={company.id}
+                  commissionBps={company.commission_bps}
+                />
+              )}
+            </div>
+          </Group>
 
           <Group
             label={c.data}

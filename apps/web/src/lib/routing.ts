@@ -31,6 +31,8 @@ export const paths = {
   shipperTrips: '/cliente/viajes',
   /** "Documentos de la empresa" of an approved shipper (I1: the annual cargo insurance). */
   shipperCompany: '/cliente/empresa',
+  /** Cartera (I3): what the shipper owes Fulmis for each trip. */
+  shipperPortfolio: '/cliente/cartera',
   carrier: '/transportista',
   carrierLoads: '/transportista/cargas',
   carrierNegotiations: '/transportista/negociaciones',
@@ -46,6 +48,8 @@ export const paths = {
   carrierCompany: '/transportista/empresa',
   /** Subscription (H3): the Gerente pays; the Coordinador only sees the state. */
   carrierSubscription: '/transportista/suscripcion',
+  /** Cobranza (I3): what Fulmis pays the carrier for each trip. */
+  carrierCollections: '/transportista/cobranza',
   admin: '/admin',
   adminQueue: '/admin/verificacion',
   adminUsers: '/admin/usuarios',
@@ -57,6 +61,8 @@ export const paths = {
   adminSubscriptions: '/admin/suscripciones',
   /** Platform settings (I2): the pilot's support number and hours. */
   adminSettings: '/admin/ajustes',
+  /** The freight ledger (I3): both sides of every trip and the SPEI payments. */
+  adminFreight: '/admin/flete',
   mobileOnly: '/solo-app',
   privacy: LEGAL_PATHS.privacy,
   terms: LEGAL_PATHS.terms,

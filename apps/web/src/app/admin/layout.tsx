@@ -3,6 +3,7 @@ import {
   adminCopy,
   adminOpsCopy,
   adminSettingsCopy,
+  freightCopy,
   roadsCopy,
   shellCopy,
 } from '@transport/shared';
@@ -16,6 +17,7 @@ const NAV = [
   { href: paths.adminQueue, label: adminCopy.nav.queue },
   { href: paths.adminLoads, label: adminOpsCopy.nav.loads },
   { href: paths.adminTrips, label: adminOpsCopy.nav.trips },
+  { href: paths.adminFreight, label: freightCopy.admin.nav },
   { href: paths.adminIncidents, label: adminOpsCopy.nav.incidents },
   { href: paths.adminRoads, label: roadsCopy.admin.title },
   { href: paths.adminSubscriptions, label: adminBillingCopy.nav },

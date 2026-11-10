@@ -521,6 +521,8 @@ const steps = [
   },
   // H3: read-only, so it runs on whatever the flows above left.
   { name: '17-manager-subscription', run: () => flow('17-manager-subscription') },
+  // I3: read-only, nothing above pays the seed's Escobedo → Saltillo trip.
+  { name: '21-carrier-collections', run: () => flow('21-carrier-collections') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

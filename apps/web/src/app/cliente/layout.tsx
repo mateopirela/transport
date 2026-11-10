@@ -1,5 +1,6 @@
 import {
   clientTripsCopy,
+  freightCopy,
   loadsCopy,
   notificationsInboxCopy,
   shellCopy,
@@ -21,6 +22,7 @@ export default async function ShipperLayout({ children }: { children: React.Reac
     { href: paths.shipperLoads, label: loadsCopy.nav.loads },
     { href: paths.newLoad, label: loadsCopy.nav.newLoad },
     { href: paths.shipperTrips, label: clientTripsCopy.nav },
+    { href: paths.shipperPortfolio, label: freightCopy.portfolio.title },
     { href: paths.shipperCompany, label: shipperCompanyCopy.nav },
     {
       href: paths.shipperNotifications,

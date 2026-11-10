@@ -35,6 +35,18 @@ function amount(data: unknown): string {
   return cents === undefined ? '' : ` de ${formatMxn(cents)}`;
 }
 
+/** " $1,234.00", or nothing without an amount. */
+function paidAmount(data: unknown): string {
+  const cents = count(data, 'amountCents');
+  return cents === undefined ? '' : ` ${formatMxn(cents)}`;
+}
+
+/** " (pendiente: $1,234.00)", or nothing without an amount. */
+function pending(data: unknown): string {
+  const cents = count(data, 'amountCents');
+  return cents === undefined ? '' : ` (pendiente: ${formatMxn(cents)})`;
+}
+
 function documentName(data: unknown): string {
   return text(data, 'requirementName') ?? 'tu documento';
 }
@@ -203,6 +215,29 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         body: text(data, 'preview') ?? internalChatCopy.photoPreview,
       };
     }
+    // I3 (D33-E1): a payment of the freight recorded by the admin. Each side
+    // only gets its own amount: the client's payment to Fulmis, or Fulmis's
+    // payment to the carrier (`direction`).
+    case 'freight_payment_received':
+      return text(data, 'direction') === 'fulmis_to_carrier'
+        ? {
+            title: 'Fulmis te pagó',
+            body: `Fulmis te pagó${paidAmount(data)} por el viaje${route(data)}.`,
+          }
+        : {
+            title: 'Recibimos tu pago',
+            body: `Recibimos tu pago${amount(data)} por el viaje${route(data)}. Gracias.`,
+          };
+    case 'freight_overdue':
+      return {
+        title: 'Pago vencido',
+        body: `Venció el pago del viaje${route(data)}${pending(data)}.`,
+      };
+    case 'freight_on_hold':
+      return {
+        title: 'Pago retenido',
+        body: `El pago del viaje${route(data)}${pending(data)} está retenido: el cliente no ha pagado. Fulmis se encarga de la cobranza.`,
+      };
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');
       const since =

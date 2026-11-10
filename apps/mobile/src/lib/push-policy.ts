@@ -35,12 +35,14 @@ export type PushTarget =
   | { pathname: '/chat/[tripId]'; params: { tripId: string } }
   | { pathname: '/trip/[id]'; params: { id: string; chat?: string } }
   | { pathname: '/load/[id]'; params: { id: string } }
-  | { pathname: '/vehicle/[id]'; params: { id: string } };
+  | { pathname: '/vehicle/[id]'; params: { id: string } }
+  | { pathname: '/collections' };
 
 /**
  * Where a tapped notification leads (notify_trip_event puts the `tripId` in
  * the push data): the operator's assigned trip, or the carrier's trip detail;
- * the unit to release for the carrier staff (G5).
+ * the unit to release for the carrier staff (G5), and "Cobranza" for a
+ * freight notification (I3).
  * Anything else stays where it is. The data comes from the push payload, so
  * only a well-formed id is used; RLS decides what the screen can show.
  */
@@ -55,6 +57,11 @@ export function pushTarget(data: unknown, area: string): PushTarget | null {
     UUID.test(vehicleId)
   ) {
     return { pathname: '/vehicle/[id]', params: { id: vehicleId } };
+  }
+  // The freight ledger (I3): a payment of Fulmis or a held payment, in
+  // "Cobranza" (carrier staff only; the operator sees no money).
+  if (typeof ids.ledgerId === 'string' && UUID.test(ids.ledgerId)) {
+    return area === 'carrier' ? { pathname: '/collections' } : null;
   }
   // A message of the chat with the shipper: the carrier staff's trip, on the
   // shipper's tab, or the load with its negotiation. Never the operator (D28).

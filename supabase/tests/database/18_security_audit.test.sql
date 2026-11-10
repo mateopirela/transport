@@ -243,7 +243,11 @@ select set_eq(
     -- insurance and the checklist behind can_see_trip; the read checks of
     -- trip documents used by RLS; the caller's own acceptance of the terms.
     'trip_cargo_insurance', 'trip_checklist', 'trip_document_readable', 'trip_document_object_readable',
-    'accept_terms'
+    'accept_terms',
+    -- Freight ledger (I3): each side reads its own columns; the admin reads
+    -- both and records payments, terms and commissions, audited (53_freight_ledger).
+    'shipper_freight_ledger', 'carrier_freight_ledger', 'admin_freight_ledger', 'admin_record_freight_payment',
+    'admin_set_company_payment_terms', 'admin_set_company_commission', 'admin_resolve_freight_review'
   ],
   'every client-callable security definer function is on the reviewed list'
 );
@@ -289,7 +293,9 @@ select set_eq(
     -- H3: a subscription row per carrier company (trigger) and the billing
     -- Edge Functions (billing-checkout, billing-portal, stripe-webhook).
     'companies_create_subscription', 'billing_session_context_service', 'billing_link_customer_service',
-    'billing_begin_checkout_service', 'billing_save_checkout_service', 'billing_apply_event_service'
+    'billing_begin_checkout_service', 'billing_save_checkout_service', 'billing_apply_event_service',
+    -- I3: the ledger of each trip follows it (trigger).
+    'freight_ledger_sync_trip'
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );

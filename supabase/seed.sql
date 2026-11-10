@@ -16,6 +16,9 @@
 --     (nine of them older trips that measure waiting times, H5).
 --   * Trip MTY -> GDL unloading with an estimated end, so its unit is
 --     available in Guadalajara and the GDL -> MTY load is its return trip (B08).
+--   * The freight ledger of every trip (I3): the shippers' payment terms, a
+--     $10,000 Escobedo -> Saltillo trip delivered four days ago (load 25) and an
+--     older trip already paid on both sides.
 --
 -- Rows are inserted directly as the database owner (RLS does not apply), with
 -- timestamps relative to the hour of the reset so the demo always looks
@@ -175,6 +178,12 @@ values
    'José Sánchez Medina', 'jose.sanchez@demo.test', '+528110000007',
    'Calle Hidalgo', '218', null, 'Centro', '66400', 'San Nicolás de los Garza', 'Nuevo León', null,
    '5eed0001-0000-4000-8000-000000000007', pg_temp.at('-60 days'));
+
+-- Payment terms of the shippers (I3, D33-E1), before their trips so each
+-- ledger takes them: Aceros del Norte 30 days, Alimentos de Occidente 15;
+-- Empaques Plásticos Regios still "Plazo por definir".
+update public.companies set payment_terms_days = 30 where id = '5eed0002-0000-4000-8000-000000000001';
+update public.companies set payment_terms_days = 15 where id = '5eed0002-0000-4000-8000-000000000002';
 
 update public.profiles p
 set company_id = v.company_id
@@ -698,6 +707,95 @@ cross join lateral (values
 order by d.n, x.at;
 
 drop table seed_dwell_trips;
+
+-- ---------------------------------------------------------------------------
+-- Freight ledger (I3, D33-E1). Every trip above got its ledger from the
+-- trigger on trips, with the commission of the setting (3 %) and the terms of
+-- its shipper (set right after the companies). Load 25 is the acceptance
+-- trip of I3: Escobedo -> Saltillo of Aceros del Norte (30 days) with
+-- Transportes Regios, $10,000 delivered four days ago: the shipper owes
+-- $10,000 and the carrier gets $9,700 net on the same date. Its sites are
+-- not the ones H5 measures, so the waiting times above do not change.
+-- ---------------------------------------------------------------------------
+select pg_temp.seed_load('5eed0005-0000-4000-8000-000000000025', '5eed0002-0000-4000-8000-000000000001',
+                         '5eed0001-0000-4000-8000-000000000002',
+                         array['Av. Las Torres 500, Parque Industrial Escobedo', 'General Escobedo', 'Nuevo León'],
+                         25.7930, -100.3240,
+                         array['Blvd. Isidro López Zertuche 4000, Parque Industrial', 'Saltillo', 'Coahuila'], 25.4383, -100.9737,
+                         '-101 hours', 4, '-98 hours', 6, 'palletized', 'Perfiles de acero galvanizado en tarimas', 8000,
+                         30, 'dry_van', '{}', 1000000, null);
+
+insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id, created_by, created_at)
+values ('5eed0006-0000-4000-8000-000000000018', '5eed0005-0000-4000-8000-000000000025',
+        '5eed0002-0000-4000-8000-000000000001', '5eed0002-0000-4000-8000-000000000004',
+        '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-5 days'));
+
+insert into public.offers (
+  id, negotiation_id, load_id, shipper_company_id, carrier_company_id, side, amount_cents, vehicle_id,
+  status, created_by, created_at, responded_by, responded_at
+)
+values ('5eed0007-0000-4000-8000-000000000020', '5eed0006-0000-4000-8000-000000000018',
+        '5eed0005-0000-4000-8000-000000000025', '5eed0002-0000-4000-8000-000000000001',
+        '5eed0002-0000-4000-8000-000000000004', 'carrier', 1000000, '5eed0004-0000-4000-8000-000000000002',
+        'accepted', '5eed0001-0000-4000-8000-000000000005', pg_temp.at('-5 days'),
+        '5eed0001-0000-4000-8000-000000000002', pg_temp.at('-110 hours'));
+
+update public.loads
+set status = 'completed', accepted_offer_id = '5eed0007-0000-4000-8000-000000000020',
+    carrier_company_id = '5eed0002-0000-4000-8000-000000000004', agreed_price_cents = 1000000,
+    contracted_at = pg_temp.at('-110 hours')
+where id = '5eed0005-0000-4000-8000-000000000025';
+
+insert into public.trips (
+  id, load_id, offer_id, shipper_company_id, carrier_company_id, status, vehicle_id, operator_id,
+  estimated_unload_end_at, assigned_at, started_at, delivered_at, closed_at, created_at
+)
+select '5eed0008-0000-4000-8000-000000000021', l.id, l.accepted_offer_id, l.shipper_company_id, l.carrier_company_id,
+       'closed', '5eed0004-0000-4000-8000-000000000002', '5eed0003-0000-4000-8000-000000000001',
+       pg_temp.at('-96 hours'), pg_temp.at('-105 hours'), pg_temp.at('-101 hours'), pg_temp.at('-96 hours'),
+       pg_temp.at('-90 hours'), l.contracted_at
+from public.loads l
+where l.id = '5eed0005-0000-4000-8000-000000000025';
+
+insert into public.trip_events (
+  trip_id, event_type, from_status, to_status, occurred_at, recorded_at, latitude, longitude, accuracy_m,
+  estimated_unload_end_at, notes, actor_id, actor_role
+)
+select '5eed0008-0000-4000-8000-000000000021', e.event_type::public.trip_event_type, e.from_status::public.trip_status,
+       e.to_status::public.trip_status, pg_temp.at(e.occurred_at::interval), pg_temp.at(e.occurred_at::interval),
+       e.lat, e.lng, case when e.lat is not null then 15 end, pg_temp.at(e.estimate::interval), null,
+       e.actor_id::uuid, e.actor_role::public.user_role
+from (values
+  ('created', null, 'pending_assignment', '-110 hours', null::double precision, null::double precision, null, '5eed0001-0000-4000-8000-000000000002', 'shipper'),
+  ('assigned', 'pending_assignment', 'assigned', '-105 hours', null, null, null, '5eed0001-0000-4000-8000-000000000011', 'coordinator'),
+  ('departed', 'assigned', 'en_route_to_pickup', '-101 hours', 25.7480, -100.2650, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('arrived_at_pickup', 'en_route_to_pickup', 'at_pickup', '-100 hours 30 minutes', 25.7930, -100.3240, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('loading_started', 'at_pickup', 'loading', '-100 hours', 25.7930, -100.3240, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('loading_finished', 'loading', 'in_transit', '-99 hours', 25.7930, -100.3240, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('arrived_at_delivery', 'in_transit', 'at_delivery', '-97 hours', 25.4383, -100.9737, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('unloading_started', 'at_delivery', 'unloading', '-96 hours 45 minutes', 25.4383, -100.9737, '-96 hours', '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('unloading_finished', 'unloading', 'delivered', '-96 hours', 25.4383, -100.9737, null, '5eed0001-0000-4000-8000-000000000008', 'operator'),
+  ('delivery_confirmed', 'delivered', 'closed', '-90 hours', null, null, null, '5eed0001-0000-4000-8000-000000000002', 'shipper')
+) as e(event_type, from_status, to_status, occurred_at, lat, lng, estimate, actor_id, actor_role);
+
+-- One older trip already settled on both sides (load 17, three weeks ago):
+-- the client paid by SPEI and Fulmis paid the carrier, as the admin records it.
+insert into public.freight_payments (ledger_id, direction, amount_cents, paid_on, spei_reference, recorded_by, created_at)
+select f.id, p.direction::public.freight_payment_direction,
+       case when p.direction = 'client_to_fulmis' then f.client_amount_cents else f.carrier_net_cents end,
+       (pg_temp.at(p.at::interval) at time zone 'America/Mexico_City')::date, p.reference,
+       '5eed0001-0000-4000-8000-000000000001', pg_temp.at(p.at::interval)
+from public.freight_ledgers f
+cross join (values
+  ('client_to_fulmis', '-3 days', 'DEMOCLIENTE0000000000000017'),
+  ('fulmis_to_carrier', '-2 days', 'DEMOTRANSPORTISTA000000017')
+) as p(direction, at, reference)
+where f.trip_id = '5eed0008-0000-4000-8000-000000000006';
+
+update public.freight_ledgers
+set client_paid_cents = client_amount_cents, client_status = 'paid',
+    carrier_paid_cents = carrier_net_cents, carrier_status = 'paid'
+where trip_id = '5eed0008-0000-4000-8000-000000000006';
 
 -- GPS points of the trip in unloading along the corridor (MTY, Saltillo,
 -- Matehuala, San Luis Potosí, Ojuelos, Lagos de Moreno, Tepatitlán, GDL).

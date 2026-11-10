@@ -1,5 +1,11 @@
-import { clientTripsCopy, loadsCopy, notificationsInboxCopy, shellCopy } from '@transport/shared';
-import { Bell, Package, Route } from 'lucide-react';
+import {
+  clientTripsCopy,
+  freightCopy,
+  loadsCopy,
+  notificationsInboxCopy,
+  shellCopy,
+} from '@transport/shared';
+import { Bell, Package, Route, Wallet } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -31,6 +37,7 @@ export default async function ShipperHomePage() {
       <Group className="max-w-xl">
         <Cell href={paths.shipperLoads} icon={Package} title={c.seeLoads} />
         <Cell href={paths.shipperTrips} icon={Route} title={clientTripsCopy.list.title} />
+        <Cell href={paths.shipperPortfolio} icon={Wallet} title={freightCopy.portfolio.title} />
         <Cell href={paths.shipperNotifications} icon={Bell} title={notificationsInboxCopy.title} />
       </Group>
     </>

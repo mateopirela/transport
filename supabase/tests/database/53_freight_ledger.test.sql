@@ -554,7 +554,11 @@ select is(
 update public.freight_ledgers
 set client_due_on = public.freight_today() - 1, carrier_due_on = public.freight_today() - 1
 where trip_id in (tests.val('trip2'), tests.val('trip3'));
-update public.freight_ledgers set carrier_status = 'quick_pay_requested' where trip_id = tests.val('trip3');
+-- A quick pay request (I4) as request_quick_pay leaves it: never held.
+update public.freight_ledgers
+set carrier_status = 'quick_pay_requested', quick_pay_fee_bps = 250,
+    quick_pay_fee_cents = public.freight_commission_cents(carrier_net_cents, 250), quick_pay_requested_at = now()
+where trip_id = tests.val('trip3');
 
 select is(
   tests.read('a5100000-0000-4000-8000-000000000001',

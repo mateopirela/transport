@@ -57,6 +57,12 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 
 - **Carga de aceptación:** Apodaca → Zapopan (torton) de Aceros del Norte (carga 26), mandada a la plataforma: **$12,000** al cliente y **$10,800** a los transportistas, ya aceptada por Ana y publicada. Ana la ve "Buscando transportista" a $12,000; los transportistas la ven "Publicada por Transport" a $10,800 (web y app "Cargas"). Cuando el admin acepta una oferta de $10,800 en `/admin/intermediadas`, el libro del flete muestra $1,200 de margen solo al admin.
 
+### Pago rápido (I4)
+
+- **Ajustes:** tarifa de **2.5 %** (`freight.quick_pay_fee_bps = 250`) y sin límite de exposición; el admin los cambia en **Flete** (`/admin/flete`, sección "Pago rápido"), donde también ve la exposición (lo aprobado que el cliente todavía no paga).
+- **Para probar:** el viaje MTY → GDL de hace cinco semanas ($40,000; **$38,800 netos**, "Retenido"). Jorge sube en **Cobranza** su CFDI a Fulmis (emisor `TRN120210LP5`, total `38800.00`) y aparece "Pedir pago rápido": tarifa de $970 y **recibe $37,830**. El admin lo encuentra en **Flete → Pago rápido**, lo aprueba (queda "Programado") y registra el SPEI de $37,830. Ana sigue debiendo $40,000 en **Cartera** y nunca ve el pago rápido.
+- **Reglas:** solo con la entrega registrada, el CFDI del transportista y nada pagado aún al transportista; lo pide el Gerente o el Coordinador de la unidad de negocio; cada solicitud la aprueba o rechaza (con motivo) el admin.
+
 ### Recorrido por perfil (G9)
 
 Con la seed recién cargada, cada perfil tiene algo que ver en la web y en la app (las pruebas de punta a punta recorren lo mismo: `e2e/tests/profiles.spec.ts` y los flujos de Maestro de la tabla de abajo):

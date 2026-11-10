@@ -5,6 +5,9 @@ import {
   formatMxn,
   freightCopy,
   freightInvoicesCopy,
+  quickPayBlockerLabels,
+  quickPayCopy,
+  quickPayState,
   toMexicoCityDate,
   type FulmisFiscalData,
 } from '@transport/shared';
@@ -18,6 +21,7 @@ import {
   InvoiceSummary,
 } from '@/components/freight/freight-ui';
 import { InvoiceUpload } from '@/components/freight/invoice-upload';
+import { QuickPayRequest } from '@/components/freight/quick-pay';
 import { textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
 import { Notice } from '@/components/ui/notice';
@@ -25,7 +29,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { loadFreightInvoices, loadFulmisFiscalData } from '@/lib/freight/invoices';
-import { loadCarrierFreight } from '@/lib/freight/queries';
+import { loadCarrierFreight, loadQuickPayFee, type CarrierFreightRow } from '@/lib/freight/queries';
 import { carrierTripPath, paths } from '@/lib/routing';
 
 const c = freightCopy.collections;
@@ -39,14 +43,17 @@ export const metadata: Metadata = { title: c.title };
  * sees the whole company and a Coordinador their business units
  * (carrier_freight_ledger); the business unit picker narrows it. Under each
  * trip (I5), the carrier's CFDI to Fulmis or "Subir CFDI" (Edge Function
- * validate-carrier-cfdi), with Fulmis' fiscal data on top.
+ * validate-carrier-cfdi), with Fulmis' fiscal data on top; and its quick
+ * pay (I4): "Pedir pago rápido" with the fee and the quick net, or where the
+ * request stands.
  */
 export default async function CollectionsPage() {
   const { supabase, units } = await carrierContext(paths.carrierCollections);
-  const [all, invoices, fulmis] = await Promise.all([
+  const [all, invoices, fulmis, quickPayFeeBps] = await Promise.all([
     loadCarrierFreight(supabase),
     loadFreightInvoices(supabase, 'carrier_to_fulmis'),
     loadFulmisFiscalData(supabase),
+    loadQuickPayFee(supabase),
   ]);
   const rows = units.selected
     ? all.filter((row) => row.business_unit_id === units.selected?.id)
@@ -123,6 +130,7 @@ export default async function CollectionsPage() {
                     }
                   />
                 </div>
+                <QuickPaySection row={row} feeBps={quickPayFeeBps} />
               </td>
               <td className="tabular-nums">{formatMxn(row.freight_cents)}</td>
               <td className="whitespace-nowrap text-text-dim tabular-nums">
@@ -144,6 +152,41 @@ export default async function CollectionsPage() {
         </Table>
       )}
     </>
+  );
+}
+
+/**
+ * The quick pay of a trip (I4, D38): where its request stands (requested,
+ * approved, or rejected with the reason) and, while it can be asked for,
+ * "Pedir pago rápido" with the fee and what the carrier gets.
+ */
+function QuickPaySection({ row, feeBps }: { row: CarrierFreightRow; feeBps: number | null }) {
+  const q = quickPayCopy.carrier;
+  const state = quickPayState(row);
+  const quickNet = row.quick_pay_net_cents === null ? null : formatMxn(row.quick_pay_net_cents);
+  let status = null;
+  if (state.kind === 'requested' && quickNet) status = q.requested(quickNet);
+  else if (state.kind === 'approved' && quickNet) status = q.approved(quickNet);
+  else if (state.kind === 'rejected') status = q.rejected(state.reason);
+  const hint = row.quick_pay_blocker ? quickPayBlockerLabels[row.quick_pay_blocker] : null;
+  const canRequest = row.quick_pay_blocker === null && feeBps !== null;
+  if (!status && !hint && !canRequest) return null;
+  return (
+    <div className="mt-2 space-y-1 border-t pt-2" data-testid={`quick-pay-${row.trip_id}`}>
+      <h4 className="text-footnote font-semibold text-text-dim uppercase">{quickPayCopy.title}</h4>
+      {status && (
+        <p
+          data-testid="quick-pay-status"
+          className={state.kind === 'rejected' ? 'text-subhead text-red-text' : 'text-subhead'}
+        >
+          {status}
+        </p>
+      )}
+      {hint && <p className="text-footnote text-text-dim">{hint}</p>}
+      {canRequest && (
+        <QuickPayRequest tripId={row.trip_id} netCents={row.net_cents} feeBps={feeBps} />
+      )}
+    </div>
   );
 }
 

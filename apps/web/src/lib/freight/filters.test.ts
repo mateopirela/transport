@@ -13,6 +13,11 @@ const overdueHeld = {
   needs_review: false,
 } as const;
 const settled = { client_status: 'paid', carrier_status: 'paid', needs_review: false } as const;
+const quickPay = {
+  client_status: 'invoiced',
+  carrier_status: 'quick_pay_requested',
+  needs_review: false,
+} as const;
 const cancelled = {
   client_status: 'cancelled',
   carrier_status: 'cancelled',
@@ -27,14 +32,15 @@ describe('freight filters', () => {
   });
 
   it('filters by side and status', () => {
-    const rows = [pending, overdueHeld, settled, cancelled];
+    const rows = [pending, overdueHeld, settled, quickPay, cancelled];
     const pick = (filter: Parameters<typeof matchesFreightFilter>[1]) =>
       rows.filter((row) => matchesFreightFilter(row, filter));
-    expect(pick('todos')).toHaveLength(4);
+    expect(pick('todos')).toHaveLength(5);
     expect(pick('vencidos')).toEqual([overdueHeld]);
-    expect(pick('cliente')).toEqual([pending, overdueHeld]);
-    expect(pick('transportista')).toEqual([pending, overdueHeld]);
+    expect(pick('cliente')).toEqual([pending, overdueHeld, quickPay]);
+    expect(pick('transportista')).toEqual([pending, overdueHeld, quickPay]);
     expect(pick('retenidos')).toEqual([overdueHeld]);
+    expect(pick('rapido')).toEqual([quickPay]);
     expect(pick('revisar')).toEqual([cancelled]);
   });
 
@@ -44,6 +50,8 @@ describe('freight filters', () => {
       'fulmis_to_carrier',
     ]);
     expect(payableDirections(settled)).toEqual([]);
+    // I4: not the carrier while its quick pay request waits for the admin.
+    expect(payableDirections(quickPay)).toEqual(['client_to_fulmis']);
     expect(payableDirections(cancelled)).toEqual([]);
   });
 });

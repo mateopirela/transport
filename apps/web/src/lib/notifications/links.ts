@@ -111,9 +111,12 @@ export function notificationHref(
           : carrierNegotiationPath(target.negotiationId);
       }
       // The freight ledger (I3): a payment of Fulmis or a held payment, in
-      // "Cobranza". An overdue client is for the shipper and the admin.
+      // "Cobranza"; I4: the decision on a quick pay request too. An overdue
+      // client is for the shipper and the admin.
       case 'freight_payment_received':
       case 'freight_on_hold':
+      case 'quick_pay_approved':
+      case 'quick_pay_rejected':
         return paths.carrierCollections;
       // I7 (D40): the return loads of a trip, in its "Para el regreso".
       case 'backhaul_suggestions': {
@@ -123,12 +126,14 @@ export function notificationHref(
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6). I6: brokered loads are the client's and the
       // admin's; the carrier negotiates them as any other load (offers above).
+      // I4: a quick pay request is the admins'.
       case 'trip_location_stale':
       case 'documents_shared':
       case 'freight_overdue':
       case 'brokered_load_requested':
       case 'brokered_load_quoted':
       case 'brokered_load_contracted':
+      case 'quick_pay_requested':
         return null;
     }
   }
@@ -185,6 +190,7 @@ export function notificationHref(
       return null;
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
+    // I4: the quick pay is between the carrier and Fulmis (I.0.3).
     case 'internal_message':
     case 'backhaul_suggestions':
     case 'load_match':
@@ -194,6 +200,9 @@ export function notificationHref(
     case 'vehicle_release_pending':
     case 'vehicle_released':
     case 'freight_on_hold':
+    case 'quick_pay_requested':
+    case 'quick_pay_approved':
+    case 'quick_pay_rejected':
       return null;
   }
 }

@@ -13,6 +13,7 @@ export const FREIGHT_FILTERS = [
   'cliente',
   'transportista',
   'retenidos',
+  'rapido',
   'revisar',
 ] as const;
 export type FreightFilter = (typeof FREIGHT_FILTERS)[number];
@@ -47,12 +48,18 @@ export function matchesFreightFilter(row: FreightFilterRow, filter: FreightFilte
       return CARRIER_OPEN.includes(row.carrier_status);
     case 'retenidos':
       return row.carrier_status === 'on_hold';
+    // I4: the quick pay requests waiting for the admin.
+    case 'rapido':
+      return row.carrier_status === 'quick_pay_requested';
     case 'revisar':
       return row.needs_review;
   }
 }
 
-/** The sides of a trip that can still take a payment, client first. */
+/**
+ * The sides of a trip that can still take a payment, client first. The
+ * carrier takes none while its quick pay request waits for the admin (I4).
+ */
 export function payableDirections(row: {
   client_status: FreightClientStatus;
   carrier_status: FreightCarrierStatus;
@@ -61,7 +68,11 @@ export function payableDirections(row: {
   if (row.client_status !== 'paid' && row.client_status !== 'cancelled') {
     directions.push('client_to_fulmis');
   }
-  if (row.carrier_status !== 'paid' && row.carrier_status !== 'cancelled') {
+  if (
+    row.carrier_status !== 'paid' &&
+    row.carrier_status !== 'cancelled' &&
+    row.carrier_status !== 'quick_pay_requested'
+  ) {
     directions.push('fulmis_to_carrier');
   }
   return directions;

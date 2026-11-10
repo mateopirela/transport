@@ -725,7 +725,13 @@ insert into tests.rpc_calls values
   ('approve_brokered_quote', $$ public.approve_brokered_quote('5eed0005-0000-4000-8000-000000000026', 1200000) $$),
   ('admin_quote_brokered_load', $$ public.admin_quote_brokered_load('5eed0005-0000-4000-8000-000000000026',
        1200000, 1000000) $$),
-  ('admin_brokered_loads', $$ (select count(*) from public.admin_brokered_loads()) $$);
+  ('admin_brokered_loads', $$ (select count(*) from public.admin_brokered_loads()) $$),
+  -- Quick pay (I4): the staff of the trip request it; the admins decide and
+  -- read the exposure.
+  ('request_quick_pay', $$ public.request_quick_pay(tests.val('trip'), 250) $$),
+  ('admin_approve_quick_pay', $$ public.admin_approve_quick_pay(tests.val('trip'), true) $$),
+  ('admin_reject_quick_pay', $$ public.admin_reject_quick_pay(tests.val('trip'), 'x') $$),
+  ('admin_quick_pay_exposure', $$ (select count(*) from public.admin_quick_pay_exposure()) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -757,7 +763,10 @@ insert into tests.self_scoped values
   -- 2 carriers up; 46_site_dwell); a site without them answers the default.
   ('site_dwell_estimate'),
   -- I1: the caller accepts the terms for themself.
-  ('accept_terms');
+  ('accept_terms'),
+  -- I4: the current quick pay fee, the same for every carrier staff (no
+  -- row); the shipper and the operator get 42501 (59_quick_pay).
+  ('carrier_quick_pay_fee_bps');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,
@@ -869,7 +878,7 @@ select is_empty(
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link', 'create_trip_operator_link',
        'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end', 'carrier_freight_ledger',
-       'trip_backhaul',
+       'trip_backhaul', 'request_quick_pay',
        'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
        'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'

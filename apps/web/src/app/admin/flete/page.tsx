@@ -1,10 +1,15 @@
 import {
+  centsToPesosInput,
   formatBasisPoints,
   formatCalendarDate,
   formatMxn,
   freightCopy,
   freightInvoicesCopy,
   freightPaymentDirectionLabels,
+  projectedExposure,
+  quickPayCopy,
+  quickPayState,
+  toMexicoCityDate,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -22,6 +27,11 @@ import {
   InvoiceSummary,
 } from '@/components/freight/freight-ui';
 import { InvoiceUpload } from '@/components/freight/invoice-upload';
+import {
+  ApproveQuickPayForm,
+  QuickPaySettingsForm,
+  RejectQuickPayForm,
+} from '@/components/freight/quick-pay';
 import { PageSection, textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
@@ -37,7 +47,9 @@ import { invoiceKey, loadFreightInvoices, type FreightInvoice } from '@/lib/frei
 import {
   loadAdminFreight,
   loadCommissionSetting,
+  loadQuickPayAdmin,
   type AdminFreightRow,
+  type QuickPayAdminState,
 } from '@/lib/freight/queries';
 import { withParams } from '@/lib/pagination';
 import { adminCompanyPath, paths } from '@/lib/routing';
@@ -45,6 +57,7 @@ import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 
 const c = freightCopy.admin;
+const q = quickPayCopy.admin;
 
 export const metadata: Metadata = { title: c.title };
 
@@ -54,6 +67,7 @@ const FILTER_LABELS: Record<FreightFilter, string> = {
   cliente: c.filters.clientOpen,
   transportista: c.filters.carrierOpen,
   retenidos: c.filters.onHold,
+  rapido: q.filter,
   revisar: c.filters.review,
 };
 
@@ -120,12 +134,69 @@ function InvoicesSection({
   );
 }
 
+function day(iso: string): string {
+  return formatCalendarDate(toMexicoCityDate(iso));
+}
+
+/**
+ * The quick pay of a trip (I4, D38): the frozen fee and the quick net, where
+ * the request stands, and the admin's decision while it is pending (with the
+ * exposure warning when it would go over the limit). The client's side does
+ * not change.
+ */
+function QuickPayFacts({ row, quickPay }: { row: AdminFreightRow; quickPay: QuickPayAdminState }) {
+  const state = quickPayState(row);
+  if (state.kind === 'none') return null;
+  if (state.kind === 'rejected') {
+    return (
+      <p className="text-subhead text-text-dim" data-testid="freight-quick-pay">
+        {q.rejected(day(state.at), state.reason)}
+      </p>
+    );
+  }
+  const fee = row.quick_pay_fee_cents ?? 0;
+  const quickNet = row.carrier_net_cents - fee;
+  const projection = projectedExposure(
+    quickPay.exposureCents,
+    quickNet,
+    row.client_paid_cents,
+    quickPay.limitCents,
+  );
+  return (
+    <div className="space-y-2 rounded-2xl bg-accent-soft px-4 py-3" data-testid="freight-quick-pay">
+      <p className="text-subhead font-semibold text-text">
+        {state.kind === 'requested' ? q.requested(day(state.at)) : q.approved(day(state.at))}
+      </p>
+      <dl>
+        <Fact label={q.fee(formatBasisPoints(row.quick_pay_fee_bps ?? 0))}>{formatMxn(fee)}</Fact>
+        <Fact label={q.quickNet}>{formatMxn(quickNet)}</Fact>
+      </dl>
+      <p className="text-footnote text-text-dim">{q.clientUnchanged}</p>
+      {state.kind === 'requested' && (
+        <div className="flex flex-wrap items-start gap-3">
+          <ApproveQuickPayForm
+            tripId={row.trip_id}
+            overLimit={
+              projection.overLimit && quickPay.limitCents !== null
+                ? q.overLimit(formatMxn(projection.exposureCents), formatMxn(quickPay.limitCents))
+                : null
+            }
+          />
+          <RejectQuickPayForm tripId={row.trip_id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LedgerCard({
   row,
   invoices,
+  quickPay,
 }: {
   row: AdminFreightRow;
   invoices: ReadonlyMap<string, FreightInvoice>;
+  quickPay: QuickPayAdminState;
 }) {
   const directions = payableDirections(row);
   return (
@@ -204,6 +275,7 @@ function LedgerCard({
           </dl>
         </section>
       </div>
+      <QuickPayFacts row={row} quickPay={quickPay} />
       <InvoicesSection
         row={row}
         client={invoices.get(invoiceKey(row.trip_id, 'fulmis_to_client'))}
@@ -237,17 +309,20 @@ function LedgerCard({
  * owes and what is paid to the carrier, filtered by status; "Registrar pago"
  * for each SPEI payment (client or carrier) and the default commission.
  * Every change is an RPC that checks the admin and is audited. Each trip also
- * shows both CFDI (I5) and takes Fulmis' invoice to the client.
+ * shows both CFDI (I5) and takes Fulmis' invoice to the client, and its
+ * quick pay request (I4) with "Aprobar" and "Rechazar"; the quick pay fee
+ * and exposure limit are set here too.
  */
 export default async function AdminFreightPage({ searchParams }: PageProps<'/admin/flete'>) {
   await requireAccess(paths.adminFreight);
   const supabase = await createClient();
   if (!supabase) return <PageHeader title={c.title} />;
   const filter = parseFreightFilter((await searchParams).filtro);
-  const [rows, commissionBps, invoices] = await Promise.all([
+  const [rows, commissionBps, invoices, quickPay] = await Promise.all([
     loadAdminFreight(supabase),
     loadCommissionSetting(supabase),
     loadFreightInvoices(supabase),
+    loadQuickPayAdmin(supabase),
   ]);
   const shown = rows.filter((row) => matchesFreightFilter(row, filter));
 
@@ -258,6 +333,26 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
         <PageSection title={c.settings}>
           <div className="rounded-2xl border bg-cell p-5">
             <CommissionSettingForm commissionBps={commissionBps} />
+          </div>
+        </PageSection>
+
+        <PageSection title={q.settings}>
+          <div className="space-y-4 rounded-2xl border bg-cell p-5">
+            <p className="text-subhead text-text" data-testid="quick-pay-exposure">
+              <span className="text-text-dim">{q.exposure}: </span>
+              <span className="tabular-nums">
+                {q.exposureLine(
+                  formatMxn(quickPay.exposureCents),
+                  quickPay.limitCents === null ? null : formatMxn(quickPay.limitCents),
+                )}
+              </span>
+            </p>
+            <QuickPaySettingsForm
+              feeBps={quickPay.feeBps}
+              limitPesos={
+                quickPay.limitCents === null ? '' : centsToPesosInput(quickPay.limitCents)
+              }
+            />
           </div>
         </PageSection>
 
@@ -276,7 +371,7 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
           ) : (
             <div className="space-y-4">
               {shown.map((row) => (
-                <LedgerCard key={row.ledger_id} row={row} invoices={invoices} />
+                <LedgerCard key={row.ledger_id} row={row} invoices={invoices} quickPay={quickPay} />
               ))}
             </div>
           )}

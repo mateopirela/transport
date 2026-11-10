@@ -26,6 +26,7 @@ export * from './mobile';
 export * from './negotiation';
 export * from './notification-email';
 export * from './notifications';
+export * from './quick-pay';
 export * from './permissions';
 export * from './roads';
 export * from './share-links';

@@ -3,6 +3,7 @@ import {
   FREIGHT_PAGE_SIZE,
   freightInvoiceFailureLabels,
   freightInvoicesCopy,
+  quickPayCopy,
 } from '@transport/shared';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +11,8 @@ import {
   classifyCfdiFiles,
   loadCarrierInvoices,
   loadCollections,
+  loadQuickPayFee,
+  requestQuickPay,
   uploadCarrierCfdi,
 } from './freight-api';
 import type { Supabase } from './supabase';
@@ -178,5 +181,59 @@ describe('loadCarrierInvoices', () => {
       issuedAt: '2026-11-06T16:00:00Z',
       validation: 'unvalidated',
     });
+  });
+});
+
+describe('quick pay (I4)', () => {
+  it('reads the quick pay columns of each trip', async () => {
+    const quick = {
+      ...row(1),
+      status: 'quick_pay_requested',
+      quick_pay_fee_bps: 250,
+      quick_pay_fee_cents: '24250',
+      quick_pay_net_cents: 945_750,
+      quick_pay_blocker: null,
+    };
+    const client = {
+      rpc: () => ({
+        order: () => ({ limit: () => Promise.resolve({ data: [quick, row(2)], error: null }) }),
+      }),
+    } as unknown as Supabase;
+    const rows = await loadCollections(client);
+    const first = rows.find((r) => r.ledger_id === id(1));
+    const second = rows.find((r) => r.ledger_id === id(2));
+    expect(first).toMatchObject({
+      quick_pay_fee_cents: 24_250,
+      quick_pay_net_cents: 945_750,
+      quick_pay_blocker: null,
+    });
+    // A row without the columns (or with an unknown blocker) offers nothing.
+    expect(second).toMatchObject({ quick_pay_fee_cents: null, quick_pay_net_cents: null });
+  });
+
+  it('asks with the fee shown and tells a changed fee', async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: {}, error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: '55000', message: 'the quick pay fee changed', details: 'fee_changed' },
+      });
+    const client = { rpc } as unknown as Supabase;
+    expect(await requestQuickPay(client, 'trip-1', 250)).toEqual({ ok: true });
+    expect(rpc).toHaveBeenCalledWith('request_quick_pay', { p_trip_id: 'trip-1', p_fee_bps: 250 });
+    expect(await requestQuickPay(client, 'trip-1', 250)).toEqual({
+      ok: false,
+      error: quickPayCopy.errors.feeChanged,
+    });
+  });
+
+  it('reads the fee, or nothing when it cannot', async () => {
+    const ok = { rpc: () => Promise.resolve({ data: 250, error: null }) } as unknown as Supabase;
+    expect(await loadQuickPayFee(ok)).toBe(250);
+    const denied = {
+      rpc: () => Promise.resolve({ data: null, error: { code: '42501', message: 'no' } }),
+    } as unknown as Supabase;
+    expect(await loadQuickPayFee(denied)).toBeNull();
   });
 });

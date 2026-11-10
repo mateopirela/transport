@@ -5,12 +5,14 @@ import {
   fetchFreightPages,
   FREIGHT_PAGE_SIZE,
   FREIGHT_SETTING_KEYS,
+  isQuickPayBlocker,
   isValidCommissionBps,
   parseFreightPayments,
   toCents,
   type Database,
   type FreightPayment,
   type FreightPaymentDirection,
+  type QuickPayBlocker,
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
@@ -37,7 +39,15 @@ export type ShipperFreightRow = Omit<
 
 export type CarrierFreightRow = Omit<
   CarrierRow,
-  'payments' | 'freight_cents' | 'commission_cents' | 'net_cents' | 'paid_cents' | 'pending_cents'
+  | 'payments'
+  | 'freight_cents'
+  | 'commission_cents'
+  | 'net_cents'
+  | 'paid_cents'
+  | 'pending_cents'
+  | 'quick_pay_fee_cents'
+  | 'quick_pay_net_cents'
+  | 'quick_pay_blocker'
 > & {
   freight_cents: number;
   commission_cents: number;
@@ -45,6 +55,11 @@ export type CarrierFreightRow = Omit<
   paid_cents: number;
   pending_cents: number;
   payments: FreightPayment[];
+  /** Quick pay (I4): the frozen fee and what Fulmis pays, once requested. */
+  quick_pay_fee_cents: number | null;
+  quick_pay_net_cents: number | null;
+  /** Why the quick pay cannot be asked for; null when it can. */
+  quick_pay_blocker: QuickPayBlocker | null;
 };
 
 export interface AdminFreightPayment extends FreightPayment {
@@ -62,6 +77,7 @@ export type AdminFreightRow = Omit<
   | 'margin_cents'
   | 'client_paid_cents'
   | 'carrier_paid_cents'
+  | 'quick_pay_fee_cents'
 > & {
   client_amount_cents: number;
   commission_cents: number;
@@ -71,6 +87,8 @@ export type AdminFreightRow = Omit<
   client_paid_cents: number;
   carrier_paid_cents: number;
   payments: AdminFreightPayment[];
+  /** Quick pay (I4): the fee frozen when it was requested. */
+  quick_pay_fee_cents: number | null;
 };
 
 /** Cartera: the client's side of the trips of the caller's company. */
@@ -118,7 +136,14 @@ export async function loadCarrierFreight(supabase: Supabase): Promise<CarrierFre
     paid_cents: toCents(row.paid_cents),
     pending_cents: toCents(row.pending_cents),
     payments: parseFreightPayments(row.payments),
+    quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
+    quick_pay_net_cents: nullableCents(row.quick_pay_net_cents),
+    quick_pay_blocker: isQuickPayBlocker(row.quick_pay_blocker) ? row.quick_pay_blocker : null,
   }));
+}
+
+function nullableCents(value: number | null): number | null {
+  return value === null ? null : toCents(value);
 }
 
 function adminPayments(value: unknown): AdminFreightPayment[] {
@@ -173,6 +198,7 @@ export async function loadAdminFreight(supabase: Supabase): Promise<AdminFreight
     client_paid_cents: toCents(row.client_paid_cents),
     carrier_paid_cents: toCents(row.carrier_paid_cents),
     payments: adminPayments(row.payments),
+    quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
   }));
 }
 
@@ -186,4 +212,32 @@ export async function loadCommissionSetting(supabase: Supabase): Promise<number 
   if (error) throw new Error(`platform_settings query failed: ${error.message}`);
   const value = data?.value;
   return isValidCommissionBps(value) ? value : null;
+}
+
+/**
+ * The current quick pay fee (I4) for the carrier staff, to show the quick
+ * net before asking. Null when it cannot be read: the page then offers no
+ * request (the RPC would check it again anyway).
+ */
+export async function loadQuickPayFee(supabase: Supabase): Promise<number | null> {
+  const { data, error } = await supabase.rpc('carrier_quick_pay_fee_bps');
+  if (error) return null;
+  return typeof data === 'number' ? data : null;
+}
+
+export interface QuickPayAdminState {
+  exposureCents: number;
+  limitCents: number | null;
+  feeBps: number;
+}
+
+/** Admin: the quick pay exposure, its limit and the current fee (I4). */
+export async function loadQuickPayAdmin(supabase: Supabase): Promise<QuickPayAdminState> {
+  const { data, error } = await supabase.rpc('admin_quick_pay_exposure').single();
+  if (error) throw new Error(`admin_quick_pay_exposure failed: ${error.message}`);
+  return {
+    exposureCents: toCents(data.exposure_cents),
+    limitCents: data.limit_cents === null ? null : toCents(data.limit_cents),
+    feeBps: data.fee_bps,
+  };
 }

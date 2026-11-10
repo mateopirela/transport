@@ -9,6 +9,8 @@
 //     publishes a load for the hombre-camión and accepts his offer,
 //   - H2: the coordinator sends the operator the link of his trip (twice, so
 //     the first one is revoked),
+//   - I4: the Gerente's CFDI to Fulmis of the seed's held trip (the document
+//     picker is out of Maestro's reach),
 //   - the API goes down and up again around the offline flow (the iOS
 //     simulator shares the Mac's network, so the app is cut off from the
 //     server by stopping the local API gateway, the Kong container).
@@ -63,6 +65,10 @@ const TRIP_LINK_COORDINATOR = 'andrea.cavazos@demo.test';
 const TERMS_MANAGER = 'jorge.villarreal@demo.test';
 const REGIONAL_UNIT = '5eed0009-0000-4000-8000-000000000002';
 const PEDRO = '5eed0003-0000-4000-8000-000000000001';
+// I4: Jorge's CFDI to Fulmis of the seed's held MTY -> GDL trip ($38,800 net),
+// so 23-quick-pay can ask for its quick pay.
+const QUICK_PAY_MANAGER = 'jorge.villarreal@demo.test';
+const HELD_TRIP = '5eed0008-0000-4000-8000-000000000008';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -396,6 +402,34 @@ async function tripLinksForPedro(status) {
   console.log(`${TRIP_LINK_COORDINATOR} sent Pedro the link of trip ${trips[0].id}.`);
 }
 
+/**
+ * I4: Jorge uploads his CFDI to Fulmis of the held trip through the
+ * validate-carrier-cfdi Edge Function (the app picks the file with the
+ * document picker, which Maestro cannot drive). Synthetic CFDI (made-up RFCs
+ * and UUID).
+ */
+async function carrierCfdiForHeldTrip(status) {
+  const token = await signIn(status, QUICK_PAY_MANAGER);
+  const { syntheticCfdi } = await import('../packages/shared/src/freight/cfdi-fixtures.ts');
+  const body = new FormData();
+  body.append('tripId', HELD_TRIP);
+  const xml = syntheticCfdi({
+    issuerRfc: 'TRN120210LP5',
+    receiverRfc: 'FUL201015AB1',
+    total: '38800.00',
+    uuid: crypto.randomUUID(),
+  });
+  body.append('xml', new Blob([xml], { type: 'application/xml' }), 'cfdi.xml');
+  const response = await fetch(`${status.apiUrl}/functions/v1/validate-carrier-cfdi`, {
+    method: 'POST',
+    headers: { apikey: status.anonKey, authorization: `Bearer ${token}` },
+    body,
+  });
+  if (!response.ok)
+    throw new Error(`validate-carrier-cfdi: ${response.status} ${await response.text()}`);
+  console.log(`${QUICK_PAY_MANAGER} uploaded his CFDI of trip ${HELD_TRIP}.`);
+}
+
 function apiDown() {
   run('docker', ['stop', gatewayContainer()]);
   console.log('API gateway stopped: the app is offline.');
@@ -525,6 +559,9 @@ const steps = [
   { name: '21-carrier-collections', run: () => flow('21-carrier-collections') },
   // I6: read-only, nothing above offers on the seed's brokered load.
   { name: '22-brokered-load', run: () => flow('22-brokered-load') },
+  // I4: the CFDI of the seed's held trip (Edge Function), then its quick pay.
+  { name: 'cfdi-for-held-trip', run: (status) => carrierCfdiForHeldTrip(status) },
+  { name: '23-quick-pay', needs: 'cfdi-for-held-trip', run: () => flow('23-quick-pay') },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

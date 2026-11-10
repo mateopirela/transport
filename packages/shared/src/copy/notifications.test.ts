@@ -195,4 +195,23 @@ describe('notification content', () => {
     });
     expect(notificationContent('freight_overdue', {}).body).toBe('Venció el pago del viaje.');
   });
+
+  it('tells the admin of a quick pay request and the carrier of its decision (I4)', () => {
+    expect(notificationContent('quick_pay_requested', { ...ROUTE, amountCents: 945_750 })).toEqual({
+      title: 'Pago rápido solicitado',
+      body: 'Un transportista pidió pago rápido de $9,457.50 por el viaje Monterrey → Guadalajara.',
+    });
+    expect(notificationContent('quick_pay_approved', { ...ROUTE, amountCents: 945_750 })).toEqual({
+      title: 'Pago rápido aprobado',
+      body: 'Fulmis aprobó tu pago rápido de $9,457.50 por el viaje Monterrey → Guadalajara.',
+    });
+    expect(
+      notificationContent('quick_pay_rejected', { ...ROUTE, reason: 'Falta la carta porte.' }).body,
+    ).toBe(
+      'Fulmis rechazó tu pago rápido del viaje Monterrey → Guadalajara: Falta la carta porte.',
+    );
+    expect(notificationContent('quick_pay_rejected', {}).body).toBe(
+      'Fulmis rechazó tu pago rápido del viaje.',
+    );
+  });
 });

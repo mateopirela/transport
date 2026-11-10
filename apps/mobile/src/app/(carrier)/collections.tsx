@@ -9,14 +9,19 @@ import {
   freightInvoiceFailureLabels,
   freightInvoicesCopy,
   freightInvoiceValidationLabels,
+  quickPayBlockerLabels,
+  quickPayCopy,
+  quickPaySplit,
+  quickPayState,
   shortCfdiUuid,
   toMexicoCityDate,
   type FulmisFiscalData,
 } from '@transport/shared';
 import * as DocumentPicker from 'expo-document-picker';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 
+import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
 import {
   Cell,
   ErrorText,
@@ -34,6 +39,8 @@ import {
   loadCarrierInvoices,
   loadCollections,
   loadFulmisData,
+  loadQuickPayFee,
+  requestQuickPay,
   uploadCarrierCfdi,
   type CarrierInvoice,
   type CollectionRow,
@@ -43,20 +50,24 @@ import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
 
 const c = freightCopy.collections;
 const f = freightInvoicesCopy;
+const q = quickPayCopy.carrier;
 
 interface CollectionsData {
   rows: CollectionRow[];
   invoices: Map<string, CarrierInvoice>;
   fulmis: FulmisFiscalData;
+  /** The current quick pay fee (I4); null: no request is offered. */
+  quickPayFeeBps: number | null;
 }
 
 const load = async ({ client }: CarrierContext): Promise<CollectionsData> => {
-  const [rows, invoices, fulmis] = await Promise.all([
+  const [rows, invoices, fulmis, quickPayFeeBps] = await Promise.all([
     loadCollections(client),
     loadCarrierInvoices(client),
     loadFulmisData(client),
+    loadQuickPayFee(client),
   ]);
-  return { rows, invoices, fulmis };
+  return { rows, invoices, fulmis, quickPayFeeBps };
 };
 
 function dueLabel(row: CollectionRow): string {
@@ -151,17 +162,104 @@ function CfdiCell({
   );
 }
 
-/** One trip: its route and status, then the freight, the commission, the net, the date, what was paid and its CFDI. */
+/**
+ * The quick pay of a trip (I4, D38): where its request stands and, while it
+ * can be asked for, "Pedir pago rápido" with what the carrier gets, confirmed
+ * in a sheet that shows the fee. The fee goes with the request: a fee changed
+ * in between is refused instead of charged.
+ */
+function QuickPayCells({
+  row,
+  client,
+  feeBps,
+  confirmSheet,
+  onRequested,
+}: {
+  row: CollectionRow;
+  client: Supabase;
+  feeBps: number | null;
+  confirmSheet: RefObject<ConfirmSheetHandle | null>;
+  onRequested: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const state = quickPayState(row);
+  const quickNet = row.quick_pay_net_cents === null ? null : formatMxn(row.quick_pay_net_cents);
+  let status: string | null = null;
+  if (state.kind === 'requested' && quickNet) status = q.requested(quickNet);
+  else if (state.kind === 'approved' && quickNet) status = q.approved(quickNet);
+  else if (state.kind === 'rejected') status = q.rejected(state.reason);
+  const hint = row.quick_pay_blocker ? quickPayBlockerLabels[row.quick_pay_blocker] : null;
+
+  function ask(fee: number) {
+    const split = quickPaySplit(row.net_cents, fee);
+    confirmSheet.current?.ask({
+      title: q.confirmTitle,
+      body: q.confirmBody(
+        formatMxn(split.netCents),
+        formatMxn(split.feeCents),
+        formatMxn(split.quickNetCents),
+      ),
+      confirmLabel: q.confirm,
+      cancelLabel: q.cancel,
+      onConfirm: async () => {
+        setBusy(true);
+        setError(null);
+        try {
+          const result = await requestQuickPay(client, row.trip_id, fee);
+          if (result.ok) onRequested();
+          else setError(result.error);
+        } catch {
+          setError(quickPayCopy.errors.generic);
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
+  }
+
+  return (
+    <>
+      {status ? (
+        <TextCell tone={state.kind === 'rejected' ? 'body' : 'dim'}>{status}</TextCell>
+      ) : null}
+      {hint ? <TextCell tone="dim">{hint}</TextCell> : null}
+      {row.quick_pay_blocker === null && feeBps !== null ? (
+        <Cell
+          icon="wallet"
+          title={busy ? q.submitting : q.request}
+          subtitle={`${q.receive}: ${formatMxn(quickPaySplit(row.net_cents, feeBps).quickNetCents)} · ${q.fee(formatBasisPoints(feeBps))}`}
+          disabled={busy}
+          onPress={() => ask(feeBps)}
+        />
+      ) : null}
+      {error ? (
+        <TextCell>
+          <ErrorText>{error}</ErrorText>
+        </TextCell>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * One trip: its route and status, then the freight, the commission, the net,
+ * the date, what was paid, its CFDI and its quick pay.
+ */
 function TripGroup({
   row,
   client,
   invoice,
-  onUploaded,
+  quickPayFeeBps,
+  confirmSheet,
+  onChanged,
 }: {
   row: CollectionRow;
   client: Supabase;
   invoice: CarrierInvoice | undefined;
-  onUploaded: () => void;
+  quickPayFeeBps: number | null;
+  confirmSheet: RefObject<ConfirmSheetHandle | null>;
+  onChanged: () => void;
 }) {
   return (
     <Group>
@@ -190,7 +288,14 @@ function TripGroup({
           )}
         </TextCell>
       ))}
-      <CfdiCell client={client} tripId={row.trip_id} invoice={invoice} onUploaded={onUploaded} />
+      <CfdiCell client={client} tripId={row.trip_id} invoice={invoice} onUploaded={onChanged} />
+      <QuickPayCells
+        row={row}
+        client={client}
+        feeBps={quickPayFeeBps}
+        confirmSheet={confirmSheet}
+        onRequested={onChanged}
+      />
     </Group>
   );
 }
@@ -225,10 +330,12 @@ function FulmisGroup({ fulmis }: { fulmis: FulmisFiscalData }) {
  * for the Gerente (the whole company) and the Coordinador (their business
  * units). The totals first ("Por cobrar", "Retenido", "Pagado este mes"),
  * then each trip with its CFDI to Fulmis (I5: "Subir CFDI" when it is
- * missing). Payments are recorded by the admin.
+ * missing) and its quick pay (I4: "Pedir pago rápido"). Payments are recorded
+ * by the admin.
  */
 export default function Collections() {
   const { carrier, state, reload } = useCarrierData(load);
+  const confirmSheet = useRef<ConfirmSheetHandle>(null);
 
   let content;
   if (state.status === 'loading' || !carrier) {
@@ -236,7 +343,7 @@ export default function Collections() {
   } else if (state.status === 'error') {
     content = <LoadError onRetry={() => void reload()} />;
   } else {
-    const { rows, invoices, fulmis } = state.data;
+    const { rows, invoices, fulmis, quickPayFeeBps } = state.data;
     const totals = collectionsTotals(
       rows.map((row) => ({
         status: row.status,
@@ -268,7 +375,9 @@ export default function Collections() {
                 row={row}
                 client={carrier.client}
                 invoice={invoices.get(row.trip_id)}
-                onUploaded={() => void reload()}
+                quickPayFeeBps={quickPayFeeBps}
+                confirmSheet={confirmSheet}
+                onChanged={() => void reload()}
               />
             ))}
           </>
@@ -281,6 +390,7 @@ export default function Collections() {
     <Screen belowHeader onRefresh={() => void reload()}>
       <Stack.Screen options={{ title: c.title }} />
       {content}
+      <ConfirmSheet ref={confirmSheet} />
     </Screen>
   );
 }

@@ -257,7 +257,11 @@ select set_eq(
     -- and lists; the client reads its loads with its own prices only, and the
     -- policies ask whether a load is brokered (57_brokered_loads).
     'request_brokered_load', 'approve_brokered_quote', 'admin_quote_brokered_load', 'admin_brokered_loads',
-    'client_loads', 'load_is_brokered'
+    'client_loads', 'load_is_brokered',
+    -- Quick pay (I4): the carrier staff read the fee and request it; the
+    -- admin reads the exposure and approves or rejects, audited (59_quick_pay).
+    'carrier_quick_pay_fee_bps', 'request_quick_pay', 'admin_quick_pay_exposure', 'admin_approve_quick_pay',
+    'admin_reject_quick_pay'
   ],
   'every client-callable security definer function is on the reviewed list'
 );

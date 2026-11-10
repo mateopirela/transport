@@ -9,6 +9,7 @@
 // carrier's net is the amount minus the commission, so the parts always add
 // up to the total.
 import { freightCopy } from '../copy/freight';
+import { quickPayCopy } from '../copy/quick-pay';
 import type { FreightCarrierStatus, FreightClientStatus } from '../enums';
 import { toMexicoCityDate } from '../verification';
 
@@ -349,6 +350,8 @@ export function freightAdminErrorText(error: FreightRpcError): string {
     case 'P0002':
       return e.notFound;
     case '55000':
+      // I4: no payment to the carrier while its quick pay request is pending.
+      if (message.includes('quick pay')) return quickPayCopy.errors.pendingRequest;
       return message.includes('review') ? e.noReview : e.closed;
     case '22023':
       if (message.includes('more than what is owed')) return e.overpaid;
@@ -366,3 +369,4 @@ export function freightAdminErrorText(error: FreightRpcError): string {
 
 export * from './cfdi';
 export * from './invoices';
+export * from './quick-pay';

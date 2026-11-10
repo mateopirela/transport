@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(12);
+select plan(13);
 
 create schema tests;
 
@@ -115,6 +115,12 @@ language sql
 as $$
   select extensions.dblink_exec('setup', $sql$
     reset request.jwt.claims;
+    -- Every admin, the seed's too, was told of these loads (requested, offer
+    -- received, offer accepted): those notices go with the loads.
+    delete from public.notifications
+    where data ->> 'loadId' in (
+      select id::text from public.loads where shipper_company_id = 'c5700000-0000-4000-8000-000000000001'
+    );
     alter table public.trip_events disable trigger trip_events_immutable;
     delete from public.trip_events
     where trip_id in (select id from public.trips where shipper_company_id = 'c5700000-0000-4000-8000-000000000001');
@@ -292,6 +298,13 @@ select is(
 );
 
 select tests.cleanup();
+-- Nothing of this file is left behind: the demo seed's checks (seed-tests)
+-- count the notifications of its admin.
+select is(
+  (select count(*)::int from public.notifications
+   where data ->> 'loadId' in (select id::text from tests.vals where name like 'bl%')),
+  0, 'the cleanup leaves no notification of these loads, the admins'' included'
+);
 select extensions.dblink_disconnect('s1');
 select extensions.dblink_disconnect('s2');
 select extensions.dblink_disconnect('setup');

@@ -26,6 +26,29 @@ test('the client sends a load to Transport, approves its price and the carriers 
   const ana = page;
   await signInOnWeb(ana, 'ana');
 
+  await test.step('a load dated 9999-12-31 is refused with the reason', async () => {
+    // Year 10000 in UTC once read in Mexico City: no page could show it, and
+    // the lists of Ana and of the admin failed with a 500 (fix of I6).
+    await ana.goto('/cliente/cargas/nueva');
+    const streets = ana.getByRole('textbox', { name: lf.street });
+    await ana.locator('#field-origin').selectOption({ label: 'Monterrey, Nuevo León' });
+    await streets.nth(0).fill('Av. Constitución 400, Centro');
+    await ana.locator('#field-destination').selectOption({ label: 'Guadalajara, Jalisco' });
+    await streets.nth(1).fill('Av. Vallarta 3000, Vallarta Poniente');
+    await ana.getByLabel(lf.pickupStart).fill('9999-12-31T18:00');
+    await ana.getByLabel(lf.pickupEnd).fill('9999-12-31T19:00');
+    await ana.getByLabel(lf.deliveryStart).fill('9999-12-31T22:00');
+    await ana.getByLabel(lf.deliveryEnd).fill('9999-12-31T23:00');
+    await ana.getByLabel(lf.cargoType).selectOption('palletized');
+    await ana.getByLabel(lf.description).fill('Perfiles de acero en tarimas');
+    await ana.getByLabel(lf.weightKg).fill('12000');
+    await ana.getByLabel(lf.unitType).selectOption('dry_van');
+    await ana.getByLabel(b.shipper.toggle).check();
+    await ana.getByRole('button', { name: b.shipper.submit }).click();
+    await expect(ana.getByText(loadsCopy.errors.datesOutOfRange)).toBeVisible();
+    await expect(ana).toHaveURL(/\/cliente\/cargas\/nueva$/u);
+  });
+
   let loadId = '';
   await test.step('Ana sends an MTY → GDL load with a target of $11,500', async () => {
     await ana.goto('/cliente/cargas/nueva');

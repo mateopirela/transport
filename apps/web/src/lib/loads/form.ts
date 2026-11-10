@@ -164,9 +164,15 @@ export function centsToPesosText(cents: number | string): string {
   return rest === '00' ? String(Math.trunc(value / 100)) : `${Math.trunc(value / 100)}.${rest}`;
 }
 
-/** ISO timestamp → `datetime-local` value in Mexico City. */
+/**
+ * ISO timestamp → `datetime-local` value in Mexico City. A stored date the
+ * browser cannot read (past year 9999 in UTC) leaves the field empty for the
+ * client to fill in again, instead of failing the edit screen.
+ */
 export function toLocalInput(timestamp: string): string {
-  const { date, time } = mexicoCityParts(new Date(timestamp));
+  const value = new Date(timestamp);
+  if (Number.isNaN(value.getTime())) return '';
+  const { date, time } = mexicoCityParts(value);
   return `${date}T${time}`;
 }
 

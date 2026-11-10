@@ -33,9 +33,16 @@ describe('formatLongDuration', () => {
     expect(formatLongDuration(2880 + 4 * 60 + 10)).toBe('2 d 4 h');
   });
 
-  it('throws on negative or non-finite values', () => {
-    expect(() => formatLongDuration(-1)).toThrow(RangeError);
-    expect(() => formatLongDuration(Number.NaN)).toThrow(RangeError);
+  it('shows "Sin datos" for negative or non-finite values instead of throwing', () => {
+    expect(formatLongDuration(-1)).toBe(adminOpsCopy.kpis.noData);
+    expect(formatLongDuration(-1440)).toBe(adminOpsCopy.kpis.noData);
+    expect(formatLongDuration(Number.NaN)).toBe(adminOpsCopy.kpis.noData);
+    expect(formatLongDuration(Number.POSITIVE_INFINITY)).toBe(adminOpsCopy.kpis.noData);
+  });
+
+  it('keeps the dashboard up when a median comes out negative', () => {
+    const tiles = byKey({ ...empty, median_minutes_to_first_offer: -1440 });
+    expect(tiles.firstOffer?.value).toBe(adminOpsCopy.kpis.noData);
   });
 });
 

@@ -18,3 +18,9 @@ export const devKitCopy = {
   weight: '15,000',
   date: '20/10/2026',
 } as const;
+
+/** Shared display formatters (packages/shared/src/formatters.ts). */
+export const formatterCopy = {
+  /** In place of a stored date or time that cannot be read (e.g. past year 9999 in UTC). */
+  invalidDate: 'fecha no válida',
+} as const;

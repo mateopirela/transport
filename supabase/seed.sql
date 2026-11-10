@@ -649,6 +649,16 @@ select pg_temp.seed_load(d.load_id, d.shipper, d.shipper_user, d.origin, d.olat,
                          d.volume_m3, d.unit, d.requirements, d.price_cents, null)
 from seed_dwell_trips d;
 
+-- Published four days before the pickup, so the first offer (three days
+-- before) comes a day after the publication and the contract (two days
+-- before) two days after it: the times to first offer and to contract of
+-- the pilot indicators (kpi_load_times) are never negative.
+update public.loads l
+set published_at = pg_temp.at(d.arrive - interval '4 days'),
+    created_at = pg_temp.at(d.arrive - interval '4 days')
+from seed_dwell_trips d
+where l.id = d.load_id;
+
 insert into public.negotiations (id, load_id, shipper_company_id, carrier_company_id, created_by, created_at)
 select d.negotiation_id, d.load_id, d.shipper, d.carrier, d.carrier_user, pg_temp.at(d.arrive - interval '3 days')
 from seed_dwell_trips d;

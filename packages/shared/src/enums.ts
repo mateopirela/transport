@@ -93,6 +93,14 @@ export type FreightCarrierStatus = (typeof FREIGHT_CARRIER_STATUSES)[number];
 export const FREIGHT_PAYMENT_DIRECTIONS = DB_ENUMS.freight_payment_direction;
 export type FreightPaymentDirection = (typeof FREIGHT_PAYMENT_DIRECTIONS)[number];
 
+/** Who invoices whom for a trip's freight (freight_invoices, I5). */
+export const FREIGHT_INVOICE_DIRECTIONS = DB_ENUMS.freight_invoice_direction;
+export type FreightInvoiceDirection = (typeof FREIGHT_INVOICE_DIRECTIONS)[number];
+
+/** Whether every party of a CFDI was checked, or Fulmis' RFC was not set yet (I5). */
+export const FREIGHT_INVOICE_VALIDATIONS = DB_ENUMS.freight_invoice_validation;
+export type FreightInvoiceValidation = (typeof FREIGHT_INVOICE_VALIDATIONS)[number];
+
 /** A shipper's decision about a carrier as its provider (provider_approvals, G6). No row = pending. */
 export const PROVIDER_STATUSES = DB_ENUMS.provider_status;
 export type ProviderStatus = (typeof PROVIDER_STATUSES)[number];

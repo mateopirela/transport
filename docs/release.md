@@ -49,8 +49,9 @@ Orden dentro de un despliegue: **migraciones → funciones → web**. Si una mig
    - Secretos de Edge Functions: `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` (y `SITE_URL`). No hace falta clave publicable: Checkout redirige.
    - Versiones fijas: `npm:stripe@22.6.2` y la API `2026-08-26.dahlia` (`supabase/functions/_shared/stripe.ts`); cambiarlas es un cambio revisado.
    - Prueba manual: con claves de prueba y el piloto terminado en `/admin/suscripciones`, el Gerente pulsa "Suscribirme", paga con `4242 4242 4242 4242` y, al volver, la suscripción queda "Activa". El bloqueo (`block`) lo decide Mateo; mientras tanto queda en `off`.
-6. **Primer Admin:** registrarlo como usuario normal y promoverlo en el SQL Editor: `update public.profiles set role = 'admin' where id = '<uuid>';`.
-7. Respaldos: en producción activar PITR (plan Pro) antes de abrir el piloto.
+6. **Facturas del flete (I5, D37; opcional mientras no haya PAC).** Sin `CFDI_PROVIDER` ni `CFDI_API_KEY`, `issue-client-cfdi` usa el proveedor `manual`: la plataforma no emite y el admin sube en `/admin/flete` el XML y el PDF del CFDI que emitió por fuera; `validate-carrier-cfdi` recibe el CFDI de cada transportista. Las dos funciones validan el XML y lo guardan en el bucket privado `invoices` (lo crea la migración). Los datos fiscales de Fulmis se capturan en `/admin/ajustes` (`fulmis.rfc`, `fulmis.legal_name`, `fulmis.tax_regime`, `fulmis.zip`); sin el RFC, los CFDI quedan "Sin validar" del lado de Fulmis. Cuando Mateo elija el PAC, su adaptador se agrega en `supabase/functions/issue-client-cfdi/provider.ts` y se cargan los dos secretos.
+7. **Primer Admin:** registrarlo como usuario normal y promoverlo en el SQL Editor: `update public.profiles set role = 'admin' where id = '<uuid>';`.
+8. Respaldos: en producción activar PITR (plan Pro) antes de abrir el piloto.
 
 ### 3.2 GitHub (Settings → Environments)
 

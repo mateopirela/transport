@@ -64,6 +64,8 @@ export const ids = {
   joseOperator: '5eed0003-0000-4000-8000-000000000006',
   /** Trip Escobedo → Saltillo of Ana with Transportes Regios, $10,000 delivered at 3 % (I3, load 25). */
   ledgerTrip: '5eed0008-0000-4000-8000-000000000021',
+  /** Trip MTY -> GDL of Ana with Transportes Regios, $40,000, already paid on both sides (I3, load 17). */
+  paidTrip: '5eed0008-0000-4000-8000-000000000006',
 } as const;
 
 /** Points used for the operator's events (D11: every event has a location). */

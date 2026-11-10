@@ -1,13 +1,25 @@
-import { formatCalendarDate, formatMxn, freightCopy, portfolioTotals } from '@transport/shared';
+import {
+  formatCalendarDate,
+  formatMxn,
+  freightCopy,
+  freightInvoicesCopy,
+  portfolioTotals,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ClientStatusPill, dueLabel, FreightTotals } from '@/components/freight/freight-ui';
+import {
+  ClientStatusPill,
+  dueLabel,
+  FreightTotals,
+  InvoiceSummary,
+} from '@/components/freight/freight-ui';
 import { textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table } from '@/components/ui/table';
+import { loadFreightInvoices } from '@/lib/freight/invoices';
 import { loadShipperFreight } from '@/lib/freight/queries';
 import { shipperContext } from '@/lib/loads/queries';
 import { paths, tripPath } from '@/lib/routing';
@@ -21,12 +33,14 @@ export const metadata: Metadata = { title: c.title };
  * balance, what is overdue and what is not yet due and, per trip, the invoice
  * (once Fulmis issues it, I5), the due date, what was paid and what is
  * pending. Only the client's side (shipper_freight_ledger): never the
- * commission nor the carrier's net.
+ * commission nor the carrier's net. The invoice (I5) is Fulmis' CFDI, read
+ * through RLS (only the client's direction) and downloaded signed.
  */
 export default async function PortfolioPage() {
   const { supabase, companyId } = await shipperContext(paths.shipperPortfolio);
-  const [rows, company] = await Promise.all([
+  const [rows, invoices, company] = await Promise.all([
     loadShipperFreight(supabase),
+    loadFreightInvoices(supabase, 'fulmis_to_client'),
     supabase.from('companies').select('payment_terms_days').eq('id', companyId).maybeSingle(),
   ]);
   if (company.error) throw new Error(`Company query failed: ${company.error.message}`);
@@ -77,7 +91,16 @@ export default async function PortfolioPage() {
                   </ul>
                 )}
               </td>
-              <td className="text-text-dim">{freightCopy.noInvoice}</td>
+              <td className="min-w-40">
+                <InvoiceSummary
+                  invoice={invoices.get(row.trip_id)}
+                  area="shipper"
+                  showValidation={false}
+                  fallback={
+                    <span className="text-text-dim">{freightInvoicesCopy.client.none}</span>
+                  }
+                />
+              </td>
               <td className="tabular-nums">{formatMxn(row.amount_cents)}</td>
               <td className="whitespace-nowrap text-text-dim">
                 {dueLabel(

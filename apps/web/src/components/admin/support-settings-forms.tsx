@@ -1,13 +1,27 @@
 'use client';
 
-import { adminSettingsCopy, formatPhone, SUPPORT_HOURS_MAX_LENGTH } from '@transport/shared';
+import {
+  adminSettingsCopy,
+  formatPhone,
+  FULMIS_LEGAL_NAME_MAX_LENGTH,
+  freightInvoicesCopy,
+  SUPPORT_HOURS_MAX_LENGTH,
+  type FulmisFiscalData,
+} from '@transport/shared';
 import { useActionState, useId } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
-import { setSupportHoursAction, setSupportWhatsappAction } from '@/lib/admin/settings-actions';
+import {
+  setFulmisLegalNameAction,
+  setFulmisRfcAction,
+  setFulmisTaxRegimeAction,
+  setFulmisZipAction,
+  setSupportHoursAction,
+  setSupportWhatsappAction,
+} from '@/lib/admin/settings-actions';
 import type { FormState } from '@/lib/forms';
 
 const c = adminSettingsCopy;
@@ -105,6 +119,51 @@ export function SupportSettingsForms({
         action={setSupportHoursAction}
         inputProps={{ maxLength: SUPPORT_HOURS_MAX_LENGTH }}
         testId="support-hours-form"
+      />
+    </div>
+  );
+}
+
+/** Fulmis' fiscal data (I5): with the RFC set, the CFDI are fully validated. */
+export function FulmisSettingsForms({ fulmis }: { fulmis: FulmisFiscalData }) {
+  const f = freightInvoicesCopy.settings;
+  return (
+    <div className="space-y-6">
+      <SettingForm
+        name="rfc"
+        label={f.rfcLabel}
+        hint={f.rfcHint}
+        value={fulmis.rfc}
+        action={setFulmisRfcAction}
+        inputProps={{ autoComplete: 'off', maxLength: 16, autoCapitalize: 'characters' }}
+        testId="fulmis-rfc-form"
+      />
+      <SettingForm
+        name="legalName"
+        label={f.legalNameLabel}
+        hint={f.legalNameHint}
+        value={fulmis.legalName}
+        action={setFulmisLegalNameAction}
+        inputProps={{ autoComplete: 'off', maxLength: FULMIS_LEGAL_NAME_MAX_LENGTH }}
+        testId="fulmis-legal-name-form"
+      />
+      <SettingForm
+        name="taxRegime"
+        label={f.taxRegimeLabel}
+        hint={f.taxRegimeHint}
+        value={fulmis.taxRegime}
+        action={setFulmisTaxRegimeAction}
+        inputProps={{ autoComplete: 'off', inputMode: 'numeric', maxLength: 3 }}
+        testId="fulmis-tax-regime-form"
+      />
+      <SettingForm
+        name="zip"
+        label={f.zipLabel}
+        hint={f.zipHint}
+        value={fulmis.zip}
+        action={setFulmisZipAction}
+        inputProps={{ autoComplete: 'off', inputMode: 'numeric', maxLength: 5 }}
+        testId="fulmis-zip-form"
       />
     </div>
   );

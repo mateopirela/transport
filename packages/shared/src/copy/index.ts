@@ -15,6 +15,7 @@ export * from './client-trips';
 export * from './errors';
 export * from './fleet';
 export * from './freight';
+export * from './freight-invoices';
 export * from './internal-chat';
 export * from './legal';
 export * from './loads';

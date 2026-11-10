@@ -3,6 +3,7 @@ import {
   formatCalendarDate,
   formatMxn,
   freightCopy,
+  freightInvoicesCopy,
   freightPaymentDirectionLabels,
 } from '@transport/shared';
 import type { Metadata } from 'next';
@@ -14,7 +15,13 @@ import {
   RecordPaymentForm,
   ResolveReviewForm,
 } from '@/components/freight/admin-freight-forms';
-import { CarrierStatusPill, ClientStatusPill, dueLabel } from '@/components/freight/freight-ui';
+import {
+  CarrierStatusPill,
+  ClientStatusPill,
+  dueLabel,
+  InvoiceSummary,
+} from '@/components/freight/freight-ui';
+import { InvoiceUpload } from '@/components/freight/invoice-upload';
 import { PageSection, textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
@@ -26,6 +33,7 @@ import {
   payableDirections,
   type FreightFilter,
 } from '@/lib/freight/filters';
+import { invoiceKey, loadFreightInvoices, type FreightInvoice } from '@/lib/freight/invoices';
 import {
   loadAdminFreight,
   loadCommissionSetting,
@@ -58,7 +66,67 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function LedgerCard({ row }: { row: AdminFreightRow }) {
+/**
+ * Both CFDI of a trip (I5): Fulmis' invoice to the client (or "Subir factura
+ * emitida" while the provider is manual, once the client has terms) and the
+ * carrier's invoice to Fulmis.
+ */
+function InvoicesSection({
+  row,
+  client,
+  carrier,
+}: {
+  row: AdminFreightRow;
+  client: FreightInvoice | undefined;
+  carrier: FreightInvoice | undefined;
+}) {
+  const f = freightInvoicesCopy.admin;
+  const cancelled = row.client_status === 'cancelled';
+  let clientFallback = <p className="text-subhead text-text-dim">{f.noClientInvoice}</p>;
+  if (!cancelled) {
+    clientFallback =
+      row.client_terms_days === null ? (
+        <p className="text-subhead text-text-dim">{f.termsFirst}</p>
+      ) : (
+        <div className="space-y-1">
+          <p className="text-subhead text-text-dim">{f.noClientInvoice}</p>
+          <InvoiceUpload tripId={row.trip_id} direction="fulmis_to_client" />
+        </div>
+      );
+  }
+  return (
+    <div className="grid gap-4 border-t pt-3 sm:grid-cols-2">
+      <section
+        aria-label={f.clientInvoice}
+        className="space-y-1"
+        data-testid="freight-client-invoice"
+      >
+        <h4 className="text-footnote font-semibold text-text-dim uppercase">{f.clientInvoice}</h4>
+        <InvoiceSummary invoice={client} area="admin" fallback={clientFallback} />
+      </section>
+      <section
+        aria-label={f.carrierInvoice}
+        className="space-y-1"
+        data-testid="freight-carrier-invoice"
+      >
+        <h4 className="text-footnote font-semibold text-text-dim uppercase">{f.carrierInvoice}</h4>
+        <InvoiceSummary
+          invoice={carrier}
+          area="admin"
+          fallback={<p className="text-subhead text-text-dim">{f.noCarrierInvoice}</p>}
+        />
+      </section>
+    </div>
+  );
+}
+
+function LedgerCard({
+  row,
+  invoices,
+}: {
+  row: AdminFreightRow;
+  invoices: ReadonlyMap<string, FreightInvoice>;
+}) {
   const directions = payableDirections(row);
   return (
     <article
@@ -130,6 +198,11 @@ function LedgerCard({ row }: { row: AdminFreightRow }) {
           </dl>
         </section>
       </div>
+      <InvoicesSection
+        row={row}
+        client={invoices.get(invoiceKey(row.trip_id, 'fulmis_to_client'))}
+        carrier={invoices.get(invoiceKey(row.trip_id, 'carrier_to_fulmis'))}
+      />
       <div className="space-y-2 border-t pt-3">
         <h4 className="text-footnote font-semibold text-text-dim uppercase">{c.payments}</h4>
         {row.payments.length === 0 ? (
@@ -157,16 +230,18 @@ function LedgerCard({ row }: { row: AdminFreightRow }) {
  * Admin: the freight ledger (I3, D08-E2). Every trip with what the client
  * owes and what is paid to the carrier, filtered by status; "Registrar pago"
  * for each SPEI payment (client or carrier) and the default commission.
- * Every change is an RPC that checks the admin and is audited.
+ * Every change is an RPC that checks the admin and is audited. Each trip also
+ * shows both CFDI (I5) and takes Fulmis' invoice to the client.
  */
 export default async function AdminFreightPage({ searchParams }: PageProps<'/admin/flete'>) {
   await requireAccess(paths.adminFreight);
   const supabase = await createClient();
   if (!supabase) return <PageHeader title={c.title} />;
   const filter = parseFreightFilter((await searchParams).filtro);
-  const [rows, commissionBps] = await Promise.all([
+  const [rows, commissionBps, invoices] = await Promise.all([
     loadAdminFreight(supabase),
     loadCommissionSetting(supabase),
+    loadFreightInvoices(supabase),
   ]);
   const shown = rows.filter((row) => matchesFreightFilter(row, filter));
 
@@ -195,7 +270,7 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
           ) : (
             <div className="space-y-4">
               {shown.map((row) => (
-                <LedgerCard key={row.ledger_id} row={row} />
+                <LedgerCard key={row.ledger_id} row={row} invoices={invoices} />
               ))}
             </div>
           )}

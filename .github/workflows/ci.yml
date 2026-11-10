@@ -140,6 +140,15 @@ jobs:
             deno test --config "supabase/functions/$fn/deno.json" "supabase/functions/$fn/"
           done
 
+      # I5: freight CFDI uploads. Simulated Auth, PostgREST and Storage; the
+      # XML is parsed by packages/shared/src/freight/cfdi.ts (no keys, no network).
+      - name: Type-check and test the freight invoice functions
+        run: |
+          for fn in validate-carrier-cfdi issue-client-cfdi; do
+            deno check --config "supabase/functions/$fn/deno.json" "supabase/functions/$fn/index.ts"
+            deno test --config "supabase/functions/$fn/deno.json" "supabase/functions/$fn/"
+          done
+
       # B25: request ids, structured logs and error reporting of every function.
       - name: Type-check and test the shared observability helpers
         run: |

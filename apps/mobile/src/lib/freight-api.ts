@@ -1,11 +1,19 @@
 import {
+  CFDI_PDF_MAX_BYTES,
+  CFDI_XML_MAX_BYTES,
   compareFreightOrder,
   fetchFreightPages,
+  FREIGHT_INVOICE_FUNCTIONS,
   FREIGHT_PAGE_SIZE,
+  freightInvoiceUploadErrors,
   parseFreightPayments,
+  parseFulmisSettings,
   toCents,
   type Database,
+  type FreightInvoiceFailure,
+  type FreightInvoiceValidation,
   type FreightPayment,
+  type FulmisFiscalData,
 } from '@transport/shared';
 
 import type { Supabase } from './supabase';
@@ -56,4 +64,123 @@ export async function loadCollections(client: Supabase): Promise<CollectionRow[]
     pending_cents: toCents(row.pending_cents),
     payments: parseFreightPayments(row.payments),
   }));
+}
+
+/** The carrier's CFDI to Fulmis of a trip (I5), as Cobranza shows it. */
+export interface CarrierInvoice {
+  cfdiUuid: string;
+  issuedAt: string;
+  validation: FreightInvoiceValidation;
+}
+
+const INVOICE_PAGE = 1000;
+
+/**
+ * The carrier's CFDI to Fulmis by trip (I5). RLS gives the Gerente the whole
+ * company and a Coordinador their business units; paged by id.
+ */
+export async function loadCarrierInvoices(client: Supabase): Promise<Map<string, CarrierInvoice>> {
+  const invoices = new Map<string, CarrierInvoice>();
+  let after: string | null = null;
+  for (;;) {
+    let query = client
+      .from('freight_invoices')
+      .select('id, trip_id, cfdi_uuid, issued_at, validation')
+      .eq('direction', 'carrier_to_fulmis')
+      .order('id')
+      .limit(INVOICE_PAGE);
+    if (after) query = query.gt('id', after);
+    const { data, error } = await query;
+    if (error) throw new Error(`freight_invoices query failed: ${error.message}`);
+    for (const row of data) {
+      invoices.set(row.trip_id, {
+        cfdiUuid: row.cfdi_uuid,
+        issuedAt: row.issued_at,
+        validation: row.validation,
+      });
+    }
+    if (data.length < INVOICE_PAGE) return invoices;
+    after = data.at(-1)?.id ?? null;
+  }
+}
+
+/** Fulmis' fiscal data (I5): who the carrier invoices. Not set while in process. */
+export async function loadFulmisData(client: Supabase): Promise<FulmisFiscalData> {
+  const { data, error } = await client
+    .from('platform_settings')
+    .select('key, value')
+    .like('key', 'fulmis.%');
+  if (error) throw new Error(`platform_settings query failed: ${error.message}`);
+  return parseFulmisSettings(data);
+}
+
+/** A file picked on the phone, as React Native's FormData sends it. */
+export interface PickedInvoiceFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+export type CfdiUploadResult =
+  { ok: true; validation: FreightInvoiceValidation } | { ok: false; errors: string[] };
+
+/**
+ * Sends the carrier's CFDI of a trip (the XML and, optionally, the PDF) to the
+ * Edge Function validate-carrier-cfdi with the user's session. The function
+ * validates it and says every rule that failed.
+ */
+export async function uploadCarrierCfdi(
+  client: Supabase,
+  tripId: string,
+  files: { xml: PickedInvoiceFile; pdf: PickedInvoiceFile | null },
+): Promise<CfdiUploadResult> {
+  const body = new FormData();
+  body.append('tripId', tripId);
+  // React Native's FormData takes { uri, name, type } for a file.
+  body.append('xml', files.xml as unknown as Blob);
+  if (files.pdf) body.append('pdf', files.pdf as unknown as Blob);
+  const { data, error } = await client.functions.invoke<{ validation?: string }>(
+    FREIGHT_INVOICE_FUNCTIONS.carrier_to_fulmis,
+    { body },
+  );
+  if (error) {
+    const context = (error as { context?: unknown }).context;
+    const response = context instanceof Response ? context : null;
+    const answer: unknown = response ? await response.json().catch(() => null) : null;
+    return { ok: false, errors: freightInvoiceUploadErrors(response?.status ?? null, answer) };
+  }
+  return { ok: true, validation: data?.validation === 'validated' ? 'validated' : 'unvalidated' };
+}
+
+export type CfdiPick =
+  | { status: 'picked'; xml: PickedInvoiceFile; pdf: PickedInvoiceFile | null }
+  | { status: 'invalid'; failure: FreightInvoiceFailure };
+
+/**
+ * The XML and the optional PDF among the files picked at once (the document
+ * picker's assets): the first of each kind, by type or extension, within the
+ * size limits of the Edge Function.
+ */
+export function classifyCfdiFiles(
+  assets: readonly { uri: string; name: string; mimeType?: string | null; size?: number | null }[],
+): CfdiPick {
+  const kindOf = (asset: { name: string; mimeType?: string | null }) => {
+    const name = asset.name.toLowerCase();
+    const type = (asset.mimeType ?? '').toLowerCase();
+    if (name.endsWith('.xml') || type.endsWith('/xml')) return 'xml';
+    if (name.endsWith('.pdf') || type === 'application/pdf') return 'pdf';
+    return null;
+  };
+  const xml = assets.find((asset) => kindOf(asset) === 'xml');
+  const pdf = assets.find((asset) => kindOf(asset) === 'pdf');
+  if (!xml) return { status: 'invalid', failure: 'xml_missing' };
+  if ((xml.size ?? 0) > CFDI_XML_MAX_BYTES) return { status: 'invalid', failure: 'too_large' };
+  if (pdf && (pdf.size ?? 0) > CFDI_PDF_MAX_BYTES) {
+    return { status: 'invalid', failure: 'pdf_too_large' };
+  }
+  return {
+    status: 'picked',
+    xml: { uri: xml.uri, name: xml.name, type: 'application/xml' },
+    pdf: pdf ? { uri: pdf.uri, name: pdf.name, type: 'application/pdf' } : null,
+  };
 }

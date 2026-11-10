@@ -77,6 +77,11 @@ tags: [operator, invitation]
       LABEL: 'Confirma tu contraseña'
       TEXT: 'Demo1234'
 - tapOn: 'Confirma tu contraseña'
+# I1: the terms checkbox (20-terms-acceptance checks that it is required).
+- scrollUntilVisible:
+    element: 'Acepto los términos y condiciones y el aviso de privacidad'
+    centerElement: true
+- tapOn: 'Acepto los términos y condiciones y el aviso de privacidad'
 - scrollUntilVisible:
     element: 'Crear mi cuenta'
     centerElement: true

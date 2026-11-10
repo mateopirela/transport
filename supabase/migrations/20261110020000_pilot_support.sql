@@ -10,7 +10,7 @@
 -- The hombre-camión's documents (D16-E2) need no schema change: the catalog
 -- (D12/D16) already asks the company, its operator row (linked to the
 -- Gerente by register_company, D13) and each unit for their documents; the
--- apps show the three groups in one screen and pgTAP 51 proves the catalog.
+-- apps show the three groups in one screen and pgTAP 52 proves the catalog.
 
 insert into public.platform_settings (key, value, description) values
   ('support.whatsapp', 'null',

@@ -214,6 +214,16 @@ describe('notificationHref', () => {
       '/transportista/cobranza',
     );
     expect(notificationHref('freight_overdue', data, 'transportista')).toBeNull();
+    // I4: the quick pay decision, in Cobranza; never for the shipper.
+    expect(notificationHref('quick_pay_approved', data, 'transportista')).toBe(
+      '/transportista/cobranza',
+    );
+    expect(notificationHref('quick_pay_rejected', data, 'transportista')).toBe(
+      '/transportista/cobranza',
+    );
+    expect(notificationHref('quick_pay_requested', data, 'transportista')).toBeNull();
+    expect(notificationHref('quick_pay_approved', data)).toBeNull();
+    expect(notificationHref('quick_pay_rejected', data)).toBeNull();
   });
 
   it('handles every notification type in both areas', () => {

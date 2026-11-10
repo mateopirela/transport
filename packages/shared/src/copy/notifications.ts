@@ -240,6 +240,26 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         title: 'Pago retenido',
         body: `El pago del viaje${route(data)}${pending(data)} está retenido: el cliente no ha pagado. Fulmis se encarga de la cobranza.`,
       };
+    // I4 (D38): a quick pay request (the admins, with the quick net), its
+    // approval (the carrier staff, with what Fulmis pays) or its rejection
+    // (the carrier staff, with the reason). Never to the shipper.
+    case 'quick_pay_requested':
+      return {
+        title: 'Pago rápido solicitado',
+        body: `Un transportista pidió pago rápido${amount(data)} por el viaje${route(data)}.`,
+      };
+    case 'quick_pay_approved':
+      return {
+        title: 'Pago rápido aprobado',
+        body: `Fulmis aprobó tu pago rápido${amount(data)} por el viaje${route(data)}.`,
+      };
+    case 'quick_pay_rejected': {
+      const reason = text(data, 'reason');
+      return {
+        title: 'Pago rápido rechazado',
+        body: `Fulmis rechazó tu pago rápido del viaje${route(data)}${reason ? `: ${reason}` : '.'}`,
+      };
+    }
     // I7 (D40): compatible loads near the destination of a trip, for when its
     // unit is free ("3 cargas cerca de Guadalajara para cuando la unidad
     // CS53-01 quede libre").

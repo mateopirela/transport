@@ -66,6 +66,8 @@ export const ids = {
   ledgerTrip: '5eed0008-0000-4000-8000-000000000021',
   /** Trip MTY -> GDL of Ana with Transportes Regios, $40,000, already paid on both sides (I3, load 17). */
   paidTrip: '5eed0008-0000-4000-8000-000000000006',
+  /** Trip MTY -> GDL of Ana with Transportes Regios, $40,000 delivered five weeks ago, overdue and held (I4's quick pay). */
+  heldTrip: '5eed0008-0000-4000-8000-000000000008',
   /** Load Apodaca → Zapopan (torton) Ana sent to the platform: $12,000 to her, $10,800 to the carriers (I6, load 26). */
   brokeredLoad: '5eed0005-0000-4000-8000-000000000026',
 } as const;

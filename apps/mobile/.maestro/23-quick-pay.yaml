@@ -1,0 +1,40 @@
+# Pago rápido (I4, D38): Jorge, the Gerente, opens "Más → Cobranza". The
+# seed's held Monterrey → Guadalajara trip ($38,800 net; its client is late)
+# has his CFDI to Fulmis (the runner registers it through the
+# validate-carrier-cfdi Edge Function first), so it offers "Pedir pago
+# rápido". The sheet shows what Fulmis deducts ($970, 2.5 %) and what he
+# gets ($37,830); he confirms and the trip shows the request. Needs a seed
+# where nobody asked for the quick pay of that trip.
+appId: ${APP_ID}
+name: Gerente · pago rápido
+tags: [carrier, manager]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jorge.villarreal@demo.test
+- extendedWaitUntil:
+    visible: 'Más, tab.*'
+    timeout: 30000
+- tapOn: 'Más, tab.*'
+- tapOn: 'Cobranza'
+- extendedWaitUntil:
+    visible: 'Por cobrar'
+    timeout: 15000
+- scrollUntilVisible:
+    element: 'Pedir pago rápido.*'
+    centerElement: true
+- assertVisible: '.*Recibes: \$37,830.00.*'
+- takeScreenshot: 23-1-quick-pay-offer
+- tapOn: 'Pedir pago rápido.*'
+- extendedWaitUntil:
+    visible: '¿Pedir pago rápido\?'
+    timeout: 10000
+- assertVisible: '.*\$970.00.*\$37,830.00.*'
+- takeScreenshot: 23-2-quick-pay-confirm
+- tapOn: 'Confirmar pago rápido'
+- extendedWaitUntil:
+    visible: 'Pago rápido solicitado: recibirás \$37,830.00.*'
+    timeout: 15000
+- assertNotVisible: 'Pedir pago rápido.*'
+- takeScreenshot: 23-3-quick-pay-requested

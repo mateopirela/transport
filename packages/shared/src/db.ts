@@ -1013,6 +1013,14 @@ export interface Database {
           id: string;
           margin_cents: number;
           needs_review: boolean;
+          quick_pay_approved_at: string | null;
+          quick_pay_approved_by: string | null;
+          quick_pay_fee_bps: number | null;
+          quick_pay_fee_cents: number | null;
+          quick_pay_rejected_at: string | null;
+          quick_pay_rejection_reason: string | null;
+          quick_pay_requested_at: string | null;
+          quick_pay_requested_by: string | null;
           review_note: string | null;
           trip_id: string;
           updated_at: string;
@@ -1034,6 +1042,14 @@ export interface Database {
           id?: string;
           margin_cents?: number;
           needs_review?: boolean;
+          quick_pay_approved_at?: string | null;
+          quick_pay_approved_by?: string | null;
+          quick_pay_fee_bps?: number | null;
+          quick_pay_fee_cents?: number | null;
+          quick_pay_rejected_at?: string | null;
+          quick_pay_rejection_reason?: string | null;
+          quick_pay_requested_at?: string | null;
+          quick_pay_requested_by?: string | null;
           review_note?: string | null;
           trip_id: string;
           updated_at?: string;
@@ -1054,6 +1070,14 @@ export interface Database {
           id?: string;
           margin_cents?: number;
           needs_review?: boolean;
+          quick_pay_approved_at?: string | null;
+          quick_pay_approved_by?: string | null;
+          quick_pay_fee_bps?: number | null;
+          quick_pay_fee_cents?: number | null;
+          quick_pay_rejected_at?: string | null;
+          quick_pay_rejection_reason?: string | null;
+          quick_pay_requested_at?: string | null;
+          quick_pay_requested_by?: string | null;
           review_note?: string | null;
           trip_id?: string;
           updated_at?: string;
@@ -3886,6 +3910,10 @@ export interface Database {
         Returns: string;
       };
       admin_accept_offer: { Args: { p_offer_id: string }; Returns: string };
+      admin_approve_quick_pay: {
+        Args: { p_confirm_over_limit?: boolean; p_trip_id: string };
+        Returns: Json;
+      };
       admin_brokered_loads: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -3941,6 +3969,12 @@ export interface Database {
           needs_review: boolean;
           origin_city: string;
           payments: Json;
+          quick_pay_approved_at: string;
+          quick_pay_fee_bps: number;
+          quick_pay_fee_cents: number;
+          quick_pay_rejected_at: string;
+          quick_pay_rejection_reason: string;
+          quick_pay_requested_at: string;
           review_note: string;
           shipper_company_id: string;
           shipper_name: string;
@@ -3966,6 +4000,14 @@ export interface Database {
           total_count: number;
         }[];
       };
+      admin_quick_pay_exposure: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          exposure_cents: number;
+          fee_bps: number;
+          limit_cents: number;
+        }[];
+      };
       admin_quote_brokered_load: {
         Args: { p_carrier_price_cents: number; p_client_price_cents: number; p_load_id: string };
         Returns: undefined;
@@ -3981,6 +4023,7 @@ export interface Database {
         };
         Returns: string;
       };
+      admin_reject_quick_pay: { Args: { p_reason: string; p_trip_id: string }; Returns: undefined };
       admin_resolve_freight_review: {
         Args: { p_note: string; p_trip_id: string };
         Returns: undefined;
@@ -4308,12 +4351,21 @@ export interface Database {
           paid_cents: number;
           payments: Json;
           pending_cents: number;
+          quick_pay_approved_at: string;
+          quick_pay_blocker: string;
+          quick_pay_fee_bps: number;
+          quick_pay_fee_cents: number;
+          quick_pay_net_cents: number;
+          quick_pay_rejected_at: string;
+          quick_pay_rejection_reason: string;
+          quick_pay_requested_at: string;
           status: Database['public']['Enums']['freight_carrier_status'];
           trip_created_at: string;
           trip_id: string;
           trip_status: Database['public']['Enums']['trip_status'];
         }[];
       };
+      carrier_quick_pay_fee_bps: { Args: Record<PropertyKey, never>; Returns: number };
       check_backhaul: { Args: { p_source: string; p_trip_id: string }; Returns: undefined };
       check_freight_invoice_service: {
         Args: {
@@ -4592,6 +4644,8 @@ export interface Database {
         Returns: boolean;
       };
       freight_is_valid_commission: { Args: { p_value: Json }; Returns: boolean };
+      freight_is_valid_exposure_limit: { Args: { p_value: Json }; Returns: boolean };
+      freight_is_valid_quick_pay_fee: { Args: { p_value: Json }; Returns: boolean };
       freight_ledger_create: {
         Args: {
           p_trip: Omit<
@@ -4605,6 +4659,22 @@ export interface Database {
         Args: { p_amount_cents: number; p_extra: Json; p_ledger_id: string };
         Returns: Json;
       };
+      freight_quick_pay_blocker: {
+        Args: {
+          p_ledger: Omit<
+            Database['public']['Tables']['freight_ledgers']['Row'],
+            Database['public']['Tables']['freight_ledgers']['ComputedFields']
+          >;
+          p_trip: Omit<
+            Database['public']['Tables']['trips']['Row'],
+            Database['public']['Tables']['trips']['ComputedFields']
+          >;
+        };
+        Returns: string;
+      };
+      freight_quick_pay_exposure_cents: { Args: Record<PropertyKey, never>; Returns: number };
+      freight_quick_pay_exposure_limit_cents: { Args: Record<PropertyKey, never>; Returns: number };
+      freight_quick_pay_fee_bps: { Args: Record<PropertyKey, never>; Returns: number };
       freight_today: { Args: Record<PropertyKey, never>; Returns: string };
       fulmis_rfc: { Args: Record<PropertyKey, never>; Returns: string };
       get_route_distances: {
@@ -4955,6 +5025,7 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Database['public']['Enums']['verification_status'];
       };
+      request_quick_pay: { Args: { p_fee_bps: number; p_trip_id: string }; Returns: Json };
       require_manager_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       resolve_incident: {
         Args: { p_incident_id: string; p_resolution: string };
@@ -5474,7 +5545,10 @@ export interface Database {
         | 'backhaul_suggestions'
         | 'brokered_load_requested'
         | 'brokered_load_quoted'
-        | 'brokered_load_contracted';
+        | 'brokered_load_contracted'
+        | 'quick_pay_requested'
+        | 'quick_pay_approved'
+        | 'quick_pay_rejected';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -5781,6 +5855,9 @@ export const Constants = {
         'brokered_load_requested',
         'brokered_load_quoted',
         'brokered_load_contracted',
+        'quick_pay_requested',
+        'quick_pay_approved',
+        'quick_pay_rejected',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

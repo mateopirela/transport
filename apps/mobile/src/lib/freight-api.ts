@@ -6,14 +6,17 @@ import {
   FREIGHT_INVOICE_FUNCTIONS,
   FREIGHT_PAGE_SIZE,
   freightInvoiceUploadErrors,
+  isQuickPayBlocker,
   parseFreightPayments,
   parseFulmisSettings,
+  quickPayErrorText,
   toCents,
   type Database,
   type FreightInvoiceFailure,
   type FreightInvoiceValidation,
   type FreightPayment,
   type FulmisFiscalData,
+  type QuickPayBlocker,
 } from '@transport/shared';
 
 import type { Supabase } from './supabase';
@@ -28,7 +31,15 @@ type Row = Database['public']['Functions']['carrier_freight_ledger']['Returns'][
 
 export type CollectionRow = Omit<
   Row,
-  'payments' | 'freight_cents' | 'commission_cents' | 'net_cents' | 'paid_cents' | 'pending_cents'
+  | 'payments'
+  | 'freight_cents'
+  | 'commission_cents'
+  | 'net_cents'
+  | 'paid_cents'
+  | 'pending_cents'
+  | 'quick_pay_fee_cents'
+  | 'quick_pay_net_cents'
+  | 'quick_pay_blocker'
 > & {
   freight_cents: number;
   commission_cents: number;
@@ -36,7 +47,16 @@ export type CollectionRow = Omit<
   paid_cents: number;
   pending_cents: number;
   payments: FreightPayment[];
+  /** Quick pay (I4): the frozen fee and what Fulmis pays, once requested. */
+  quick_pay_fee_cents: number | null;
+  quick_pay_net_cents: number | null;
+  /** Why the quick pay cannot be asked for; null when it can. */
+  quick_pay_blocker: QuickPayBlocker | null;
 };
+
+function nullableCents(value: number | string | null | undefined): number | null {
+  return value === null || value === undefined ? null : toCents(value);
+}
 
 /**
  * Every trip of the carrier, in pages by ledger id (the totals need all of
@@ -63,7 +83,46 @@ export async function loadCollections(client: Supabase): Promise<CollectionRow[]
     paid_cents: toCents(row.paid_cents),
     pending_cents: toCents(row.pending_cents),
     payments: parseFreightPayments(row.payments),
+    quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
+    quick_pay_net_cents: nullableCents(row.quick_pay_net_cents),
+    quick_pay_blocker: isQuickPayBlocker(row.quick_pay_blocker) ? row.quick_pay_blocker : null,
   }));
+}
+
+/**
+ * The current quick pay fee (I4) for the carrier staff, to show the quick
+ * net before asking; null when it cannot be read (then no request is offered).
+ */
+export async function loadQuickPayFee(client: Supabase): Promise<number | null> {
+  const { data, error } = await client.rpc('carrier_quick_pay_fee_bps');
+  if (error) return null;
+  return typeof data === 'number' ? data : null;
+}
+
+export type QuickPayRequestResult =
+  | { ok: true }
+  /** feeChanged: the fee changed meanwhile; reload it and ask again. */
+  | { ok: false; error: string; feeChanged: boolean };
+
+/**
+ * Asks for the quick pay of a trip (request_quick_pay) with the fee the
+ * carrier was shown: Postgres refuses it if the fee changed meanwhile.
+ */
+export async function requestQuickPay(
+  client: Supabase,
+  tripId: string,
+  feeBps: number,
+): Promise<QuickPayRequestResult> {
+  const { error } = await client.rpc('request_quick_pay', {
+    p_trip_id: tripId,
+    p_fee_bps: feeBps,
+  });
+  if (!error) return { ok: true };
+  return {
+    ok: false,
+    error: quickPayErrorText(error),
+    feeChanged: error.code === '55000' && error.details === 'fee_changed',
+  };
 }
 
 /** The carrier's CFDI to Fulmis of a trip (I5), as Cobranza shows it. */

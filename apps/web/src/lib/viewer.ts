@@ -19,6 +19,8 @@ export interface ViewerDetails {
     rfc: string;
     status: VerificationStatus;
     statusReason: string | null;
+    /** A hombre-camión (D13): the Gerente also drives. */
+    isOwnerOperator: boolean;
   } | null;
   /** Whether the account accepted the current version of the terms (I1). */
   termsAccepted: boolean;
@@ -36,7 +38,7 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'role, full_name, company:companies(id, legal_name, rfc, status, status_reason), terms_acceptances(terms_version)',
+      'role, full_name, company:companies(id, legal_name, rfc, status, status_reason, is_owner_operator), terms_acceptances(terms_version)',
     )
     .eq('id', userId)
     .eq('terms_acceptances.terms_version', TERMS_VERSION)
@@ -54,6 +56,7 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
       rfc: company.rfc,
       status: company.status,
       statusReason: company.status_reason,
+      isOwnerOperator: company.is_owner_operator,
     },
     termsAccepted: profile.terms_acceptances.length > 0,
   };

@@ -5,6 +5,7 @@ import {
   companyFiscalFieldLabels,
   companyTypeLabels,
   documentOwnerTypeLabels,
+  fiscalAddressLine,
   formatDate,
   formatDateTime,
   planPriceLabel,
@@ -97,18 +98,7 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
   const [companyOwner, ...fleet] = owners;
   const summary = companyOwner ? progressSummary(companyOwner.progress) : null;
   const missing = summary ? summary.required - summary.approved : 0;
-  const address =
-    [
-      [company.fiscal_street, company.fiscal_exterior_number, company.fiscal_interior_number]
-        .filter(Boolean)
-        .join(' '),
-      company.fiscal_neighborhood,
-      company.fiscal_postal_code,
-      company.fiscal_municipality,
-      company.fiscal_state,
-    ]
-      .filter(Boolean)
-      .join(', ') || '—';
+  const address = fiscalAddressLine(company) || '—';
   const contact =
     [company.contact_name, company.contact_email, company.contact_phone]
       .filter(Boolean)

@@ -1,10 +1,11 @@
-import { authCopy, shellCopy } from '@transport/shared';
+import { authCopy, shellCopy, supportRoleLabel } from '@transport/shared';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
 import { AccountMenu, NavTabs, type ShellNavItem } from '@/components/app-shell-client';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
+import { loadSupportSettings } from '@/lib/support/queries';
 import { themeChoiceFromCookie, THEME_COOKIE } from '@/lib/theme';
 import type { ViewerDetails } from '@/lib/viewer';
 
@@ -33,6 +34,16 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const theme = themeChoiceFromCookie((await cookies()).get(THEME_COOKIE)?.value);
+  // "Ayuda" (I2, D41): everyone but the admin, who is the support; without a
+  // number it does not show, and it never takes the shell down.
+  const support = viewer.role === 'admin' ? null : await loadSupportSettings().catch(() => null);
+  const help = support?.whatsapp
+    ? {
+        whatsapp: support.whatsapp,
+        hours: support.hours,
+        roleLabel: supportRoleLabel(viewer.role, viewer.company?.isOwnerOperator === true),
+      }
+    : null;
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-40 border-b border-glass-line bg-glass backdrop-blur-xl backdrop-saturate-150">
@@ -46,6 +57,7 @@ export async function AppShell({
               name={viewer.fullName}
               company={viewer.company?.legalName ?? null}
               theme={theme}
+              help={help}
             />
           </div>
         </div>

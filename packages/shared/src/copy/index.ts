@@ -27,6 +27,7 @@ export * from './roads';
 export * from './share-links';
 export * from './trip-link';
 export * from './shared-documents';
+export * from './support';
 export * from './tracking';
 export * from './trip-documents';
 export * from './trips';

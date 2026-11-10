@@ -35,6 +35,7 @@ import {
   ReceiverFields,
   type EvidenceItem,
 } from '../../components/evidence-section';
+import { HelpCell } from '../../components/help-cell';
 import { OperatorDocumentsSection } from '../../components/operator-documents-section';
 import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
 import { TabBottomBar } from '../../components/tab-bottom-bar';
@@ -827,6 +828,9 @@ function TripView({
         </View>
 
         <TimelineSection entries={timeline} />
+
+        {/* "Ayuda" with this trip's folio (I2). */}
+        <HelpCell tripId={trip.id} />
       </Screen>
 
       {/* The next step is the screen's one primary, always at hand. */}

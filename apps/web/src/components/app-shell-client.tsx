@@ -1,7 +1,15 @@
 'use client';
 
-import { appearanceCopy, shellCopy, uiCopy, type ThemeChoice } from '@transport/shared';
-import { LogOut, UserRound } from 'lucide-react';
+import {
+  appearanceCopy,
+  shellCopy,
+  supportCopy,
+  supportWhatsappUrl,
+  tripFolio,
+  uiCopy,
+  type ThemeChoice,
+} from '@transport/shared';
+import { LogOut, MessageCircle, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Popover } from 'radix-ui';
@@ -11,6 +19,7 @@ import { ThemeSwitcher } from '@/components/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
 import { activeNavHref, initialsOf, type NavItem } from '@/lib/nav';
+import { tripIdFromPath } from '@/lib/support/trip-path';
 import { cn } from '@/lib/utils';
 
 export type ShellNavItem = NavItem & { label: string; badge?: React.ReactNode };
@@ -51,18 +60,63 @@ export function NavTabs({ items }: { items: readonly ShellNavItem[] }) {
   );
 }
 
+/** "Ayuda" of the account menu (I2): the support WhatsApp, as the shell loaded it. */
+export interface ShellHelp {
+  whatsapp: string;
+  hours: string | null;
+  roleLabel: string | null;
+}
+
+/**
+ * "Ayuda" (I2, D41): opens WhatsApp with a message that says the role and,
+ * on a trip's page, its folio.
+ */
+function HelpLink({ help }: { help: ShellHelp }) {
+  const tripId = tripIdFromPath(usePathname());
+  const folio = tripFolio(tripId);
+  const href = supportWhatsappUrl({ whatsapp: help.whatsapp, roleLabel: help.roleLabel, tripId });
+  if (!href) return null;
+  return (
+    <div className="border-t py-2">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="support-help"
+        className="flex items-start gap-3 rounded-xl px-3 py-2 outline-none hover:bg-surface-high focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      >
+        <MessageCircle aria-hidden className="mt-0.5 size-4.5 shrink-0 text-accent-text" />
+        <span className="min-w-0">
+          <span className="block text-callout font-semibold text-text">{supportCopy.help}</span>
+          <span className="block text-footnote text-text-dim">
+            {folio ? supportCopy.helpWithTrip(folio) : supportCopy.helpSubtitle}
+          </span>
+          {help.hours && (
+            <span className="block text-footnote text-text-dim">
+              {supportCopy.hours(help.hours)}
+            </span>
+          )}
+        </span>
+      </a>
+    </div>
+  );
+}
+
 /**
  * The account in the top bar: a round button with the initials that opens
- * who is signed in, "Apariencia" and "Cerrar sesión".
+ * who is signed in, "Ayuda" (when support has a number), "Apariencia" and
+ * "Cerrar sesión".
  */
 export function AccountMenu({
   name,
   company,
   theme,
+  help = null,
 }: {
   name: string | null;
   company: string | null;
   theme: ThemeChoice;
+  help?: ShellHelp | null;
 }) {
   const initials = initialsOf(name ?? company);
   // Here and not in the switcher: the popover's content unmounts when it closes.
@@ -88,6 +142,7 @@ export function AccountMenu({
               {company && <p className="truncate text-subhead text-text-dim">{company}</p>}
             </div>
           )}
+          {help && <HelpLink help={help} />}
           <div className="border-t px-3 py-3">
             <p className="mb-2 text-label text-text-dim">{appearanceCopy.title}</p>
             <ThemeSwitcher

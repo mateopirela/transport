@@ -13,6 +13,7 @@ import {
   documentFileIssue,
   documentStoragePath,
   endOfDayInMexicoCity,
+  fiscalAddressLine,
   isRequiredFor,
   progressSummary,
   requirementProgress,
@@ -293,6 +294,41 @@ describe('auditChangedFields', () => {
     expect(auditChangedFields(null, { b: 1, a: 2 })).toEqual(['a', 'b']);
     expect(auditChangedFields({ a: 1 }, null)).toEqual(['a']);
     expect(auditChangedFields([1], 'x')).toEqual([]);
+  });
+});
+
+describe('fiscalAddressLine', () => {
+  const full = {
+    fiscal_street: 'Av. Constitución',
+    fiscal_exterior_number: '100',
+    fiscal_interior_number: 'Piso 2',
+    fiscal_neighborhood: 'Centro',
+    fiscal_postal_code: '64000',
+    fiscal_municipality: 'Monterrey',
+    fiscal_state: 'Nuevo León',
+  };
+
+  it('joins the fiscal address in one line', () => {
+    expect(fiscalAddressLine(full)).toBe(
+      'Av. Constitución 100 Piso 2, Centro, 64000, Monterrey, Nuevo León',
+    );
+  });
+
+  it('skips what is missing and is empty without an address', () => {
+    expect(
+      fiscalAddressLine({ ...full, fiscal_interior_number: null, fiscal_neighborhood: null }),
+    ).toBe('Av. Constitución 100, 64000, Monterrey, Nuevo León');
+    expect(
+      fiscalAddressLine({
+        fiscal_street: null,
+        fiscal_exterior_number: null,
+        fiscal_interior_number: null,
+        fiscal_neighborhood: null,
+        fiscal_postal_code: null,
+        fiscal_municipality: null,
+        fiscal_state: null,
+      }),
+    ).toBe('');
   });
 });
 

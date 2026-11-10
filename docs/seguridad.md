@@ -91,13 +91,14 @@ Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit
 
 | Aviso | Paquete | Por dónde entra | Decisión |
 | --- | --- | --- | --- |
-| GHSA-86w9-cpqp-85rv (alto) | `node-forge` ≤ 1.4.0 | `@expo/code-signing-certificates` (CLI de Expo) | Aceptado: herramienta de desarrollo, no va en la app. Sin versión corregida |
 | GHSA-vfj7-8cjw-p6xm (alto) | `braces` ≤ 3.0.3 | `@next/eslint-plugin-next` (lint) | Aceptado: solo lint. Sin versión corregida |
 | GHSA-mrhx-c7xc-m3w5 (alto) | `zod` 3.25.76 | `@expo/cli` (CLI de Expo) | Aceptado: herramienta de desarrollo, no va en la app (las apps usan `zod` 4.6.7, ya corregido). La corrección solo existe en `zod` 4 y `@expo/cli` 57 usa `zod` 3. Revisar al actualizar Expo |
 | GHSA-vcc3-ghjq-m6fr (moderado) y GHSA-qr28-fpjm-wq7f (alto) | `decode-uri-component` 0.2.2 | `query-string` de `expo-router` | Aceptado el 2026-10-29 (decisión de Mateo): solo corre en la app móvil al leer los parámetros de una ruta, así que lo peor es que un enlace malicioso congele la app de quien lo abre; no toca el servidor ni los datos. La corrección (0.5.1) solo existe como ESM y rompería `query-string` 7. Revisar cuando `expo-router` la adopte |
 | GHSA-w5hq-g745-h8pq (moderado) | `uuid` 7 | `xcode` (config plugins de Expo, en build) | Aceptado: solo en build, y la app no usa la API afectada (`buf`) |
 
 `pnpm audit` no cubre las Edge Functions (Deno). Su código importa el del repo y una sola dependencia remota: `npm:@sentry/deno@11.7.0` (B25). Se carga solo si hay `SENTRY_DSN`, con la versión exacta fijada y su árbol bloqueado con integridad en `supabase/functions/*/deno.lock`. Para actualizarla hay que revisar sus avisos (`npm audit` de `@sentry/deno` en esa versión, o GitHub Advisories) y regenerar los `deno.lock` en el mismo PR. Las acciones de CI están fijadas por SHA.
+
+`node-forge` (por la CLI de Expo) se actualizó a 1.4.3 el 2026-11-10: corrige GHSA-86w9-cpqp-85rv, que estaba aceptado, y los avisos altos publicados después (GHSA-7wch-p9px-956x, GHSA-jc66-7q78-782g, GHSA-8hrf-8g6f-7xwp, GHSA-hqq3-7jhf-c5jx y GHSA-5x38-2vff-x55p).
 
 ## Hallazgos
 

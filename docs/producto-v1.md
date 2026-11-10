@@ -60,6 +60,7 @@
 - **Tiempo típico en tu sitio** (D32): en cada carga y viaje, cuánto tardan los camiones en cargar y descargar en sus propios sitios (espera + maniobra), medido con sus viajes anteriores.
 - **Compartir** una carga o el seguimiento de un viaje con un enlace público de solo lectura (D23). El seguimiento público muestra el mismo fin estimado de descarga que ve el cliente, solo la hora: sin decir en cuántos viajes se basa.
 - Reportar incidencias.
+- **Cargas intermediadas** (D39): al publicar, la opción "Que la plataforma consiga el transportista" manda la carga a Transport con un precio objetivo opcional ("Por cotizar" si se deja vacío). Transport le envía **su precio**; la carga queda "Esperando tu aprobación" hasta que el cliente lo acepta, y entonces se publica a los transportistas. El cliente no edita esa carga ni ve las ofertas de los transportistas: ve su precio, cuando Transport consigue el transportista ("Tu carga tiene transportista") y el viaje como cualquier otro. Nunca ve la tarifa del transportista.
 
 ### Gerente (app y web)
 - Registro de la empresa: RFC y razón social, Constancia de Situación Fiscal, representante legal (nombre e identificación) y domicilio fiscal. Usuario con nombre, correo, teléfono y contraseña.
@@ -125,6 +126,7 @@
 - **Suscripciones** (D30): la bandera de la prueba piloto, su fecha de fin (avisa 14 días antes), el modo sin suscripción después del piloto (apagado, aviso o bloqueo de ofertas y disponibilidad nuevas; nunca de viajes en curso), los planes (hombre camión y empresa transportista, precio "Por definir" hasta que se fije) y el estado de cada empresa transportista. Cada cambio queda en la bitácora.
 - Estadísticas básicas: cargas publicadas, ofertas, viajes, viajes de regreso logrados y km en vacío.
 - Bitácora de auditoría de acciones administrativas.
+- **Cargas intermediadas** (D39, `/admin/intermediadas`): fija el **precio al cliente** y la **tarifa al transportista** (menor o igual); una vez que el cliente acepta su precio, solo cambia la tarifa. Responde las ofertas de los transportistas **en nombre de Transport** (aceptar, rechazar o contraofertar, nunca por encima del precio al cliente). En el libro del flete, la carga intermediada no cobra comisión y su **margen** (precio al cliente − precio acordado con el transportista) solo lo ve el admin.
 - **Carreteras** (D31): tramos, casetas por clase de camión, inseguridad por tramo y franja horaria, y corredores; cada dato con su fuente y fecha, y la marca "estimado" o "verificado". Los cambios quedan en la bitácora.
 
 ### Transversal

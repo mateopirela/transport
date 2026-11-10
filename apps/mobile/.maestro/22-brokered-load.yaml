@@ -1,0 +1,32 @@
+# Cargas intermediadas (I6, D39): José, the hombre-camión, finds the seed's
+# Apodaca → Zapopan load that Aceros del Norte sent to the platform. The
+# carriers see it "Publicada por Transport" at their rate ($10,800); the
+# client's price ($12,000) never reaches them. Read-only: nothing above
+# offers on that load.
+appId: ${APP_ID}
+name: Transportista · carga intermediada
+tags: [carrier, owner-operator]
+---
+- runFlow:
+    file: subflows/sign-in.yaml
+    env:
+      EMAIL: jose.sanchez@demo.test
+- extendedWaitUntil:
+    visible: 'Mi viaje, tab.*'
+    timeout: 30000
+- tapOn: 'Cargas, tab.*'
+- scrollUntilVisible:
+    element: 'Apodaca → Zapopan.*'
+    centerElement: true
+    timeout: 30000
+- assertVisible: 'Publicada por Transport'
+- assertNotVisible: '.*\$12,000.00.*'
+- takeScreenshot: 22-1-brokered-load-list
+- tapOn: 'Apodaca → Zapopan.*'
+- extendedWaitUntil:
+    visible: 'Detalle de la carga'
+    timeout: 15000
+- assertVisible: 'Publicada por Transport'
+- assertVisible: '\$10,800.00'
+- assertNotVisible: '.*\$12,000.00.*'
+- takeScreenshot: 22-2-brokered-load-detail

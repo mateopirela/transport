@@ -34,8 +34,9 @@
 --     fulmis.zip (null by default: the legal entity is "en proceso"). Every
 --     signed-in user reads them: the carrier needs them to invoice Fulmis.
 --
--- Lock order: the ledger row only (as admin_record_freight_payment), which
--- serializes the invoices of a trip.
+-- Lock order: the trip (shared: the uploader is checked against its business
+-- unit, which assign_trip changes under the trip's lock), then its ledger,
+-- which serializes the invoices of a trip.
 
 -- ---------------------------------------------------------------------------
 -- Types
@@ -489,7 +490,10 @@ begin
   if (select auth.role()) is distinct from 'service_role' then
     raise exception 'service role required' using errcode = '42501';
   end if;
-  select * into v_trip from public.trips where id = p_trip_id;
+  -- The trip first (shared, as the lock order of I3: trip, then ledger):
+  -- assign_trip cannot move it to another business unit while the uploader
+  -- is checked and the invoice is registered.
+  select * into v_trip from public.trips where id = p_trip_id for share;
   if not found or p_direction is null
      or not public.freight_invoice_uploader_allowed(p_user_id, v_trip, p_direction) then
     raise exception 'trip not available' using errcode = '42501';

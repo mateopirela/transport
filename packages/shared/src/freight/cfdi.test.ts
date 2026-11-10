@@ -66,7 +66,7 @@ describe('parseCfdi', () => {
 
   it('accepts an RFC with Ñ and &, a BOM and comments', () => {
     const xml = `${String.fromCharCode(0xfeff)}${syntheticCfdi({
-      issuerRfc: 'ÑA&040404CD4',
+      issuerRfc: 'ÑA&amp;040404CD4',
     }).replace('<cfdi:Conceptos>', '<!-- comentario --><cfdi:Conceptos>')}`;
     const result = parseCfdi(xml);
     expect(result.ok && result.cfdi.issuerRfc).toBe('ÑA&040404CD4');
@@ -111,6 +111,20 @@ describe('parseCfdi', () => {
     expect(issues(parseCfdi(xxe))).toEqual(['dtd']);
     expect(issues(parseCfdi('<!doctype x><x/>'))).toEqual(['dtd']);
     expect(issues(parseCfdi(syntheticCfdi({ issuerName: '&xxe;' })))).toEqual(['malformed']);
+    expect(issues(parseCfdi(syntheticCfdi({ issuerName: '&averyveryverylongentity;' })))).toEqual([
+      'malformed',
+    ]);
+  });
+
+  it('rejects an ampersand that does not begin a reference', () => {
+    expect(issues(parseCfdi(syntheticCfdi({ issuerName: 'FLETES & CARGA' })))).toEqual([
+      'malformed',
+    ]);
+    expect(issues(parseCfdi(syntheticCfdi({ issuerRfc: 'NA&040404CD4' })))).toEqual(['malformed']);
+    expect(issues(parseCfdi('<a>texto & más</a>'))).toEqual(['malformed']);
+    // Escaped, it is fine.
+    const escaped = parseCfdi(syntheticCfdi({ issuerRfc: 'NA&amp;040404CD4' }));
+    expect(escaped.ok && escaped.cfdi.issuerRfc).toBe('NA&040404CD4');
   });
 
   it('rejects what is not well formed', () => {

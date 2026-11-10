@@ -203,41 +203,43 @@ export async function handleCfdiUpload(
   if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
     return json({ error: 'invalid_request' }, 400);
   }
-  const body = await readLimitedBody(request, MAX_BODY_BYTES);
-  if (!body) return invalid(['too_large'], 413);
-  let form: FormData;
-  try {
-    form = await new Response(body, { headers: { 'Content-Type': contentType } }).formData();
-  } catch {
-    return json({ error: 'invalid_request' }, 400);
-  }
-  const tripId = form.get('tripId');
-  if (typeof tripId !== 'string' || !UUID.test(tripId)) {
-    return json({ error: 'invalid_request' }, 400);
-  }
-  const trip = tripId.toLowerCase();
-  const xmlFile = form.get('xml');
-  const pdfEntry = form.get('pdf');
-  const pdfFile = pdfEntry instanceof File && pdfEntry.size > 0 ? pdfEntry : null;
-
-  const failures: UploadFailure[] = [];
-  if (!(xmlFile instanceof File) || xmlFile.size === 0) failures.push('xml_missing');
-  else if (xmlFile.size > CFDI_XML_MAX_BYTES) failures.push('too_large');
-  let pdf: Uint8Array<ArrayBuffer> | null = null;
-  if (!pdfFile) {
-    if (options.pdfRequired) failures.push('pdf_missing');
-  } else if (pdfFile.size > CFDI_PDF_MAX_BYTES) {
-    failures.push('pdf_too_large');
-  } else {
-    pdf = new Uint8Array(await pdfFile.arrayBuffer());
-    if (!looksLikePdf(pdf)) failures.push('pdf_invalid');
-  }
-
+  // The session and the limit first: every request that reaches the body,
+  // valid or not, spends one of the caller's uploads.
   try {
     const userId = await userIdOf(supabaseUrl, anonKey, authorization, deps.fetch);
     if (!userId) return json({ error: 'unauthorized' }, 401);
     const refusal = await consumeRateLimit(supabaseUrl, anonKey, authorization, deps.fetch, log);
     if (refusal) return refusal;
+
+    const body = await readLimitedBody(request, MAX_BODY_BYTES);
+    if (!body) return invalid(['too_large'], 413);
+    let form: FormData;
+    try {
+      form = await new Response(body, { headers: { 'Content-Type': contentType } }).formData();
+    } catch {
+      return json({ error: 'invalid_request' }, 400);
+    }
+    const tripId = form.get('tripId');
+    if (typeof tripId !== 'string' || !UUID.test(tripId)) {
+      return json({ error: 'invalid_request' }, 400);
+    }
+    const trip = tripId.toLowerCase();
+    const xmlFile = form.get('xml');
+    const pdfEntry = form.get('pdf');
+    const pdfFile = pdfEntry instanceof File && pdfEntry.size > 0 ? pdfEntry : null;
+
+    const failures: UploadFailure[] = [];
+    if (!(xmlFile instanceof File) || xmlFile.size === 0) failures.push('xml_missing');
+    else if (xmlFile.size > CFDI_XML_MAX_BYTES) failures.push('too_large');
+    let pdf: Uint8Array<ArrayBuffer> | null = null;
+    if (!pdfFile) {
+      if (options.pdfRequired) failures.push('pdf_missing');
+    } else if (pdfFile.size > CFDI_PDF_MAX_BYTES) {
+      failures.push('pdf_too_large');
+    } else {
+      pdf = new Uint8Array(await pdfFile.arrayBuffer());
+      if (!looksLikePdf(pdf)) failures.push('pdf_invalid');
+    }
 
     if (!(xmlFile instanceof File) || failures.includes('too_large')) return invalid(failures);
     const xml = new Uint8Array(await xmlFile.arrayBuffer());
@@ -307,18 +309,23 @@ export async function handleCfdiUpload(
       if (!removed?.ok)
         log.warn('could not remove the stored invoice files', { count: stored.length });
     };
+    // A failed or thrown upload is cleaned up with the files stored before it.
+    // Storage may have kept the object of a request that threw: it is removed
+    // too (by its unique name), since no invoice points to it yet.
     const store = async (path: string, bytes: Uint8Array<ArrayBuffer>, type: string) => {
-      const response = await deps.fetch(`${supabaseUrl}/storage/v1/object/invoices/${path}`, {
-        method: 'POST',
-        headers: { ...serviceHeaders(serviceKey), 'Content-Type': type, 'x-upsert': 'false' },
-        body: bytes,
-      });
-      if (!response.ok) {
-        log.error('storage upload failed', { status: response.status });
-        return false;
-      }
       stored.push(path);
-      return true;
+      try {
+        const response = await deps.fetch(`${supabaseUrl}/storage/v1/object/invoices/${path}`, {
+          method: 'POST',
+          headers: { ...serviceHeaders(serviceKey), 'Content-Type': type, 'x-upsert': 'false' },
+          body: bytes,
+        });
+        if (response.ok) return true;
+        log.error('storage upload failed', { status: response.status });
+      } catch (error) {
+        log.error('storage upload failed', { error });
+      }
+      return false;
     };
     if (
       !(await store(xmlPath, xml, 'application/xml')) ||
@@ -328,6 +335,8 @@ export async function handleCfdiUpload(
       return json({ error: 'upstream_error' }, 502);
     }
 
+    // If the call itself throws, the invoice may have been committed: its files
+    // stay (an orphan file is harmless and unreadable; a lost one is not).
     const recorded = await rpc('record_freight_invoice_service', {
       ...fields,
       p_issued_at: cfdi.issuedAt,

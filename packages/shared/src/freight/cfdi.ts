@@ -76,9 +76,14 @@ const NAME_START = /[A-Za-z_]/u;
 const NAME_CHAR = /[A-Za-z0-9_.-]/u;
 const SPACE = /[ \t\r\n]/u;
 
+/** The references XML allows without a DTD: the five predefined entities and character references. */
+const REFERENCE = /&(?:lt|gt|amp|quot|apos|#x[0-9A-Fa-f]{1,6}|#[0-9]{1,7});/gu;
+
 function decodeEntities(value: string): string {
   if (value.includes('<')) throw new XmlError('malformed');
-  return value.replace(/&([^;&]{0,10});/gu, (_match, entity: string) => {
+  // Every `&` must begin one of them: a bare `&` or any other entity is not XML.
+  if (value.replace(REFERENCE, '').includes('&')) throw new XmlError('malformed');
+  return value.replace(/&([^;&]{1,10});/gu, (_match, entity: string) => {
     switch (entity) {
       case 'lt':
         return '<';

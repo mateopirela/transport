@@ -244,10 +244,41 @@ Deno.test('a failed upload stores nothing and records nothing', async () => {
   const response = await handleValidateCarrierCfdi(request(), deps);
   assert.equal(response.status, 502);
   assert.equal(called(calls, '/rpc/record_freight_invoice_service').length, 0);
+  // The failed PDF too: Storage may have kept it.
   const removal = calls.find((call) => call.init.method === 'DELETE');
   assert.deepEqual(JSON.parse(String(removal?.init.body)).prefixes, [
     `${TRIP}/carrier_to_fulmis/${OBJECT}.xml`,
+    `${TRIP}/carrier_to_fulmis/${OBJECT}.pdf`,
   ]);
+});
+
+Deno.test('a thrown upload removes what was stored and records nothing', async () => {
+  let uploads = 0;
+  const { deps, calls } = setup({
+    upload: () => {
+      if (++uploads === 1) return ok({ Key: 'x' });
+      throw new Error('connection reset');
+    },
+  });
+  const response = await handleValidateCarrierCfdi(request(), deps);
+  assert.equal(response.status, 502);
+  assert.equal(called(calls, '/rpc/record_freight_invoice_service').length, 0);
+  const removal = calls.find((call) => call.init.method === 'DELETE');
+  assert.deepEqual(JSON.parse(String(removal?.init.body)).prefixes, [
+    `${TRIP}/carrier_to_fulmis/${OBJECT}.xml`,
+    `${TRIP}/carrier_to_fulmis/${OBJECT}.pdf`,
+  ]);
+});
+
+Deno.test('an uncertain record keeps the files (the invoice may exist)', async () => {
+  const { deps, calls } = setup({
+    record: () => {
+      throw new Error('connection reset');
+    },
+  });
+  const response = await handleValidateCarrierCfdi(request(), deps);
+  assert.equal(response.status, 502);
+  assert.ok(!calls.some((call) => call.init.method === 'DELETE'));
 });
 
 Deno.test('needs a valid session, a trip id and a multipart body', async () => {
@@ -339,5 +370,31 @@ Deno.test('never reads a body over the limit', async () => {
   );
   assert.equal(streamed.status, 413);
   assert.deepEqual((await streamed.json()).failures, ['too_large']);
-  assert.equal(calls.length, 0);
+  // Only the session and the limit were asked, before reading anything.
+  assert.deepEqual(
+    calls.map((call) => new URL(call.url).pathname),
+    [
+      '/auth/v1/user',
+      '/rest/v1/rpc/consume_rate_limit',
+      '/auth/v1/user',
+      '/rest/v1/rpc/consume_rate_limit',
+    ],
+  );
+});
+
+Deno.test('a malformed body still spends the caller limit', async () => {
+  const { deps, calls } = setup({ rateLimit: () => ok(30) });
+  const response = await handleValidateCarrierCfdi(
+    new Request('http://functions.test/validate-carrier-cfdi', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer user-jwt',
+        'Content-Type': 'multipart/form-data; boundary=x',
+      },
+      body: 'not multipart',
+    }),
+    deps,
+  );
+  assert.equal(response.status, 429);
+  assert.equal(called(calls, '/rpc/consume_rate_limit').length, 1);
 });

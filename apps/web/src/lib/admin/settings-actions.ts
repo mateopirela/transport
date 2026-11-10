@@ -35,6 +35,14 @@ async function setSetting(key: string, value: string | null, invalid: string): P
   return { message: c.saved };
 }
 
+/**
+ * A failed save gives back what the admin typed, so the form shows it again
+ * instead of the saved value (React resets the fields after an action).
+ */
+function keepTyped(state: FormState, name: string, typed: string): FormState {
+  return state.error ? { ...state, values: { [name]: typed } } : state;
+}
+
 /** The support WhatsApp: a phone (normalized to E.164) or, with "Quitar", none. */
 export async function setSupportWhatsappAction(
   _prev: FormState,
@@ -43,9 +51,12 @@ export async function setSupportWhatsappAction(
   if (formData.get('clear') === 'on') {
     return setSetting(SUPPORT_SETTING_KEYS.whatsapp, null, c.errors.invalidPhone);
   }
-  const phone = normalizeSupportWhatsapp(String(formData.get('whatsapp') ?? ''));
-  if (!phone) return { error: c.errors.invalidPhone };
-  return setSetting(SUPPORT_SETTING_KEYS.whatsapp, phone, c.errors.invalidPhone);
+  const typed = String(formData.get('whatsapp') ?? '');
+  const phone = normalizeSupportWhatsapp(typed);
+  const state = phone
+    ? await setSetting(SUPPORT_SETTING_KEYS.whatsapp, phone, c.errors.invalidPhone)
+    : { error: c.errors.invalidPhone };
+  return keepTyped(state, 'whatsapp', typed);
 }
 
 /** The support hours (1 to 200 characters) or, with "Quitar", none. */
@@ -57,6 +68,8 @@ export async function setSupportHoursAction(
     return setSetting(SUPPORT_SETTING_KEYS.hours, null, c.errors.invalidHours);
   }
   const hours = String(formData.get('hours') ?? '');
-  if (!isValidSupportHours(hours)) return { error: c.errors.invalidHours };
-  return setSetting(SUPPORT_SETTING_KEYS.hours, hours.trim(), c.errors.invalidHours);
+  const state = isValidSupportHours(hours)
+    ? await setSetting(SUPPORT_SETTING_KEYS.hours, hours.trim(), c.errors.invalidHours)
+    : { error: c.errors.invalidHours };
+  return keepTyped(state, 'hours', hours);
 }

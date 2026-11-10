@@ -53,7 +53,8 @@ function SettingForm({
           <Input
             id={`${id}-${name}`}
             name={name}
-            defaultValue={value ?? ''}
+            // After a failed save, what the admin typed; else the saved value.
+            defaultValue={(state.error ? state.values?.[name] : undefined) ?? value ?? ''}
             aria-describedby={`${id}-hint`}
             {...inputProps}
           />

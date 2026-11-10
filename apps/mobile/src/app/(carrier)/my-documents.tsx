@@ -71,6 +71,7 @@ export default function MyDocuments() {
             context={state.data.context}
             owner={{ type: 'company', id: carrier.companyId }}
             onChanged={reload}
+            readOnly={!carrier.isManager}
           />
 
           <SectionHeader title={copy.groups.personal} />
@@ -80,6 +81,7 @@ export default function MyDocuments() {
               context={state.data.context}
               owner={{ type: 'operator', id: state.data.operatorId }}
               onChanged={reload}
+              readOnly={!carrier.isManager}
             />
           ) : (
             <Notice tone="warning">{copy.noOperator}</Notice>
@@ -99,6 +101,7 @@ export default function MyDocuments() {
                   context={state.data.context}
                   owner={{ type: 'vehicle', id: vehicle.id }}
                   onChanged={reload}
+                  readOnly={!carrier.isManager}
                 />
               </Fragment>
             ))

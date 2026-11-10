@@ -59,6 +59,8 @@ test('"Ayuda" opens the support WhatsApp only when the admin set the number', as
     await phoneForm.getByLabel(a.whatsappLabel).fill('12345');
     await phoneForm.getByRole('button', { name: a.save }).click();
     await expect(phoneForm.getByText(a.errors.invalidPhone)).toBeVisible();
+    // What the admin typed stays to correct it.
+    await expect(phoneForm.getByLabel(a.whatsappLabel)).toHaveValue('12345');
 
     await phoneForm.getByLabel(a.whatsappLabel).fill(PHONE);
     await phoneForm.getByRole('button', { name: a.save }).click();

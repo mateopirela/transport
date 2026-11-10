@@ -43,11 +43,14 @@ export interface KpiTile {
 const c = adminOpsCopy.kpis;
 const count = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 0 });
 
-/** Durations in minutes; a day or more as days and hours ("2 d 4 h"). */
+/**
+ * Durations in minutes; a day or more as days and hours ("2 d 4 h"). A
+ * negative or non-finite value is not a measurement (e.g. a first offer
+ * stored before the load's publication) and shows as "Sin datos" instead of
+ * failing the whole /admin dashboard.
+ */
 export function formatLongDuration(minutes: number): string {
-  if (!Number.isFinite(minutes) || minutes < 0) {
-    throw new RangeError(`Invalid duration: ${minutes}`);
-  }
+  if (!Number.isFinite(minutes) || minutes < 0) return c.noData;
   const totalHours = Math.round(minutes / 60);
   if (totalHours < 24) return formatDuration(minutes);
   return adminOpsCopy.days(Math.floor(totalHours / 24), totalHours % 24);

@@ -201,4 +201,8 @@ describe('edit values', () => {
     expect(centsToPesosText('99')).toBe('0.99');
     expect(toLocalInput('2026-10-15T05:59:00Z')).toBe('2026-10-14T23:59');
   });
+
+  it('leaves a stored date it cannot read empty instead of throwing', () => {
+    expect(toLocalInput('10000-01-01T05:59:00+00:00')).toBe('');
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatterCopy } from './copy/ui';
 import {
   formatCalendarDate,
   formatDate,
@@ -52,9 +53,21 @@ describe('date and time in Mexico City', () => {
     expect(formatDateTime(instant)).toBe('14 oct 2026, 18:05');
   });
 
-  it('throws on invalid dates and on date-only strings', () => {
-    expect(() => formatDate('not a date')).toThrow(RangeError);
+  it('throws on date-only strings (formatCalendarDate is the one for them)', () => {
     expect(() => formatDate('2099-12-31')).toThrow(RangeError);
+    expect(() => formatDateTime('2099-12-31')).toThrow(RangeError);
+  });
+
+  it('shows "fecha no válida" for a stored date it cannot read instead of throwing', () => {
+    // Year 9999 in Mexico City is year 10000 in UTC: Postgres returns it and
+    // JavaScript cannot parse it.
+    const pastYear9999 = '10000-01-01T05:59:00+00:00';
+    for (const value of [pastYear9999, 'not a date', Number.NaN, new Date(Number.NaN)]) {
+      expect(formatDate(value)).toBe(formatterCopy.invalidDate);
+      expect(formatTime(value)).toBe(formatterCopy.invalidDate);
+      expect(formatDateTime(value)).toBe(formatterCopy.invalidDate);
+    }
+    expect(formatDate('9999-12-31T23:59:00+00:00')).toBe('31 dic 9999');
   });
 
   it('formats calendar dates without shifting the day', () => {

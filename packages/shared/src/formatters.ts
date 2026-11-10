@@ -1,5 +1,6 @@
 // Display formatters (D02): es-MX, MXN and America/Mexico_City.
 import { APP_CURRENCY, APP_LOCALE, APP_TIME_ZONE } from './constants';
+import { formatterCopy } from './copy/ui';
 import { toCents } from './money';
 
 const mxn = new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: APP_CURRENCY });
@@ -26,20 +27,27 @@ const timeFormat = new Intl.DateTimeFormat(APP_LOCALE, {
 
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 
-function toDate(value: Date | string | number): Date {
+/**
+ * The instant to format, or null when it cannot be read: a stored timestamp
+ * past year 9999 in UTC ("10000-01-01T05:59:00+00:00", which JavaScript does
+ * not parse) or any other unreadable value. Screens show those as "fecha no
+ * válida" instead of failing the whole page over one row.
+ */
+function toDate(value: Date | string | number): Date | null {
   // A bare YYYY-MM-DD parses as UTC midnight, which is the previous day in
   // Mexico City. Calendar dates (e.g. a license expiry) use formatCalendarDate.
+  // That is a programming error, not bad data, so it still throws.
   if (typeof value === 'string' && CALENDAR_DATE.test(value)) {
     throw new RangeError(`Use formatCalendarDate for date-only values: ${value}`);
   }
   const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) throw new RangeError(`Invalid date: ${String(value)}`);
-  return date;
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** Date in Mexico City, e.g. "14 oct 2026". */
+/** Date in Mexico City, e.g. "14 oct 2026" ("fecha no válida" if it cannot be read). */
 export function formatDate(value: Date | string | number): string {
-  return dateFormat.format(toDate(value)).replaceAll('.', '');
+  const date = toDate(value);
+  return date ? dateFormat.format(date).replaceAll('.', '') : formatterCopy.invalidDate;
 }
 
 const calendarDateFormat = new Intl.DateTimeFormat(APP_LOCALE, {
@@ -64,9 +72,11 @@ export function formatCalendarDate(value: string): string {
 
 /** 24-hour time in Mexico City without a leading zero, e.g. "8:00" or "18:05". */
 export function formatTime(value: Date | string | number): string {
+  const date = toDate(value);
+  if (!date) return formatterCopy.invalidDate;
   // Built from parts so Node (web) and Hermes (app) print the same thing: they
   // disagree on padding the hour, so the hour is never padded and minutes always are.
-  const parts = timeFormat.formatToParts(toDate(value));
+  const parts = timeFormat.formatToParts(date);
   const hour = Number(parts.find((part) => part.type === 'hour')?.value);
   const minute = parts.find((part) => part.type === 'minute')?.value ?? '';
   return `${hour}:${minute.padStart(2, '0')}`;
@@ -74,6 +84,7 @@ export function formatTime(value: Date | string | number): string {
 
 /** Date and time in Mexico City, e.g. "14 oct 2026, 18:05". */
 export function formatDateTime(value: Date | string | number): string {
+  if (!toDate(value)) return formatterCopy.invalidDate;
   return `${formatDate(value)}, ${formatTime(value)}`;
 }
 

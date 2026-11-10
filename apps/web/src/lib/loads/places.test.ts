@@ -112,6 +112,9 @@ describe('loadErrorMessage', () => {
     expect(loadErrorMessage({ code: '22023', message: 'pickup window already ended' })).toBe(
       e.pickupEnded,
     );
+    expect(loadErrorMessage({ code: '22023', message: 'invalid load: dates out of range' })).toBe(
+      e.datesOutOfRange,
+    );
     expect(loadErrorMessage({ code: '22023', message: 'invalid load: x violated' })).toBe(
       e.invalid,
     );

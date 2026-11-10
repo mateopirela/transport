@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(44);
+select plan(46);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -108,6 +108,16 @@ select is(
                                 '5eed0002-0000-4000-8000-000000000005', null, false)),
   array['site', '5', '60'],
   'Fletes Tapatíos has 5 measured unloadings (~1 h) where Miguel''s trip ends'
+);
+-- B16: no load gets an offer or is contracted before it was published, so
+-- the times of the pilot indicators (kpi_load_times) are never negative.
+select is(
+  (select count(*)::int from public.loads l
+   where l.id::text like '5eed0005-%' and l.published_at is not null
+     and (l.contracted_at < l.published_at
+          or exists (select 1 from public.offers o
+                     where o.load_id = l.id and o.side = 'carrier' and o.created_at < l.published_at))),
+  0, 'no seeded load gets an offer or a contract before its publication'
 );
 
 -- ---------------------------------------------------------------------------
@@ -325,6 +335,10 @@ select is(
 select tests.login('5eed0001-0000-4000-8000-000000000001');
 select is(
   (select count(*)::int from public.loads where id::text like '5eed0005-%'), 26, 'the admin sees every load'
+);
+select ok(
+  (select median_minutes_to_first_offer >= 0 and median_minutes_to_contract >= 0 from public.kpi_pilot_summary),
+  'the /admin dashboard gets no negative median time to first offer or to contract'
 );
 
 reset role;

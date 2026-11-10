@@ -23,7 +23,9 @@ export function loadErrorMessage(error: PostgrestLikeError): string {
       if (message.startsWith('a brokered load')) return brokeredCopy.errors.notEditable;
       return e.invalidStatus;
     case '22023':
-      return message.includes('pickup window already ended') ? e.pickupEnded : e.invalid;
+      if (message.includes('pickup window already ended')) return e.pickupEnded;
+      if (message.includes('dates out of range')) return e.datesOutOfRange;
+      return e.invalid;
     default:
       return e.generic;
   }

@@ -121,6 +121,8 @@ export const loadsCopy = {
     notApproved: 'Tu empresa debe estar aprobada para publicar o modificar cargas publicadas.',
     invalidStatus: 'La carga ya no se puede modificar en su estado actual.',
     pickupEnded: 'La ventana de recolección ya terminó. Cambia las fechas antes de publicar.',
+    datesOutOfRange:
+      'Las fechas de recolección y entrega deben estar entre ayer y un año a partir de hoy.',
     invalid: 'Algunos datos de la carga no son válidos. Revísalos e intenta de nuevo.',
   },
 } as const;

@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(48);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -249,6 +249,29 @@ select results_eq(
   $$ select origin_city, destination_city from public.loads where id = '5eed0005-0000-4000-8000-000000000002' $$,
   $$ values ('Guadalajara', 'Monterrey') $$,
   'the return load goes from Guadalajara to Monterrey'
+);
+
+-- I7 (D40): its arrival found return loads, and the staff of its business
+-- unit got the notice, as in production: Jorge (manager) and Andrea, the
+-- coordinator of "Corredor MTY–GDL". Not Héctor (another unit) nor Pedro
+-- (operator). Once per trip, unread, already dispatched (no push or email).
+select results_eq(
+  $$ select source, load_count > 0, notified_at is not null
+     from public.trip_backhaul_checks where trip_id = '5eed0008-0000-4000-8000-000000000001' $$,
+  $$ values ('arrival', true, true) $$,
+  'the trip in unloading was checked for return loads on its arrival and found some'
+);
+select results_eq(
+  $$ select n.user_id, (n.data ->> 'loadCount')::int, n.read_at is null, n.dispatched_at is not null
+     from public.notifications n
+     where n.type = 'backhaul_suggestions' and n.data ->> 'tripId' = '5eed0008-0000-4000-8000-000000000001'
+     order by n.user_id $$,
+  $$ select x.user_id::uuid, c.load_count, true, true
+     from (values ('5eed0001-0000-4000-8000-000000000005'), ('5eed0001-0000-4000-8000-000000000011')) as x(user_id)
+     cross join public.trip_backhaul_checks c
+     where c.trip_id = '5eed0008-0000-4000-8000-000000000001'
+     order by 1 $$,
+  'the manager and the coordinator of its business unit got one return-load notice each'
 );
 
 -- ---------------------------------------------------------------------------

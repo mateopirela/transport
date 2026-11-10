@@ -156,9 +156,11 @@ revoke all on function public.trip_cargo_insurance(uuid) from public, anon;
 grant execute on function public.trip_cargo_insurance(uuid) to authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- Reading trip documents: the shipper side reads every file of its trips;
--- the carrier side (staff and operator) only the kinds shareable with it and
--- what it uploaded; admins everything.
+-- Reading trip documents: whoever sees the trip (can_see_trip); then the
+-- shipper side reads every file of its trips, the carrier side (staff and
+-- operator) only the kinds shareable with it and what it uploaded, admins
+-- everything. False for a trip the caller does not see, so they reveal
+-- nothing about other companies' trips.
 -- ---------------------------------------------------------------------------
 create function public.trip_document_readable(p_trip_id uuid, p_kind public.trip_document_kind, p_uploaded_by uuid)
 returns boolean
@@ -167,23 +169,24 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(
-    public.is_admin()
-    or p_uploaded_by = (select auth.uid())
-    or coalesce((select r.shareable_with_carrier from public.trip_document_requirements r where r.kind = p_kind), true)
-    or exists (
-      select 1 from public.trips t
-      where t.id = p_trip_id and t.shipper_company_id = public.auth_shipper_company_id()
-    ),
-    false
-  );
+  select coalesce((
+    select public.can_see_trip(t.id) and (
+      public.is_admin()
+      or p_uploaded_by = (select auth.uid())
+      or t.shipper_company_id = public.auth_shipper_company_id()
+      or coalesce((select r.shareable_with_carrier from public.trip_document_requirements r where r.kind = p_kind), true)
+    )
+    from public.trips t
+    where t.id = p_trip_id
+  ), false);
 $$;
 
 revoke all on function public.trip_document_readable(uuid, public.trip_document_kind, uuid) from public, anon;
 grant execute on function public.trip_document_readable(uuid, public.trip_document_kind, uuid) to authenticated;
 
--- A file of the bucket: the shipper side and the uploader read it as soon as
--- it is there; anyone else only once it is registered with a kind they read.
+-- A file of the bucket ({trip_id}/{uuid}.{ext}): the shipper side and the
+-- uploader read it as soon as it is there; anyone else who sees the trip only
+-- once it is registered with a kind they read.
 create function public.trip_document_object_readable(p_name text, p_owner_id text)
 returns boolean
 language sql
@@ -191,21 +194,20 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(
-    public.is_admin()
-    or p_owner_id = (select auth.uid())::text
-    or exists (
-      select 1 from public.trips t
-      where t.id::text = split_part(p_name, '/', 1)
-        and t.shipper_company_id = public.auth_shipper_company_id()
+  select coalesce((
+    select public.can_see_trip(t.id) and (
+      public.is_admin()
+      or p_owner_id = (select auth.uid())::text
+      or t.shipper_company_id = public.auth_shipper_company_id()
+      or exists (
+        select 1 from public.trip_documents d
+        left join public.trip_document_requirements r on r.kind = d.kind
+        where d.trip_id = t.id and d.storage_path = p_name and coalesce(r.shareable_with_carrier, true)
+      )
     )
-    or exists (
-      select 1 from public.trip_documents d
-      left join public.trip_document_requirements r on r.kind = d.kind
-      where d.storage_path = p_name and coalesce(r.shareable_with_carrier, true)
-    ),
-    false
-  );
+    from public.trips t
+    where t.id::text = split_part(p_name, '/', 1)
+  ), false);
 $$;
 
 revoke all on function public.trip_document_object_readable(text, text) from public, anon;

@@ -58,6 +58,9 @@ test('a coordinator joins Transportes Regios from a link', async ({ page }) => {
     // I1: the terms checkbox is required.
     await page.getByRole('button', { name: c.coordinator.submit }).click();
     await expect(page.getByText(legalCopy.acceptTerms.required)).toBeVisible();
+    // The form keeps what was typed except the passwords.
+    await page.getByLabel(f.password, { exact: true }).fill(coordinator.password);
+    await page.getByLabel(f.passwordConfirmation).fill(coordinator.password);
     await acceptTermsOnWeb(page);
     await page.getByRole('button', { name: c.coordinator.submit }).click();
     await expect(page.getByText(c.coordinator.checkEmail)).toBeVisible();

@@ -456,8 +456,10 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 | Apple Team ID y huella SHA-256 del certificado de Android, para los enlaces universales del viaje | H2 (opcional: sin ellos el enlace abre la página web con "Abrir en la app") | Mateo |
 | Precios y planes de la suscripción, y fecha de fin del piloto | H3 (se construye con "Por definir") | Mateo / JP |
 | Corredores y tramos que usa la flota de JP, y fuentes de inseguridad que él consulta | H4 (se construye con datos semilla marcados "estimado") | JP |
-| Cómo pagan hoy los clientes del piloto: porcentaje que paga el 100 % en un plazo fijo y en cuántos días, contra los que pagan en parcialidades ([§H.3](#h3-pendientes-de-jp-pagos-y-seguro-2026-10-28)) | D33 y D34 (no se construye nada hasta tenerlo) | JP |
-| Seguro de la mercancía: si se contrata por viaje o por mes, con quién y cuánto cuesta ([§H.3](#h3-pendientes-de-jp-pagos-y-seguro-2026-10-28)) | D35 | JP |
+| ✅ Cómo pagan hoy los clientes del piloto (100 % por SPEI a 15, 30 o 60 días), recibido el 2026-11-07 ([§I](#i--pagos-facturación-y-seguro-respuestas-de-jp-2026-11-07)) | I3 | JP |
+| ✅ Seguro de la mercancía (lo pone el cliente, póliza anual o por viaje), recibido el 2026-11-07 | I1 | JP |
+| Razón social, RFC y régimen de Fulmis; PAC para emitir CFDI (sin ellos, I5 en modo manual) | I5 | Mateo y contador |
+| Número de WhatsApp de soporte de JP (se captura como ajuste en el admin, no en el repo) | I2 | Mateo |
 | Apple Developer ($99 USD/año) y Google Play Console ($25 USD) | B27 | Mateo / Fulmis |
 | Proyectos Supabase en la nube y Vercel | B27 | Mateo |
 | Proveedor de email transaccional (Resend o similar) y dominio | B09 y B27 | Mateo |
@@ -480,7 +482,9 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 >
 > **Ola H (pendientes de JP, 2026-10-20):** [§H](#h--pendientes-de-jp-2026-10-20): chat interno operador–coordinador (H1), viaje por enlace al operador (H2), suscripción con Stripe y piloto gratis (H3, retoma G8), carreteras: costo, inseguridad y cercanía (H4) y tiempos de espera de carga y descarga (H5).
 
-Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; pago del flete dentro de la plataforma y comisiones; emisión y validación de Carta Porte; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8); se retoma en H3 (D24-E1). La predicción de fin de descarga empieza en H5 con estadística simple de los eventos (sin IA).
+> **Ola I (respuestas de JP, 2026-11-07):** [§I](#i--pagos-facturación-y-seguro-respuestas-de-jp-2026-11-07): seguro del cliente y términos (I1), soporte y documentos del hombre-camión (I2), libro del flete con Cobranza y Cartera (I3), pago rápido (I4), facturas CFDI (I5), cargas intermediadas (I6) y carga de regreso (I7). El pago del flete y las comisiones **entran** a la V1 (D08-E2).
+
+Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; emisión de Carta Porte por la plataforma; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8); se retoma en H3 (D24-E1). La predicción de fin de descarga empieza en H5 con estadística simple de los eventos (sin IA).
 
 ---
 
@@ -1213,3 +1217,152 @@ Salen de la reunión con JP del 2026-10-28 ([decisiones.md](decisiones.md) D33�
 5. **Comisión por el adelanto:** si se cobra al transportista por recibir el 50 % al inicio y cuánto (Uber Freight cobra 2.5 % por su Quick Pay).
 6. **Facturación y regulación:** quién emite el CFDI del flete si el dinero pasa por la plataforma, y si adelantar pagos requiere alguna figura regulada. Se revisa con el contador.
 7. **Duración del piloto extendido** (D36).
+
+**Respondido el 2026-11-07.** JP contestó en el documento y Mateo lo confirmó el 2026-11-10: D08-E2, D33-E1, D34-E1, D35-E1, D36-E1 y D37–D41. El plan de construcción está en [§I](#i--pagos-facturación-y-seguro-respuestas-de-jp-2026-11-07).
+
+---
+
+## §I · Pagos, facturación y seguro (respuestas de JP, 2026-11-07)
+
+El 2026-11-07 JP respondió la sección "Pagos y seguro" y dejó sus notas de cómo debe funcionar el negocio; Mateo confirmó el 2026-11-10 que así es. Lo que cambia:
+
+- **El flete pasa por la plataforma** (D08-E2). Fulmis intermedia: le factura al cliente el 100 % (D37), el transportista le factura a Fulmis y Fulmis le paga el neto. El dinero se mueve por **SPEI fuera de la app**; la plataforma lleva el **registro** y el admin concilia. No hay procesador de pagos para el flete.
+- **Plazos** (D33-E1): todos los clientes pagan el 100 % a 15, 30 o 60 días. Comisión de **3 % a 5 %** por viaje. El transportista cobra al vencer el plazo del cliente, una vez que el cliente pagó, o antes con el **pago rápido** (D38: 2.5 % o más; Fulmis financia).
+- **Seguro** (D35-E1): lo pone el **cliente** y lo comprueba antes de cada viaje (póliza anual vigente o póliza del viaje). El transportista paga el deducible si hay robo; Fulmis no responde (términos aceptados con casilla).
+- **Cargas intermediadas** (D39): el cliente le pasa sus viajes a la plataforma y Fulmis los publica a una tarifa menor que el transportista ve; el margen nunca se le muestra al transportista.
+- **Carga de regreso** (D40), **soporte por el WhatsApp de JP** (D41) y **documentos del hombre-camión** (D16-E2).
+- **Piloto** (D36-E1): solo la flota y los clientes de JP, sin fecha fija.
+
+Todo §H está en `main`. Cada bloque I es un PR con el ciclo de §0.1, la definición de terminado de §0.3, las reglas de **G.0** y **H.0** (incluida H.0.5: no se inventan cifras) y el gate D14; la UI usa el kit "Transport · Nativo" en claro y oscuro. Rama `v1/<id>-<slug>` (p. ej. `v1/I3-freight-ledger`) y título `[I3] Libro del flete: plazos, cobranza y pagos`.
+
+### I.0 Reglas comunes de los bloques I
+
+1. **Dinero:** siempre en **centavos** (`bigint`, MXN), nunca `numeric` de punto flotante ni `float` en TypeScript. Los porcentajes, en **puntos base** (`integer`, 300 = 3 %). Redondeo: al centavo, mitad hacia arriba, en una sola función pura de `packages/shared/src/freight/` (con su espejo en SQL probado contra los mismos casos). La suma de las partes siempre es igual al total (la comisión se calcula y el neto es total − comisión, no al revés).
+2. **Lo que ya existe y se reutiliza:** `platform_settings` y `admin_set_platform_setting` (H3) para los ajustes nuevos; `audit_admin_action` para todo lo que edita el admin; el catálogo de documentos (`document_requirements`, D12/D16) y los documentos del viaje (`trip_document_requirements`, D22); `notify_carrier_staff` y el patrón de avisos con copy y ruta; las recomendaciones (B08, `recommendations`) y el fin estimado de descarga (H5).
+3. **El precio que ve cada lado:** el transportista nunca recibe por ninguna vía (API, Realtime, RPC, notificación, enlace público) el precio al cliente de una carga intermediada (D39), ni el cliente la comisión ni el neto del transportista. Eso lo prueba pgTAP en cada bloque que agregue columnas o vistas con dinero.
+4. **Sin claves, nada falla:** sin PAC (I5) la emisión queda apagada y el admin sube el CFDI; sin número de soporte (I2) no aparece "Ayuda". Las variables nuevas van a `.env.example` y a docs/release.md.
+5. **Migraciones** con marca de tiempo posterior a la última de `main` (hoy `20261104060100_chat_message_notifications.sql`); pgTAP desde el `51`; Maestro desde el `20-…`; un spec de Playwright por bloque. Los bloques de la misma ola se rebasan y renumeran como dice G.0.2.
+6. **Regla de JP para el piloto:** el único transportista es la empresa de JP; los bloques se construyen para muchos transportistas, pero la seed y los E2E usan la flota de la seed como si fuera la de JP.
+
+### I.1 Olas y dependencias
+
+```
+Ola IA   I1 · I2 · I3 · I7      (desde main, en paralelo)
+Ola IB   I5 (I3) · I6 (I3)
+Ola IC   I4 (I5)
+```
+
+| Bloque | Depende de | 🔒 |
+|---|---|---|
+| I1 · Seguro de carga del cliente y términos aceptados | `main` | Sí |
+| I2 · Soporte del piloto y documentos del hombre-camión | `main` | No |
+| I3 · Libro del flete: plazos, comisión, Cobranza y Cartera | `main` | Sí |
+| I5 · Facturas del flete (CFDI) | I3 | Sí |
+| I6 · Cargas intermediadas | I3 | Sí |
+| I4 · Pago rápido | I5 | Sí |
+| I7 · Carga de regreso | `main` | No |
+
+- **I5 e I6 tras I3:** las dos escriben en el libro del flete. **I4 tras I5:** el pago rápido exige que el transportista haya subido su CFDI a Fulmis.
+- **Archivos que tocan varios bloques:** `notification_type` (I1, I3, I4, I7), `platform_settings` (I2, I3, I4), `packages/shared/src/db.ts` (se regenera) y `supabase/seed.sql`.
+
+---
+
+#### I1 · Seguro de carga del cliente y términos aceptados (D35-E1) 🔒
+- **Objetivo:** que ningún viaje salga sin que el cliente haya comprobado el seguro de su mercancía, y que quede registro de que cada cuenta aceptó los términos (Fulmis no responde por robo; el transportista paga el deducible).
+- **Alcance:**
+  - **Póliza anual del cliente:** requisito nuevo en `document_requirements` para la empresa cliente, `cargo_insurance_policy` ("Póliza de seguro de la mercancía"), **opcional** a nivel empresa y con vigencia (fecha de vencimiento obligatoria al subirla). La verifica el admin como los demás documentos (D10).
+  - **Póliza del viaje:** tipo nuevo en `trip_document_kind` (`cargo_insurance`), etapa `before_departure`, la sube el cliente (`uploader_sides = {shipper}`), requerido. **Se da por cumplido** si la empresa cliente tiene una póliza anual **aprobada y vigente** en la fecha de recolección; la lista de documentos del viaje lo muestra así ("Cubierto por la póliza anual, vence el …").
+  - **Aviso y bloqueo:** como D22, falta = aviso al cliente y al coordinador; `blocks_departure` en `true` para este documento (JP: "es necesario que lo indique antes de cada viaje"). El admin puede apagarlo desde el catálogo.
+  - **Aviso al cliente:** notificación `cargo_insurance_missing` al aceptar una oferta si no hay póliza anual vigente, y otra 24 h antes de la recolección si sigue faltando (job programado existente de avisos o `pg_cron` si ya está en uso; si no, solo al aceptar).
+  - **Términos aceptados:** tabla `terms_acceptances` (`user_id`, `terms_version`, `accepted_at`, `ip` opcional), insert por RPC al registrarse (web y app, todas las vías de registro, incluidas invitaciones de coordinador y operador). La casilla es obligatoria ("Acepto los términos y condiciones y el aviso de privacidad"). La versión vigente es una constante en `packages/shared/src/copy/legal.ts`; si sube la versión, la siguiente vez que entra se le pide aceptar de nuevo. Los términos (borrador) agregan la cláusula: Fulmis no responde por robo, daños ni accidentes; el cliente asegura su mercancía; el transportista cubre el deducible en caso de robo.
+- **Pantallas:** web del cliente, en el viaje: "Seguro de la mercancía" con subir póliza o "Cubierto por la póliza anual"; en "Documentos de la empresa", la póliza anual con vencimiento. Coordinador (app y web): el estado del seguro en el detalle del viaje. Registro (web y app): la casilla.
+- **Fuera de alcance:** cotizar o vender seguros; validar la póliza con la aseguradora.
+- **Tests:** pgTAP (póliza anual vigente cubre, vencida no; el transportista lee el estado pero no el archivo salvo que el catálogo lo marque compartible; bloqueo de salida; aceptación de términos obligatoria y por usuario); Vitest (cálculo "cubierto por póliza anual" por fecha); Playwright `cargo-insurance.spec.ts`; Maestro `20-terms-acceptance.yaml` (registro por invitación con la casilla).
+- **Aceptación:** con la seed, un viaje sin póliza no puede salir; al subir la póliza anual del cliente y aprobarla, el mismo viaje queda cubierto y sale.
+
+#### I2 · Soporte del piloto y documentos del hombre-camión (D41, D16-E2)
+- **Objetivo:** que cualquiera pueda pedir ayuda por el WhatsApp de JP en un toque, y que el hombre-camión suba todos sus documentos en una sola cuenta.
+- **Alcance:**
+  - Ajuste `support.whatsapp` en `platform_settings` (teléfono E.164, `null` por defecto; nunca en el código ni en la seed de producción) y `support.hours` (texto opcional). El admin los edita en `/admin/ajustes` (si la pantalla de ajustes de H3 existe, ahí).
+  - "Ayuda" en la app (Más → Ayuda) y en la web (menú de la cuenta): abre `https://wa.me/<número>?text=<mensaje con el rol y, si está en un viaje, el folio del viaje>`. Sin número, no aparece.
+  - **Hombre-camión:** revisar el catálogo (D12) y la pantalla de documentos para que la empresa `is_owner_operator` pida y muestre en un solo lugar: los de la empresa (RFC, razón social, CSF, domicilio fiscal), los personales (identificación, licencia) y los de cada camión. Si algo ya está, el bloque lo prueba y no lo duplica.
+- **Tests:** pgTAP (lectura de `support.*` por `authenticated`, escritura solo admin; requisitos del hombre-camión); Vitest (armado del enlace de WhatsApp); Playwright `support-help.spec.ts`.
+- **Aceptación:** con el número configurado, "Ayuda" abre WhatsApp con el mensaje; sin número, no aparece; un hombre-camión de la seed ve sus tres grupos de documentos en una pantalla.
+
+#### I3 · Libro del flete: plazos, comisión, Cobranza y Cartera (D08-E2, D33-E1, D34-E1) 🔒
+- **Objetivo:** que por cada viaje quede claro cuánto le debe el cliente a Fulmis y cuándo, cuánto le debe Fulmis al transportista y cuándo, y qué se ha pagado; con las pantallas "Cobranza" (transportista) y "Cartera" (cliente) y la conciliación del admin.
+- **Alcance:**
+  - **Plazo del cliente:** `companies.payment_terms_days` (15, 30 o 60; nulo hasta que el admin lo fije; el admin lo edita en el detalle de la empresa, con bitácora). Sin plazo, el viaje del cliente se registra con "Plazo por definir" y el admin no puede emitir la cuenta por cobrar hasta fijarlo.
+  - **Comisión:** ajuste `freight.commission_bps` (300 por defecto; acepta 0, para un piloto sin comisión (§I.2), o de 300 a 500) y override opcional por empresa transportista (`companies.commission_bps`, con los mismos valores válidos). Se **congela** en el viaje al crearlo.
+  - **Tabla `freight_ledgers`** (una por viaje, la crea el trigger de creación del viaje; backfill para los viajes existentes): `trip_id`, `client_amount_cents` (el precio acordado, `loads.agreed_price_cents`), `commission_bps`, `commission_cents`, `carrier_net_cents`, `client_terms_days`, `client_due_on` (fecha: entrega con evidencia + plazo), `client_status` (`pending` | `invoiced` | `paid` | `overdue` | `written_off` | `cancelled`), `carrier_status` (`pending` | `on_hold` | `quick_pay_requested` | `scheduled` | `paid` | `cancelled`), `carrier_due_on`. Los estados solo cambian por RPC.
+  - **Viajes cancelados:** si el viaje se cancela (`cancel_trip`, estado `cancelled`), su libro pasa a `cancelled` de los dos lados: sale de los saldos de Cobranza, Cartera y del admin, no vence, no se retiene y no admite pagos nuevos. El backfill hace lo mismo con los viajes ya cancelados. Si ya había pagos registrados, el viaje queda marcado para que el admin lo resuelva a mano (los reembolsos quedan fuera de alcance).
+  - **Pagos registrados:** tabla `freight_payments` (`ledger_id`, `direction` `client_to_fulmis` | `fulmis_to_carrier`, `amount_cents`, `paid_on`, `spei_reference` (clave de rastreo), `recorded_by`, nota). Solo el admin registra pagos (`admin_record_freight_payment`), con bitácora. Pagos parciales permitidos (se suman); un pago del cliente que completa el total pasa el viaje a `paid` y el del transportista de `on_hold` a `scheduled`.
+  - **Vencidos:** función diaria (o calculada al leer) que marca `overdue` lo que pasó su `client_due_on` sin pagar, y aviso `freight_overdue` al admin y al cliente.
+  - **Retenido:** al vencer `carrier_due_on` sin pago del cliente, solo un `carrier_status = pending` pasa a `on_hold` ("Retenido: el cliente no ha pagado"), con aviso al Gerente. `quick_pay_requested`, `scheduled` y `paid` no cambian: con pago rápido (I4) Fulmis asume el atraso del cliente (D38).
+  - **RLS:** el cliente ve de su viaje solo `client_amount_cents`, vencimiento, estado y pagos `client_to_fulmis`; el transportista ve solo comisión, neto, su fecha, su estado y pagos `fulmis_to_carrier` (vista o RPC con columnas por lado; nunca la tabla completa). Admin, todo.
+  - **Avisos:** `freight_payment_received` (cliente: "Recibimos tu pago"; transportista: "Fulmis te pagó $…").
+- **Pantallas:**
+  - **Cobranza** (app del transportista, Más → Cobranza, y web `/transportista/cobranza`): totales "Por cobrar", "Retenido" y "Pagado este mes"; lista por viaje con flete, comisión, neto, fecha y estado. Gerente ve toda la empresa; coordinador, sus unidades de negocio.
+  - **Cartera** (web del cliente `/cliente/cartera`): saldo total, vencido y por vencer; lista por viaje con factura (cuando exista, I5), vencimiento, pagado y pendiente.
+  - **Admin** `/admin/flete`: todos los viajes con los dos lados, filtros por estado y vencidos, "Registrar pago" (cliente o transportista) y el plazo del cliente.
+- **Fuera de alcance:** emitir facturas (I5), pago rápido (I4), conciliación automática con el banco, intereses moratorios.
+- **Tests:** pgTAP `51_freight_ledger*.test.sql` (matriz de lectura por lado y rol: Gerente, coordinador de la unidad y de otra, operador (nada), cliente, otra empresa, admin; congelamiento de la comisión; comisión 0 y fuera de rango; suma de partes; transiciones solo por RPC; pagos parciales; vencidos y retenidos (solo desde `pending`; un pago rápido no vuelve a retenido); viaje cancelado fuera de los saldos y sin pagos); concurrencia (dos pagos registrados a la vez no duplican el cambio de estado); Vitest (`packages/shared/src/freight`: comisión, neto, fechas con días naturales en `America/Mexico_City`, redondeo); Playwright `freight-ledger.spec.ts` (admin registra el pago del cliente, el cliente lo ve en Cartera, el transportista lo ve "Programado" y después "Pagado"); Maestro `21-carrier-collections.yaml`.
+- **Aceptación:** con la seed, un viaje entregado de $10,000 a 30 días con 3 % muestra al cliente $10,000 con vencimiento, al transportista $9,700 netos con su fecha, y nadie ve el lado del otro.
+- **Revisión 🔒:** que ningún camino filtre montos del otro lado; transiciones y pagos solo por el admin; idempotencia de los pagos (clave de rastreo única por dirección).
+
+#### I5 · Facturas del flete (CFDI) (D37) 🔒
+- **Objetivo:** que el CFDI del cliente lo emita Fulmis desde la plataforma (o lo suba el admin mientras no haya PAC) y que el transportista le suba a Fulmis el suyo, validado.
+- **Depende de:** I3.
+- **Alcance:**
+  - **CFDI del transportista a Fulmis:** el transportista sube el **XML** (y el PDF) en Cobranza. Edge Function `validate-carrier-cfdi` parsea el XML (CFDI 4.0) y valida: emisor = RFC de la empresa transportista, receptor = RFC de Fulmis (ajuste `fulmis.rfc`; sin él, solo se guarda y se marca "Sin validar"), total = `carrier_net_cents` (± 1 centavo), moneda MXN, UUID único en la plataforma. Guarda UUID, fecha y total en `freight_invoices` (`direction` `carrier_to_fulmis`). Error claro por cada regla que falla.
+  - **CFDI de Fulmis al cliente:** interfaz `CfdiProvider` (`issue`, `cancel`, `getPdf`, `getXml`) en una Edge Function `issue-client-cfdi`, con un proveedor `manual` (por defecto) y un adaptador real **solo si Mateo elige el PAC** (variables `CFDI_PROVIDER`, `CFDI_API_KEY`; sin ellas, `manual`). Con `manual`, el admin sube el XML y PDF que emitió por fuera y se valida como arriba (emisor = Fulmis, receptor = RFC del cliente, total = `client_amount_cents`). Al registrarse la factura, `client_status` pasa de `pending` a `invoiced`; si ya está en `overdue`, `paid` o `written_off`, conserva su estado y la factura solo queda ligada al viaje. No se factura un viaje `cancelled`. El cliente ve y descarga la factura en Cartera.
+  - **Ajustes nuevos:** `fulmis.rfc`, `fulmis.legal_name`, `fulmis.tax_regime`, `fulmis.zip` (vacíos por defecto: la razón social está "en proceso").
+  - **Storage:** bucket privado `invoices`, lectura por lado (cliente sus CFDI de Fulmis; transportista los suyos; admin todo).
+- **Fuera de alcance:** el complemento Carta Porte emitido por la plataforma (D22 sigue: lo sube el coordinador), complementos de pago (REP) y cancelaciones con el SAT, salvo que el PAC elegido lo traiga gratis.
+- **Tests:** pgTAP (lectura de facturas y bucket por lado; UUID único; transición a `invoiced` solo desde `pending`; un viaje `paid` sigue `paid` al ligarle la factura); Vitest (parser y validaciones del XML con fixtures de CFDI 4.0 sintéticos, sin datos reales); Deno test de la Edge Function; Playwright `freight-invoices.spec.ts` (admin sube el CFDI del cliente → el cliente lo descarga).
+- **Aceptación:** sin PAC ni RFC de Fulmis, todo funciona en modo manual y nada falla; un XML con el receptor equivocado se rechaza con el motivo.
+- **Revisión 🔒:** parseo seguro del XML (sin entidades externas, tamaño máximo), que nadie descargue la factura del otro lado.
+
+#### I6 · Cargas intermediadas (D39) 🔒
+- **Objetivo:** que el cliente pueda mandarle un viaje a la plataforma, y que Fulmis lo publique a los transportistas con una tarifa menor, sin que el transportista vea el precio al cliente.
+- **Depende de:** I3.
+- **Alcance:**
+  - **Cliente:** al publicar, opción "Que la plataforma consiga el transportista" (`loads.brokered = true`). Captura su precio objetivo o pide cotización ("Por cotizar").
+  - **Admin:** bandeja `/admin/intermediadas`: fija **precio al cliente** (`loads.client_price_cents`) y **tarifa al transportista** (`loads.carrier_price_cents`, menor o igual), y publica. El cliente acepta el precio (o la carga queda "Esperando tu aprobación").
+  - **Transportistas:** ven la carga con `carrier_price_cents` como el precio, ofertan y negocian **con Fulmis** (el admin responde en la negociación como "Transport"); nunca ven `client_price_cents` ni que es intermediada más allá de un distintivo "Publicada por Transport".
+  - **Libro del flete:** en una intermediada, `client_amount_cents = client_price_cents`, el neto del transportista es el precio acordado con él y `commission_bps = 0` (el margen es la diferencia, D39).
+  - **Visibilidad:** columnas de precio al cliente fuera de cualquier vista o RPC del transportista (columna en tabla aparte `load_client_prices` con RLS cliente/admin es lo más seguro).
+- **Fuera de alcance:** fijar precios automáticamente; que el transportista publique viajes propios para que Fulmis los coloque (se decide con el piloto).
+- **Tests:** pgTAP (el transportista no puede leer `client_price_cents` por ninguna vía: select, RPC de recomendaciones, notificaciones, Realtime, enlaces públicos); concurrencia (aceptar oferta mientras el admin cambia la tarifa); Playwright `brokered-load.spec.ts`; Maestro `22-brokered-load.yaml` (el transportista ve la tarifa, no el precio al cliente).
+- **Aceptación:** con la seed, una carga intermediada de $12,000 al cliente se publica a $10,800; el transportista la toma a $10,800 y el libro muestra $1,200 de margen al admin y a nadie más.
+- **Revisión 🔒:** filtración del precio al cliente; quién puede hablar como "Transport" en la negociación.
+
+#### I4 · Pago rápido (D38) 🔒
+- **Objetivo:** que el transportista cobre antes del plazo del cliente pagando una tarifa, con aprobación del admin.
+- **Depende de:** I5.
+- **Alcance:**
+  - Ajustes `freight.quick_pay_fee_bps` (250 por defecto) y `freight.quick_pay_exposure_limit_cents` (nulo = sin límite automático; cada solicitud la aprueba el admin igual).
+  - RPC `request_quick_pay(trip_id)` (Gerente o coordinador de la unidad): solo con evidencia firmada de entrega, CFDI del transportista validado (I5) y `carrier_status` en `pending` u `on_hold`. Congela la tarifa y muestra el neto rápido antes de confirmar. `carrier_status = quick_pay_requested`, aviso al admin.
+  - Admin: aprueba o rechaza (con motivo); aprobar programa el pago (`scheduled`) y lo registra al pagarse (I3). Si la exposición total aprobada y no cobrada al cliente pasa el límite, la aprobación avisa y pide confirmar.
+  - En el libro, `quick_pay_fee_cents`; el cobro al cliente no cambia (Fulmis asume el riesgo, D38).
+- **Tests:** pgTAP (precondiciones, quién solicita, quién aprueba, congelamiento de la tarifa, cálculo); concurrencia (dos solicitudes a la vez); Vitest (neto rápido); Playwright `quick-pay.spec.ts`; Maestro `23-quick-pay.yaml`.
+- **Aceptación:** un viaje entregado de $9,700 netos pide pago rápido y recibe $9,457.50; el admin lo aprueba y lo registra pagado; el cliente sigue debiendo $10,000 a su plazo.
+
+#### I7 · Carga de regreso (D40)
+- **Objetivo:** que, al llegar a destino, el coordinador reciba las cargas compatibles cercanas al destino para que el camión no regrese vacío.
+- **Alcance:**
+  - Al registrar la **llegada a descarga** (`trip_events`) o cuando la ubicación del operador queda a ≤ 50 km del destino (lo que pase primero, una vez por viaje), se calculan las recomendaciones para la unidad desde el destino y a partir del fin estimado de descarga (H5), reutilizando `recommendations`/`match_candidates` (sin duplicar la lógica de puntuación).
+  - Si hay al menos una carga compatible, aviso `backhaul_suggestions` al Gerente y a los coordinadores de la unidad de negocio (`notify_carrier_staff`): "3 cargas cerca de Guadalajara para cuando la unidad 12 quede libre", con ruta a la lista filtrada.
+  - En el detalle del viaje en curso (app y web del transportista): sección "Para el regreso" con las 3 mejores.
+- **Fuera de alcance:** IA; reservar la carga automáticamente.
+- **Tests:** pgTAP (un aviso por viaje; no se avisa al operador ni a otra empresa); Vitest (umbral de distancia, una vez por viaje); Playwright `backhaul.spec.ts`.
+- **Aceptación:** con la seed, al marcar la llegada a descarga de un viaje MTY→GDL aparece el aviso con las cargas GDL→MTY de la seed.
+
+### I.2 Pendientes después de §I (no bloquean los bloques)
+
+1. **PAC y datos fiscales de Fulmis** (razón social "en proceso", RFC, régimen, CSD): sin ellos I5 funciona en modo manual. Mateo y el contador.
+2. **Carta Porte cuando Fulmis intermedia** y **si el pago rápido requiere una figura regulada**: el contador.
+3. **Comisión durante el piloto:** por defecto aplica (3 %), como lo describe JP; si el piloto debe ser sin comisión, se pone `freight.commission_bps = 0` (es un ajuste).
+4. **Si los transportistas siguen ofertando directo** a cargas de clientes además de las intermediadas (D39): por defecto sí.
+5. **Términos y aviso de privacidad** con las cláusulas nuevas (seguro, deducible, Fulmis intermediario que fija su precio): el abogado.
+6. **IA** ("cómo automatizar mediante AI y cuál"): sigue como investigación (§5); D40 y H5 son reglas y estadística.

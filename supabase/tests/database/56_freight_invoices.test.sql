@@ -16,7 +16,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(69);
+select plan(75);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -144,6 +144,34 @@ begin
   );
   execute 'reset role';
   return v ->> 'validation';
+end;
+$$;
+
+-- The admin records Fulmis' CFDI of p_trip dated p_issued_at, as the service
+-- role; returns the SQLSTATE and detail of the refusal ('ok' if taken).
+create function tests.record_at(p_trip uuid, p_issued_at timestamp)
+returns text
+language plpgsql
+as $$
+declare
+  v_state text;
+  v_detail text;
+begin
+  perform tests.as_service();
+  begin
+    perform public.record_freight_invoice_service(
+      'a5500000-0000-4000-8000-000000000008', p_trip, 'fulmis_to_client', gen_random_uuid(), 'FUL201015AB1',
+      'EFA050505GH5', 1000000, 'MXN', p_issued_at,
+      p_trip || '/fulmis_to_client/' || gen_random_uuid() || '.xml',
+      p_trip || '/fulmis_to_client/' || gen_random_uuid() || '.pdf'
+    );
+  exception when others then
+    get stacked diagnostics v_state = returned_sqlstate, v_detail = pg_exception_detail;
+    execute 'reset role';
+    return v_state || ' ' || coalesce(v_detail, '');
+  end;
+  execute 'reset role';
+  return 'ok';
 end;
 $$;
 
@@ -453,6 +481,29 @@ select throws_ok(
   '23514', null, 'a file path of another trip is refused'
 );
 reset role;
+-- The CFDI's date within a plausible range (I5-fix-1): from CFDI 4.0 (2022)
+-- to a day past now, in Mexico City. 9999-12-31 after 18:00 is year 10000 in
+-- UTC, which the apps cannot read back.
+select is(tests.record_at(tests.val('trip1'), '9999-12-31T23:59:59'), '22023 issued_at',
+  'a CFDI dated 9999-12-31 (year 10000 in UTC) is refused, with its code');
+select is(tests.record_at(tests.val('trip1'), '0100-01-01T00:00:00'), '22023 issued_at',
+  'a CFDI dated in year 0100 is refused');
+select is(tests.record_at(tests.val('trip1'), '2021-12-31T23:59:59'), '22023 issued_at',
+  'a CFDI dated before CFDI 4.0 (2022) is refused');
+select is(tests.record_at(tests.val('trip1'), (now() at time zone 'America/Mexico_City') + interval '25 hours'),
+  '22023 issued_at', 'a CFDI dated more than a day in the future is refused');
+select is((select count(*)::int from public.freight_invoices
+           where trip_id = tests.val('trip1') and direction = 'fulmis_to_client'), 0,
+  'no refused date registered an invoice');
+select throws_ok(
+  format($$ insert into public.freight_invoices (trip_id, direction, cfdi_uuid, issuer_rfc, receiver_rfc,
+              total_cents, currency, issued_at, validation, xml_path, pdf_path)
+            values (%L, 'fulmis_to_client', gen_random_uuid(), 'FUL201015AB1', 'EFA050505GH5', 1000000, 'MXN',
+              '10000-01-01 05:59:59+00', 'validated', %L, %L) $$,
+    tests.val('trip1'), tests.val('trip1') || '/fulmis_to_client/' || gen_random_uuid() || '.xml',
+    tests.val('trip1') || '/fulmis_to_client/' || gen_random_uuid() || '.pdf'),
+  '23514', null, 'the table refuses a date out of range too (freight_invoices_issued_at_range)'
+);
 select is(
   tests.record('a5500000-0000-4000-8000-000000000008', tests.val('trip1'), 'fulmis_to_client',
                'f5500000-0000-4000-8000-000000000011', 'FUL201015AB1', 'EFA050505GH5', 1000000),

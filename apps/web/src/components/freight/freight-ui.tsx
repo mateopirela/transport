@@ -1,5 +1,6 @@
 import {
   formatCalendarDate,
+  formatInvoiceIssuedDate,
   formatMxn,
   freightCarrierStatusLabels,
   freightCarrierStatusTone,
@@ -8,7 +9,6 @@ import {
   freightInvoicesCopy,
   freightInvoiceValidationLabels,
   shortCfdiUuid,
-  toMexicoCityDate,
   type FreightCarrierStatus,
   type FreightClientStatus,
 } from '@transport/shared';
@@ -84,10 +84,7 @@ export function InvoiceSummary({
   return (
     <div className="space-y-1" data-testid={`invoice-${invoice.direction}`}>
       <p className="text-footnote text-text-dim tabular-nums">
-        {f.invoiceLine(
-          shortCfdiUuid(invoice.cfdiUuid),
-          formatCalendarDate(toMexicoCityDate(invoice.issuedAt)),
-        )}
+        {f.invoiceLine(shortCfdiUuid(invoice.cfdiUuid), formatInvoiceIssuedDate(invoice.issuedAt))}
       </p>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-subhead">
         {showValidation && (

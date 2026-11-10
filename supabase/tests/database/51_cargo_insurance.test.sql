@@ -415,8 +415,8 @@ reset role;
 -- pg_cron runs it without a user (notify_carrier_staff skips the caller).
 select set_config('request.jwt.claims', '', true);
 select ok(public.remind_cargo_insurance() >= 1, 'the reminder finds the trip without insurance');
-select is(tests.notices('a5100000-0000-4000-8000-000000000001', tests.val('t4'), 'shipper'), 2,
-  'the shipper is reminded (after the notice at acceptance)');
+select is(tests.notices('a5100000-0000-4000-8000-000000000001', tests.val('t4'), 'shipper'), 1,
+  'the shipper, told at acceptance less than 24 hours before, is not told twice');
 select is(tests.notices('a5100000-0000-4000-8000-000000000002', tests.val('t4'), 'carrier'), 1,
   'the manager is warned');
 select is(tests.notices('a5100000-0000-4000-8000-000000000003', tests.val('t4'), 'carrier'), 1,

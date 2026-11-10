@@ -675,7 +675,9 @@ insert into tests.rpc_calls values
        current_date, 'B24REF') $$),
   ('admin_set_company_payment_terms', $$ public.admin_set_company_payment_terms(tests.val('shipper_company'), 60) $$),
   ('admin_set_company_commission', $$ public.admin_set_company_commission(tests.val('carrier_company'), 500) $$),
-  ('admin_resolve_freight_review', $$ public.admin_resolve_freight_review(tests.val('trip'), 'x') $$);
+  ('admin_resolve_freight_review', $$ public.admin_resolve_freight_review(tests.val('trip'), 'x') $$),
+  -- Return loads of a trip (I7): the staff of its business unit and admins.
+  ('trip_backhaul', $$ (select count(*) from public.trip_backhaul(tests.val('trip'))) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -819,6 +821,7 @@ select is_empty(
        'is_conversation_participant', 'make_offer', 'counter_offer', 'reject_offer', 'withdraw_offer', 'accept_offer',
        'create_invitation', 'revoke_invitation', 'create_share_link', 'create_trip_operator_link',
        'trip_shared_documents', 'revoke_document_share', 'trip_estimated_end', 'carrier_freight_ledger',
+       'trip_backhaul',
        'vehicle_release_context', 'release_vehicle', 'rename_business_unit', 'archive_business_unit',
        'set_coordinator_units', 'remove_company_member', 'move_vehicle_to_unit', 'move_operator_to_unit']) $$,
   'RPCs: the coordinator of another business unit cannot act on the rows of a business unit'

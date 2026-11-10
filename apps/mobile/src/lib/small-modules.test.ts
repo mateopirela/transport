@@ -19,6 +19,20 @@ describe('pushTarget', () => {
     });
   });
 
+  it('opens the trip with "Para el regreso" for the return loads (I7)', () => {
+    const backhaul = {
+      type: 'backhaul_suggestions',
+      tripId,
+      vehicleId: '5eed0004-0000-4000-8000-000000000002',
+      city: 'Guadalajara',
+      loadCount: 1,
+    };
+    expect(pushTarget(backhaul, 'carrier')).toEqual({
+      pathname: '/trip/[id]',
+      params: { id: tripId },
+    });
+  });
+
   it('opens the unit to release for the carrier staff (G5), the trip for the operator', () => {
     const release = { taskId: tripId, tripId, vehicleId: '5eed0004-0000-4000-8000-000000000007' };
     expect(pushTarget(release, 'carrier')).toEqual({

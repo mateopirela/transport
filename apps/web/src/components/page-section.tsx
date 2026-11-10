@@ -9,12 +9,15 @@ import { cn } from '@/lib/utils';
  * line under it, an optional control on the right, and its content.
  */
 export function PageSection({
+  id,
   title,
   description,
   action,
   className,
   children,
 }: {
+  /** Anchor of the section, for links that open the page on it. */
+  id?: string;
   title: React.ReactNode;
   description?: React.ReactNode;
   /** A small control next to the heading (a secondary button, a link). */
@@ -23,7 +26,7 @@ export function PageSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('space-y-3', className)}>
+    <section id={id} className={cn('space-y-3', id && 'scroll-mt-24', className)}>
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="min-w-0 space-y-1">
           <h2 className="text-title2 text-text">{title}</h2>

@@ -279,6 +279,8 @@ insert into tests.ownership values
   ('public.provider_approvals', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
   ('public.provider_approval_events', '$1 in (t.shipper_company_id, t.carrier_company_id)'),
   ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and $1 in (x.shipper_company_id, x.carrier_company_id))'),
+  -- I7 (D40): the return-load check of a trip is the carrier's planning only.
+  ('public.trip_backhaul_checks', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.carrier_company_id = $1)'),
   -- The shipper sees the GPS track only while the trip is active.
   ('public.trip_locations', $$
      exists (select 1 from public.trips x where x.id = t.trip_id
@@ -350,6 +352,7 @@ insert into tests.unit_ownership values
   ('public.document_shares', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.incidents', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.trip_locations', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
+  ('public.trip_backhaul_checks', 'exists (select 1 from public.trips x where x.id = t.trip_id and x.business_unit_id = any ($3))'),
   ('public.messages', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
   ('public.message_reads', 'public.conversation_business_unit_id_as_owner(t.conversation_id) = any ($3)'),
   ('storage.objects', $$

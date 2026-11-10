@@ -1,4 +1,6 @@
 import {
+  BACKHAUL_SECTION_ID,
+  backhaulCopy,
   canAddTripDocuments,
   canCancelTrip,
   canSendTripLink,
@@ -27,6 +29,7 @@ import { randomUUID } from 'node:crypto';
 import Link from 'next/link';
 
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
+import { RECOMMENDATION_LIST, RecommendationCard } from '@/components/carrier/recommendation-card';
 import { TripAssignForm } from '@/components/carrier/trip-assign-form';
 import { TripLinkPanel } from '@/components/carrier/trip-link-panel';
 import { ChatPanel } from '@/components/chat/chat-panel';
@@ -50,6 +53,7 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { groupRow } from '@/components/ui/variants';
+import { tripBackhaul } from '@/lib/carrier/backhaul';
 import { carrierContext } from '@/lib/carrier/context';
 import {
   cancelCarrierTrip,
@@ -124,7 +128,7 @@ export default async function CarrierTripPage({
     data.operatorName !== null &&
     !data.soloOwnerOperator &&
     canSendTripLink({ status: trip.status, operatorId: trip.operator_id });
-  const [chat, sharedDocuments, decision, endEstimate, tripLink] = await Promise.all([
+  const [chat, sharedDocuments, decision, endEstimate, tripLink, backhaul] = await Promise.all([
     chatId ? getChat(supabase, chatId, companyId) : null,
     getSharedDocuments(supabase, trip.id),
     getProviderDecisionForCarrier(supabase, {
@@ -134,6 +138,8 @@ export default async function CarrierTripPage({
     // H5: the estimated end of unloading, with the times measured at the site.
     tripEndEstimate(supabase, id),
     sendsLink ? activeTripOperatorLink(supabase, trip.id) : null,
+    // I7 (D40): the return loads, once the trip arrived or came near its destination.
+    tripBackhaul(supabase, trip),
   ]);
 
   const now = new Date();
@@ -198,6 +204,27 @@ export default async function CarrierTripPage({
               {live && <p className="text-footnote text-text-dim">{m.live}</p>}
             </div>
           </PageSection>
+
+          {backhaul && (
+            <PageSection
+              id={BACKHAUL_SECTION_ID}
+              title={backhaulCopy.section}
+              description={backhaulCopy.description(
+                load.destination_city,
+                backhaul.availableFrom ? formatDateTime(backhaul.availableFrom) : null,
+              )}
+            >
+              {backhaul.suggestions.length === 0 ? (
+                <Empty title={backhaulCopy.empty} />
+              ) : (
+                <ul className={RECOMMENDATION_LIST}>
+                  {backhaul.suggestions.map((r, i) => (
+                    <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
+                  ))}
+                </ul>
+              )}
+            </PageSection>
+          )}
 
           <PageSection title={d.timeline}>
             {events.length === 0 ? (

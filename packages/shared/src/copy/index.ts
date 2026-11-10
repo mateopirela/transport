@@ -3,6 +3,7 @@
 export * from './admin-ops';
 export * from './appearance';
 export * from './auth';
+export * from './backhaul';
 export * from './billing';
 export * from './cargo-insurance';
 export * from './carrier-loads';

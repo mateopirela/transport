@@ -2,6 +2,7 @@
 // carrier staff). Pure: notification data is JSON written by the B07
 // triggers, so every id is validated before use.
 import {
+  BACKHAUL_SECTION_ID,
   chatMessageTarget,
   INTERNAL_CHAT_PARAM,
   SHIPPER_CHAT_PARAM,
@@ -114,6 +115,11 @@ export function notificationHref(
       case 'freight_payment_received':
       case 'freight_on_hold':
         return paths.carrierCollections;
+      // I7 (D40): the return loads of a trip, in its "Para el regreso".
+      case 'backhaul_suggestions': {
+        const tripId = id(data, 'tripId');
+        return tripId && `${carrierTripPath(tripId)}#${BACKHAUL_SECTION_ID}`;
+      }
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6).
       case 'trip_location_stale':
@@ -165,6 +171,7 @@ export function notificationHref(
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
     case 'internal_message':
+    case 'backhaul_suggestions':
     case 'load_match':
     case 'provider_status_changed':
     case 'trip_location_stale':

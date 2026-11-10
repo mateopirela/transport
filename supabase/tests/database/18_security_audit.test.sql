@@ -282,6 +282,8 @@ select set_eq(
     'notify_chat_message',
     -- I1: the cargo insurance notice of a new trip and the terms accepted at sign-up.
     'notify_cargo_insurance_on_trip_created', 'record_sign_up_terms_acceptance',
+    -- I7 (D40): the return-load check on arrival and near the destination.
+    'trip_events_suggest_backhaul', 'trip_locations_suggest_backhaul',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

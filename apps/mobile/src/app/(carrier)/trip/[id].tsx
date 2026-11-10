@@ -1,4 +1,5 @@
 import {
+  backhaulCopy,
   canCancelTrip,
   canSendTripLink,
   cargoTypeLabels,
@@ -25,6 +26,7 @@ import { ChatPanel } from '../../../components/chat-panel';
 import { DetailRow } from '../../../components/detail-row';
 import { CargoInsuranceSection } from '../../../components/cargo-insurance-section';
 import { HelpCell } from '../../../components/help-cell';
+import { RecommendationCell } from '../../../components/load-card';
 import { SharedDocumentsSection } from '../../../components/shared-documents-section';
 import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
@@ -35,6 +37,7 @@ import { PositionLine, tripStatusTone } from '../../../components/trip-position'
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
 import {
   Cell,
+  Footnote,
   Group,
   LoadError,
   Notice,
@@ -46,6 +49,7 @@ import {
   TextCell,
   ValueRow,
 } from '../../../components/ui';
+import { tripBackhaul, type TripBackhaul } from '../../../lib/backhaul-api';
 import { loadCarrierTrip, type CarrierTripDetail } from '../../../lib/carrier-trips-api';
 import { tripEndEstimate } from '../../../lib/dwell-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
@@ -72,7 +76,10 @@ export default function CarrierTripScreen() {
         loadCarrierTrip(client, companyId, id, isManager),
         tripEndEstimate(client, id),
       ]);
-      return detail ? { ...detail, endEstimate } : null;
+      if (!detail) return null;
+      // I7 (D40): the return loads, once the trip arrived or came near its destination.
+      const backhaul = await tripBackhaul(client, detail.trip);
+      return { ...detail, endEstimate, backhaul };
     },
     [id],
   );
@@ -115,7 +122,10 @@ function TripBody({
   initialChat,
 }: {
   carrier: CarrierContext;
-  detail: CarrierTripDetail & { endEstimate: TripEndEstimate | null };
+  detail: CarrierTripDetail & {
+    endEstimate: TripEndEstimate | null;
+    backhaul: TripBackhaul | null;
+  };
   reload: () => Promise<void>;
   initialChat: TripChatTab;
 }) {
@@ -191,6 +201,10 @@ function TripBody({
               />
             ) : null}
           </Group>
+        ) : null}
+
+        {detail.backhaul ? (
+          <BackhaulSection backhaul={detail.backhaul} city={l.destination_city} />
         ) : null}
 
         <SectionHeader title={copy.route} />
@@ -329,6 +343,30 @@ function TripBody({
 }
 
 const styles = StyleSheet.create({ head: { gap: spacing.sm, alignItems: 'flex-start' } });
+
+/** "Para el regreso" (I7): the best return loads of the unit near the destination. */
+function BackhaulSection({ backhaul, city }: { backhaul: TripBackhaul; city: string }) {
+  return (
+    <>
+      <SectionHeader title={backhaulCopy.section} />
+      <Group>
+        {backhaul.suggestions.length === 0 ? (
+          <TextCell tone="dim">{backhaulCopy.empty}</TextCell>
+        ) : (
+          backhaul.suggestions.map((r, i) => (
+            <RecommendationCell key={r.loadId} recommendation={r} rank={i + 1} />
+          ))
+        )}
+      </Group>
+      <Footnote>
+        {backhaulCopy.description(
+          city,
+          backhaul.availableFrom ? formatDateTime(backhaul.availableFrom) : null,
+        )}
+      </Footnote>
+    </>
+  );
+}
 
 /** "Fin estimado de descarga" (H5): the time and what it is based on; nothing once unloaded. */
 function TripEndRow({ estimate }: { estimate: TripEndEstimate | null }) {

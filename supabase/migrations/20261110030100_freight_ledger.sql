@@ -664,8 +664,9 @@ grant execute on function public.admin_record_freight_payment(
 ) to authenticated;
 
 -- Sets (or clears) a shipper's payment terms. The trips still "Plazo por
--- definir" and pending take them, with their due dates; the others keep the
--- terms frozen in their ledger.
+-- definir" take them, with their due dates, whatever they already paid (a
+-- client can pay before its terms are set, and the carrier's date comes from
+-- them); a cancelled trip and the trips with terms keep their ledger.
 create function public.admin_set_company_payment_terms(p_company_id uuid, p_days integer)
 returns void
 language plpgsql
@@ -695,7 +696,7 @@ begin
     perform 1
     from public.freight_ledgers f
     join public.trips t on t.id = f.trip_id
-    where t.shipper_company_id = p_company_id and f.client_terms_days is null and f.client_status = 'pending'
+    where t.shipper_company_id = p_company_id and f.client_terms_days is null and f.client_status <> 'cancelled'
     order by f.id
     for update of f;
 
@@ -707,7 +708,7 @@ begin
     where t.id = f.trip_id
       and t.shipper_company_id = p_company_id
       and f.client_terms_days is null
-      and f.client_status = 'pending';
+      and f.client_status <> 'cancelled';
   end if;
 end;
 $$;

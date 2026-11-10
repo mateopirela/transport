@@ -27,14 +27,18 @@ async function recordPayment(
   reference: string,
 ): Promise<void> {
   const card = page.getByTestId(`freight-row-${trip}`);
-  await card.getByText(a.recordPayment, { exact: true }).click();
-  await card
-    .getByLabel(a.direction)
-    .selectOption({ label: freightPaymentDirectionLabels[direction] });
-  await card.getByLabel(a.paymentAmount).fill(amount);
-  await card.getByLabel(a.speiReference).fill(reference);
+  // Exact labels: "Pago" is also part of "Fecha del pago".
+  const directionSelect = card.getByLabel(a.direction, { exact: true });
+  // The form stays open after a payment: a second click would fold it.
+  if (!(await directionSelect.isVisible())) {
+    await card.getByText(a.recordPayment, { exact: true }).click();
+  }
+  await directionSelect.selectOption({ label: freightPaymentDirectionLabels[direction] });
+  await card.getByLabel(a.paymentAmount, { exact: true }).fill(amount);
+  await card.getByLabel(a.speiReference, { exact: true }).fill(reference);
   await card.getByRole('button', { name: a.save }).click();
-  await expect(card.getByText(a.saved)).toBeVisible();
+  // The callers assert the resulting statuses: the last payment of a trip
+  // removes the form (and its "saved" message) from the card.
 }
 
 test('each side sees its own amounts and the admin reconciles the SPEI payments', async ({

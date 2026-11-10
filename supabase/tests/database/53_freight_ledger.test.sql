@@ -19,7 +19,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(92);
+select plan(95);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -630,6 +630,30 @@ select lives_ok(format($$ select public.admin_resolve_freight_review(%L, 'Se dev
 select throws_ok(format($$ select public.admin_resolve_freight_review(%L, 'Otra vez.') $$, tests.val('trip4')),
   '55000', null, 'there is nothing left to resolve');
 reset role;
+
+-- A client that pays before its terms are set still gets them: the
+-- carrier's scheduled payment takes its date from them.
+insert into tests.vals select 'trip5', tests.trip('a5100000-0000-4000-8000-000000000002',
+  'a5100000-0000-4000-8000-000000000004', 'e5100000-0000-4000-8000-00000000000a', 400000);
+update public.trips
+set status = 'delivered', vehicle_id = 'e5100000-0000-4000-8000-00000000000a',
+    operator_id = 'd5100000-0000-4000-8000-000000000006', assigned_at = now(), started_at = now(), delivered_at = now()
+where id = tests.val('trip5');
+select lives_ok($$ select tests.pay(tests.val('trip5'), 'client_to_fulmis', 400000, 'SPEI0008') $$,
+  'the other shipper pays in full before having terms');
+set local role authenticated;
+select tests.login('a5100000-0000-4000-8000-000000000008');
+select lives_ok($$ select public.admin_set_company_payment_terms('c5100000-0000-4000-8000-000000000004', 15) $$,
+  'the admin then gives it 15 days');
+reset role;
+select results_eq(
+  $$ select v.name, f.client_terms_days, f.client_due_on, f.carrier_due_on, f.client_status::text, f.carrier_status::text
+     from public.freight_ledgers f join tests.vals v on v.id = f.trip_id
+     where v.name in ('trip4', 'trip5') order by v.name $$,
+  $$ values ('trip4', null::smallint, null::date, null::date, 'cancelled', 'cancelled'),
+            ('trip5', 15::smallint, public.freight_today() + 15, public.freight_today() + 15, 'paid', 'scheduled') $$,
+  'the paid trip takes the terms and its dates, keeping its statuses; the cancelled one keeps none'
+);
 
 select * from finish();
 rollback;

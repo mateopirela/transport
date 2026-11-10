@@ -92,8 +92,14 @@ export default async function AdminBrokeredLoadPage({
                   <tr key={offer.id} data-testid={`brokered-offer-${offer.id}`}>
                     <td className="font-semibold">{offer.carrierName}</td>
                     <td>{c.offerFrom[offer.side]}</td>
-                    <td className="whitespace-nowrap tabular-nums">
-                      {formatMxn(offer.amount_cents)}
+                    <td className="tabular-nums">
+                      <span className="whitespace-nowrap">{formatMxn(offer.amount_cents)}</span>
+                      {/* The carrier's terms, read before answering (waiting time, extras). */}
+                      {offer.conditions && (
+                        <p className="mt-1 max-w-56 text-footnote text-text-dim">
+                          {c.conditions}: {offer.conditions}
+                        </p>
+                      )}
                     </td>
                     <td className="whitespace-nowrap text-text-dim tabular-nums">
                       {formatDateTime(offer.created_at)}

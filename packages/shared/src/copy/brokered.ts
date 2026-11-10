@@ -74,6 +74,7 @@ export const brokeredCopy = {
     reject: 'Rechazar',
     counter: 'Contraofertar',
     counterAmount: 'Contraoferta (MXN)',
+    conditions: 'Condiciones',
     send: 'Enviar',
     columns: {
       carrier: 'Transportista',

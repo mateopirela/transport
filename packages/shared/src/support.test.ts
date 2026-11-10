@@ -14,6 +14,25 @@ import {
 
 const TRIP_ID = '3f2a1b9c-0000-4000-8000-000000000001';
 
+// Each one shows nothing; String.prototype.trim leaves most of them.
+const INVISIBLE_ONLY = [
+  '\u200B',
+  '\u200B\u200B\u200B',
+  ' \u200C\u200D\u2060 ',
+  '\uFEFF\u200E\u200F',
+  '\u00AD\u034F\u061C',
+  '\u115F\u1160\u3164\uFFA0',
+  '\u17B4\u17B5\u180E',
+  '\u202A\u202B\u202C\u202D\u202E',
+  '\u2061\u2062\u2063\u2064',
+  '\u2066\u2067\u2068\u2069\u206A\u206F',
+  '\uFE0F\uFE00',
+  '\u2800',
+  '\u00A0\u2007\u202F\u3000',
+  '\u{E0020}\u{E007F}\u{E0100}',
+  '\uFFF9\uFFFB',
+];
+
 /** The text of a wa.me link, decoded. */
 function textOf(url: string): string {
   return decodeURIComponent(new URL(url).searchParams.get('text') ?? '');
@@ -48,6 +67,15 @@ describe('parseSupportSettings', () => {
       parseSupportSettings([{ key: SUPPORT_SETTING_KEYS.whatsapp, value: 528112345678 }]),
     ).toEqual({ whatsapp: null, hours: null });
   });
+
+  it('treats hours made only of invisible characters as not set', () => {
+    for (const blank of INVISIBLE_ONLY) {
+      expect(parseSupportSettings([{ key: SUPPORT_SETTING_KEYS.hours, value: blank }])).toEqual({
+        whatsapp: null,
+        hours: null,
+      });
+    }
+  });
 });
 
 describe('normalizeSupportWhatsapp', () => {
@@ -72,6 +100,16 @@ describe('isValidSupportHours', () => {
     expect(isValidSupportHours('a'.repeat(SUPPORT_HOURS_MAX_LENGTH))).toBe(true);
     expect(isValidSupportHours(` ${'a'.repeat(SUPPORT_HOURS_MAX_LENGTH)} `)).toBe(true);
     expect(isValidSupportHours('a'.repeat(SUPPORT_HOURS_MAX_LENGTH + 1))).toBe(false);
+  });
+
+  it('refuses text made only of invisible characters', () => {
+    for (const blank of INVISIBLE_ONLY) expect(isValidSupportHours(blank)).toBe(false);
+  });
+
+  it('keeps text with something visible, invisible characters and all', () => {
+    expect(isValidSupportHours('\u200BLunes a viernes\u200B')).toBe(true);
+    expect(isValidSupportHours('☎\uFE0F 24 horas')).toBe(true);
+    expect(isValidSupportHours('\u00A0\u00A08 a 20 h')).toBe(true);
   });
 });
 

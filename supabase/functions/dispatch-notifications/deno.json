@@ -7,6 +7,7 @@
     "../../../packages/shared/src/internal-chat": "../../../packages/shared/src/internal-chat.ts",
     "../../../packages/shared/src/money": "../../../packages/shared/src/money.ts",
     "../../../packages/shared/src/copy/auth": "../../../packages/shared/src/copy/auth.ts",
+    "../../../packages/shared/src/copy/backhaul": "../../../packages/shared/src/copy/backhaul.ts",
     "../../../packages/shared/src/copy/catalogs": "../../../packages/shared/src/copy/catalogs.ts",
     "../../../packages/shared/src/copy/internal-chat": "../../../packages/shared/src/copy/internal-chat.ts",
     "../../../packages/shared/src/copy/notifications": "../../../packages/shared/src/copy/notifications.ts",

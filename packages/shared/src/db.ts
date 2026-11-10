@@ -2648,6 +2648,66 @@ export interface Database {
           },
         ];
       };
+      trip_backhaul_checks: {
+        Row: {
+          available_from: string | null;
+          checked_at: string;
+          load_count: number;
+          notified_at: string | null;
+          source: string;
+          trip_id: string;
+          vehicle_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          available_from?: string | null;
+          checked_at?: string;
+          load_count: number;
+          notified_at?: string | null;
+          source: string;
+          trip_id: string;
+          vehicle_id: string;
+        };
+        Update: {
+          available_from?: string | null;
+          checked_at?: string;
+          load_count?: number;
+          notified_at?: string | null;
+          source?: string;
+          trip_id?: string;
+          vehicle_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'trip_backhaul_checks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['previous_trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_backhaul_checks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'kpi_trip_metrics';
+            referencedColumns: ['trip_id'];
+          },
+          {
+            foreignKeyName: 'trip_backhaul_checks_trip_id_fkey';
+            columns: ['trip_id'];
+            isOneToOne: true;
+            referencedRelation: 'trips';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'trip_backhaul_checks_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trip_document_requirements: {
         Row: {
           blocks_departure: boolean;
@@ -4066,6 +4126,7 @@ export interface Database {
           trip_status: Database['public']['Enums']['trip_status'];
         }[];
       };
+      check_backhaul: { Args: { p_source: string; p_trip_id: string }; Returns: undefined };
       check_offer_fields: {
         Args: {
           p_amount_cents: number;
@@ -4822,6 +4883,12 @@ export interface Database {
         };
         Returns: undefined;
       };
+      trip_backhaul: {
+        Args: { p_trip_id: string };
+        Returns: {
+          available_from: string;
+        }[];
+      };
       trip_cargo_insurance: {
         Args: { p_trip_id: string };
         Returns: {
@@ -5098,7 +5165,8 @@ export interface Database {
         | 'cargo_insurance_missing'
         | 'freight_payment_received'
         | 'freight_overdue'
-        | 'freight_on_hold';
+        | 'freight_on_hold'
+        | 'backhaul_suggestions';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -5398,6 +5466,7 @@ export const Constants = {
         'freight_payment_received',
         'freight_overdue',
         'freight_on_hold',
+        'backhaul_suggestions',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

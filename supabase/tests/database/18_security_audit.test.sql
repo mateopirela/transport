@@ -234,6 +234,8 @@ select set_eq(
     'admin_upsert_road_segment', 'admin_set_segment_toll', 'admin_upsert_segment_risk', 'admin_upsert_corridor',
     -- Waiting times (H5, D32): the caller's own trips, others' only from 2 carriers up (46_site_dwell).
     'site_dwell_estimate', 'trip_estimated_end',
+    -- Carga de regreso (I7, D40): the staff of the trip's unit and admins, no money (55_backhaul_suggestions).
+    'trip_backhaul',
     -- Rate limits (B24).
     'consume_rate_limit',
     -- Subscription (H3): the caller's company (any one for admins) and the
@@ -282,6 +284,8 @@ select set_eq(
     'notify_chat_message',
     -- I1: the cargo insurance notice of a new trip and the terms accepted at sign-up.
     'notify_cargo_insurance_on_trip_created', 'record_sign_up_terms_acceptance',
+    -- I7 (D40): the return-load check on arrival and near the destination.
+    'trip_events_suggest_backhaul', 'trip_locations_suggest_backhaul',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

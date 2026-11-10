@@ -3,6 +3,7 @@
 // email dispatcher (B09) render them here, so the text lives in one place.
 import type { NotificationType, TripDocumentKind, TripEventType, TripStatus } from '../enums';
 import { formatMxn } from '../formatters';
+import { backhaulCopy } from './backhaul';
 import { tripDocumentKindLabels, tripEventTypeLabels, tripStatusLabels } from './catalogs';
 import { internalChatCopy } from './internal-chat';
 
@@ -237,6 +238,18 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
       return {
         title: 'Pago retenido',
         body: `El pago del viaje${route(data)}${pending(data)} está retenido: el cliente no ha pagado. Fulmis se encarga de la cobranza.`,
+      };
+    // I7 (D40): compatible loads near the destination of a trip, for when its
+    // unit is free ("3 cargas cerca de Guadalajara para cuando la unidad
+    // CS53-01 quede libre").
+    case 'backhaul_suggestions':
+      return {
+        title: backhaulCopy.notificationTitle,
+        body: backhaulCopy.notificationBody(
+          count(data, 'loadCount'),
+          text(data, 'city'),
+          text(data, 'vehicleLabel'),
+        ),
       };
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');

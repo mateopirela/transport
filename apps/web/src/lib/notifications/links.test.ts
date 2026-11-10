@@ -91,6 +91,17 @@ describe('notificationHref', () => {
     );
   });
 
+  it('sends the return loads to "Para el regreso" of the trip, only for the carrier (I7)', () => {
+    const data = { tripId: NEGOTIATION, vehicleId: LOAD, city: 'Guadalajara', loadCount: 3 };
+    expect(notificationHref('backhaul_suggestions', data, 'transportista')).toBe(
+      `/transportista/viajes/${NEGOTIATION}#regreso`,
+    );
+    expect(
+      notificationHref('backhaul_suggestions', { tripId: '../x' }, 'transportista'),
+    ).toBeNull();
+    expect(notificationHref('backhaul_suggestions', data)).toBeNull();
+  });
+
   it('sends the carrier staff to their trips and fleet documents (G10b)', () => {
     for (const type of ['trip_assigned', 'trip_status_changed', 'trip_unassigned'] as const) {
       expect(notificationHref(type, { loadId: LOAD, tripId: NEGOTIATION }, 'transportista')).toBe(

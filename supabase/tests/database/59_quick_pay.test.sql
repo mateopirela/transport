@@ -513,9 +513,10 @@ select is(
   '1891500,1000000,250', 'the admin reads the exposure, the limit and the fee'
 );
 
-select tests.try('a5900000-0000-4000-8000-000000000008', format($$
-  select public.admin_record_freight_payment(%L, 'fulmis_to_carrier', 100000, public.freight_today(), 'QPPARCIAL6')
-$$, tests.val('trip6'))) is null as quiet;
+-- Since D33-E1 the admin pays the carrier only once the client paid (or with
+-- an approved quick pay, which is never pending): a carrier paid in part
+-- while pending is a ledger from before that rule, set here directly.
+update public.freight_ledgers set carrier_paid_cents = 100000 where trip_id = tests.val('trip6');
 select is(tests.req('a5900000-0000-4000-8000-000000000003', 'trip6'), '55000:partially_paid',
   'no quick pay once Fulmis paid part of it');
 

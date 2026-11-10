@@ -350,6 +350,8 @@ export function freightAdminErrorText(error: FreightRpcError): string {
     case 'P0002':
       return e.notFound;
     case '55000':
+      // D33-E1: the carrier is paid once the client paid (or with quick pay).
+      if (message.includes('client has not paid')) return e.clientUnpaid;
       // I4: no payment to the carrier while its quick pay request is pending.
       if (message.includes('quick pay')) return quickPayCopy.errors.pendingRequest;
       return message.includes('review') ? e.noReview : e.closed;

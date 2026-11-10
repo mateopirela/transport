@@ -19,7 +19,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(95);
+select plan(96);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -474,9 +474,10 @@ select throws_ok(
   $$ select tests.pay(tests.val('trip1'), 'client_to_fulmis', 300000, 'SPEI0001') $$, '23505', null,
   'the same reference with another amount is refused'
 );
-select lives_ok(
+select throws_ok(
   $$ select tests.pay(tests.val('trip1'), 'fulmis_to_carrier', 100000, 'SPEI0001') $$,
-  'the same reference may be used in the other direction'
+  '55000', 'the client has not paid this trip yet',
+  'Fulmis pays the carrier only once the client paid (D33-E1)'
 );
 select throws_ok(
   $$ select tests.pay(tests.val('trip1'), 'client_to_fulmis', 600001, 'SPEI0002') $$, '22023', null,
@@ -498,6 +499,10 @@ select results_eq(
   $$ select client_paid_cents, client_status::text, carrier_status::text from public.freight_ledgers where trip_id = tests.val('trip1') $$,
   $$ values (1000000::bigint, 'paid', 'scheduled') $$,
   'the client''s full payment marks it paid and schedules the carrier''s payment'
+);
+select lives_ok(
+  $$ select tests.pay(tests.val('trip1'), 'fulmis_to_carrier', 100000, 'SPEI0001') $$,
+  'the same reference may be used in the other direction'
 );
 select is(
   tests.read('a5100000-0000-4000-8000-000000000001',

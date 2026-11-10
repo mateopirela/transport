@@ -106,6 +106,8 @@ export const freightCopy = {
     paid: 'Pagado',
     payments: 'Pagos registrados',
     noPayments: 'Sin pagos registrados.',
+    carrierWaitsForClient:
+      'Al transportista se le paga cuando el cliente pague completo, o antes con un pago rápido aprobado.',
     needsReview: 'Viaje cancelado con pagos: resuélvelo a mano.',
     reviewNote: 'Cómo se resolvió',
     resolveReview: 'Marcar como resuelto',
@@ -145,6 +147,8 @@ export const freightCopy = {
       duplicateReference: 'Esa clave de rastreo ya se registró en otro pago.',
       date: 'La fecha del pago no puede ser futura ni anterior al viaje.',
       closed: 'Este lado ya está pagado o el viaje se canceló.',
+      clientUnpaid:
+        'El cliente aún no termina de pagar este viaje. Al transportista se le paga cuando el cliente pagó completo o con un pago rápido aprobado.',
       notFound: 'No encontramos ese viaje.',
       noReview: 'Este viaje no tiene una revisión pendiente.',
       note: 'Escribe una nota de hasta 500 caracteres.',

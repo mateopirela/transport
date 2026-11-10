@@ -87,11 +87,14 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
     supabase.rpc('company_missing_fields', { p_company_id: id }),
   ]);
   if (!verification) notFound();
-  // Subscription (H3): only carriers have one.
-  const billing =
-    verification.company.type === 'carrier'
-      ? await loadBillingState(supabase, id).catch(() => null)
-      : null;
+  // Subscription (H3) and commission override (I3): only carriers have them.
+  // The override is not a column clients read: admins get it by RPC.
+  const isCarrier = verification.company.type === 'carrier';
+  const [billing, commission] = await Promise.all([
+    isCarrier ? loadBillingState(supabase, id).catch(() => null) : null,
+    isCarrier ? supabase.rpc('admin_company_commission_bps', { p_company_id: id }) : null,
+  ]);
+  if (commission?.error) throw new Error(`Could not load commission: ${commission.error.message}`);
   if (members.error) throw new Error(`Could not load members: ${members.error.message}`);
   const missingFiscal = (missingFields.data ?? [])
     .map((column) => companyFiscalFieldLabels[column as CompanyFiscalColumn] ?? column)
@@ -230,7 +233,7 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
               ) : (
                 <CompanyCommissionForm
                   companyId={company.id}
-                  commissionBps={company.commission_bps}
+                  commissionBps={commission?.data ?? null}
                 />
               )}
             </div>

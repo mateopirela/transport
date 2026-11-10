@@ -95,9 +95,17 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     const card = admin.getByTestId(`freight-row-${trip}`);
     await expect(card).toContainText('$10,000.00');
     await expect(card).toContainText('$9,700.00');
+    // D33-E1: the carrier is paid once the client paid, so only the client's
+    // payment is offered until then.
+    await expect(card).toContainText(a.carrierWaitsForClient);
+    await card.getByText(a.recordPayment, { exact: true }).click();
+    await expect(card.getByLabel(a.direction, { exact: true }).locator('option')).toHaveText([
+      freightPaymentDirectionLabels.client_to_fulmis,
+    ]);
     await recordPayment(admin, 'client_to_fulmis', '10,000', 'mban0100e2e00000000001');
     await expect(card.getByTestId('freight-client-status')).toHaveText(clientLabels.paid);
     await expect(card.getByTestId('freight-carrier-status')).toHaveText(carrierLabels.scheduled);
+    await expect(card).not.toContainText(a.carrierWaitsForClient);
   });
 
   await test.step('Ana sees it paid, with its SPEI reference', async () => {

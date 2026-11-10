@@ -714,6 +714,7 @@ insert into tests.rpc_calls values
        current_date, 'B24REF') $$),
   ('admin_set_company_payment_terms', $$ public.admin_set_company_payment_terms(tests.val('shipper_company'), 60) $$),
   ('admin_set_company_commission', $$ public.admin_set_company_commission(tests.val('carrier_company'), 500) $$),
+  ('admin_company_commission_bps', $$ public.admin_company_commission_bps(tests.val('carrier_company')) $$),
   ('admin_resolve_freight_review', $$ public.admin_resolve_freight_review(tests.val('trip'), 'x') $$),
   -- Return loads of a trip (I7): the staff of its business unit and admins.
   ('trip_backhaul', $$ (select count(*) from public.trip_backhaul(tests.val('trip'))) $$),

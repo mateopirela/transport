@@ -5,6 +5,7 @@ import {
   tripDocumentFileIssue,
   tripDocumentKindLabels,
   toOptions,
+  type CargoInsuranceState,
   type TripChecklistRow,
   type TripDocumentKind,
   type TripStatus,
@@ -43,6 +44,7 @@ export function TripDocumentsSection({
   documents,
   checklist,
   uploadableKinds,
+  cargoInsurance = null,
   onChanged,
 }: {
   client: Supabase;
@@ -52,6 +54,8 @@ export function TripDocumentsSection({
   checklist: readonly TripChecklistRow[];
   /** Kinds the carrier may upload (trip_document_requirements), in order. */
   uploadableKinds: readonly TripDocumentKind[];
+  /** The cargo insurance of the trip (I1), for its row of the checklist. */
+  cargoInsurance?: CargoInsuranceState | null;
   onChanged: () => Promise<void>;
 }) {
   const [kind, setKind] = useState<TripDocumentKind | undefined>(uploadableKinds[0]);
@@ -103,7 +107,7 @@ export function TripDocumentsSection({
     <>
       <SectionHeader title={copy.title} />
       <Footnote>{copy.help}</Footnote>
-      <TripChecklist rows={checklist} />
+      <TripChecklist rows={checklist} cargoInsurance={cargoInsurance} />
       <SectionHeader title={copy.files} />
       {documents.length === 0 ? (
         <Group>

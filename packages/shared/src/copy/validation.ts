@@ -52,4 +52,6 @@ export const validationMessages = {
   tooManyItems: (max: number) => `Máximo ${max} elementos por envío.`,
   messageEmpty: 'Escribe un mensaje o adjunta un archivo.',
   attachment: 'El archivo adjunto no es válido.',
+  acceptTerms: 'Acepta los términos y condiciones y el aviso de privacidad para continuar.',
+  termsVersion: 'La versión de los términos no es válida.',
 } as const;

@@ -35,6 +35,7 @@ export function TripDocumentUpload({
   kinds,
   registerAction = registerTripDocument,
   doneText = c.done,
+  title = c.title,
 }: {
   tripId: string;
   /** Kinds the viewer's side may upload (trip_document_requirements), in order. */
@@ -43,6 +44,8 @@ export function TripDocumentUpload({
   registerAction?: (input: unknown) => Promise<{ error?: string }>;
   /** Confirmation shown after a successful upload. */
   doneText?: string;
+  /** Heading of the form (the cargo insurance has its own, I1). */
+  title?: string;
 }) {
   const id = useId();
   const [pending, setPending] = useState(false);
@@ -100,7 +103,7 @@ export function TripDocumentUpload({
           .finally(() => setPending(false));
       }}
     >
-      <p className="text-headline text-text">{c.title}</p>
+      <p className="text-headline text-text">{title}</p>
       {error && <Notice tone="error">{error}</Notice>}
       {done && <Notice tone="success">{doneText}</Notice>}
       <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-end">

@@ -57,6 +57,11 @@ export const ids = {
   assignedTrip: '5eed0008-0000-4000-8000-000000000002',
   /** Rabón RB-01 of Fletes Tapatíos. */
   rabon: '5eed0004-0000-4000-8000-000000000007',
+  /** Alimentos de Occidente (Luis): no annual cargo insurance policy (I1). */
+  luisCompany: '5eed0002-0000-4000-8000-000000000002',
+  /** Torton JSM-01 of the hombre-camión José Sánchez, and José as its operator (D13). */
+  jsmUnit: '5eed0004-0000-4000-8000-000000000008',
+  joseOperator: '5eed0003-0000-4000-8000-000000000006',
 } as const;
 
 /** Points used for the operator's events (D11: every event has a location). */

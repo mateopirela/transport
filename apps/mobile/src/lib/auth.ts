@@ -4,7 +4,7 @@ import type {
   MobileErrorKey,
   RedeemableKind,
 } from '@transport/shared';
-import { phoneAuthEmail, registerCompanyPayload } from '@transport/shared';
+import { phoneAuthEmail, registerCompanyPayload, TERMS_VERSION } from '@transport/shared';
 
 import { isFinalInvitationError, toErrorKey } from './errors';
 
@@ -30,6 +30,8 @@ export interface AuthBackend {
       phone: string;
       /** What a Gerente registers next (company or hombre-camión); only a hint for the form. */
       pending_company_kind?: CarrierSignUpKind;
+      /** The version of the terms accepted with the checkbox (I1, TERMS_VERSION). */
+      terms_version: string;
     };
   }): PromiseLike<Outcome & { hasSession: boolean }>;
   signOut(): PromiseLike<Outcome>;
@@ -43,7 +45,11 @@ export interface AuthBackend {
     fullName?: string;
     phone?: string;
     email?: string;
+    /** The version of the terms accepted with the checkbox (I1). */
+    termsVersion?: string;
   }): PromiseLike<Outcome & { kind: RedeemableKind | null }>;
+  /** accept_terms (I1): the signed-in account accepts a version of the terms. */
+  acceptTerms(version: string): PromiseLike<Outcome>;
   /** register_company (G2). */
   registerCompany(payload: ReturnType<typeof registerCompanyPayload>): PromiseLike<Outcome>;
   /** profiles.phone of the signed-in user (G2, "Completa tu teléfono"). */
@@ -129,6 +135,7 @@ export function createAuthActions(
             full_name: input.fullName,
             phone: input.phone,
             pending_company_kind: input.kind,
+            terms_version: TERMS_VERSION,
           },
         });
         if (error) return fail(error);
@@ -154,7 +161,12 @@ export function createAuthActions(
           email: input.email,
           password: input.password,
           redirectTo,
-          metadata: { role: 'coordinator', full_name: input.fullName, phone: input.phone },
+          metadata: {
+            role: 'coordinator',
+            full_name: input.fullName,
+            phone: input.phone,
+            terms_version: TERMS_VERSION,
+          },
         });
         if (error) {
           await forgetPending();
@@ -213,10 +225,23 @@ export function createAuthActions(
           phone: input.phone,
           password: input.password,
           ...(input.email ? { email: input.email } : {}),
+          termsVersion: TERMS_VERSION,
         });
         if (error) return fail(error);
         const signedIn = await backend.signIn(phoneAuthEmail(input.phone), input.password);
         return ok(signedIn.error ? 'redeemed' : 'signed_in');
+      });
+    },
+
+    /**
+     * I1: the signed-in account accepts the current version of the terms (a
+     * new one, or an account from before I1). The forms that create an
+     * account carry it in the sign-up instead.
+     */
+    acceptTerms(): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.acceptTerms(TERMS_VERSION);
+        return error ? fail(error) : ok(undefined);
       });
     },
 

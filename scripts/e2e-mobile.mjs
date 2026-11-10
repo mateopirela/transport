@@ -58,6 +58,10 @@ const IVAN = '5eed0003-0000-4000-8000-000000000007';
 const OWNER_OPERATOR_LOAD = 'Rollos de cartón (E2E G9, hombre-camión)';
 // H2: Andrea Cavazos sends Pedro López (operator row) the link of his trip.
 const TRIP_LINK_COORDINATOR = 'andrea.cavazos@demo.test';
+// I1: the Gerente who issues the operator link of 20-terms-acceptance, and
+// the business unit it joins ("Regional Monterrey").
+const TERMS_MANAGER = 'jorge.villarreal@demo.test';
+const REGIONAL_UNIT = '5eed0009-0000-4000-8000-000000000002';
 const PEDRO = '5eed0003-0000-4000-8000-000000000001';
 
 const args = process.argv.slice(2);
@@ -355,6 +359,22 @@ async function shipperAcceptsOwnerOperator(status) {
  * first link is revoked by the second. 16-operator-trip-link opens both.
  */
 let tripLinks = null;
+
+/** I1: Jorge issues a fresh operator link for 20-terms-acceptance. */
+let termsLink = null;
+async function operatorLinkForTerms(status) {
+  const manager = await signIn(status, TERMS_MANAGER);
+  const [link] = await api(status, '/rest/v1/rpc/create_invitation', {
+    token: manager,
+    body: {
+      p_kind: 'operator',
+      p_business_unit_ids: [REGIONAL_UNIT],
+      p_invitee_name: 'Lucía Torres',
+    },
+  });
+  termsLink = { INVITE_TOKEN: link.token };
+  console.log(`${TERMS_MANAGER} issued an operator link for Regional Monterrey.`);
+}
 async function tripLinksForPedro(status) {
   const coordinator = await signIn(status, TRIP_LINK_COORDINATOR);
   const trips = await api(
@@ -459,6 +479,13 @@ const steps = [
     run: () => flow('19-operator-unload-estimate'),
   },
   { name: '08-operator-invite', run: () => flow('08-operator-invite') },
+  // I1: the terms checkbox is required to create the account from a link.
+  { name: 'operator-link-for-terms', run: (status) => operatorLinkForTerms(status) },
+  {
+    name: '20-terms-acceptance',
+    needs: 'operator-link-for-terms',
+    run: () => flow('20-terms-acceptance', termsLink ?? {}),
+  },
   // G5 before G4: Héctor's TT-01 trip (and Raúl) are in "Regional Monterrey";
   // 09 moves TT-01 to "Bajío" once it is released.
   { name: 'trip-cancelled-on-the-way', run: (status) => tripCancelledOnTheWay(status) },

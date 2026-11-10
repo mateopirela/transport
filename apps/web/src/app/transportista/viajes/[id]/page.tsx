@@ -37,6 +37,7 @@ import { AutoRefresh } from '@/components/trips/auto-refresh';
 import { TripEndRow } from '@/components/trips/site-dwell';
 import { ReportIncidentForm } from '@/components/trips/trip-actions';
 import { TripCancelForm } from '@/components/trips/trip-cancel-form';
+import { CargoInsuranceCard } from '@/components/trips/cargo-insurance-card';
 import { TripChecklist } from '@/components/trips/trip-checklist';
 import { TripDocumentUpload } from '@/components/trips/trip-document-upload';
 import { TripMap } from '@/components/trips/trip-map';
@@ -300,11 +301,15 @@ export default async function CarrierTripPage({
             )}
           </PageSection>
 
+          {data.cargoInsurance && (
+            <CargoInsuranceCard state={data.cargoInsurance} side="carrier" tripId={trip.id} />
+          )}
+
           <PageSection
             title={carrierTripsCopy.documents.title}
             description={carrierTripsCopy.documents.help}
           >
-            <TripChecklist rows={data.checklist} />
+            <TripChecklist rows={data.checklist} cargoInsurance={data.cargoInsurance} />
             {canAddTripDocuments(trip.status) ? (
               <TripDocumentUpload
                 tripId={trip.id}

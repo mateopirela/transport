@@ -7,14 +7,18 @@ import {
   companyRegistrationSchema,
   coordinatorSignUpSchema,
   invitationTokenField,
+  legalCopy,
   newPasswordSchema,
   passwordResetRequestSchema,
   registrationSignUpSchema,
   signInSchema,
   signUpRoleForKind,
+  TERMS_VERSION,
+  termsAcceptanceSchema,
 } from '@transport/shared';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { isIP } from 'node:net';
 
 import { authErrorMessage } from '../auth-errors';
 import { siteUrl } from '../env';
@@ -85,11 +89,13 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
     options: {
       emailRedirectTo: await confirmUrl(),
       // Read by the on_auth_user_created trigger (B01): the role follows the
-      // kind; `admin` and `operator` are never accepted there.
+      // kind; `admin` and `operator` are never accepted there. The version of
+      // the terms the checkbox accepted is kept by on_auth_user_terms_accepted (I1).
       data: {
         role: signUpRoleForKind(values.kind),
         full_name: values.fullName,
         phone: values.phone,
+        terms_version: TERMS_VERSION,
         [PENDING_COMPANY_KEY]: companyFromSignUp(values),
       },
     },
@@ -174,7 +180,12 @@ export async function signUpCoordinator(_prev: FormState, formData: FormData): P
     password: values.password,
     options: {
       emailRedirectTo: await confirmUrl(invitationPath(token.data)),
-      data: { role: 'coordinator', full_name: values.fullName, phone: values.phone },
+      data: {
+        role: 'coordinator',
+        full_name: values.fullName,
+        phone: values.phone,
+        terms_version: TERMS_VERSION,
+      },
     },
   });
   if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
@@ -192,6 +203,39 @@ export async function joinCompany(_prev: FormState, formData: FormData): Promise
 
   const { error } = await supabase.rpc('accept_coordinator_invitation', { p_token: token.data });
   if (error) return { error: authErrorMessage(error) };
+  return redirectHome(supabase);
+}
+
+/**
+ * The first IP of the request as the hosting proxy reports it (Vercel sets
+ * x-forwarded-for), or null when there is none. Informational: it goes with
+ * the acceptance of the terms (terms_acceptances.ip).
+ */
+async function requestIp(): Promise<string | null> {
+  const first = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
+  return isIP(first) === 0 ? null : first;
+}
+
+/**
+ * /aceptar-terminos (I1): a signed-in account accepts the current version of
+ * the terms (a new one, or an account from before I1) and goes on to `next`
+ * or its home.
+ */
+export async function acceptTerms(_prev: FormState, formData: FormData): Promise<FormState> {
+  const entries = formEntries(formData);
+  const parsed = termsAcceptanceSchema.safeParse(entries);
+  if (!parsed.success) return invalidForm(parsed.error, entries);
+  const supabase = await createClient();
+  if (!supabase) return notConfigured;
+
+  const ip = await requestIp();
+  const { error } = await supabase.rpc('accept_terms', {
+    p_terms_version: TERMS_VERSION,
+    ...(ip ? { p_ip: ip } : {}),
+  });
+  if (error) return { error: legalCopy.reaccept.error };
+  const next = safeNextPath(entries.next);
+  if (next) redirect(next);
   return redirectHome(supabase);
 }
 

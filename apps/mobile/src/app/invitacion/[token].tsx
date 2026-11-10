@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
+import { TermsCheckbox } from '../../components/legal-links';
 import {
   Button,
   FieldCell,
@@ -188,6 +189,8 @@ function CoordinatorSignUp({ token, inviteeName }: { token: string; inviteeName:
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // I1: the terms checkbox, required.
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const set = (field: keyof typeof values) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
@@ -195,7 +198,7 @@ function CoordinatorSignUp({ token, inviteeName }: { token: string; inviteeName:
   async function submit() {
     if (submitting) return;
     setFormError(null);
-    const parsed = validateForm(coordinatorSignUpSchema, values);
+    const parsed = validateForm(coordinatorSignUpSchema, { ...values, acceptTerms });
     setErrors(parsed.ok ? {} : parsed.errors);
     if (!parsed.ok) return;
     setSubmitting(true);
@@ -252,6 +255,7 @@ function CoordinatorSignUp({ token, inviteeName }: { token: string; inviteeName:
         />
       </Group>
       <PasswordFields values={values} errors={errors} set={set} />
+      <TermsCheckbox checked={acceptTerms} onChange={setAcceptTerms} error={errors.acceptTerms} />
       <Button label={copy.createAccountAction} onPress={() => void submit()} loading={submitting} />
     </>
   );
@@ -317,6 +321,8 @@ function OperatorRedeem({ token }: { token: string }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [redeemed, setRedeemed] = useState(false);
+  // I1: the terms checkbox, required.
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const set = (field: keyof typeof values) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
@@ -324,7 +330,7 @@ function OperatorRedeem({ token }: { token: string }) {
   async function submit() {
     if (submitting) return;
     setFormError(null);
-    const parsed = validateForm(operatorRedeemFormSchema, values);
+    const parsed = validateForm(operatorRedeemFormSchema, { ...values, acceptTerms });
     setErrors(parsed.ok ? {} : parsed.errors);
     if (!parsed.ok) return;
     setSubmitting(true);
@@ -384,6 +390,7 @@ function OperatorRedeem({ token }: { token: string }) {
         />
       </Group>
       <PasswordFields values={values} errors={errors} set={set} />
+      <TermsCheckbox checked={acceptTerms} onChange={setAcceptTerms} error={errors.acceptTerms} />
       <Button
         label={submitting ? copy.operatorSigningIn : copy.operatorSubmit}
         onPress={() => void submit()}

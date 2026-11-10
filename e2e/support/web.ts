@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { authCopy, offersCopy } from '@transport/shared';
+import { authCopy, legalCopy, offersCopy } from '@transport/shared';
 
 import { DEMO_PASSWORD, users, type DemoUser } from './demo';
 
@@ -43,3 +43,8 @@ export const SAMPLE_PDF = {
     '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
   ),
 };
+
+/** Ticks the terms checkbox of a sign-up form (I1): no account is created without it. */
+export async function acceptTermsOnWeb(page: Page): Promise<void> {
+  await page.getByLabel(legalCopy.acceptTerms.label).check();
+}

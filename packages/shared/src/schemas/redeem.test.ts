@@ -47,6 +47,17 @@ describe('operatorRedeemSchema (Edge Function body)', () => {
     });
   });
 
+  it('keeps the accepted version of the terms (I1), optional for older builds', () => {
+    const body = { token: TOKEN, fullName: 'Iván', phone: '8110000013', password: 'camion2026' };
+    expect(operatorRedeemSchema.parse({ ...body, termsVersion: '2026-11-10' }).termsVersion).toBe(
+      '2026-11-10',
+    );
+    expect(operatorRedeemSchema.parse(body).termsVersion).toBeUndefined();
+    expect(issues(operatorRedeemSchema, { ...body, termsVersion: 'v2' })).toEqual({
+      termsVersion: m.termsVersion,
+    });
+  });
+
   it('does not need an email', () => {
     expect(
       operatorRedeemSchema.safeParse({
@@ -92,6 +103,7 @@ describe('the forms', () => {
         password: 'camion2026',
         passwordConfirmation: 'camion2026',
         email: '  ',
+        acceptTerms: 'on',
       }),
     ).toEqual({
       fullName: 'Iván',
@@ -99,6 +111,7 @@ describe('the forms', () => {
       password: 'camion2026',
       passwordConfirmation: 'camion2026',
       email: undefined,
+      acceptTerms: true,
     });
     expect(
       issues(operatorRedeemFormSchema, {
@@ -107,8 +120,18 @@ describe('the forms', () => {
         password: 'camion2026',
         passwordConfirmation: 'otra2026',
         email: 'no-es-correo',
+        acceptTerms: 'on',
       }),
     ).toEqual({ email: m.email });
+    // I1: the terms checkbox is required.
+    expect(
+      issues(operatorRedeemFormSchema, {
+        fullName: 'Iván',
+        phone: '8110000013',
+        password: 'camion2026',
+        passwordConfirmation: 'camion2026',
+      }),
+    ).toEqual({ acceptTerms: m.acceptTerms });
     expect(
       issues(accessResetFormSchema, { password: 'nueva2026', passwordConfirmation: 'otra2026' }),
     ).toEqual({ passwordConfirmation: a.passwordMismatch });

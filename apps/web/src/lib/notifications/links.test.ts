@@ -31,7 +31,6 @@ describe('notificationHref', () => {
       notificationHref('offer_received', { loadId: '../admin', negotiationId: 'x' }),
     ).toBeNull();
     expect(notificationHref('trip_assigned', null)).toBeNull();
-    expect(notificationHref('document_rejected', { loadId: LOAD })).toBeNull();
     expect(notificationHref('trip_unassigned', { loadId: LOAD })).toBeNull();
   });
 
@@ -117,6 +116,24 @@ describe('notificationHref', () => {
       ).toBeNull();
     }
     expect(notificationHref('trip_location_stale', { tripId: LOAD }, 'transportista')).toBeNull();
+  });
+
+  it('sends the shipper to its company documents (I1)', () => {
+    for (const type of ['document_approved', 'document_rejected', 'document_expiring'] as const) {
+      expect(notificationHref(type, { ownerType: 'company', ownerId: LOAD })).toBe(
+        '/cliente/empresa',
+      );
+    }
+  });
+
+  it('opens the trip of a missing cargo insurance, on both sides (I1)', () => {
+    expect(notificationHref('cargo_insurance_missing', { tripId: NEGOTIATION })).toBe(
+      `/cliente/viajes/${NEGOTIATION}`,
+    );
+    expect(
+      notificationHref('cargo_insurance_missing', { tripId: NEGOTIATION }, 'transportista'),
+    ).toBe(`/transportista/viajes/${NEGOTIATION}`);
+    expect(notificationHref('cargo_insurance_missing', { tripId: '../x' })).toBeNull();
   });
 
   it('opens the trip of the shared documents and trip documents (G6)', () => {

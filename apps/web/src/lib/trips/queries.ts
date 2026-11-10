@@ -2,6 +2,7 @@ import 'server-only';
 
 import {
   cancellationText,
+  cargoInsuranceState,
   uploadableTripDocumentKinds,
   uuidField,
   type UnitType,
@@ -117,6 +118,7 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     parties,
     checklist,
     requirements,
+    insurance,
   ] = await Promise.all([
     supabase
       .from('trip_events')
@@ -157,6 +159,8 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     tripParties(supabase, [trip.id]),
     supabase.rpc('trip_checklist', { p_trip_id: trip.id }),
     supabase.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
+    // I1: how the cargo is insured (the policy of the trip or the annual one).
+    supabase.rpc('trip_cargo_insurance', { p_trip_id: trip.id }).maybeSingle(),
   ]);
   for (const [name, result] of Object.entries({
     events,
@@ -167,6 +171,7 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     conversation,
     checklist,
     requirements,
+    insurance,
   })) {
     if (result.error) throw new Error(`Trip ${name} query failed: ${result.error.message}`);
   }
@@ -180,8 +185,15 @@ export async function getCompanyTrip(supabase: Supabase, companyId: string, trip
     documents: documents.data ?? [],
     /** What the trip still needs (trip_checklist, D22). */
     checklist: checklist.data ?? [],
-    /** Kinds the shipper may upload (trip_document_requirements), in order. */
-    uploadableKinds: uploadableTripDocumentKinds(requirements.data ?? [], 'shipper'),
+    /**
+     * Kinds the shipper may upload (trip_document_requirements), in order;
+     * the cargo insurance has its own section (I1).
+     */
+    uploadableKinds: uploadableTripDocumentKinds(requirements.data ?? [], 'shipper').filter(
+      (kind) => kind !== 'cargo_insurance',
+    ),
+    /** The cargo insurance of the trip (I1). */
+    cargoInsurance: insurance.data ? cargoInsuranceState(insurance.data) : null,
     // Oldest first, to draw the trail in order.
     locations: (locations.data ?? []).reverse(),
     conversationId: conversation.data?.id ?? null,

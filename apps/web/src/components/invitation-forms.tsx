@@ -4,12 +4,13 @@ import {
   accessResetFormSchema,
   authCopy,
   operatorRedeemFormSchema,
+  TERMS_VERSION,
   type RedeemableKind,
 } from '@transport/shared';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { Field } from '@/components/auth-forms';
+import { Field, TermsCheckbox } from '@/components/auth-forms';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { formEntries, invalidForm, type FormState } from '@/lib/forms';
@@ -45,7 +46,14 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
     setPending(true);
     setState({});
     const { passwordConfirmation: _confirmation, ...values } = parsed.data;
-    const outcome = await redeemInvitation({ token, ...values });
+    // I1: a new operator account keeps the version of the terms it accepted;
+    // the checkbox itself stays here.
+    const { acceptTerms, ...account } = values as typeof values & { acceptTerms?: true };
+    const outcome = await redeemInvitation({
+      token,
+      ...account,
+      ...(acceptTerms ? { termsVersion: TERMS_VERSION } : {}),
+    });
     setPending(false);
     if (outcome.ok) setDone(outcome);
     else setState({ error: c.errors[outcome.error], values: entries });
@@ -97,6 +105,7 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
           state={state}
         />
       </div>
+      {kind === 'operator' && <TermsCheckbox state={state} />}
       <Button type="submit" className="mt-2 w-full" disabled={pending} loading={pending}>
         {pending ? copy.pending : copy.submit}
       </Button>

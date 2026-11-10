@@ -43,6 +43,44 @@ describe('invitation links (G2)', () => {
   });
 });
 
+describe('the current terms (I1)', () => {
+  const pending = { ...approvedShipper, termsAccepted: false };
+
+  it('come before any screen for an account that has not accepted them', () => {
+    expect(resolveRoute(paths.shipperTrips, pending)).toBe(
+      `${paths.acceptTerms}?next=${encodeURIComponent(paths.shipperTrips)}`,
+    );
+    expect(resolveRoute(paths.home, { ...manager, termsAccepted: false })).toBe(
+      `${paths.acceptTerms}?next=%2F`,
+    );
+    expect(resolveRoute(paths.acceptTerms, pending)).toBeNull();
+  });
+
+  it('leave the legal pages, the auth callbacks and the invitation links open', () => {
+    for (const path of [
+      paths.terms,
+      paths.privacy,
+      '/auth/confirm',
+      invitationPath('a'.repeat(43)),
+    ]) {
+      expect(resolveRoute(path, pending)).toBeNull();
+    }
+  });
+
+  it('send an account that already accepted them home from the acceptance page', () => {
+    expect(resolveRoute(paths.acceptTerms, { ...approvedShipper, termsAccepted: true })).toBe(
+      paths.shipper,
+    );
+    expect(
+      resolveRoute(paths.shipperTrips, { ...approvedShipper, termsAccepted: true }),
+    ).toBeNull();
+  });
+
+  it('never stop an admin', () => {
+    expect(resolveRoute(paths.adminQueue, { ...admin, termsAccepted: false })).toBeNull();
+  });
+});
+
 describe('homeFor', () => {
   it.each([
     [admin, paths.admin],

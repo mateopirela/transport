@@ -127,6 +127,7 @@ export const incidentStatusLabels: Record<IncidentStatus, string> = {
 
 export const tripDocumentKindLabels: Record<TripDocumentKind, string> = {
   service_order: 'Orden de servicio',
+  cargo_insurance: 'Seguro de la mercancía',
   carta_porte: 'CFDI con complemento Carta Porte',
   invoice: 'Factura',
   other: 'Otro documento',

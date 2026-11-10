@@ -238,7 +238,12 @@ select set_eq(
     'consume_rate_limit',
     -- Subscription (H3): the caller's company (any one for admins) and the
     -- admin settings and plans.
-    'company_billing_state', 'admin_set_platform_setting', 'admin_update_subscription_plan'
+    'company_billing_state', 'admin_set_platform_setting', 'admin_update_subscription_plan',
+    -- Cargo insurance and terms (I1, 51_cargo_insurance): the state of the
+    -- insurance and the checklist behind can_see_trip; the read checks of
+    -- trip documents used by RLS; the caller's own acceptance of the terms.
+    'trip_cargo_insurance', 'trip_checklist', 'trip_document_readable', 'trip_document_object_readable',
+    'accept_terms'
   ],
   'every client-callable security definer function is on the reviewed list'
 );
@@ -271,6 +276,8 @@ select set_eq(
     'notify_internal_message',
     -- A message of the chat with the shipper (trip or negotiation).
     'notify_chat_message',
+    -- I1: the cargo insurance notice of a new trip and the terms accepted at sign-up.
+    'notify_cargo_insurance_on_trip_created', 'record_sign_up_terms_acceptance',
     -- Edge Functions.
     'claim_notifications', 'record_notification_dispatch', 'delete_push_tokens', 'consume_service_rate_limit',
     -- The redeem-invitation Edge Function (G1b, G2): they all check the JWT role claim.

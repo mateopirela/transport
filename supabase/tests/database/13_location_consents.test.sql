@@ -7,6 +7,9 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(30);
 
+-- I1: the cargo insurance (51_cargo_insurance) takes no part in this test.
+update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
+
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
 -- ---------------------------------------------------------------------------

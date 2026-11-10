@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { authCopy, carrierWebCopy, invitationUrl } from '@transport/shared';
+import { authCopy, carrierWebCopy, invitationUrl, legalCopy } from '@transport/shared';
 
 import { signInAs } from '../support/actors';
 import { baseURL } from '../support/env';
 import { carrierName } from '../support/demo';
 import { waitForConfirmationPath } from '../support/mailpit';
-import { signInOnWeb } from '../support/web';
+import { acceptTermsOnWeb, signInOnWeb } from '../support/web';
 
 // Invitation links (G1b, G2): Jorge, the Gerente of Transportes Regios,
 // issues the links through the same RPC as the app (create_invitation); the
@@ -55,6 +55,13 @@ test('a coordinator joins Transportes Regios from a link', async ({ page }) => {
     await page.getByLabel(f.phone).fill(coordinator.phone);
     await page.getByLabel(f.password, { exact: true }).fill(coordinator.password);
     await page.getByLabel(f.passwordConfirmation).fill(coordinator.password);
+    // I1: the terms checkbox is required.
+    await page.getByRole('button', { name: c.coordinator.submit }).click();
+    await expect(page.getByText(legalCopy.acceptTerms.required)).toBeVisible();
+    // The form keeps what was typed except the passwords.
+    await page.getByLabel(f.password, { exact: true }).fill(coordinator.password);
+    await page.getByLabel(f.passwordConfirmation).fill(coordinator.password);
+    await acceptTermsOnWeb(page);
     await page.getByRole('button', { name: c.coordinator.submit }).click();
     await expect(page.getByText(c.coordinator.checkEmail)).toBeVisible();
 
@@ -87,6 +94,7 @@ test('an operator creates their account by phone and signs in with it', async ({
     await page.getByLabel(f.phone).fill(operator.phone);
     await page.getByLabel(f.password, { exact: true }).fill(operator.password);
     await page.getByLabel(f.passwordConfirmation).fill(operator.password);
+    await acceptTermsOnWeb(page);
     await page.getByRole('button', { name: c.operator.submit }).click();
     await expect(page.getByText(c.operator.doneTitle)).toBeVisible();
     await expect(page.getByRole('link', { name: c.operator.openApp })).toBeVisible();

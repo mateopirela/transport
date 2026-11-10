@@ -230,7 +230,12 @@ Deno.test(
   async () => {
     const { deps, of, lines } = setup();
     const response = await handleRedeem(
-      post({ ...operatorBody, email: 'Ivan@Example.MX', fullName: ' Iván Garza ' }),
+      post({
+        ...operatorBody,
+        email: 'Ivan@Example.MX',
+        fullName: ' Iván Garza ',
+        termsVersion: '2026-11-10',
+      }),
       deps,
     );
     assert.equal(response.status, 200);
@@ -251,6 +256,8 @@ Deno.test(
         phone: '+528110000013',
         provisioning_nonce: of('/rpc/issue_operator_provisioning_ticket_service')[0]?.body?.p_nonce,
         contact_email: 'ivan@example.mx',
+        // I1: the version of the terms accepted with the checkbox.
+        terms_version: '2026-11-10',
       },
       app_metadata: { provisioned_by: 'redeem-invitation' },
     });

@@ -9,6 +9,7 @@ import {
   mxPhoneField,
   onlyWhenValid,
   requiredText,
+  termsAcceptedField,
 } from './common';
 import {
   checkLegalRepresentative,
@@ -60,13 +61,17 @@ export const newPasswordSchema = z
   )
   .superRefine(checkPasswordsMatch, onlyWhenValid);
 
-/** The person who signs up: name, email, phone (E.164) and password. */
+/**
+ * The person who signs up: name, email, phone (E.164), password and the
+ * accepted terms (I1).
+ */
 const accountFields = {
   fullName: requiredText(120),
   email: emailField,
   phone: mxPhoneField,
   password: newPasswordField,
   passwordConfirmation: passwordConfirmationField,
+  acceptTerms: termsAcceptedField,
 } as const;
 
 /**
@@ -94,6 +99,7 @@ export function companyFromSignUp(values: RegistrationSignUpValues): CompanyRegi
     phone,
     password: _password,
     passwordConfirmation: _confirmation,
+    acceptTerms: _acceptTerms,
     ...company
   } = values;
   return { ...company, contactName: fullName, contactEmail: email, contactPhone: phone };
@@ -123,3 +129,6 @@ export const coordinatorSignUpSchema = z
   .object(accountFields, formError)
   .superRefine(checkPasswordsMatch, onlyWhenValid);
 export type CoordinatorSignUpValues = z.output<typeof coordinatorSignUpSchema>;
+
+/** /aceptar-terminos and the app's terms screen (I1): the ticked checkbox. */
+export const termsAcceptanceSchema = z.object({ acceptTerms: termsAcceptedField }, formError);

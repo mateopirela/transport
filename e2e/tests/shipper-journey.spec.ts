@@ -23,7 +23,7 @@ import {
 import { hoursFromNow, testMoralRfc, toDateInput, toDateTimeLocal } from '../support/data';
 import { carrierName, ids, places } from '../support/demo';
 import { waitForConfirmationPath } from '../support/mailpit';
-import { acceptPendingOffer, SAMPLE_PDF, signInOnWeb } from '../support/web';
+import { acceptPendingOffer, acceptTermsOnWeb, SAMPLE_PDF, signInOnWeb } from '../support/web';
 
 // Web journey of a new shipper (B26): sign-up → verification → publish →
 // negotiate → accept → follow the trip. The carrier and its operator answer
@@ -99,6 +99,7 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await page.getByLabel(f.fiscalPostalCode).fill('64000');
     await page.getByLabel(f.fiscalMunicipality).fill('Monterrey');
     await page.getByLabel(f.fiscalState).selectOption('Nuevo León');
+    await acceptTermsOnWeb(page);
     await page.getByRole('button', { name: authCopy.signUp.submit }).click();
     // The screen's title is its h1 (U6), which Next's route announcer also reads out.
     await expect(page.getByRole('heading', { name: authCopy.checkEmail.title })).toBeVisible();

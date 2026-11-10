@@ -3,9 +3,11 @@
 import {
   authCopy,
   COMPANY_REGISTRATION_KINDS,
+  legalCopy,
   MX_STATES,
   type CompanyRegistrationKind,
 } from '@transport/shared';
+import Link from 'next/link';
 import { useActionState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import {
+  acceptTerms,
   completeCompany,
   joinCompany,
   requestPasswordReset,
@@ -23,6 +26,7 @@ import {
   updatePassword,
 } from '@/lib/auth/actions';
 import type { FormState } from '@/lib/forms';
+import { paths } from '@/lib/routing';
 
 const f = authCopy.fields;
 const kinds = authCopy.registrationKinds;
@@ -132,6 +136,44 @@ function RadioCards({
       </div>
       {error && <ErrorText>{error}</ErrorText>}
     </fieldset>
+  );
+}
+
+const legalLink = 'font-semibold text-accent-text hover:underline';
+
+/**
+ * The terms checkbox of every sign-up (I1, D35-E1): required, with the links
+ * to the terms and the privacy notice (they open in a new tab, so the form
+ * keeps what was typed). Its value (`on`) is checked by termsAcceptedField.
+ */
+export function TermsCheckbox({ state }: { state: FormState }) {
+  const error = state.fieldErrors?.acceptTerms;
+  const t = legalCopy.acceptTerms;
+  return (
+    <div className="space-y-1.5">
+      <label className={`${choiceCell} items-center`}>
+        <input
+          type="checkbox"
+          name="acceptTerms"
+          defaultChecked={state.values?.acceptTerms === 'on'}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'field-acceptTerms-help' : undefined}
+          className="size-4 shrink-0 accent-accent"
+        />
+        <span className="text-callout text-text">
+          {t.before}{' '}
+          <Link href={paths.terms} target="_blank" className={legalLink}>
+            {legalCopy.termsLink.toLowerCase()}
+          </Link>{' '}
+          {t.middle}{' '}
+          <Link href={paths.privacy} target="_blank" className={legalLink}>
+            {legalCopy.privacyLink.toLowerCase()}
+          </Link>
+          {t.after}
+        </span>
+      </label>
+      {error && <ErrorText id="field-acceptTerms-help">{error}</ErrorText>}
+    </div>
   );
 }
 
@@ -344,6 +386,7 @@ export function SignUpForm() {
           <FormSection title={c.companySection} description={c.companyHint}>
             <CompanyFiscalFields state={state} />
           </FormSection>
+          <TermsCheckbox state={state} />
         </>
       )}
     </ActionForm>
@@ -449,6 +492,7 @@ export function CoordinatorSignUpForm({ token, name }: { token: string; name?: s
         <>
           <input type="hidden" name="token" value={token} />
           <AccountFields state={state} />
+          <TermsCheckbox state={state} />
         </>
       )}
     </ActionForm>
@@ -461,6 +505,21 @@ export function JoinCompanyForm({ token }: { token: string }) {
   return (
     <ActionForm action={joinCompany} submit={c.join} pending={c.joinPending}>
       {() => <input type="hidden" name="token" value={token} />}
+    </ActionForm>
+  );
+}
+
+/** /aceptar-terminos (I1): the checkbox and the button, then `next` or home. */
+export function AcceptTermsForm({ next }: { next: string | null }) {
+  const c = legalCopy.reaccept;
+  return (
+    <ActionForm action={acceptTerms} submit={c.submit} pending={c.pending}>
+      {(state) => (
+        <>
+          {next && <input type="hidden" name="next" value={next} />}
+          <TermsCheckbox state={state} />
+        </>
+      )}
     </ActionForm>
   );
 }

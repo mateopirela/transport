@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
-import { LegalLinks } from '../../components/legal-links';
+import { TermsCheckbox } from '../../components/legal-links';
 import { OptionGroup } from '../../components/option-group';
 import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
@@ -34,13 +34,14 @@ export default function SignUp() {
     phone: '',
     password: '',
     passwordConfirmation: '',
+    acceptTerms: false,
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const set = (field: Exclude<keyof typeof values, 'kind'>) => (text: string) =>
+  const set = (field: Exclude<keyof typeof values, 'kind' | 'acceptTerms'>) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
 
   async function submit() {
@@ -117,8 +118,12 @@ export default function SignUp() {
           textContentType="newPassword"
         />
       </Group>
+      <TermsCheckbox
+        checked={values.acceptTerms}
+        onChange={(acceptTerms) => setValues((current) => ({ ...current, acceptTerms }))}
+        error={errors.acceptTerms}
+      />
       <Button label={copy.signUpAction} onPress={submit} loading={submitting} />
-      <LegalLinks consent />
       <Button label={copy.goToSignIn} variant="plain" onPress={() => router.replace('/sign-in')} />
     </Screen>
   );

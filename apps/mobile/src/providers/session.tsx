@@ -12,7 +12,12 @@ import {
 
 import { createAuthActions, type AuthActions } from '../lib/auth';
 import { createSupabaseAuthBackend } from '../lib/auth-backend';
-import { PROFILE_SELECT, toProfileDetails, type ProfileDetails } from '../lib/profile';
+import {
+  PROFILE_SELECT,
+  PROFILE_TERMS_FILTER,
+  toProfileDetails,
+  type ProfileDetails,
+} from '../lib/profile';
 import { registerPushToken } from '../lib/push';
 import { createPushTokenSession } from '../lib/push-session';
 import { resolveArea, type Area, type SessionSnapshot } from '../lib/routing';
@@ -44,6 +49,7 @@ async function loadProfile(client: Supabase, userId: string): Promise<ProfileSta
       .from('profiles')
       .select(PROFILE_SELECT)
       .eq('id', userId)
+      .eq(...PROFILE_TERMS_FILTER)
       .maybeSingle();
     return {
       userId,

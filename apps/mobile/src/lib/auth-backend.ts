@@ -61,6 +61,8 @@ export function createSupabaseAuthBackend(client: Supabase): AuthBackend {
 
     registerCompany: (payload) => client.rpc('register_company', { p_payload: payload }),
 
+    acceptTerms: (version) => client.rpc('accept_terms', { p_terms_version: version }),
+
     updatePhone: (userId, phone) => client.from('profiles').update({ phone }).eq('id', userId),
   };
 }

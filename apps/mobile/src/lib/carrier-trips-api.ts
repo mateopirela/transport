@@ -1,5 +1,6 @@
 import {
   cancellationText,
+  cargoInsuranceState,
   isTripActive,
   licensePairsFrom,
   toMexicoCityDate,
@@ -8,6 +9,7 @@ import {
   type AssignableOperator,
   type AssignableUnit,
   type CancelTripValues,
+  type CargoInsuranceState,
   type LicensePairs,
   type ProviderStatus,
   type SharedDocumentRow,
@@ -324,6 +326,8 @@ export interface CarrierTripDetail {
   sharedDocuments: SharedDocumentRow[];
   /** The shipper's provider decision about the company (G6); null = pending. */
   provider: { status: ProviderStatus; notes: string | null } | null;
+  /** The cargo insurance of the trip (I1): the shipper's, shown as a state. */
+  cargoInsurance: CargoInsuranceState | null;
 }
 
 export type TripDocument = Pick<
@@ -446,6 +450,7 @@ export async function loadCarrierTrip(
     requirements,
     shared,
     provider,
+    insurance,
   ] = await Promise.all([
     client.from('loads').select(LOAD_COLUMNS).eq('id', trip.load_id).single(),
     namesOf(client, companyId),
@@ -498,8 +503,11 @@ export async function loadCarrierTrip(
       .eq('shipper_company_id', trip.shipper_company_id)
       .eq('carrier_company_id', companyId)
       .maybeSingle(),
+    // I1: whether the shipper proved the cargo insurance (the state, never the policy).
+    client.rpc('trip_cargo_insurance', { p_trip_id: trip.id }).maybeSingle(),
   ]);
   if (provider.error) throw provider.error;
+  if (insurance.error) throw insurance.error;
   if (conversation.error) throw conversation.error;
   if (internalConversation.error) throw internalConversation.error;
   if (staff.error) throw staff.error;
@@ -532,6 +540,7 @@ export async function loadCarrierTrip(
     uploadableKinds: uploadableTripDocumentKinds(check(requirements), 'carrier'),
     sharedDocuments: check(shared),
     provider: provider.data,
+    cargoInsurance: insurance.data ? cargoInsuranceState(insurance.data) : null,
   };
 }
 

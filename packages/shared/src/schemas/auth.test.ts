@@ -42,6 +42,7 @@ const SIGN_UP = {
   phone: '+52 81 1234 5678',
   password: 'carga2026',
   passwordConfirmation: 'carga2026',
+  acceptTerms: 'on',
   ...FISCAL,
 };
 
@@ -150,6 +151,7 @@ describe('registrationSignUpSchema (G2)', () => {
       phone: m.phone,
       password: m.required,
       passwordConfirmation: m.required,
+      acceptTerms: m.acceptTerms,
       personType: m.invalidOption,
       legalName: m.required,
       rfc: m.rfcFormat,
@@ -190,6 +192,19 @@ describe('registrationSignUpSchema (G2)', () => {
     });
   });
 
+  it('requires the terms checkbox (I1) and keeps it out of the company', () => {
+    expect(issues(registrationSignUpSchema, { ...SIGN_UP, acceptTerms: undefined })).toEqual({
+      acceptTerms: m.acceptTerms,
+    });
+    expect(issues(registrationSignUpSchema, { ...SIGN_UP, acceptTerms: 'off' })).toEqual({
+      acceptTerms: m.acceptTerms,
+    });
+    expect(registrationSignUpSchema.parse(SIGN_UP).acceptTerms).toBe(true);
+    expect(companyFromSignUp(registrationSignUpSchema.parse(SIGN_UP))).not.toHaveProperty(
+      'acceptTerms',
+    );
+  });
+
   it('maps each kind to its sign-up role', () => {
     expect(signUpRoleForKind('shipper')).toBe('shipper');
     expect(signUpRoleForKind('carrier')).toBe('manager');
@@ -204,6 +219,7 @@ describe('mobile sign-up (B17, G2)', () => {
     phone: '+52 81 1234 5678',
     password: 'camion2026',
     passwordConfirmation: 'camion2026',
+    acceptTerms: true,
   };
 
   it('parses a carrier sign-up with its kind', () => {
@@ -214,7 +230,11 @@ describe('mobile sign-up (B17, G2)', () => {
       phone: '+528112345678',
       password: 'camion2026',
       passwordConfirmation: 'camion2026',
+      acceptTerms: true,
     });
+    expect(
+      issues(carrierSignUpSchema, { ...account, kind: 'carrier', acceptTerms: false }),
+    ).toEqual({ acceptTerms: m.acceptTerms });
     expect(
       issues(carrierSignUpSchema, { ...account, kind: 'carrier', passwordConfirmation: 'x2' }),
     ).toEqual({ passwordConfirmation: a.passwordMismatch });
@@ -230,6 +250,9 @@ describe('mobile sign-up (B17, G2)', () => {
     });
     expect(issues(coordinatorSignUpSchema, { ...account, phone: '12' })).toEqual({
       phone: m.phone,
+    });
+    expect(issues(coordinatorSignUpSchema, { ...account, acceptTerms: undefined })).toEqual({
+      acceptTerms: m.acceptTerms,
     });
   });
 });

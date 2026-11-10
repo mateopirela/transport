@@ -87,6 +87,22 @@ export async function updateCompanyContact(
  * RPC checks ownership, the requirement, the path and that the file exists.
  */
 export async function registerDocument(input: unknown): Promise<{ error?: string }> {
+  const result = await submitDocument(input);
+  if (!result.error) revalidatePath(paths.review);
+  return result;
+}
+
+/**
+ * An approved shipper's company document from "Documentos de la empresa"
+ * (I1): the annual cargo insurance policy, or a renewal of any document.
+ */
+export async function registerShipperDocument(input: unknown): Promise<{ error?: string }> {
+  const result = await submitDocument(input);
+  if (!result.error) revalidatePath(paths.shipperCompany);
+  return result;
+}
+
+async function submitDocument(input: unknown): Promise<{ error?: string }> {
   const parsed = submitDocumentSchema.safeParse(input);
   if (!parsed.success) return { error: onboardingCopy.errors.generic };
   const supabase = await createClient();
@@ -101,7 +117,6 @@ export async function registerDocument(input: unknown): Promise<{ error?: string
     p_expires_at: toExpiresAt(v.expiresOn) ?? undefined,
   });
   if (error) return { error: onboardingErrorMessage(error) };
-  revalidatePath(paths.review);
   return {};
 }
 

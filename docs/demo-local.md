@@ -12,7 +12,7 @@ Contraseña de todos: **`Demo1234`**
 | ---------------------------- | ------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
 | `admin@demo.test`            | Admin                     | —                                          | Cola de verificación (1 documento pendiente), todas las cargas     |
 | `ana.garza@demo.test`        | Cliente                   | Aceros del Norte (Monterrey)               | Viaje en descarga en GDL con mapa y chat; oferta pendiente         |
-| `luis.ramirez@demo.test`     | Cliente                   | Alimentos de Occidente (Guadalajara)       | Carga GDL → MTY publicada; contraoferta esperando al transportista |
+| `luis.ramirez@demo.test`     | Cliente                   | Alimentos de Occidente (Guadalajara)       | Carga GDL → MTY publicada; contraoferta esperando al transportista; sin póliza anual del seguro de la mercancía (I1) |
 | `sofia.trevino@demo.test`    | Cliente                   | Empaques Plásticos Regios (Monterrey)      | Borrador, carga contratada con viaje asignado, carga expirada      |
 | `jorge.villarreal@demo.test` | Gerente                   | Transportes Regios del Norte (Monterrey)   | Ve y opera las 2 unidades de negocio (app y web); su caja seca descarga en GDL |
 | `andrea.cavazos@demo.test`   | Coordinadora              | TRN · "Corredor MTY–GDL"                   | `TRN-01`, `CS53-01`, Pedro López, el viaje en descarga y su chat (app y web)   |
@@ -34,6 +34,8 @@ Enlaces de invitación demo de TRN (G2, token fijo, **solo local** y de un solo 
 ## Qué hay
 
 - **6 empresas aprobadas** (3 clientes y 3 transportistas) con todos sus documentos aprobados, salvo la póliza de la plataforma de Fletes Tapatíos, que espera revisión: esa unidad no está lista para matching hasta que el admin la apruebe.
+- **Seguro de la mercancía (I1, D35-E1):** Aceros del Norte y Empaques Plásticos Regios tienen su póliza anual aprobada (vence en un año), así que sus viajes salen. **Alimentos de Occidente (Luis) no tiene**: un viaje suyo no puede salir hasta que suba la póliza del viaje o su póliza anual en "Empresa" y el admin la apruebe.
+- **Términos aceptados (I1):** todos los usuarios demo aceptaron la versión vigente (`TERMS_VERSION` de `packages/shared/src/copy/legal.ts`). Si sube la versión, actualiza la seed o cada cuenta verá "Términos y condiciones" al entrar.
 - **8 unidades** (tractocamiones, cajas secas, refrigerada, plataforma, tortons y rabón) y **7 operadores** (Iván Garza, solo con teléfono), con disponibilidad en Monterrey, Saltillo y Guadalajara, y rutas habituales MTY ↔ GDL.
 - **15 cargas** en ambos sentidos y en todos los estados: 6 publicadas, 2 en negociación, 1 borrador, 1 contratada, 1 en curso, 2 completadas, 1 cancelada (contratada por Transportes Regios y cancelada por el cliente antes de salir) y 1 expirada.
 - **5 viajes**: uno MTY → GDL **en descarga** con fin estimado en 2 horas (con línea de tiempo, puntos GPS del corredor, chat con el cliente y chat interno de Pedro con Andrea), uno asignado, dos cerrados y uno GDL → MTY **cancelado** con su chat interno abierto (H1, D20-E1).

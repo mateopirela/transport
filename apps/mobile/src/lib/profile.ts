@@ -1,4 +1,4 @@
-import type { UserRole, VerificationStatus } from '@transport/shared';
+import { TERMS_VERSION, type UserRole, type VerificationStatus } from '@transport/shared';
 
 import type { ProfileSnapshot } from './routing';
 
@@ -23,10 +23,15 @@ export interface ProfileRow {
     status_reason: string | null;
     is_owner_operator: boolean;
   } | null;
+  /** The acceptances of the current terms (filtered by PROFILE_TERMS_FILTER, I1). */
+  terms_acceptances: { terms_version: string }[];
 }
 
 export const PROFILE_SELECT =
-  'role, company_id, full_name, phone, companies(legal_name, status, status_reason, is_owner_operator)' as const;
+  'role, company_id, full_name, phone, companies(legal_name, status, status_reason, is_owner_operator), terms_acceptances(terms_version)' as const;
+
+/** Keeps only the acceptance of the current terms in the embedded list (I1). */
+export const PROFILE_TERMS_FILTER = ['terms_acceptances.terms_version', TERMS_VERSION] as const;
 
 export function toProfileDetails(row: ProfileRow): ProfileDetails {
   // The company is null when it is not readable (RLS) even if company_id is set.
@@ -40,5 +45,6 @@ export function toProfileDetails(row: ProfileRow): ProfileDetails {
     companyName: company?.legal_name ?? null,
     companyStatusReason: company?.status_reason ?? null,
     isOwnerOperator: row.role === 'manager' && company?.is_owner_operator === true,
+    termsAccepted: row.terms_acceptances.some((a) => a.terms_version === TERMS_VERSION),
   };
 }

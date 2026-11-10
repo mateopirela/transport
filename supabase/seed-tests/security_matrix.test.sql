@@ -196,6 +196,8 @@ insert into tests.vals values ('road_risk', 'e2400000-0000-4000-8000-00000000000
 -- A Stripe event applied to the seed's carrier (H3): admins only.
 insert into public.billing_events (stripe_event_id, type, company_id, processed_at)
 values ('evt_b24fixture', 'customer.subscription.updated', tests.val('carrier_company'), now());
+-- I1: the seed's trip was reminded of its cargo insurance.
+insert into public.cargo_insurance_reminders (trip_id) values (tests.val('trip'));
 
 -- ---------------------------------------------------------------------------
 -- Ownership: when a row belongs to company $1 / user $2 (evaluated as the
@@ -212,6 +214,8 @@ insert into tests.ownership values
   ('public.product_events', 'false'),
   -- Stripe events applied by the webhook (H3): admins only.
   ('public.billing_events', 'false'),
+  -- I1: the 24-hour cargo insurance reminders, written only by pg_cron.
+  ('public.cargo_insurance_reminders', 'false'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -288,6 +292,7 @@ insert into tests.ownership values
   ('public.notifications', 't.user_id = $2'),
   ('public.push_tokens', 't.user_id = $2'),
   ('public.location_consents', 't.user_id = $2'),
+  ('public.terms_acceptances', 't.user_id = $2'),
   -- Files: by the first segment of the path.
   ('storage.objects', $$
      case t.bucket_id
@@ -647,7 +652,14 @@ insert into tests.rpc_calls values
   ('admin_update_subscription_plan', $$ public.admin_update_subscription_plan(
        (select id from public.subscription_plans where code = 'fleet_monthly'), 'Ajeno', null, 100, null, true) $$),
   -- Estimated end of a trip (H5): whoever sees the trip.
-  ('trip_estimated_end', $$ (select count(*) from public.trip_estimated_end(tests.val('trip'))) $$);
+  ('trip_estimated_end', $$ (select count(*) from public.trip_estimated_end(tests.val('trip'))) $$),
+  -- I1: the cargo insurance and the checklist of a trip, and the read checks
+  -- of its documents and files: whoever sees the trip, false otherwise.
+  ('trip_cargo_insurance', $$ (select count(*) from public.trip_cargo_insurance(tests.val('trip'))) $$),
+  ('trip_checklist', $$ (select count(*) from public.trip_checklist(tests.val('trip'))) $$),
+  ('trip_document_readable', $$ public.trip_document_readable(tests.val('trip'), 'carta_porte', null) $$),
+  ('trip_document_object_readable', $$ public.trip_document_object_readable(
+       tests.val('trip') || '/a2400000-0000-4000-8000-000000000003.pdf', null) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -677,7 +689,9 @@ insert into tests.self_scoped values
   ('create_business_unit'),
   -- H5: a site's typical time from the caller's own trips (others' only from
   -- 2 carriers up; 46_site_dwell); a site without them answers the default.
-  ('site_dwell_estimate');
+  ('site_dwell_estimate'),
+  -- I1: the caller accepts the terms for themself.
+  ('accept_terms');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,

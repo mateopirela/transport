@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  cargoInsuranceState,
   hidesInternalChat,
   licensePairsFrom,
   operatorLicenseCurrent,
@@ -259,6 +260,7 @@ export async function getCarrierTrip(
     company,
     checklist,
     requirements,
+    insurance,
     assignment,
   ] = await Promise.all([
     getCarrierLoad(supabase, trip.load_id),
@@ -311,6 +313,8 @@ export async function getCarrierTrip(
     supabase.from('companies').select('is_owner_operator').eq('id', companyId).maybeSingle(),
     supabase.rpc('trip_checklist', { p_trip_id: trip.id }),
     supabase.from('trip_document_requirements').select('kind, uploader_sides, sort_order'),
+    // I1: whether the shipper proved the cargo insurance (the state, never the policy).
+    supabase.rpc('trip_cargo_insurance', { p_trip_id: trip.id }).maybeSingle(),
     assignmentOptions(
       supabase,
       companyId,
@@ -332,6 +336,7 @@ export async function getCarrierTrip(
     company,
     checklist,
     requirements,
+    insurance,
   })) {
     if (result.error) throw new Error(`Trip ${name} query failed: ${result.error.message}`);
   }
@@ -354,6 +359,8 @@ export async function getCarrierTrip(
     checklist: checklist.data ?? [],
     /** Kinds the carrier side may upload (trip_document_requirements), in order. */
     uploadableKinds: uploadableTripDocumentKinds(requirements.data ?? [], 'carrier'),
+    /** The cargo insurance of the trip (I1): the shipper's, shown as a state. */
+    cargoInsurance: insurance.data ? cargoInsuranceState(insurance.data) : null,
     // Oldest first, to draw the trail in order.
     locations: (locations.data ?? []).reverse(),
     conversationId: conversation.data?.id ?? null,

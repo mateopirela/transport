@@ -156,7 +156,7 @@ as $$
     delete from public.negotiations where shipper_company_id = 'c3400000-0000-4000-8000-000000000001';
     delete from public.loads where shipper_company_id = 'c3400000-0000-4000-8000-000000000001';
     delete from public.vehicle_availability where company_id = 'c3400000-0000-4000-8000-000000000002';
-    delete from public.documents where company_id = 'c3400000-0000-4000-8000-000000000002';
+    delete from public.documents where company_id in ('c3400000-0000-4000-8000-000000000001', 'c3400000-0000-4000-8000-000000000002');
     delete from public.vehicles where company_id = 'c3400000-0000-4000-8000-000000000002';
     delete from public.operators where company_id = 'c3400000-0000-4000-8000-000000000002';
     delete from auth.users where id in (
@@ -189,6 +189,12 @@ select extensions.dblink_exec('setup', $sql$
   where id = 'a3400000-0000-4000-8000-000000000001';
   update public.profiles set company_id = 'c3400000-0000-4000-8000-000000000002'
   where id in ('a3400000-0000-4000-8000-000000000002', 'a3400000-0000-4000-8000-000000000003');
+  -- I1: the shipper has an approved annual cargo insurance policy, so its
+  -- trips may leave (51_cargo_insurance tests the policy itself).
+  insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+  select 'c3400000-0000-4000-8000-000000000001', r.id, 'company', 'c3400000-0000-4000-8000-000000000001',
+         'c3400000-0000-4000-8000-000000000001/company/c3400000-0000-4000-8000-000000000001/' || gen_random_uuid() || '.pdf', 'approved', now() + interval '1 year'
+  from public.document_requirements r where r.code = 'cargo_insurance_policy';
   insert into public.operators (id, company_id, profile_id, full_name, license_type, license_expires_on) values
     ('d3400000-0000-4000-8000-000000000001', 'c3400000-0000-4000-8000-000000000002',
      'a3400000-0000-4000-8000-000000000003', 'Óscar Siete', 'E', current_date + 365);

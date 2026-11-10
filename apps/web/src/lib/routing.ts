@@ -19,6 +19,8 @@ export const paths = {
   checkEmail: '/verificar-correo',
   resetPassword: '/restablecer',
   completeCompany: '/completar-registro',
+  /** A signed-in account accepts the current version of the terms (I1). */
+  acceptTerms: '/aceptar-terminos',
   /** Invitation links (G1b, G2): /invitacion/<token>, open with or without a session. */
   invitation: '/invitacion',
   review: '/cuenta-en-revision',
@@ -27,6 +29,8 @@ export const paths = {
   newLoad: '/cliente/cargas/nueva',
   shipperNotifications: '/cliente/notificaciones',
   shipperTrips: '/cliente/viajes',
+  /** "Documentos de la empresa" of an approved shipper (I1: the annual cargo insurance). */
+  shipperCompany: '/cliente/empresa',
   carrier: '/transportista',
   carrierLoads: '/transportista/cargas',
   carrierNegotiations: '/transportista/negociaciones',
@@ -134,6 +138,12 @@ export const adminDocumentFilePath = (documentId: string) =>
 export type Viewer = {
   role: UserRole;
   company: { status: VerificationStatus } | null;
+  /**
+   * False when the account has not accepted the current version of the
+   * terms (TERMS_VERSION, I1): every screen sends it to /aceptar-terminos
+   * first. Admins are never asked.
+   */
+  termsAccepted?: boolean;
 } | null;
 
 /** Query parameter of /solo-app with the token of a team link (G7). */
@@ -209,6 +219,15 @@ export function resolveRoute(pathname: string, viewer: Viewer): string | null {
   if (!viewer) {
     const next = pathname === paths.home ? '' : `?next=${encodeURIComponent(pathname)}`;
     return `${paths.signIn}${next}`;
+  }
+
+  // I1: the current terms come before anything else (admins excepted).
+  const mustAcceptTerms = viewer.termsAccepted === false && viewer.role !== 'admin';
+  if (isUnder(pathname, paths.acceptTerms)) {
+    return mustAcceptTerms ? null : homeFor(viewer);
+  }
+  if (mustAcceptTerms) {
+    return `${paths.acceptTerms}?next=${encodeURIComponent(pathname)}`;
   }
 
   const home = homeFor(viewer);

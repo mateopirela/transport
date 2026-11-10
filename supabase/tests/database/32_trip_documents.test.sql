@@ -138,15 +138,19 @@ select results_eq(
   $$ select kind::text, stage::text, uploader_sides::text[], is_required, blocks_departure
      from public.trip_document_requirements order by sort_order $$,
   $$ values ('service_order', 'before_departure', array['shipper', 'carrier'], true, false),
+            ('cargo_insurance', 'before_departure', array['shipper'], true, true),
             ('carta_porte', 'before_departure', array['carrier'], true, false),
             ('invoice', 'billing', array['carrier'], true, false),
             ('other', 'before_departure', array['shipper', 'carrier'], false, false) $$,
-  'D22: the service order (shipper or carrier), the Carta Porte and the invoice (carrier); nothing blocks the departure'
+  'D22: the service order (shipper or carrier), the Carta Porte and the invoice (carrier); only the cargo insurance (I1) blocks the departure'
 );
 select throws_ok(
   $$ update public.trip_document_requirements set blocks_departure = true where kind = 'invoice' $$,
   '23514', null, 'only a required document due before departure may block it'
 );
+-- The cargo insurance of I1 has its own test (51_cargo_insurance): here, the
+-- D22 rules alone.
+update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
 
 -- ---------------------------------------------------------------------------
 -- A contracted trip
@@ -164,6 +168,7 @@ insert into tests.vals select 'trip', public.accept_offer(tests.val('offer'));
 select results_eq(
   $$ select code, stage, responsible, required, done_at from public.trip_checklist(tests.val('trip')) $$,
   $$ values ('service_order', 'before_departure', 'shipper', true, null::timestamptz),
+            ('cargo_insurance', 'before_departure', 'shipper', false, null),
             ('carta_porte', 'before_departure', 'carrier', true, null),
             ('invoice', 'billing', 'carrier', true, null),
             ('other', 'before_departure', 'shipper', false, null),

@@ -8,6 +8,11 @@ export interface ProfileSnapshot {
   role: UserRole;
   companyId: string | null;
   companyStatus: VerificationStatus | null;
+  /**
+   * False when the account has not accepted the current version of the
+   * terms (TERMS_VERSION, I1): the app asks for it before anything else.
+   */
+  termsAccepted?: boolean;
 }
 
 export type SessionSnapshot =
@@ -18,6 +23,7 @@ export type SessionSnapshot =
 export type Area =
   | 'loading'
   | 'auth'
+  | 'terms'
   | 'company_setup'
   | 'join'
   | 'carrier'
@@ -30,6 +36,10 @@ export function resolveArea(snapshot: SessionSnapshot): Area {
   if (snapshot.status === 'signed_out') return 'auth';
   const { profile, profileError } = snapshot;
   if (!profile) return profileError ? 'problem' : 'loading';
+  // I1: the current terms first, for every account the app serves.
+  if (profile.termsAccepted === false && profile.role !== 'shipper' && profile.role !== 'admin') {
+    return 'terms';
+  }
 
   switch (profile.role) {
     // The Gerente (manager) creates the company; a Coordinador only joins one
@@ -52,6 +62,8 @@ const AREA_ROUTES: Record<
   { home: string; segments: readonly string[] }
 > = {
   auth: { home: '/sign-in', segments: ['(auth)', 'invitacion'] },
+  // A signed-in account that has not accepted the current terms (I1).
+  terms: { home: '/terms', segments: ['terms'] },
   // A coordinator or operator account without a company: only an invitation
   // link (transport://invitacion/<token>) gets them in (G1b, G2).
   join: { home: '/invitacion', segments: ['invitacion'] },

@@ -150,9 +150,10 @@ select results_eq(
 select results_eq(
   $$ select code, owner_type::text from public.document_requirements where archived_at is null order by sort_order, code $$,
   $$ values ('tax_status_certificate', 'company'), ('legal_representative_id', 'company'),
+            ('cargo_insurance_policy', 'company'),
             ('vehicle_registration_card', 'vehicle'), ('vehicle_permit', 'vehicle'), ('vehicle_insurance_policy', 'vehicle'),
             ('operator_official_id', 'operator'), ('federal_driver_license', 'operator') $$,
-  'the active catalog is exactly the D16 list'
+  'the active catalog is exactly the D16 list, plus the shipper''s cargo insurance (I1)'
 );
 select results_eq(
   $$ select code, name from public.document_requirements
@@ -212,7 +213,7 @@ select lives_ok($$ select tests.submit('tax_status_certificate') $$, 'the shippe
 select is(
   (select count(*)::int from public.document_requirements where archived_at is null and owner_type = 'company'
      and (company_type is null or company_type = 'shipper')),
-  2, 'the registration lists exactly the D16 company documents (one of them optional)'
+  3, 'the registration lists exactly the D16 company documents and the cargo insurance (two of them optional)'
 );
 
 select tests.login('a2900000-0000-4000-8000-000000000004');
@@ -271,7 +272,7 @@ select results_eq(
 set local role authenticated;
 select tests.login('a2900000-0000-4000-8000-000000000003');
 select is((select count(*)::int from public.license_unit_compatibility), 7, 'a manager reads the table');
-select is((select count(*)::int from public.trip_document_requirements), 4, 'and the trip document requirements');
+select is((select count(*)::int from public.trip_document_requirements), 5, 'and the trip document requirements');
 select lives_ok(
   $$ update public.license_unit_compatibility set allowed = false $$,
   'a non-admin update runs but matches no rows'

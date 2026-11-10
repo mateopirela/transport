@@ -2,7 +2,15 @@ import { z } from 'zod';
 
 import { validationMessages as m } from '../copy/validation';
 import { INVITATION_TOKEN_PATTERN } from '../invitation-link';
-import { emailField, formError, mxPhoneField, onlyWhenValid, requiredText } from './common';
+import {
+  emailField,
+  formError,
+  mxPhoneField,
+  onlyWhenValid,
+  requiredText,
+  termsAcceptedField,
+  termsVersionField,
+} from './common';
 import { checkPasswordsMatch, newPasswordField, passwordConfirmationField } from './password';
 
 // Operator invitation links (G2, D15-E1). The Edge Function redeem-invitation
@@ -24,6 +32,10 @@ export const operatorRedeemSchema = z.object(
     phone: mxPhoneField,
     password: newPasswordField,
     email: emailField.optional(),
+    // The version of the terms accepted with the checkbox (I1), kept at
+    // sign-up. Optional for builds from before I1: their operators accept
+    // the terms at the first sign-in instead.
+    termsVersion: termsVersionField.optional(),
   },
   formError,
 );
@@ -55,6 +67,7 @@ export const operatorRedeemFormSchema = z
         .transform((value) => (value === '' ? undefined : value))
         .pipe(emailField.optional())
         .optional(),
+      acceptTerms: termsAcceptedField,
     },
     formError,
   )

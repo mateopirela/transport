@@ -4577,6 +4577,7 @@ export interface Database {
           token: string;
         }[];
       };
+      current_terms_version: { Args: Record<PropertyKey, never>; Returns: string };
       delete_push_tokens: { Args: { p_tokens: string[] }; Returns: number };
       device_time_ahead: { Args: { p_at: string }; Returns: boolean };
       discard_orphan_operator_service: {
@@ -4907,7 +4908,10 @@ export interface Database {
         Returns: undefined;
       };
       notify_matches_for_vehicle: { Args: { p_vehicle_id: string }; Returns: undefined };
-      notify_shipper_cargo_insurance: { Args: { p_trip_id: string }; Returns: undefined };
+      notify_shipper_cargo_insurance: {
+        Args: { p_since?: string; p_trip_id: string };
+        Returns: undefined;
+      };
       open_internal_share: { Args: { p_token: string }; Returns: Json };
       open_trip_operator_link: { Args: { p_token: string }; Returns: Json };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };

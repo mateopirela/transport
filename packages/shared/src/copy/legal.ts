@@ -24,8 +24,10 @@ export interface LegalText {
  * Version of the terms and the privacy notice every account accepts (I1,
  * D35-E1), stored in terms_acceptances. Bump it (a new date) whenever
  * termsOfService or privacyNotice change in substance: the next time each
- * person signs in, the web and the app ask them to accept again. The demo
- * seed (supabase/seed.sql) accepts this same version.
+ * person signs in, the web and the app ask them to accept again. The
+ * database only accepts this version: bump public.current_terms_version in a
+ * new migration together with it (e2e/support/terms-version.test.ts compares
+ * them). The demo seed (supabase/seed.sql) accepts this same version.
  */
 export const TERMS_VERSION = '2026-11-10';
 

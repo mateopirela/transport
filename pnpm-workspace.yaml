@@ -39,8 +39,6 @@ allowBuilds:
 # critical advisory. Review this list when a fix is published.
 auditConfig:
   ignoreGhsas:
-    # node-forge, through @expo/code-signing-certificates (Expo CLI).
-    - GHSA-86w9-cpqp-85rv
     # braces, through @next/eslint-plugin-next (lint only).
     - GHSA-vfj7-8cjw-p6xm
     # zod 3, through @expo/cli (Expo CLI only; the apps use zod 4.6.7). The

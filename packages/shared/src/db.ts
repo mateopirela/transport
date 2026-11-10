@@ -3651,7 +3651,7 @@ export interface Database {
         Returns: string;
       };
       annual_cargo_policy: {
-        Args: { p_trip_id: string };
+        Args: { p_at?: string; p_trip_id: string };
         Returns: {
           approved_at: string;
           document_id: string;

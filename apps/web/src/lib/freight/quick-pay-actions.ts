@@ -70,7 +70,15 @@ export async function approveQuickPayAction(
     p_trip_id: tripId.data,
     p_confirm_over_limit: formData.get('confirmOverLimit') === 'on',
   });
-  if (error) return { error: quickPayErrorText(error) };
+  if (error) {
+    // Over the limit meanwhile (another approval): the page comes back with
+    // the new exposure and the form asks for the confirmation.
+    if (error.details === 'over_limit') {
+      revalidatePath(paths.adminFreight);
+      return { error: quickPayErrorText(error), values: { overLimit: '1' } };
+    }
+    return { error: quickPayErrorText(error) };
+  }
   refreshLedger();
   return { message: q.admin.approvedDone };
 }

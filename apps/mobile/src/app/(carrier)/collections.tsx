@@ -179,6 +179,7 @@ function QuickPayCells({
   client: Supabase;
   feeBps: number | null;
   confirmSheet: RefObject<ConfirmSheetHandle | null>;
+  /** Reloads Cobranza: after a request, or to get a fee that changed. */
   onRequested: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -207,8 +208,13 @@ function QuickPayCells({
         setError(null);
         try {
           const result = await requestQuickPay(client, row.trip_id, fee);
-          if (result.ok) onRequested();
-          else setError(result.error);
+          if (result.ok) {
+            onRequested();
+          } else {
+            setError(result.error);
+            // A new fee: reload it, so the next confirmation shows it.
+            if (result.feeChanged) onRequested();
+          }
         } catch {
           setError(quickPayCopy.errors.generic);
         } finally {

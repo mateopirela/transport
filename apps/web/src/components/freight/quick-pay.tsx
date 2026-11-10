@@ -90,12 +90,15 @@ export function ApproveQuickPayForm({
   overLimit: string | null;
 }) {
   const [state, action, pending] = useActionState(approveQuickPayAction, {});
+  // The page's projection, or the RPC's answer when another approval took
+  // the room meanwhile: either way, the confirmation is asked for.
+  const askConfirmation = Boolean(overLimit) || state.values?.overLimit === '1';
   return (
     <form action={action} className="space-y-2" noValidate>
       <input type="hidden" name="tripId" value={tripId} />
-      {overLimit && (
+      {askConfirmation && (
         <>
-          <Notice tone="error">{overLimit}</Notice>
+          {overLimit && <Notice tone="error">{overLimit}</Notice>}
           <label className="flex items-center gap-2.5 px-1 text-subhead text-text">
             <input type="checkbox" name="confirmOverLimit" className="size-4 accent-accent" />
             {q.admin.confirmOverLimit}

@@ -99,7 +99,10 @@ export async function loadQuickPayFee(client: Supabase): Promise<number | null> 
   return typeof data === 'number' ? data : null;
 }
 
-export type QuickPayRequestResult = { ok: true } | { ok: false; error: string };
+export type QuickPayRequestResult =
+  | { ok: true }
+  /** feeChanged: the fee changed meanwhile; reload it and ask again. */
+  | { ok: false; error: string; feeChanged: boolean };
 
 /**
  * Asks for the quick pay of a trip (request_quick_pay) with the fee the
@@ -114,7 +117,12 @@ export async function requestQuickPay(
     p_trip_id: tripId,
     p_fee_bps: feeBps,
   });
-  return error ? { ok: false, error: quickPayErrorText(error) } : { ok: true };
+  if (!error) return { ok: true };
+  return {
+    ok: false,
+    error: quickPayErrorText(error),
+    feeChanged: error.code === '55000' && error.details === 'fee_changed',
+  };
 }
 
 /** The carrier's CFDI to Fulmis of a trip (I5), as Cobranza shows it. */

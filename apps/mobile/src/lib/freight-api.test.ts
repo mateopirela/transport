@@ -225,6 +225,7 @@ describe('quick pay (I4)', () => {
     expect(await requestQuickPay(client, 'trip-1', 250)).toEqual({
       ok: false,
       error: quickPayCopy.errors.feeChanged,
+      feeChanged: true,
     });
   });
 

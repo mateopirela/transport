@@ -4655,6 +4655,7 @@ export interface Database {
         Args: { p_email: string; p_nonce: string };
         Returns: undefined;
       };
+      load_brokered: { Args: { p_load_id: string }; Returns: boolean };
       load_is_brokered: { Args: { p_load_id: string }; Returns: boolean };
       load_negotiation_carriers: {
         Args: { p_load_id: string };

@@ -112,7 +112,8 @@ using (
 );
 
 -- Whether a load was sent to the platform (loads.brokered never changes).
-create function public.load_is_brokered(p_load_id uuid)
+-- Internal: for the security definer functions below.
+create function public.load_brokered(p_load_id uuid)
 returns boolean
 language sql
 stable
@@ -120,6 +121,34 @@ security definer
 set search_path = ''
 as $$
   select coalesce((select l.brokered from public.loads l where l.id = p_load_id), false);
+$$;
+
+revoke all on function public.load_brokered(uuid) from public, anon, authenticated, service_role;
+
+-- The same, for the policies below (they run as the caller): it only answers
+-- true to who takes part in the load, its shipper, a carrier that negotiated
+-- it, or an admin, so nobody else learns that a load is brokered from it.
+create function public.load_is_brokered(p_load_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.loads l
+    where l.id = p_load_id
+      and l.brokered
+      and (
+        l.shipper_company_id = public.auth_shipper_company_id()
+        or public.is_admin()
+        or exists (
+          select 1 from public.negotiations n
+          where n.load_id = l.id and n.carrier_company_id = public.auth_carrier_company_id()
+        )
+      )
+  );
 $$;
 
 revoke all on function public.load_is_brokered(uuid) from public, anon;
@@ -195,7 +224,7 @@ as $$
   left join public.conversations cv on cv.negotiation_id = n.id
   where n.load_id = p_load_id
     and (
-      (n.shipper_company_id = (select public.auth_shipper_company_id()) and not public.load_is_brokered(n.load_id))
+      (n.shipper_company_id = (select public.auth_shipper_company_id()) and not public.load_brokered(n.load_id))
       or (select public.is_admin())
     )
   order by n.created_at, n.id;
@@ -231,7 +260,7 @@ as $$
     where o.load_id = p_load_id
       and o.vehicle_id is not null
       and (
-        (o.shipper_company_id = (select public.auth_shipper_company_id()) and not public.load_is_brokered(o.load_id))
+        (o.shipper_company_id = (select public.auth_shipper_company_id()) and not public.load_brokered(o.load_id))
         or (select public.is_admin())
       )
   )
@@ -255,7 +284,7 @@ as $$
     from public.conversations c
     left join public.trips t on t.id = c.trip_id
     where c.id = p_conversation_id
-      and (c.kind <> 'negotiation' or not public.load_is_brokered(c.load_id))
+      and (c.kind <> 'negotiation' or not public.load_brokered(c.load_id))
       and (
         (c.kind <> 'trip_internal' and c.shipper_company_id = public.auth_shipper_company_id())
         or c.carrier_company_id = public.auth_fleet_company_id()
@@ -708,7 +737,7 @@ begin
   -- is brokered), so the caller is authorized before any lock is taken:
   -- strangers cannot lock other loads.
   select * into v_offer from public.offers where id = p_offer_id;
-  v_brokered := found and public.load_is_brokered(v_offer.load_id);
+  v_brokered := found and public.load_brokered(v_offer.load_id);
   if found and v_brokered and public.is_admin() then
     v_caller_side := 'shipper';
   elsif found and not v_brokered and v_offer.shipper_company_id = public.auth_shipper_company_id() then
@@ -765,7 +794,7 @@ begin
   perform public.assert_vehicle_in_unit(
     p_vehicle_id, (select n.business_unit_id from public.negotiations n where n.id = v_offer.negotiation_id)
   );
-  if v_side = 'shipper' and public.load_is_brokered(v_offer.load_id) then
+  if v_side = 'shipper' and public.load_brokered(v_offer.load_id) then
     perform public.assert_brokered_margin(v_offer.load_id, p_amount_cents);
   end if;
 
@@ -800,7 +829,7 @@ set search_path = ''
 as $$
 declare
   v_uid uuid := (select auth.uid());
-  v_brokered boolean := public.load_is_brokered(p_offer.load_id);
+  v_brokered boolean := public.load_brokered(p_offer.load_id);
   v_trip_id uuid;
 begin
   perform public.assert_pickup_open(p_offer.load_id);
@@ -856,7 +885,7 @@ set search_path = ''
 as $$
 declare
   v_unit uuid := (select n.business_unit_id from public.negotiations n where n.id = new.negotiation_id);
-  v_brokered boolean := public.load_is_brokered(new.load_id);
+  v_brokered boolean := public.load_brokered(new.load_id);
   v_data jsonb := jsonb_build_object(
     'offerId', new.id, 'negotiationId', new.negotiation_id, 'amountCents', new.amount_cents, 'side', new.side
   ) || public.load_route_data(new.load_id);

@@ -247,6 +247,8 @@ insert into tests.ownership values
              and ((t.direction = 'fulmis_to_client' and x.shipper_company_id = $1)
                   or (t.direction = 'carrier_to_fulmis' and x.carrier_company_id = $1)))
   $$),
+  -- Brokered loads (I6): the client's price, its shipper only (and admins).
+  ('public.load_client_prices', 't.shipper_company_id = $1'),
   -- Catalogs every signed-in user reads.
   ('public.document_requirements', 'true'),
   ('public.trip_evidence_requirements', 'true'),
@@ -714,7 +716,16 @@ insert into tests.rpc_calls values
   ('admin_set_company_commission', $$ public.admin_set_company_commission(tests.val('carrier_company'), 500) $$),
   ('admin_resolve_freight_review', $$ public.admin_resolve_freight_review(tests.val('trip'), 'x') $$),
   -- Return loads of a trip (I7): the staff of its business unit and admins.
-  ('trip_backhaul', $$ (select count(*) from public.trip_backhaul(tests.val('trip'))) $$);
+  ('trip_backhaul', $$ (select count(*) from public.trip_backhaul(tests.val('trip'))) $$),
+  -- Brokered loads (I6): the seed's load 26 of Aceros del Norte. Its client
+  -- approves and reads it, the admins quote and list it; nobody else learns
+  -- that it is brokered.
+  ('client_loads', $$ (select count(*) from public.client_loads() where id = '5eed0005-0000-4000-8000-000000000026') $$),
+  ('load_is_brokered', $$ public.load_is_brokered('5eed0005-0000-4000-8000-000000000026') $$),
+  ('approve_brokered_quote', $$ public.approve_brokered_quote('5eed0005-0000-4000-8000-000000000026', 1200000) $$),
+  ('admin_quote_brokered_load', $$ public.admin_quote_brokered_load('5eed0005-0000-4000-8000-000000000026',
+       1200000, 1000000) $$),
+  ('admin_brokered_loads', $$ (select count(*) from public.admin_brokered_loads()) $$);
 
 -- The seed's notifications, captured as the owner: the outsider cannot read
 -- them (notifications_select_own), so the call must get their ids from here.
@@ -738,7 +749,7 @@ insert into tests.self_scoped values
   ('request_company_review'),
   ('auth_carrier_company_id'), ('auth_is_manager'), ('auth_business_unit_ids'), ('can_operate_unit'),
   ('coordinator_runs_document_owner'), ('conversation_business_unit_id'),
-  ('create_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
+  ('create_load'), ('request_brokered_load'), ('record_location_consent'), ('revoke_location_consent'), ('register_push_token'),
   ('consume_rate_limit'), ('track_product_event'), ('invitation_preview'),
   -- G4: creates a business unit in the caller's own company (the Gerente's).
   ('create_business_unit'),

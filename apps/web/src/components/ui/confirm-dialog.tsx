@@ -5,6 +5,7 @@ import * as React from 'react';
 import { useFormStatus } from 'react-dom';
 
 import { Button } from './button';
+import { confirmBusy } from './confirm-busy';
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogTrigger } from './dialog';
 import { Notice } from './notice';
 
@@ -23,7 +24,7 @@ function ConfirmSubmit({
     <Button
       type="submit"
       variant={destructive ? 'danger' : 'primary'}
-      loading={pending ?? status.pending}
+      loading={confirmBusy(pending, status.pending)}
     >
       {children}
     </Button>
@@ -43,6 +44,9 @@ function ConfirmSubmit({
  *   closes it with `open`.
  * - `onConfirm`: a callback of the client. The dialog closes when it ends,
  *   unless it returns `false`.
+ *
+ * The button that confirms is busy while either runs, and also while the
+ * caller's `pending` says so (see `confirmBusy`).
  *
  * `destructive` paints the button that confirms in red (what cancels, rejects
  * or removes); otherwise it is the primary of the dialog.
@@ -86,7 +90,11 @@ export function ConfirmDialog({
     onOpenChange?.(next);
   };
 
+  const busy = confirmBusy(pending, running);
+
   const confirm = async () => {
+    // A second press while the first one runs does nothing.
+    if (busy) return;
     if (!onConfirm) {
       // Nothing to run: the caller reads the answer from `onOpenChange`.
       setOpen(false);
@@ -119,7 +127,7 @@ export function ConfirmDialog({
           <Button
             type="button"
             variant={destructive ? 'danger' : 'primary'}
-            loading={pending ?? running}
+            loading={busy}
             onClick={() => void confirm()}
           >
             {confirmLabel}

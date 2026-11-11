@@ -13,7 +13,7 @@ import { ChevronsUpDown, LogOut, Menu, MessageCircle, UserRound, X } from 'lucid
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Dialog, Popover } from 'radix-ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { BrandMark } from '@/components/brand-mark';
 import { ThemeSwitcher } from '@/components/theme-switcher';
@@ -39,6 +39,9 @@ export interface ShellNavGroup {
   label?: string;
   items: readonly ShellNavItem[];
 }
+
+/** From this width the sidebar is in place (Tailwind's `lg`) and the menu panel is gone. */
+const SIDEBAR_QUERY = '(min-width: 64rem)';
 
 /** The focus of what sits on the brand surface, which is Night in both themes. */
 const brandFocus =
@@ -264,7 +267,8 @@ function AccountMenu({
 /**
  * The same navigation in a panel, under 1024 px (§1.5): the menu button of
  * the top bar opens it from the left. Its content exists only while open, so
- * a section is never twice in the page; choosing one closes it.
+ * a section is never twice in the page; choosing one closes it, and so does
+ * a window that grows to where the sidebar is in place.
  */
 function MenuPanel({
   area,
@@ -276,6 +280,17 @@ function MenuPanel({
   cta?: ShellNavItem;
 }) {
   const [open, setOpen] = useState(false);
+  // Hiding the panel is not closing it: an open dialog nobody sees would keep
+  // the page inert and the focus trapped, with no button in sight to close it.
+  useEffect(() => {
+    if (!open) return;
+    const sidebar = window.matchMedia(SIDEBAR_QUERY);
+    const close = () => {
+      if (sidebar.matches) setOpen(false);
+    };
+    sidebar.addEventListener('change', close);
+    return () => sidebar.removeEventListener('change', close);
+  }, [open]);
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger

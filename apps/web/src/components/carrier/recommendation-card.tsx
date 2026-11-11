@@ -67,13 +67,13 @@ export function RecommendationCard({
             tolls ||
             risky) && (
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {r.breakdown.isReturnTrip && <Pill tone="ok">{matchingCopy.returnTrip}</Pill>}
+              {r.breakdown.isReturnTrip && <Pill tone="progress">{matchingCopy.returnTrip}</Pill>}
               {r.breakdown.distanceSource === 'estimate' && (
                 <Pill>{matchingCopy.estimatedDistance}</Pill>
               )}
               {tolls && <Pill>{tolls}</Pill>}
               {risky && (
-                <Pill tone="red" aria-label={roadsCopy.cardHighRiskLabel}>
+                <Pill tone="problem" aria-label={roadsCopy.cardHighRiskLabel}>
                   <TriangleAlert aria-hidden className="size-3.5" />
                   {roadsCopy.cardHighRisk}
                 </Pill>

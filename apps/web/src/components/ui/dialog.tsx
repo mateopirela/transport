@@ -7,10 +7,12 @@ import type * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { focusRing } from './variants';
+
 /*
- * Dialogs and sheets (§1.5, §1.6) on Radix: a centred dialog to confirm or
- * fill a short form, and a side sheet (admin). Both on the cell colour with a
- * hairline, over a page that blurs; no shadow.
+ * Dialogs and sheets (§1.3, §1.5) on Radix: a centred dialog to confirm or
+ * fill a short form, and a side sheet (admin). Both a cell with a hairline and
+ * no radius, over the page dimmed with Night; no shadow, no blur.
  */
 
 export const Dialog = DialogPrimitive.Root;
@@ -24,7 +26,7 @@ export function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       className={cn(
-        'fixed inset-0 z-50 bg-bg/70 backdrop-blur-sm data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+        'fixed inset-0 z-50 bg-brand-bg/60 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
         className,
       )}
       {...props}
@@ -32,13 +34,14 @@ export function DialogOverlay({
   );
 }
 
-/** The round close button in the corner of a dialog or a sheet. */
+/** The close button in the corner of a dialog or a sheet. */
 export function CloseButton({ className }: { className?: string }) {
   return (
     <DialogPrimitive.Close
       aria-label={uiCopy.close}
       className={cn(
-        'flex size-8 cursor-pointer items-center justify-center rounded-full bg-surface-high text-text-dim transition-colors hover:text-text focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
+        'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-dim transition-colors hover:bg-surface-high hover:text-text',
+        focusRing,
         className,
       )}
     >
@@ -63,14 +66,14 @@ export function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border bg-cell p-6 text-text duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          'fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto border bg-cell p-6 text-subhead text-text duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           className,
         )}
         {...(description ? {} : { 'aria-describedby': undefined })}
         {...props}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <DialogPrimitive.Title className="text-title3">{title}</DialogPrimitive.Title>
             {description && (
               <DialogPrimitive.Description className="text-subhead text-text-dim">

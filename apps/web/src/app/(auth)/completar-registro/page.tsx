@@ -42,7 +42,7 @@ export default async function CompleteCompanyPage({
       title={c.title}
       wide
       description={c.description}
-      footer={<SignOutButton variant="link" className="mx-auto" />}
+      footer={<SignOutButton variant="link" />}
     >
       <CompleteCompanyForm
         kinds={kinds}

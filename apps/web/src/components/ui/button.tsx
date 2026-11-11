@@ -8,8 +8,8 @@ import { buttonVariants, type ButtonVariants } from './variants';
 export { buttonVariants };
 
 /**
- * A pill button (§1.6). `loading` keeps its label, shows the spinner (the only
- * place a spinner goes, §1.5) and stops further clicks.
+ * A button (§1.3): radius 8, 40 px. `loading` keeps its label, shows the
+ * spinner (the only place a spinner goes) and stops further clicks.
  */
 export function Button({
   className,

@@ -37,7 +37,7 @@ export function OfferResponse({
 
   return (
     <div className="space-y-3">
-      <Disclosure look="cell" summary={c.accept} tone="ok">
+      <Disclosure look="cell" summary={c.accept} tone="accent">
         <form action={accept} className="space-y-4">
           <div className="space-y-1">
             <p className="text-headline text-text">{c.acceptTitle}</p>

@@ -1,15 +1,48 @@
 'use client';
 
 import { notificationsInboxCopy as c } from '@transport/shared';
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
+import { createSharedCounts } from '@/lib/notifications/shared-count';
 import { channelTopic, createBrowserSupabase, subscribeAsUser } from '@/lib/supabase/browser';
 
 /**
+ * The unread notifications of each user, live: one Realtime subscription
+ * however many badges show the count (the sidebar and, while it is open, the
+ * menu panel), recounted when Realtime reports a change to their
+ * notifications (RLS: only their own rows reach them).
+ */
+const unreadCounts = createSharedCounts((userId, set) => {
+  const supabase = createBrowserSupabase();
+  if (!supabase) {
+    return () => {
+      // Without Supabase nothing was opened: the count stays as the server rendered it.
+    };
+  }
+  const recount = async () => {
+    const { count: unread, error } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    if (!error && unread !== null) set(unread);
+  };
+  return subscribeAsUser(supabase, () =>
+    supabase
+      .channel(channelTopic(`notifications:${userId}`))
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => void recount(),
+      )
+      .subscribe(),
+  );
+});
+
+/**
  * Unread notifications of the signed-in user. Starts from the count the
- * server rendered and recounts when Realtime reports a change to their
- * notifications (RLS: only their own rows reach them). The parent keys it by
- * the server count, so a server render resets it.
+ * server rendered and follows the live one, which every badge of the user
+ * shares. A server render with another count resets it.
  */
 export function NotificationBadge({
   userId,
@@ -18,30 +51,15 @@ export function NotificationBadge({
   userId: string;
   initialCount: number;
 }) {
-  const [count, setCount] = useState(initialCount);
-
-  useEffect(() => {
-    const supabase = createBrowserSupabase();
-    if (!supabase) return;
-    const recount = async () => {
-      const { count: unread, error } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .is('read_at', null);
-      if (!error && unread !== null) setCount(unread);
-    };
-    return subscribeAsUser(supabase, () =>
-      supabase
-        .channel(channelTopic(`notifications:${userId}`))
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-          () => void recount(),
-        )
-        .subscribe(),
-    );
-  }, [userId]);
+  const subscribe = useCallback(
+    (listener: () => void) => unreadCounts.subscribe(userId, initialCount, listener),
+    [userId, initialCount],
+  );
+  const count = useSyncExternalStore(
+    subscribe,
+    () => unreadCounts.read(userId, initialCount),
+    () => initialCount,
+  );
 
   if (count === 0) return null;
   return (

@@ -3,11 +3,11 @@ import { brokeredCopy, type BrokeredAdminStage } from '@transport/shared';
 import { Pill, type PillTone } from '@/components/ui/pill';
 
 const TONES: Record<BrokeredAdminStage, PillTone> = {
-  toQuote: 'amber',
-  waitingClient: 'neutral',
-  published: 'accent',
-  contracted: 'ok',
-  closed: 'neutral',
+  toQuote: 'attention',
+  waitingClient: 'pending',
+  published: 'progress',
+  contracted: 'done',
+  closed: 'inactive',
 };
 
 /** Where a brokered load is in the admin's inbox (I6). */

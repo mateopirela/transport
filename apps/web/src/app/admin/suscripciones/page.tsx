@@ -52,7 +52,7 @@ export default async function AdminSubscriptionsPage() {
         title={c.title}
         description={c.description}
         status={
-          <Pill tone={settings.pilotMode ? 'accent' : 'neutral'} data-testid="pilot-mode">
+          <Pill tone={settings.pilotMode ? 'progress' : 'inactive'} data-testid="pilot-mode">
             {settings.pilotMode ? c.pilotOn : c.pilotOff}
           </Pill>
         }

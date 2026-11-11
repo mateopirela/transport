@@ -41,7 +41,7 @@ export default async function InvitationPage({ params }: PageProps<'/invitacion/
   // The facts of the invitation, as rows of a group (label left, value right).
   const row = 'flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-4 py-3';
   const details = (
-    <dl className="divide-y divide-separator rounded-2xl bg-bg text-subhead">
+    <dl className="divide-y divide-separator border bg-cell text-subhead">
       <div className={row}>
         <dt className="text-text-dim">
           {preview.kind === 'coordinator' ? c.coordinator.units : c.operator.unit}
@@ -73,7 +73,7 @@ export default async function InvitationPage({ params }: PageProps<'/invitacion/
             ? c.coordinator.joinDescription(preview.company_legal_name)
             : c.coordinator.description(preview.company_legal_name)
         }
-        footer={viewer ? <SignOutButton variant="link" className="mx-auto" /> : undefined}
+        footer={viewer ? <SignOutButton variant="link" /> : undefined}
       >
         {details}
         {canJoin ? (

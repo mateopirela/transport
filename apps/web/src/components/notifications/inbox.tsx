@@ -81,7 +81,7 @@ export async function NotificationsInbox({
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="flex flex-wrap items-center gap-2 text-headline text-text">
                       {content.title}
-                      {unread && <Pill tone="accent">{c.unread}</Pill>}
+                      {unread && <Pill tone="attention">{c.unread}</Pill>}
                     </p>
                     <p className="text-subhead text-text-dim">{content.body}</p>
                     <p className="text-footnote text-text-faint tabular-nums">

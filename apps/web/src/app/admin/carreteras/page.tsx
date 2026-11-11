@@ -121,7 +121,7 @@ export default async function AdminRoadsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-headline text-text">{k.name}</p>
                     <Pill>{k.code}</Pill>
-                    {k.archived_at && <Pill tone="amber">{c.archived}</Pill>}
+                    {k.archived_at && <Pill>{c.archived}</Pill>}
                   </div>
                   <p className="text-subhead text-text-dim">{k.segmentCodes.join(' → ')}</p>
                   <CorridorForm initial={corridorValues(k)} summary={c.form.editCorridor} />
@@ -145,10 +145,10 @@ export default async function AdminRoadsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-headline text-text">{s.name}</h3>
                     <Pill>{s.code}</Pill>
-                    <Pill tone={s.data_status === 'verified' ? 'ok' : 'neutral'}>
+                    <Pill tone={s.data_status === 'verified' ? 'done' : 'inactive'}>
                       {roadDataStatusLabels[s.data_status]}
                     </Pill>
-                    {s.archived_at && <Pill tone="amber">{c.archived}</Pill>}
+                    {s.archived_at && <Pill>{c.archived}</Pill>}
                   </div>
                   <p className="text-subhead text-text-dim">
                     {[

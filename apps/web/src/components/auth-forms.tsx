@@ -94,7 +94,7 @@ export function Field({
 
 /** A choice drawn as a cell: the native radio stays (keyboard, forms, tests), the cell follows it. */
 const choiceCell =
-  'flex cursor-pointer items-start gap-3 rounded-2xl border bg-cell px-4 py-3 transition-colors duration-200 hover:bg-surface-high/50 has-checked:border-accent has-checked:bg-accent-soft has-focus-visible:ring-[3px] has-focus-visible:ring-ring/40';
+  'flex cursor-pointer items-start gap-3 rounded-sm border border-control bg-cell px-4 py-3 transition-colors duration-200 hover:bg-surface-high has-checked:border-text has-checked:bg-surface-high has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-text';
 
 /** Radio group; the options are rendered as labelled cells. */
 function RadioCards({
@@ -114,7 +114,7 @@ function RadioCards({
   const current = state.values?.[name] ?? defaultValue;
   return (
     <fieldset className="space-y-1.5">
-      <legend className="mb-1.5 px-1 text-label text-text-dim">{label}</legend>
+      <legend className="mb-1.5 text-label text-text-dim">{label}</legend>
       <div className="grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
           <label key={option.value} className={choiceCell}>
@@ -182,7 +182,7 @@ function PersonTypeField({ state }: { state: FormState }) {
   const current = state.values?.personType ?? 'moral';
   return (
     <fieldset className="space-y-1.5 sm:col-span-2">
-      <legend className="mb-1.5 px-1 text-label text-text-dim">{f.personType}</legend>
+      <legend className="mb-1.5 text-label text-text-dim">{f.personType}</legend>
       <div className="grid grid-cols-2 gap-2">
         {(['moral', 'fisica'] as const).map((value) => (
           <label key={value} className={`${choiceCell} items-center`}>
@@ -254,7 +254,7 @@ export function CompanyFiscalFields({
         state={state}
         className={withRfc ? undefined : 'sm:col-span-2'}
       />
-      <h4 className="px-1 pt-3 text-headline text-text sm:col-span-2">{f.fiscalAddress}</h4>
+      <h4 className="pt-3 text-headline text-text sm:col-span-2">{f.fiscalAddress}</h4>
       <Field
         name="fiscalStreet"
         autoComplete="address-line1"
@@ -324,7 +324,7 @@ function FormSection({
 }) {
   return (
     <section className="space-y-4 border-t pt-6">
-      <div className="space-y-1 px-1">
+      <div className="space-y-1">
         <h3 className="text-title3 text-text">{title}</h3>
         {description && <p className="text-subhead text-text-dim">{description}</p>}
       </div>

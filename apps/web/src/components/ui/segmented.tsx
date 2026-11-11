@@ -12,20 +12,25 @@ export interface SegmentedItem<T extends string> {
   href?: string;
 }
 
-const track = 'inline-flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-surface-high p-0.5';
+const track =
+  'inline-flex max-w-full gap-1 overflow-x-auto rounded-sm border border-control bg-cell p-1';
 
-/** The classes of one segment; the selected one is a cell, with no shadow (§0.4). */
+/**
+ * The classes of one segment (§1.3): radius 3 inside a bordered track. The
+ * chosen one is the ink with the page as its text, never the accent: a filter
+ * is not the action of the screen.
+ */
 export function segmentClass(selected: boolean): string {
   return cn(
-    'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full px-3.5 text-subhead whitespace-nowrap transition-colors duration-200 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-    selected ? 'bg-cell font-semibold text-text' : 'text-text-dim hover:text-text',
+    'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-sm px-3 text-footnote whitespace-nowrap transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text',
+    selected ? 'bg-text font-semibold text-bg' : 'text-text-dim hover:text-text',
   );
 }
 
 /**
- * A segmented control (§1.6) to pick one of a few views or filters. With
- * `href` on the items it is a row of links (`aria-current` on the chosen
- * one); otherwise a radio group that calls `onChange`.
+ * A segmented control to pick one of a few views or filters. With `href` on
+ * the items it is a row of links (`aria-current` on the chosen one);
+ * otherwise a radio group that calls `onChange`.
  */
 export function Segmented<T extends string>({
   items,

@@ -20,11 +20,7 @@ export default async function AcceptTermsPage({ searchParams }: PageProps<'/acep
   await requireAccess(paths.acceptTerms);
   const { next } = await searchParams;
   return (
-    <AuthCard
-      title={c.title}
-      description={c.description}
-      footer={<SignOutButton variant="link" className="mx-auto" />}
-    >
+    <AuthCard title={c.title} description={c.description} footer={<SignOutButton variant="link" />}>
       <p className="text-callout text-text">{c.changes}</p>
       <AcceptTermsForm next={safeNextPath(typeof next === 'string' ? next : null)} />
     </AuthCard>

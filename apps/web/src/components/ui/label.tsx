@@ -5,7 +5,7 @@ import type * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-/** The label over a field (§1.2 `label`: 13, semibold, secondary). */
+/** The label over a field (§1.2 `label`: Geist Mono 11, capitals, secondary). */
 export function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   return (
     <LabelPrimitive.Root

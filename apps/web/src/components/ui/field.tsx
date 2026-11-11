@@ -10,7 +10,7 @@ export function fieldHelpId(id: string): string {
 }
 
 /**
- * A field (§1.6): the label above, the control, and under it the error in red
+ * A field (§1.3): the label above, the control, and under it the error in red
  * or a hint. The control is the child; give it `id={htmlFor}` and, when there
  * is a hint or an error, `aria-describedby={fieldHelpId(htmlFor)}`.
  */
@@ -31,15 +31,15 @@ export function Field({
 }) {
   const help = error ?? hint;
   return (
-    <div className={cn('space-y-1.5', className)}>
-      <Label htmlFor={htmlFor} className="block px-1">
+    <div className={cn('space-y-2', className)}>
+      <Label htmlFor={htmlFor} className="block">
         {label}
       </Label>
       {children}
       {help && (
         <p
           id={fieldHelpId(htmlFor)}
-          className={cn('px-1 text-footnote', error ? 'text-red-text' : 'text-text-dim')}
+          className={cn('text-footnote', error ? 'text-red-text' : 'text-text-dim')}
         >
           {help}
         </p>
@@ -50,5 +50,5 @@ export function Field({
 
 /** An error on its own (a group of radios, a form's line): footnote in red. */
 export function ErrorText({ className, ...props }: React.ComponentProps<'p'>) {
-  return <p className={cn('px-1 text-footnote text-red-text', className)} {...props} />;
+  return <p className={cn('text-footnote text-red-text', className)} {...props} />;
 }

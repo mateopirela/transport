@@ -34,6 +34,7 @@ import {
 } from '@/components/freight/quick-pay';
 import { PageSection, textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
+import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import {
@@ -173,16 +174,26 @@ function QuickPayFacts({ row, quickPay }: { row: AdminFreightRow; quickPay: Quic
         <Fact label={q.quickNet}>{formatMxn(quickNet)}</Fact>
       </dl>
       <p className="text-footnote text-text-dim">{q.clientUnchanged}</p>
+      {state.kind === 'requested' && row.carrier_invoice_blocker && (
+        // The carrier's CFDI is not validated: no approval, and why (I4).
+        <Notice tone="info">
+          <span data-testid="quick-pay-invoice-blocker">
+            {q.invoiceBlockers[row.carrier_invoice_blocker]}
+          </span>
+        </Notice>
+      )}
       {state.kind === 'requested' && (
         <div className="flex flex-wrap items-start gap-3">
-          <ApproveQuickPayForm
-            tripId={row.trip_id}
-            overLimit={
-              projection.overLimit && quickPay.limitCents !== null
-                ? q.overLimit(formatMxn(projection.exposureCents), formatMxn(quickPay.limitCents))
-                : null
-            }
-          />
+          {!row.carrier_invoice_blocker && (
+            <ApproveQuickPayForm
+              tripId={row.trip_id}
+              overLimit={
+                projection.overLimit && quickPay.limitCents !== null
+                  ? q.overLimit(formatMxn(projection.exposureCents), formatMxn(quickPay.limitCents))
+                  : null
+              }
+            />
+          )}
           <RejectQuickPayForm tripId={row.trip_id} />
         </div>
       )}

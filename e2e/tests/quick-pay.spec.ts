@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test } from '@playwright/test';
 import {
+  adminSettingsCopy,
   freightCarrierStatusLabels as carrierLabels,
   freightClientStatusLabels as clientLabels,
   freightCopy,
   freightInvoicesCopy,
+  freightInvoiceValidationLabels as validationLabels,
   freightPaymentDirectionLabels,
   quickPayBlockerLabels,
   quickPayCopy,
@@ -18,8 +20,10 @@ import { signInOnWeb } from '../support/web';
 // Quick pay (I4, D38), with the seed's held trip: Monterrey → Guadalajara of
 // Aceros del Norte with Transportes Regios, $40,000 ($38,800 net at 3 %),
 // delivered five weeks ago; Ana has not paid (overdue) and Jorge's payment
-// is held. Jorge uploads his CFDI to Fulmis, asks for the quick pay and sees
-// the 2.5 % fee ($970) and what he gets ($37,830) before confirming; the
+// is held. Jorge uploads his CFDI to Fulmis: without Fulmis' RFC it is "Sin
+// validar" and the quick pay waits for it (plan §I4: a validated CFDI); the
+// admin sets the RFC, which validates it. Jorge asks for the quick pay and
+// sees the 2.5 % fee ($970) and what he gets ($37,830) before confirming; the
 // admin approves it and records the SPEI payment. Ana still owes $40,000 and
 // never sees any of it.
 
@@ -60,8 +64,32 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await expect(row.getByTestId('invoice-carrier_to_fulmis')).toBeVisible();
   });
 
-  await test.step('he sees the fee and what he gets before confirming', async () => {
+  await test.step('his CFDI is "Sin validar" without Fulmis\' RFC: no quick pay yet, and why', async () => {
     await jorge.reload();
+    await expect(row.getByTestId('invoice-carrier_to_fulmis')).toContainText(
+      validationLabels.unvalidated,
+    );
+    await expect(row).toContainText(quickPayBlockerLabels.fulmis_rfc_missing);
+    await expect(row.getByText(q.carrier.request, { exact: true })).toHaveCount(0);
+  });
+
+  const admin = await browser.newPage();
+  await test.step("the admin sets Fulmis' RFC: Jorge's CFDI is validated", async () => {
+    await signInOnWeb(admin, 'admin', '/admin/ajustes');
+    const rfcForm = admin.getByTestId('fulmis-rfc-form');
+    await rfcForm
+      .getByLabel(freightInvoicesCopy.settings.rfcLabel, { exact: true })
+      .fill('FUL201015AB1');
+    await rfcForm.getByRole('button', { name: adminSettingsCopy.save }).click();
+    await expect(rfcForm.getByText(adminSettingsCopy.saved)).toBeVisible();
+    await jorge.reload();
+    await expect(row.getByTestId('invoice-carrier_to_fulmis')).toContainText(
+      validationLabels.validated,
+    );
+    await expect(row).not.toContainText(quickPayBlockerLabels.fulmis_rfc_missing);
+  });
+
+  await test.step('he sees the fee and what he gets before confirming', async () => {
     await row.getByText(q.carrier.request, { exact: true }).click();
     const form = row.getByTestId(`quick-pay-request-${trip}`);
     await expect(form.getByText(q.carrier.fee('2.5 %'))).toBeVisible();
@@ -85,16 +113,16 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await expect(ana.getByText(q.title)).toHaveCount(0);
   });
 
-  const admin = await browser.newPage();
   const card = admin.getByTestId(`freight-row-${trip}`);
   const directionSelect = card.getByLabel(a.direction, { exact: true });
   await test.step('the admin finds it under "Pago rápido" and approves it', async () => {
-    await signInOnWeb(admin, 'admin');
     await admin.goto('/admin/flete?filtro=rapido');
     const quickPay = card.getByTestId('freight-quick-pay');
     await expect(quickPay).toContainText('$970.00');
     await expect(quickPay).toContainText('$37,830.00');
     await expect(quickPay).toContainText(q.admin.clientUnchanged);
+    // Its CFDI is validated: nothing keeps the approval back.
+    await expect(quickPay.getByTestId('quick-pay-invoice-blocker')).toHaveCount(0);
     // No payment to the carrier while the request waits.
     await card.getByText(a.recordPayment, { exact: true }).click();
     await expect(

@@ -3951,6 +3951,7 @@ export interface Database {
         Returns: {
           carrier_company_id: string;
           carrier_due_on: string;
+          carrier_invoice_blocker: string;
           carrier_name: string;
           carrier_net_cents: number;
           carrier_paid_cents: number;
@@ -4597,6 +4598,7 @@ export interface Database {
       document_shares_lock: { Args: { p_carrier_company_id: string }; Returns: undefined };
       dwell_hour_band: { Args: { p_at: string }; Returns: string };
       expire_stale_loads: { Args: Record<PropertyKey, never>; Returns: number };
+      freight_carrier_invoice_blocker: { Args: { p_trip_id: string }; Returns: string };
       freight_commission_cents: {
         Args: { p_amount_cents: number; p_bps: number };
         Returns: number;

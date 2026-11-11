@@ -21,17 +21,53 @@ export const QUICK_PAY_SETTING_KEYS = {
   exposureLimitCents: 'freight.quick_pay_exposure_limit_cents',
 } as const;
 
+/**
+ * Why the carrier's CFDI to Fulmis does not allow the quick pay
+ * (freight_carrier_invoice_blocker): none registered, "Sin validar" because
+ * Fulmis has not set its RFC yet, or "Sin validar" and not made out to it.
+ */
+export const QUICK_PAY_INVOICE_BLOCKERS = [
+  'invoice_missing',
+  'fulmis_rfc_missing',
+  'invoice_unvalidated',
+] as const;
+export type QuickPayInvoiceBlocker = (typeof QUICK_PAY_INVOICE_BLOCKERS)[number];
+
 /** Why a trip cannot ask for the quick pay (freight_quick_pay_blocker). */
 export const QUICK_PAY_BLOCKERS = [
   'not_open',
   'partially_paid',
   'not_delivered',
-  'invoice_missing',
+  ...QUICK_PAY_INVOICE_BLOCKERS,
 ] as const;
 export type QuickPayBlocker = (typeof QUICK_PAY_BLOCKERS)[number];
 
 export function isQuickPayBlocker(value: unknown): value is QuickPayBlocker {
   return QUICK_PAY_BLOCKERS.includes(value as QuickPayBlocker);
+}
+
+export function isQuickPayInvoiceBlocker(value: unknown): value is QuickPayInvoiceBlocker {
+  return QUICK_PAY_INVOICE_BLOCKERS.includes(value as QuickPayInvoiceBlocker);
+}
+
+/**
+ * The blocker of a ledger row (carrier_freight_ledger): null when the quick
+ * pay can be asked for. A code this build does not know still blocks
+ * (`not_open`): the request is never offered on a reason it cannot read.
+ */
+export function parseQuickPayBlocker(value: unknown): QuickPayBlocker | null {
+  if (value === null || value === undefined) return null;
+  return isQuickPayBlocker(value) ? value : 'not_open';
+}
+
+/**
+ * The CFDI blocker of a ledger row (admin_freight_ledger): null when the
+ * carrier's CFDI is validated. A code this build does not know still blocks
+ * the approval (`invoice_unvalidated`).
+ */
+export function parseQuickPayInvoiceBlocker(value: unknown): QuickPayInvoiceBlocker | null {
+  if (value === null || value === undefined) return null;
+  return isQuickPayInvoiceBlocker(value) ? value : 'invoice_unvalidated';
 }
 
 /** Mirror of freight_is_valid_quick_pay_fee: an integer 250..9999. */
@@ -119,8 +155,16 @@ export interface QuickPayRpcError extends FreightRpcError {
   details?: string | null;
 }
 
-/** The Spanish text of an error of the quick pay RPCs (carrier and admin). */
-export function quickPayErrorText(error: QuickPayRpcError): string {
+/**
+ * The Spanish text of an error of the quick pay RPCs: request_quick_pay for
+ * the carrier, admin_approve_quick_pay and admin_reject_quick_pay for the
+ * admin (the reasons about the carrier's CFDI are told to each side). A
+ * refusal (55000) says its reason: the blocker or the code in its detail.
+ */
+export function quickPayErrorText(
+  error: QuickPayRpcError,
+  side: 'carrier' | 'admin' = 'carrier',
+): string {
   const e = quickPayCopy.errors;
   switch (error.code) {
     case '42501':
@@ -134,7 +178,10 @@ export function quickPayErrorText(error: QuickPayRpcError): string {
         case 'not_requested':
           return e.notRequested;
         default:
-          return e.notOpen;
+          if (side === 'admin' && isQuickPayInvoiceBlocker(error.details)) {
+            return quickPayCopy.admin.invoiceBlockers[error.details];
+          }
+          return isQuickPayBlocker(error.details) ? e.blockers[error.details] : e.generic;
       }
     case '22023':
       return e.reason;

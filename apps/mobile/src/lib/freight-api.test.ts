@@ -207,8 +207,57 @@ describe('quick pay (I4)', () => {
       quick_pay_net_cents: 945_750,
       quick_pay_blocker: null,
     });
-    // A row without the columns (or with an unknown blocker) offers nothing.
+    // A row without the columns has no quick pay yet.
     expect(second).toMatchObject({ quick_pay_fee_cents: null, quick_pay_net_cents: null });
+  });
+
+  it('keeps the reason of a CFDI "Sin validar", and blocks on a reason it does not know', async () => {
+    const client = {
+      rpc: () => ({
+        order: () => ({
+          limit: () =>
+            Promise.resolve({
+              data: [
+                { ...row(1), quick_pay_blocker: 'fulmis_rfc_missing' },
+                { ...row(2), quick_pay_blocker: 'invoice_unvalidated' },
+                { ...row(3), quick_pay_blocker: 'something_new' },
+              ],
+              error: null,
+            }),
+        }),
+      }),
+    } as unknown as Supabase;
+    const rows = await loadCollections(client);
+    expect(Object.fromEntries(rows.map((r) => [r.ledger_id, r.quick_pay_blocker]))).toEqual(
+      Object.fromEntries([
+        [id(1), 'fulmis_rfc_missing'],
+        [id(2), 'invoice_unvalidated'],
+        [id(3), 'not_open'],
+      ]),
+    );
+  });
+
+  it('says why a request was refused', async () => {
+    const refused = (details: string) =>
+      ({
+        rpc: () =>
+          Promise.resolve({
+            data: null,
+            error: { code: '55000', message: 'quick pay not available', details },
+          }),
+      }) as unknown as Supabase;
+    const e = quickPayCopy.errors.blockers;
+    expect(await requestQuickPay(refused('fulmis_rfc_missing'), 'trip-1', 250)).toEqual({
+      ok: false,
+      error: e.fulmis_rfc_missing,
+      feeChanged: false,
+    });
+    expect(await requestQuickPay(refused('not_delivered'), 'trip-1', 250)).toMatchObject({
+      error: e.not_delivered,
+    });
+    expect(await requestQuickPay(refused('partially_paid'), 'trip-1', 250)).toMatchObject({
+      error: e.partially_paid,
+    });
   });
 
   it('asks with the fee shown and tells a changed fee', async () => {

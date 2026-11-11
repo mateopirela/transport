@@ -5,14 +5,16 @@ import {
   fetchFreightPages,
   FREIGHT_PAGE_SIZE,
   FREIGHT_SETTING_KEYS,
-  isQuickPayBlocker,
   isValidCommissionBps,
   parseFreightPayments,
+  parseQuickPayBlocker,
+  parseQuickPayInvoiceBlocker,
   toCents,
   type Database,
   type FreightPayment,
   type FreightPaymentDirection,
   type QuickPayBlocker,
+  type QuickPayInvoiceBlocker,
 } from '@transport/shared';
 
 import type { Supabase } from '../viewer';
@@ -78,6 +80,7 @@ export type AdminFreightRow = Omit<
   | 'client_paid_cents'
   | 'carrier_paid_cents'
   | 'quick_pay_fee_cents'
+  | 'carrier_invoice_blocker'
 > & {
   client_amount_cents: number;
   commission_cents: number;
@@ -89,6 +92,8 @@ export type AdminFreightRow = Omit<
   payments: AdminFreightPayment[];
   /** Quick pay (I4): the fee frozen when it was requested. */
   quick_pay_fee_cents: number | null;
+  /** Why the carrier's CFDI keeps a quick pay from being approved; null when validated. */
+  carrier_invoice_blocker: QuickPayInvoiceBlocker | null;
 };
 
 /** Cartera: the client's side of the trips of the caller's company. */
@@ -138,7 +143,7 @@ export async function loadCarrierFreight(supabase: Supabase): Promise<CarrierFre
     payments: parseFreightPayments(row.payments),
     quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
     quick_pay_net_cents: nullableCents(row.quick_pay_net_cents),
-    quick_pay_blocker: isQuickPayBlocker(row.quick_pay_blocker) ? row.quick_pay_blocker : null,
+    quick_pay_blocker: parseQuickPayBlocker(row.quick_pay_blocker),
   }));
 }
 
@@ -199,6 +204,7 @@ export async function loadAdminFreight(supabase: Supabase): Promise<AdminFreight
     carrier_paid_cents: toCents(row.carrier_paid_cents),
     payments: adminPayments(row.payments),
     quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
+    carrier_invoice_blocker: parseQuickPayInvoiceBlocker(row.carrier_invoice_blocker),
   }));
 }
 

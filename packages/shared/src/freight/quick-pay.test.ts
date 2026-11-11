@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { quickPayCopy } from '../copy/quick-pay';
+import { quickPayBlockerLabels, quickPayCopy } from '../copy/quick-pay';
 import {
   DEFAULT_QUICK_PAY_FEE_BPS,
   freightAdminErrorText,
   isQuickPayBlocker,
+  isQuickPayInvoiceBlocker,
   isValidExposureLimitCents,
+  parseQuickPayBlocker,
+  parseQuickPayInvoiceBlocker,
+  QUICK_PAY_BLOCKERS,
+  QUICK_PAY_INVOICE_BLOCKERS,
   isValidQuickPayFeeBps,
   projectedExposure,
   quickPayErrorText,
@@ -133,9 +138,63 @@ describe('errors', () => {
     expect(quickPayErrorText({ code: '55000', details: 'fee_changed' })).toBe(e.feeChanged);
     expect(quickPayErrorText({ code: '55000', details: 'over_limit' })).toBe(e.overLimit);
     expect(quickPayErrorText({ code: '55000', details: 'not_requested' })).toBe(e.notRequested);
-    expect(quickPayErrorText({ code: '55000', details: 'invoice_missing' })).toBe(e.notOpen);
     expect(quickPayErrorText({ code: '22023' })).toBe(e.reason);
     expect(quickPayErrorText({ code: 'XX000' })).toBe(e.generic);
+  });
+
+  it('says the reason of each refused request, not "ya no admite pago rápido" for all', () => {
+    const cases: [string, string][] = [
+      ['not_open', 'Este viaje ya no admite pago rápido.'],
+      ['partially_paid', 'Este viaje ya no admite pago rápido: Fulmis ya te pagó una parte.'],
+      [
+        'not_delivered',
+        'Podrás pedir pago rápido cuando el viaje esté entregado, con su evidencia firmada.',
+      ],
+      ['invoice_missing', 'Sube tu CFDI a Fulmis para pedir pago rápido.'],
+      [
+        'fulmis_rfc_missing',
+        'Tu CFDI quedó "Sin validar" porque Fulmis aún no tiene su RFC. Podrás pedir pago rápido en cuanto lo capture.',
+      ],
+      [
+        'invoice_unvalidated',
+        'Tu CFDI quedó "Sin validar": no está a nombre del RFC de Fulmis. Escríbenos por soporte para corregirlo y pedir pago rápido.',
+      ],
+    ];
+    expect(cases.map(([code]) => code)).toEqual([...QUICK_PAY_BLOCKERS]);
+    for (const [details, text] of cases) {
+      expect(quickPayErrorText({ code: '55000', details })).toBe(text);
+    }
+    // Each reason has its own text.
+    expect(new Set(cases.map(([, text]) => text)).size).toBe(cases.length);
+    // An unknown refusal is not passed off as one of them.
+    expect(quickPayErrorText({ code: '55000', details: 'something_new' })).toBe(e.generic);
+    expect(quickPayErrorText({ code: '55000' })).toBe(e.generic);
+  });
+
+  it('tells the carrier in Cobranza the same reason the request gives', () => {
+    for (const code of QUICK_PAY_INVOICE_BLOCKERS) {
+      expect(quickPayBlockerLabels[code]).toBe(e.blockers[code]);
+    }
+  });
+
+  it('tells the admin why a pending request cannot be approved', () => {
+    const a = quickPayCopy.admin.invoiceBlockers;
+    expect(quickPayErrorText({ code: '55000', details: 'fulmis_rfc_missing' }, 'admin')).toBe(
+      a.fulmis_rfc_missing,
+    );
+    expect(a.fulmis_rfc_missing).toContain('falta el RFC de Fulmis');
+    expect(quickPayErrorText({ code: '55000', details: 'invoice_unvalidated' }, 'admin')).toBe(
+      a.invoice_unvalidated,
+    );
+    expect(a.invoice_unvalidated).toContain('no está a nombre del RFC de Fulmis');
+    expect(quickPayErrorText({ code: '55000', details: 'invoice_missing' }, 'admin')).toBe(
+      a.invoice_missing,
+    );
+    // The rest is the same for both sides.
+    expect(quickPayErrorText({ code: '55000', details: 'over_limit' }, 'admin')).toBe(e.overLimit);
+    expect(quickPayErrorText({ code: '55000', details: 'not_requested' }, 'admin')).toBe(
+      e.notRequested,
+    );
   });
 
   it('tells the admin to decide a pending request before paying the carrier', () => {
@@ -149,7 +208,27 @@ describe('errors', () => {
 
   it('knows every blocker code', () => {
     expect(isQuickPayBlocker('invoice_missing')).toBe(true);
+    expect(isQuickPayBlocker('fulmis_rfc_missing')).toBe(true);
+    expect(isQuickPayBlocker('invoice_unvalidated')).toBe(true);
+    expect(isQuickPayInvoiceBlocker('fulmis_rfc_missing')).toBe(true);
+    expect(isQuickPayInvoiceBlocker('not_delivered')).toBe(false);
     expect(isQuickPayBlocker('fee_changed')).toBe(false);
     expect(isQuickPayBlocker(null)).toBe(false);
+  });
+});
+
+describe('parsing the blockers of a ledger row', () => {
+  it('offers the quick pay only on a null blocker, and blocks on a code it does not know', () => {
+    expect(parseQuickPayBlocker(null)).toBeNull();
+    expect(parseQuickPayBlocker(undefined)).toBeNull();
+    expect(parseQuickPayBlocker('fulmis_rfc_missing')).toBe('fulmis_rfc_missing');
+    expect(parseQuickPayBlocker('something_new')).toBe('not_open');
+    expect(parseQuickPayBlocker(42)).toBe('not_open');
+  });
+
+  it('keeps the approval blocked on a CFDI code it does not know', () => {
+    expect(parseQuickPayInvoiceBlocker(null)).toBeNull();
+    expect(parseQuickPayInvoiceBlocker('invoice_missing')).toBe('invoice_missing');
+    expect(parseQuickPayInvoiceBlocker('something_new')).toBe('invoice_unvalidated');
   });
 });

@@ -52,7 +52,7 @@ const f = authCopy.fields;
 const lf = loadsCopy.form;
 
 /**
- * Every component of the web kit (U6, docs/plan-rediseno.md §1.6) in the
+ * Every component of the web kit of "Fulmis" (docs/plan-fulmis.md §1) in the
  * shell, for the screenshots of the PR in both themes. Development only: in
  * production it is a 404. The texts are the product's own copy.
  */

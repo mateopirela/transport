@@ -59,8 +59,8 @@ import { spacing, useTheme } from '../../theme';
 const THEMES = THEME_CHOICES.map((value) => ({ value, label: appearanceCopy[value] }));
 
 /**
- * Every piece of the kit on one screen, in the theme chosen at its top, for
- * the screenshots of the redesign (docs/plan-rediseno.md §2, U2). Only in a
+ * Every piece of the kit of "Fulmis" (docs/plan-fulmis.md §1) on one screen,
+ * in the theme chosen at its top, for the screenshots of a PR. Only in a
  * development build: transport://dev/kit. The texts are the app's own copy.
  */
 export default function KitScreen() {

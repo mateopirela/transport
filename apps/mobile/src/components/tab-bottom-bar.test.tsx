@@ -34,9 +34,9 @@ afterEach(() => {
 /** The phone's bottom inset in the stubs (test/stubs/safe-area.tsx). */
 const PHONE_BOTTOM = 34;
 
-/** How far from the bottom edge the bar's glass starts its row of actions. */
+/** How far from the bottom edge the bar starts its row of actions. */
 function barPadding(root: ReactTestInstance): unknown {
-  const bar = root.find((n) => (n.type as unknown) === 'BlurView');
+  const bar = root.find((n) => typeof n.type === 'string' && n.props.testID === 'bottom-bar');
   const style = [bar.props.style]
     .flat(Infinity)
     .reduce<Record<string, unknown>>((all, s) => (s ? { ...all, ...s } : all), {});

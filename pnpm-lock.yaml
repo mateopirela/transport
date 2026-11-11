@@ -208,6 +208,12 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@expo-google-fonts/geist':
+        specifier: 0.4.2
+        version: 0.4.2
+      '@expo-google-fonts/geist-mono':
+        specifier: 0.4.3
+        version: 0.4.3
       '@expo-google-fonts/hanken-grotesk':
         specifier: 0.4.3
         version: 0.4.3
@@ -904,6 +910,12 @@ packages:
   '@eslint/plugin-kit@0.7.3':
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@expo-google-fonts/geist-mono@0.4.3':
+    resolution: {integrity: sha512-gjnwv1QOG4meZpMhrLjTIPC/+lhyNu8EcXa2eJPVbPrYvguVjCfBq+Ezq6cWKWW8ung6fqb2TjvuTalE6lqlnw==}
+
+  '@expo-google-fonts/geist@0.4.2':
+    resolution: {integrity: sha512-cTsqJRQrvK5EniTVwH7UDK18RFf9Bc6yxciAuM936aViQ+eR6j3mLEI2rQkJXz5JP9kwtn8tHJviDyZ0ulH6oA==}
 
   '@expo-google-fonts/hanken-grotesk@0.4.3':
     resolution: {integrity: sha512-TZn/Ux+nCxEjG/zAenCFbEhOAPxSXN3lo2YU2jHcPsNBPFeicm8feQStL81igJuAwJLCn62VvEOdTtmVEBDl0g==}
@@ -6119,6 +6131,10 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@expo-google-fonts/geist-mono@0.4.3': {}
+
+  '@expo-google-fonts/geist@0.4.2': {}
 
   '@expo-google-fonts/hanken-grotesk@0.4.3': {}
 

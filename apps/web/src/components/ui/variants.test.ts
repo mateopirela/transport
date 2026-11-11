@@ -46,7 +46,7 @@ describe('buttonVariants', () => {
 });
 
 describe('pillVariants', () => {
-  it('puts each tone on its 14 % with its AA text tone', () => {
+  it('puts each state on its 14 % with its AA text tone, and the accent on its soft ground', () => {
     expect(classes(pillVariants({ tone: 'ok' }))).toEqual(
       expect.arrayContaining(['bg-ok/14', 'text-ok-text']),
     );
@@ -56,9 +56,12 @@ describe('pillVariants', () => {
     expect(classes(pillVariants({ tone: 'red' }))).toEqual(
       expect.arrayContaining(['bg-red/14', 'text-red-text']),
     );
-    expect(classes(pillVariants({ tone: 'accent' }))).toEqual(
-      expect.arrayContaining(['bg-accent/14', 'text-accent-text']),
-    );
+    // Never the accent at 14 %: on Night `accentText` is 4.1:1 there (docs/plan-fulmis.md §1.1).
+    for (const variants of [pillVariants, tagVariants]) {
+      const accent = classes(variants({ tone: 'accent' }));
+      expect(accent).toEqual(expect.arrayContaining(['bg-accent-soft', 'text-accent-text']));
+      expect(accent).not.toContain('bg-accent/14');
+    }
   });
 
   it('is neutral by default', () => {

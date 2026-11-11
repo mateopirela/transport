@@ -1,8 +1,8 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 
 /*
- * The class recipes of the kit ("Transport · Nativo", docs/plan-rediseno.md
- * §1.6), kept apart from the components so Vitest can check them as data.
+ * The class recipes of the kit ("Fulmis", docs/plan-fulmis.md §1.3), kept apart
+ * from the components so Vitest can check them as data.
  */
 
 /**
@@ -41,7 +41,8 @@ export type PillTone = (typeof PILL_TONES)[number];
 
 /**
  * A status pill (§1.1): the `*Text` tone on its base tone at 14 %, which
- * meets AA on `cell` and `bg` (tested in shared/design/tokens.test.ts).
+ * meets AA on `cell` and `bg` (tested in shared/design/tokens.test.ts). The
+ * accent sits on `accentSoft` instead: on Night its 14 % would not reach AA.
  */
 export const pillVariants = cva(
   'inline-flex max-w-full shrink-0 items-center gap-1 truncate rounded-full px-2.5 py-0.5 text-footnote font-semibold',
@@ -49,7 +50,7 @@ export const pillVariants = cva(
     variants: {
       tone: {
         neutral: 'bg-surface-high text-text-dim',
-        accent: 'bg-accent/14 text-accent-text',
+        accent: 'bg-accent-soft text-accent-text',
         ok: 'bg-ok/14 text-ok-text',
         amber: 'bg-amber/14 text-amber-text',
         red: 'bg-red/14 text-red-text',
@@ -59,7 +60,7 @@ export const pillVariants = cva(
   },
 );
 
-/** A small tag (radius 6) next to a thing: "Gerente", "Vence pronto". */
+/** A small tag (radius 3) next to a thing: "Gerente", "Vence pronto". */
 export const tagVariants = cva(
   'inline-flex shrink-0 items-center rounded-sm px-1.5 py-px text-caption font-semibold',
   {
@@ -76,9 +77,9 @@ export const tagVariants = cva(
   },
 );
 
-/** A field (§1.3): 44 px high, radius 12, a hairline, the accent ring on focus. */
+/** A field (§1.3): 44 px high, radius 3, a hairline, the ink on focus. */
 export const fieldControl =
-  'w-full min-w-0 rounded-md border bg-cell px-3.5 text-callout text-text transition-[border-color,box-shadow] duration-200 outline-none placeholder:text-text-faint focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/20 disabled:cursor-not-allowed disabled:bg-surface-high disabled:text-text-dim aria-invalid:border-red aria-invalid:ring-red/15';
+  'w-full min-w-0 rounded-md border bg-cell px-3.5 text-callout text-text transition-[border-color,box-shadow] duration-200 outline-none placeholder:text-text-faint focus-visible:border-text focus-visible:ring-[3px] focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-surface-high disabled:text-text-dim aria-invalid:border-red-text aria-invalid:ring-red-text/15';
 
 /**
  * A row inside a group: draws its own hairline separator, inset 16 from the

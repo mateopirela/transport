@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { palette, typeScale, type Palette, type TypeName } from '@transport/shared';
+import { palette, radii, shape, typeScale, type Palette, type TypeName } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { themeChoiceFromCookie, themeClass, themeCookie } from './theme';
@@ -38,19 +38,89 @@ describe('globals.css mirrors the design tokens', () => {
     }
   });
 
-  it('declares the type scale in rem (17 px = 1.0625rem)', () => {
+  it('declares every colour of the palette in each theme, and maps it to a class', () => {
     const theme = block('@theme inline');
-    const names: TypeName[] = Object.keys(typeScale) as TypeName[];
-    for (const name of names) {
-      const { size, lineHeight } = typeScale[name];
-      expect(theme.get(`--text-${kebab(name)}`), name).toBe(`${size / 16}rem`);
-      expect(theme.get(`--text-${kebab(name)}--line-height`), name).toBe(`${lineHeight / 16}rem`);
+    for (const [, selector, colors] of themes) {
+      // Nothing but the palette: a colour the tokens do not know has no place here.
+      expect([...block(selector).keys()].sort()).toEqual(
+        Object.keys(colors)
+          .map((name) => `--${kebab(name)}`)
+          .sort(),
+      );
+    }
+    for (const name of Object.keys(palette.light)) {
+      expect(theme.get(`--color-${kebab(name)}`), name).toBe(`var(--${kebab(name)})`);
     }
   });
 
-  it('has a single family and none of the deck values', () => {
-    expect(css).toMatch(/--font-sans: var\(--font-hanken\)/);
-    expect(css).not.toMatch(/Marcellus|Manrope|Georgia|oklch/);
+  it('keeps every colour opaque: nothing is glass', () => {
+    expect(css).not.toMatch(/rgba?\(|hsla?\(|oklch\(/u);
+  });
+
+  it('declares the type scale in rem (17 px = 1.0625rem), with its weight and tracking', () => {
+    const theme = block('@theme inline');
+    const names: TypeName[] = Object.keys(typeScale) as TypeName[];
+    for (const name of names) {
+      const { size, lineHeight, weight, tracking } = typeScale[name];
+      const step = `--text-${kebab(name)}`;
+      expect(theme.get(step), name).toBe(`${size / 16}rem`);
+      expect(theme.get(`${step}--line-height`), name).toBe(`${lineHeight / 16}rem`);
+      // A step says its weight unless it is the regular one, which a parent may make heavier.
+      expect(theme.get(`${step}--font-weight`), name).toBe(
+        weight === 400 ? undefined : String(weight),
+      );
+      // And its tracking in em, as the tokens give it; a step without one may say `0em`.
+      expect(theme.get(`${step}--letter-spacing`) ?? '0em', name).toBe(`${tracking}em`);
+    }
+  });
+
+  it('draws the mono styles in Geist Mono and the label in capitals', () => {
+    const utility = (name: string) => {
+      const start = css.indexOf(`@utility ${name} {`);
+      if (start < 0) throw new Error(`No utility for ${name}`);
+      return css.slice(start, css.indexOf('}', start));
+    };
+    const names: TypeName[] = Object.keys(typeScale) as TypeName[];
+    for (const name of names) {
+      const { family, uppercase } = typeScale[name];
+      if (family === 'mono') {
+        expect(utility(`text-${kebab(name)}`), name).toMatch(/font-family: var\(--font-mono\);/u);
+      } else {
+        expect(css, name).not.toContain(`@utility text-${kebab(name)} {`);
+      }
+      if (uppercase) {
+        expect(utility(`text-${kebab(name)}`), name).toMatch(/text-transform: uppercase;/u);
+      }
+    }
+    expect(utility('text-meta')).not.toMatch(/text-transform/u);
+  });
+
+  it('declares the radii and the heights of §1.3', () => {
+    const theme = block('@theme inline');
+    // `rounded-sm` and `rounded-md` a chip and a field, `rounded-lg` a button, the larger ones a card.
+    expect(theme.get('--radius-sm')).toBe(`${shape.tag}px`);
+    expect(theme.get('--radius-md')).toBe(`${shape.field}px`);
+    expect(theme.get('--radius-lg')).toBe(`${shape.button}px`);
+    expect(theme.get('--radius-xl')).toBe(`${shape.card}px`);
+    expect(theme.get('--radius-2xl')).toBe(`${shape.card}px`);
+    const allowed = new Set(Object.values(radii).map((radius) => `${radius}px`));
+    for (const [name, value] of theme) {
+      if (name.startsWith('--radius-')) expect(allowed.has(value), name).toBe(true);
+    }
+    expect(theme.get('--spacing-control')).toBe(`${shape.webControlHeight / 16}rem`);
+    expect(theme.get('--spacing-table-row')).toBe(`${shape.webTableRowHeight / 16}rem`);
+  });
+
+  it('has the two families of Fulmis and none of the previous values', () => {
+    expect(css).toMatch(/--font-sans: var\(--font-geist\),/u);
+    expect(css).toMatch(/--font-mono: var\(--font-geist-mono\),/u);
+    expect(css).not.toMatch(/Hanken|Marcellus|Manrope|Georgia|oklch/iu);
+    expect(css).not.toMatch(/box-shadow|backdrop-filter/u);
+  });
+
+  it('rings the focus in the ink (§1.3)', () => {
+    const aliases = css.slice(css.indexOf('--background: var(--bg);'));
+    expect(aliases).toMatch(/--ring: var\(--text\);/u);
   });
 });
 

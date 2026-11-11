@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { findHygieneViolations, stripComments } from './hygiene';
+import {
+  findHygieneViolations,
+  findStrictHygieneViolations,
+  hygieneRules,
+  strictHygieneRules,
+  stripComments,
+} from './hygiene';
+import { palette, THEMES } from './tokens';
 
 const rules = (source: string, platform: 'mobile' | 'web') =>
   findHygieneViolations(source, platform).map((v) => v.rule);
+
+const strict = (source: string, platform: 'mobile' | 'web') =>
+  findStrictHygieneViolations(source, platform).map((v) => v.rule);
 
 describe('findHygieneViolations', () => {
   it('finds colours written by hand on both platforms', () => {
@@ -38,7 +48,7 @@ describe('findHygieneViolations', () => {
     // Values from the theme are fine.
     expect(
       rules(
-        'a: { fontSize: type.body.fontSize, borderRadius: shape.card, ...shadows.tabBar },',
+        'a: { fontSize: type.body.fontSize, borderRadius: shape.card, ...type.label },',
         'mobile',
       ),
     ).toEqual([]);
@@ -65,6 +75,25 @@ describe('findHygieneViolations', () => {
       'old-theme',
     ]);
     expect(rules("fontFamily: 'Georgia'", 'mobile')).toEqual(['old-theme']);
+  });
+
+  it('finds the family of the previous system, in any spelling', () => {
+    expect(rules("import { Hanken_Grotesk } from 'next/font/google';", 'web')).toEqual([
+      'old-font',
+    ]);
+    expect(rules("const font = 'HankenGrotesk_400Regular';", 'mobile')).toEqual(['old-font']);
+    expect(rules('<p className="font-[family-name:var(--font-hanken)]" />', 'web')).toEqual([
+      'old-font',
+    ]);
+    expect(rules("const font = 'Geist_400Regular';", 'mobile')).toEqual([]);
+  });
+
+  it('finds a shadow in a stylesheet too', () => {
+    expect(rules('.card { box-shadow: 0 1px 2px var(--separator); }', 'web')).toEqual(['shadow']);
+    expect(rules('.icon { filter: drop-shadow(0 1px 1px var(--text)); }', 'web')).toEqual([
+      'shadow',
+    ]);
+    expect(rules('.title { text-shadow: none; }', 'web')).toEqual(['shadow']);
   });
 
   it('ignores comments, which may name what is gone', () => {
@@ -102,6 +131,69 @@ describe('findHygieneViolations', () => {
     expect(found).toEqual([
       expect.objectContaining({ rule: 'font-size', line: 4, match: 'fontSize: 9' }),
     ]);
+  });
+});
+
+describe('findStrictHygieneViolations', () => {
+  it('finds a shadow where the kit used to keep its two', () => {
+    expect(strict('segment: { shadowColor: c.text, shadowOpacity: 0.08 },', 'mobile')).toEqual([
+      'shadow',
+      'shadow',
+    ]);
+    expect(strict('bar: { elevation: 8 },', 'mobile')).toEqual(['shadow']);
+    expect(strict("selected ? 'bg-cell shadow-xs' : 'text-text-dim'", 'web')).toEqual(['shadow']);
+    expect(strict('.bar { box-shadow: 0 8px 24px var(--separator); }', 'web')).toEqual(['shadow']);
+    expect(strict("<div style={{ boxShadow: 'none' }} />", 'web')).toEqual(['shadow']);
+  });
+
+  it('finds the previous family', () => {
+    expect(strict('--font-sans: var(--font-hanken), ui-sans-serif;', 'web')).toEqual(['old-font']);
+    expect(
+      strict(
+        "import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';",
+        'mobile',
+      ),
+    ).toEqual(['old-font', 'old-font']);
+  });
+
+  it('finds the hexes of the previous palette, in either case and with an alpha', () => {
+    expect(strict('--bg: #f4f2ee;', 'web')).toEqual(['old-palette']);
+    expect(strict("accent: '#1F5EFF',", 'mobile')).toEqual(['old-palette']);
+    expect(strict("scrim: '#131214CC',", 'mobile')).toEqual(['old-palette']);
+    expect(strict('--cell: #ffffff;', 'web')).toEqual(['old-palette']);
+    // A longer hex that only starts like one is another colour.
+    expect(strict("id: '#1F5EFF0',", 'mobile')).toEqual([]);
+  });
+
+  it('accepts every colour of Paper and Night, and the values a kit holds', () => {
+    for (const theme of THEMES) {
+      for (const value of Object.values(palette[theme])) {
+        expect(strict(`--token: ${value.toLowerCase()};`, 'web')).toEqual([]);
+        expect(strict(`token: '${value}',`, 'mobile')).toEqual([]);
+      }
+    }
+    // A kit may write a size or a radius; what it may not is the above.
+    expect(strict('title: { fontSize: 22, borderRadius: 8 },', 'mobile')).toEqual([]);
+    expect(
+      strict('<div className="rounded-md transition-[border-color,box-shadow]" />', 'web'),
+    ).toEqual([]);
+    expect(strict('--font-sans: var(--font-geist), ui-sans-serif, sans-serif;', 'web')).toEqual([]);
+  });
+
+  it('ignores comments, which may name what is gone', () => {
+    expect(strict('/* no shadow-md, no Hanken, not #1F5EFF */ a { color: red; }', 'web')).toEqual(
+      [],
+    );
+  });
+
+  it('is part of the rules outside the kits too', () => {
+    for (const platform of ['mobile', 'web'] as const) {
+      const ids = new Set(hygieneRules[platform].map((rule) => rule.id));
+      // The previous palette is covered there by `hex-color`: every hex is forbidden.
+      for (const rule of strictHygieneRules[platform]) {
+        expect(ids.has(rule.id === 'old-palette' ? 'hex-color' : rule.id)).toBe(true);
+      }
+    }
   });
 });
 

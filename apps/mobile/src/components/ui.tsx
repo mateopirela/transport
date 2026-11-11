@@ -1,6 +1,5 @@
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { fleetCopy, mobileAuthCopy, type StatusTone, toneColors } from '@transport/shared';
-import { BlurView } from 'expo-blur';
 import {
   Children,
   createContext,
@@ -36,7 +35,6 @@ import {
   lookOf,
   motion,
   opacity,
-  shadows,
   shape,
   spacing,
   tabBar,
@@ -46,12 +44,12 @@ import {
 import { Icon, type IconName } from './icons';
 
 /*
- * The kit of "Transport · Nativo" (docs/plan-rediseno.md §1.6): a screen on
- * the warm page with an optional large title, groups of white cells with
- * inset hairlines, pill buttons (one primary per screen), tinted status
- * pills, chips and a segmented control, fields, and loading and empty states
- * shaped like the content they stand for. Everything reads its colours and
- * type from useTheme(), so it follows the light and the dark theme.
+ * The kit of "Fulmis" (docs/plan-fulmis.md §1): a screen on the page with
+ * an optional large title, groups of cells with inset hairlines, pill
+ * buttons (one primary per screen), tinted status pills, chips and a
+ * segmented control, fields, and loading and empty states shaped like the
+ * content they stand for. Everything reads its colours and type from
+ * useTheme(), so it follows the light and the dark theme.
  */
 
 // ---------------------------------------------------------------------------
@@ -316,7 +314,11 @@ export function Cell({
   const body = (
     <>
       {icon ? (
-        <Icon name={icon} size={iconSize.cell} color={destructive ? colors.red : colors.textDim} />
+        <Icon
+          name={icon}
+          size={iconSize.cell}
+          color={destructive ? colors.redText : colors.textDim}
+        />
       ) : null}
       {leading}
       <View style={kit.cellText}>
@@ -586,7 +588,7 @@ export function Button({
 }
 
 /**
- * The bar that stays at the bottom of a screen, on the theme's glass: the
+ * The bar that stays at the bottom of a screen, solid on the cell colour: the
  * screen's one primary action, an optional secondary one beside it, a figure
  * on the left and a note under it. The screen keeps clear of it with
  * Screen's `bottom` and the height `onHeight` reports.
@@ -611,12 +613,10 @@ export function BottomBar({
   onHeight?: (height: number) => void;
 }) {
   const kit = useKit();
-  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <BlurView
-      intensity={40}
-      tint={theme}
+    <View
+      testID="bottom-bar"
       style={[kit.bar, { paddingBottom: insets.bottom + spacing.sm }]}
       onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}
     >
@@ -652,7 +652,7 @@ export function BottomBar({
         </View>
       </View>
       {note ? <Text style={[kit.caption, kit.center]}>{note}</Text> : null}
-    </BlurView>
+    </View>
   );
 }
 
@@ -1166,9 +1166,9 @@ function makeStyles({ colors, type, theme }: Look) {
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm + spacing.xs,
-      backgroundColor: colors.glass,
+      backgroundColor: colors.cell,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.glassLine,
+      borderTopColor: colors.separator,
       overflow: 'hidden',
     },
     barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + spacing.xs },
@@ -1187,7 +1187,7 @@ function makeStyles({ colors, type, theme }: Look) {
       paddingTop: spacing.sm + spacing.xs,
       textAlignVertical: 'top',
     },
-    inputError: { borderWidth: 1, borderColor: colors.red },
+    inputError: { borderWidth: 1, borderColor: colors.redText },
     checkRow: {
       flexDirection: 'row',
       gap: spacing.sm + spacing.xs,
@@ -1232,8 +1232,7 @@ function makeStyles({ colors, type, theme }: Look) {
       borderRadius: shape.pill,
       paddingHorizontal: spacing.sm,
     },
-    // The selected segment carries one of the two shadows of the system (§1.3).
-    segmentOn: { backgroundColor: lifted, ...shadows.segment },
+    segmentOn: { backgroundColor: lifted },
     segmentText: { ...type.subhead, color: colors.textDim },
     segmentTextOn: { ...type.subhead, fontFamily: type.headline.fontFamily, color: colors.text },
     chip: {

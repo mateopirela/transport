@@ -2,84 +2,131 @@
 @import 'tw-animate-css';
 
 /*
- * "Transport · Nativo" (D26, docs/plan-rediseno.md §1). The values mirror
- * packages/shared/src/design/tokens.ts; src/lib/theme-tokens.test.ts checks
- * that every colour matches. Light by default: without a `theme` cookie the
- * root layout sets `light` (D26-E1). Dark when the cookie chose dark, or when
- * it chose the system and the system asks for it.
+ * "Fulmis" (D26-E2, docs/plan-fulmis.md §1): Paper is the light theme, Night
+ * the dark one. The values mirror packages/shared/src/design/tokens.ts;
+ * src/lib/theme-tokens.test.ts checks that every colour, size and radius
+ * matches. Light by default: without a `theme` cookie the root layout sets
+ * `light` (D26-E1). Dark when the cookie chose dark, or when it chose the
+ * system and the system asks for it.
+ *
+ * The `--brand-*` colours are Night in both themes (the surfaces of the
+ * brand). The last block of each theme holds the temporary aliases of the
+ * keys Fulmis retires: V2 moves their consumers and V9 deletes them.
  */
 :root {
   color-scheme: light;
-  --bg: #f4f2ee;
-  --cell: #ffffff;
-  --separator: #e7e2da;
-  --surface-high: #ece8e2;
-  --text: #1a1917;
-  --text-dim: #6e6963;
-  --text-faint: #736d67;
-  --accent: #1f5eff;
-  --accent-text: #0f47d4;
-  --accent-ink: #ffffff;
-  --accent-soft: #e4ecff;
-  --ok: #2b8a57;
-  --ok-text: #1f6b43;
-  --amber: #b8781a;
-  --amber-text: #8a5a12;
-  --red: #c0392b;
-  --red-text: #a52e22;
-  --highlight: #f4e9da;
-  --glass: rgba(255, 255, 255, 0.74);
-  --glass-line: rgba(0, 0, 0, 0.06);
+  --bg: #e7d5ba;
+  --cell: #f0e8da;
+  --separator: #cdb894;
+  --surface-high: #dcc7a5;
+  --control: #7a6440;
+  --text: #121415;
+  --text-dim: #5c544b;
+  --accent: #e5630b;
+  --accent-ink: #121415;
+  --accent-text: #993c09;
+  --info: #0b5f8c;
+  --info-fill: #0b5f8c;
+  --info-ink: #f4efe6;
+  --amber: #fcd090;
+  --amber-ink: #121415;
+  --amber-text: #993c09;
+  --red: #61150d;
+  --red-ink: #f4efe6;
+  --red-text: #61150d;
+
+  --brand-bg: #121415;
+  --brand-text: #f4efe6;
+  --brand-text-dim: #a29a90;
+  --brand-line: #2c2f32;
+  --brand-selected: #1c1e20;
+  --brand-accent: #e5630b;
+
+  --text-faint: #5c544b;
+  --accent-soft: #e7d5ba;
+  --ok: #121415;
+  --ok-text: #121415;
+  --highlight: #f0e8da;
+  --glass: #f0e8da;
+  --glass-line: #cdb894;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
     color-scheme: dark;
-    --bg: #131214;
-    --cell: #1d1c1f;
-    --separator: #2d2b30;
-    --surface-high: #2a282c;
-    --text: #f2f0ee;
-    --text-dim: #a5a09b;
-    --text-faint: #8f8a84;
-    --accent: #5c8cff;
-    --accent-text: #8ab0ff;
-    --accent-ink: #0b1430;
-    --accent-soft: #1c2742;
-    --ok: #5fcf95;
-    --ok-text: #5fcf95;
-    --amber: #e9b45a;
-    --amber-text: #e9b45a;
-    --red: #ff8a7e;
-    --red-text: #ff8a7e;
-    --highlight: #3e3328;
-    --glass: rgba(29, 28, 31, 0.82);
-    --glass-line: rgba(255, 255, 255, 0.08);
+    --bg: #121415;
+    --cell: #1c1e20;
+    --separator: #2c2f32;
+    --surface-high: #261d18;
+    --control: #6e7377;
+    --text: #f4efe6;
+    --text-dim: #a29a90;
+    --accent: #e5630b;
+    --accent-ink: #121415;
+    --accent-text: #e5630b;
+    --info: #35a9de;
+    --info-fill: #065aa5;
+    --info-ink: #f4efe6;
+    --amber: #fcd090;
+    --amber-ink: #121415;
+    --amber-text: #fcd090;
+    --red: #61150d;
+    --red-ink: #f4efe6;
+    --red-text: #f2917f;
+
+    --brand-bg: #121415;
+    --brand-text: #f4efe6;
+    --brand-text-dim: #a29a90;
+    --brand-line: #2c2f32;
+    --brand-selected: #1c1e20;
+    --brand-accent: #e5630b;
+
+    --text-faint: #a29a90;
+    --accent-soft: #261d18;
+    --ok: #f4efe6;
+    --ok-text: #f4efe6;
+    --highlight: #1c1e20;
+    --glass: #1c1e20;
+    --glass-line: #2c2f32;
   }
 }
 
 :root.dark {
   color-scheme: dark;
-  --bg: #131214;
-  --cell: #1d1c1f;
-  --separator: #2d2b30;
-  --surface-high: #2a282c;
-  --text: #f2f0ee;
-  --text-dim: #a5a09b;
-  --text-faint: #8f8a84;
-  --accent: #5c8cff;
-  --accent-text: #8ab0ff;
-  --accent-ink: #0b1430;
-  --accent-soft: #1c2742;
-  --ok: #5fcf95;
-  --ok-text: #5fcf95;
-  --amber: #e9b45a;
-  --amber-text: #e9b45a;
-  --red: #ff8a7e;
-  --red-text: #ff8a7e;
-  --highlight: #3e3328;
-  --glass: rgba(29, 28, 31, 0.82);
-  --glass-line: rgba(255, 255, 255, 0.08);
+  --bg: #121415;
+  --cell: #1c1e20;
+  --separator: #2c2f32;
+  --surface-high: #261d18;
+  --control: #6e7377;
+  --text: #f4efe6;
+  --text-dim: #a29a90;
+  --accent: #e5630b;
+  --accent-ink: #121415;
+  --accent-text: #e5630b;
+  --info: #35a9de;
+  --info-fill: #065aa5;
+  --info-ink: #f4efe6;
+  --amber: #fcd090;
+  --amber-ink: #121415;
+  --amber-text: #fcd090;
+  --red: #61150d;
+  --red-ink: #f4efe6;
+  --red-text: #f2917f;
+
+  --brand-bg: #121415;
+  --brand-text: #f4efe6;
+  --brand-text-dim: #a29a90;
+  --brand-line: #2c2f32;
+  --brand-selected: #1c1e20;
+  --brand-accent: #e5630b;
+
+  --text-faint: #a29a90;
+  --accent-soft: #261d18;
+  --ok: #f4efe6;
+  --ok-text: #f4efe6;
+  --highlight: #1c1e20;
+  --glass: #1c1e20;
+  --glass-line: #2c2f32;
 }
 
 /* The shadcn names the components already use, on the tokens. */
@@ -93,35 +140,52 @@
   --accent-foreground: var(--accent-ink);
   --muted: var(--surface-high);
   --muted-foreground: var(--text-dim);
+  /* A fill (its ink is `--red-ink`); an error as text is `--red-text`. */
   --destructive: var(--red);
-  /* Success is mostly small text ("Verificada", "Entregado"): its AA tone. */
+  /* Fulmis has no green: "done" is the ink, and a fill of it takes the cell as its ink. */
   --success: var(--ok-text);
-  /* Ink on a success fill: white on the deep green, dark on the pale one. */
   --success-foreground: var(--cell);
   --border: var(--separator);
-  --input: var(--separator);
-  --ring: var(--accent);
+  --input: var(--control);
+  /* The focus ring is the ink (§1.3), in both themes. */
+  --ring: var(--text);
 }
 
 @theme inline {
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   --color-bg: var(--bg);
   --color-cell: var(--cell);
   --color-separator: var(--separator);
   --color-surface-high: var(--surface-high);
+  --color-control: var(--control);
   --color-text: var(--text);
   --color-text-dim: var(--text-dim);
-  --color-text-faint: var(--text-faint);
   --color-accent-text: var(--accent-text);
   --color-accent-ink: var(--accent-ink);
+  --color-info: var(--info);
+  --color-info-fill: var(--info-fill);
+  --color-info-ink: var(--info-ink);
+  --color-amber: var(--amber);
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-text: var(--amber-text);
+  --color-red: var(--red);
+  --color-red-ink: var(--red-ink);
+  --color-red-text: var(--red-text);
+
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-text: var(--brand-text);
+  --color-brand-text-dim: var(--brand-text-dim);
+  --color-brand-line: var(--brand-line);
+  --color-brand-selected: var(--brand-selected);
+  --color-brand-accent: var(--brand-accent);
+
+  /* Temporary aliases (V9 deletes them). */
+  --color-text-faint: var(--text-faint);
   --color-accent-soft: var(--accent-soft);
   --color-ok: var(--ok);
   --color-ok-text: var(--ok-text);
-  --color-amber: var(--amber);
-  --color-amber-text: var(--amber-text);
-  --color-red: var(--red);
-  --color-red-text: var(--red-text);
   --color-highlight: var(--highlight);
   --color-glass: var(--glass);
   --color-glass-line: var(--glass-line);
@@ -143,32 +207,42 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Radii (§1.3): tag 6, field 12, cell/group/card 16, pills `rounded-full`. */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 16px;
-  --radius-2xl: 16px;
+  /*
+   * Radii (§1.3): 0, 3, 8 and `rounded-full`. The classes keep the meaning
+   * the pages already give them: `rounded-sm` a chip and `rounded-md` a field
+   * (3), `rounded-lg` a button (8), `rounded-xl` and `rounded-2xl` a card, a
+   * table or a dialog (0).
+   */
+  --radius-sm: 3px;
+  --radius-md: 3px;
+  --radius-lg: 8px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
 
-  /* Type scale (§1.2), in rem: 17 px = 1.0625rem. */
+  /* Heights (§1.3): `h-control` for a control, `h-table-row` for a table row. */
+  --spacing-control: 2.5rem;
+  --spacing-table-row: 2.75rem;
+
+  /* Type scale (§1.2), in rem: 17 px = 1.0625rem. Tracking in em, as the tokens give it. */
   --text-large-title: 2.125rem;
   --text-large-title--line-height: 2.5625rem;
-  --text-large-title--letter-spacing: -0.75px;
-  --text-large-title--font-weight: 700;
+  --text-large-title--letter-spacing: -0.035em;
+  --text-large-title--font-weight: 800;
   --text-title1: 1.75rem;
   --text-title1--line-height: 2.125rem;
-  --text-title1--letter-spacing: -0.6px;
-  --text-title1--font-weight: 700;
+  --text-title1--letter-spacing: -0.035em;
+  --text-title1--font-weight: 800;
   --text-title2: 1.375rem;
   --text-title2--line-height: 1.75rem;
-  --text-title2--letter-spacing: -0.3px;
-  --text-title2--font-weight: 700;
+  --text-title2--letter-spacing: -0.035em;
+  --text-title2--font-weight: 800;
   --text-title3: 1.25rem;
   --text-title3--line-height: 1.5625rem;
-  --text-title3--letter-spacing: -0.24px;
-  --text-title3--font-weight: 600;
+  --text-title3--letter-spacing: -0.035em;
+  --text-title3--font-weight: 800;
   --text-headline: 1.0625rem;
   --text-headline--line-height: 1.375rem;
+  --text-headline--letter-spacing: 0em;
   --text-headline--font-weight: 600;
   --text-body: 1.0625rem;
   --text-body--line-height: 1.375rem;
@@ -180,9 +254,28 @@
   --text-footnote--line-height: 1.125rem;
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
-  --text-label: 0.8125rem;
-  --text-label--line-height: 1.125rem;
-  --text-label--font-weight: 600;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.14em;
+  --text-label--font-weight: 700;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1rem;
+  --text-meta--letter-spacing: 0.08em;
+  --text-meta--font-weight: 500;
+  --text-numeral: 2.125rem;
+  --text-numeral--line-height: 2.375rem;
+  --text-numeral--letter-spacing: -0.04em;
+  --text-numeral--font-weight: 900;
+}
+
+/* What a size cannot carry (§1.2): the two mono styles, and the capitals of a label. */
+@utility text-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+@utility text-meta {
+  font-family: var(--font-mono);
 }
 
 @layer base {
@@ -192,9 +285,11 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
   }
+  /* A title (§1.2); a heading with a step of the scale takes the step's own weight and tracking. */
   h1,
   h2,
   h3 {
-    @apply font-semibold tracking-tight;
+    font-weight: 800;
+    letter-spacing: -0.035em;
   }
 }

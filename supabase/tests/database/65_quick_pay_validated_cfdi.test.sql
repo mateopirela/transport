@@ -9,13 +9,15 @@
 --   * saving Fulmis' RFC validates the carrier CFDI made out to it (audited),
 --     and a carrier CFDI registered once the RFC is set is validated the same
 --     way; Fulmis' CFDI to the clients keep their validation; clearing the RFC
---     never takes a validation back;
+--     never takes a validation back; an RFC saved before this fix: the
+--     migration validates the CFDI made out to it
+--     (freight_validate_carrier_invoices);
 --   * nobody calls the new helpers.
 -- The race of a CFDI registered while the RFC is saved: 60_quick_pay_concurrency.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(30);
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
@@ -241,10 +243,10 @@ cross join public.document_requirements r
 where v.company_id = 'c6500000-0000-4000-8000-000000000002'
   and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
 
--- Seven delivered trips of $10,000 ($9,700 net).
+-- Eight delivered trips of $10,000 ($9,700 net).
 insert into tests.vals select 'trip' || i, tests.trip('a6500000-0000-4000-8000-000000000001',
   'a6500000-0000-4000-8000-000000000003', 'e6500000-0000-4000-8000-00000000000a', 1000000)
-from generate_series(1, 7) as i;
+from generate_series(1, 8) as i;
 update public.trips
 set status = 'delivered', vehicle_id = 'e6500000-0000-4000-8000-00000000000a',
     operator_id = 'd6500000-0000-4000-8000-000000000006', assigned_at = now(), started_at = now(), delivered_at = now()
@@ -252,7 +254,7 @@ where shipper_company_id = 'c6500000-0000-4000-8000-000000000001';
 
 -- Without Fulmis' RFC (null, as in production today), every CFDI is "Sin
 -- validar": trip1 and trip3 made out to the RFC Fulmis will set, trip2 and
--- trip6 to another one; trip4 and trip7 have none yet; trip5 has Fulmis' CFDI
+-- trip6 to another one; trip4, trip7 and trip8 have none yet; trip5 has Fulmis' CFDI
 -- to the client.
 select tests.cfdi(t, 'carrier_to_fulmis', 'FUL201015AB1') from unnest(array['trip1', 'trip3']) as t;
 select tests.cfdi(t, 'carrier_to_fulmis', 'OTR201015AB2') from unnest(array['trip2', 'trip6']) as t;
@@ -349,13 +351,36 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- Fulmis' RFC saved before this fix: the migration validates what it missed
+-- ---------------------------------------------------------------------------
+-- As before the migration: no trigger validates on saving the RFC nor on
+-- registering a CFDI.
+alter table public.platform_settings disable trigger platform_settings_fulmis_rfc_validates_invoices;
+alter table public.freight_invoices disable trigger freight_invoices_validate_receiver;
+update public.platform_settings set value = '"FUL201015AB1"' where key = 'fulmis.rfc';
+select tests.cfdi('trip8', 'carrier_to_fulmis', 'FUL201015AB1');
+alter table public.platform_settings enable trigger platform_settings_fulmis_rfc_validates_invoices;
+alter table public.freight_invoices enable trigger freight_invoices_validate_receiver;
+select is(tests.blocker('trip8'), 'invoice_unvalidated',
+  'a CFDI made out to an RFC saved before the fix is still "Sin validar"');
+select is(public.freight_validate_carrier_invoices(public.fulmis_rfc()), 1,
+  'the migration''s step validates it (and only it)');
+select is(
+  array[tests.validation('trip8'), tests.blocker('trip8'), tests.validation('trip7')],
+  array['validated', 'none', 'unvalidated'],
+  'so the quick pay is offered; the CFDI made out to another RFC stays "Sin validar"'
+);
+
+-- ---------------------------------------------------------------------------
 -- Nobody calls the helpers
 -- ---------------------------------------------------------------------------
 select ok(
   not has_function_privilege('authenticated', 'public.freight_carrier_invoice_blocker(uuid)', 'execute')
   and not has_function_privilege('service_role', 'public.freight_carrier_invoice_blocker(uuid)', 'execute')
-  and not has_function_privilege('anon', 'public.freight_carrier_invoice_blocker(uuid)', 'execute'),
-  'nobody calls freight_carrier_invoice_blocker'
+  and not has_function_privilege('anon', 'public.freight_carrier_invoice_blocker(uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'public.freight_validate_carrier_invoices(text)', 'execute')
+  and not has_function_privilege('service_role', 'public.freight_validate_carrier_invoices(text)', 'execute'),
+  'nobody calls freight_carrier_invoice_blocker nor freight_validate_carrier_invoices'
 );
 select ok(
   not has_function_privilege('authenticated', 'public.freight_invoices_validate_on_fulmis_rfc()', 'execute')

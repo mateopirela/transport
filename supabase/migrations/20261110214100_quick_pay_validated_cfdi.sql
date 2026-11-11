@@ -23,6 +23,8 @@
 --     registered while the RFC is being saved waits for it (a share lock on
 --     the setting's row) and is validated the same way, so none is left
 --     behind. The audit trigger of freight_invoices records each change.
+--     If the RFC was already saved before this migration, the CFDI made out
+--     to it are validated here.
 --   * Requests made before this fix are kept as they are, none is withdrawn
 --     in silence: an approved one (scheduled or paid) stays, Fulmis already
 --     committed to it; a pending one stays pending, the admin cannot approve
@@ -90,10 +92,35 @@ revoke all on function public.freight_quick_pay_blocker(public.trips, public.fre
 -- "Sin validar" ends when Fulmis sets its RFC
 -- ---------------------------------------------------------------------------
 
--- Saving fulmis.rfc validates the carrier CFDI made out to it. Only the
--- receiver was left unchecked on upload; a CFDI made out to another RFC
--- stays "Sin validar". (Fulmis' CFDI to the clients keep their validation:
--- out of this fix.)
+-- Validates the carrier CFDI "Sin validar" made out to p_rfc (Fulmis' RFC)
+-- and returns how many. Only the receiver was left unchecked on upload; a
+-- CFDI made out to another RFC stays "Sin validar". (Fulmis' CFDI to the
+-- clients keep their validation: out of this fix.)
+create function public.freight_validate_carrier_invoices(p_rfc text)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_count integer;
+begin
+  if p_rfc is null or p_rfc !~ '^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$' then
+    return 0;
+  end if;
+  update public.freight_invoices
+  set validation = 'validated'
+  where direction = 'carrier_to_fulmis'
+    and validation = 'unvalidated'
+    and receiver_rfc = p_rfc;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+revoke all on function public.freight_validate_carrier_invoices(text) from public, anon, authenticated, service_role;
+
+-- Saving fulmis.rfc validates the carrier CFDI made out to it.
 create function public.freight_invoices_validate_on_fulmis_rfc()
 returns trigger
 language plpgsql
@@ -101,12 +128,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  if jsonb_typeof(new.value) = 'string' and (new.value #>> '{}') ~ '^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$' then
-    update public.freight_invoices
-    set validation = 'validated'
-    where direction = 'carrier_to_fulmis'
-      and validation = 'unvalidated'
-      and receiver_rfc = (new.value #>> '{}');
+  if jsonb_typeof(new.value) = 'string' then
+    perform public.freight_validate_carrier_invoices(new.value #>> '{}');
   end if;
   return null;
 end;
@@ -147,6 +170,11 @@ create trigger freight_invoices_validate_receiver
 before insert on public.freight_invoices
 for each row
 execute function public.freight_invoices_validate_receiver();
+
+-- If Fulmis' RFC was already saved before this migration, the carrier CFDI
+-- registered "Sin validar" before it and made out to it are validated now
+-- (no trigger saw that save).
+select public.freight_validate_carrier_invoices(public.fulmis_rfc());
 
 -- ---------------------------------------------------------------------------
 -- Admin

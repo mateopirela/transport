@@ -4680,6 +4680,7 @@ export interface Database {
       freight_quick_pay_exposure_limit_cents: { Args: Record<PropertyKey, never>; Returns: number };
       freight_quick_pay_fee_bps: { Args: Record<PropertyKey, never>; Returns: number };
       freight_today: { Args: Record<PropertyKey, never>; Returns: string };
+      freight_validate_carrier_invoices: { Args: { p_rfc: string }; Returns: number };
       fulmis_rfc: { Args: Record<PropertyKey, never>; Returns: string };
       get_route_distances: {
         Args: { p_legs: Json };

@@ -94,7 +94,7 @@ Se retiran `textFaint`, `accentSoft`, `ok`/`okText`, `highlight`, `glass` y `gla
 | `textFaint` | los de `textDim` | sobre `bg` y `cell` |
 | `accentSoft` | `#e7d5ba` / `#261d18` | `accentText` encima: 4.9 / 4.8. **No** es `surfaceHigh`, que en Paper daría 4.25 |
 | `ok`, `okText` | los de `text` | `okText` sobre su suave |
-| `highlight` | los de `surfaceHigh` | `text` encima |
+| `highlight` | los de `cell` (`#f0e8da` / `#1c1e20`) | `text` y `amberText` encima (el aviso sin conexión de la app): 5.7 / 11.6. **No** es `surfaceHigh`, por lo mismo que `accentSoft` |
 | `glass`, `glassLine` | los de `cell` y `separator`, opacos | — |
 
 En el sistema final, lo que hoy usa `accentSoft` con `accentText` pasa al tono "Atención" o a `surfaceHigh` con tinta `text`.

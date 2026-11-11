@@ -10,8 +10,9 @@ import {
   mobilePhoneCopy,
   mobileSystemCopy,
   MX_STATES,
+  PLATFORM_NAME,
+  STATE_TONES,
   THEME_CHOICES,
-  TONES,
   vehicleKindLabels,
   verificationStatusLabels,
   type ThemeChoice,
@@ -93,7 +94,7 @@ function Kit() {
 
   return (
     <>
-      <Screen title={sample.title} eyebrow={sample.eyebrow} bottom={barHeight}>
+      <Screen title={sample.title} eyebrow={PLATFORM_NAME} bottom={barHeight}>
         <Segmented
           label={appearanceCopy.title}
           value={choice}
@@ -157,7 +158,7 @@ function Kit() {
         <Group>
           <ControlCell>
             <View style={styles.row}>
-              {TONES.map((tone) => (
+              {STATE_TONES.map((tone) => (
                 <Pill key={tone} label={sample.tones[tone]} tone={tone} />
               ))}
             </View>

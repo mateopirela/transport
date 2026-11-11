@@ -5,11 +5,8 @@ import {
   mobileAuthCopy,
   mobileKitCopy,
   PLATFORM_NAME,
-  statusToneColors,
-  toTone,
-  type LegacyTone,
-  type Tone,
-  type ToneColors,
+  stateToneColors,
+  type StateTone,
 } from '@transport/shared';
 import {
   Children,
@@ -42,7 +39,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { chunkRows, stepNumber, stepStates } from '../lib/kit';
+import { chunkRows, stepNumber, stepStates, toTone, type LegacyTone } from '../lib/kit';
 import {
   BrandSurface,
   font,
@@ -987,11 +984,22 @@ export function SearchBox({
  * The tones of a pill: the six of Fulmis (docs/plan-fulmis.md §1.1), and the
  * names the screens used before it, which read as the tone each one became.
  */
-export type PillTone = Tone | LegacyTone;
+export type PillTone = StateTone | LegacyTone;
+
+export interface PillColors {
+  readonly bg: string;
+  readonly fg: string;
+  /** `null` when the fill alone sets the pill apart. */
+  readonly border: string | null;
+  /** "Hecho" is the neutral pill with a check: Fulmis has no green. */
+  readonly check: boolean;
+}
 
 /** The fill, the ink, the outline and the check of a pill of `tone` in a theme. */
-export function pillColors(look: Look, tone: PillTone): ToneColors {
-  return statusToneColors(look.theme, toTone(tone));
+export function pillColors(look: Look, tone: PillTone): PillColors {
+  const state = toTone(tone);
+  const { fill, ink, border } = stateToneColors(look.theme, state);
+  return { bg: fill, fg: ink, border, check: state === 'done' };
 }
 
 /** The check of a pill, as high as its text. */
@@ -1111,7 +1119,7 @@ export function LoadError({
 export type NoticeTone = 'highlight' | 'info' | 'warning' | 'danger' | 'attention';
 
 /** The status tone and the icon each notice wears on its mark. */
-const NOTICE_MARK: Readonly<Record<NoticeTone, { tone: Tone; icon: IconName }>> = {
+const NOTICE_MARK: Readonly<Record<NoticeTone, { tone: StateTone; icon: IconName }>> = {
   highlight: { tone: 'done', icon: 'check' },
   info: { tone: 'progress', icon: 'info' },
   warning: { tone: 'pending', icon: 'warning' },
@@ -1138,7 +1146,7 @@ export function Notice({
   const kit = useKit();
   const { theme } = useTheme();
   const mark = NOTICE_MARK[tone];
-  const { bg, fg } = statusToneColors(theme, mark.tone);
+  const { fill: bg, ink: fg } = stateToneColors(theme, mark.tone);
   return (
     <View accessibilityRole={tone === 'danger' ? 'alert' : undefined} style={kit.notice}>
       <View style={[kit.noticeMark, { backgroundColor: bg }]}>

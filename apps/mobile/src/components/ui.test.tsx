@@ -4,8 +4,8 @@ import {
   palette,
   PLATFORM_NAME,
   shape,
-  statusToneColors,
-  TONES,
+  stateToneColors,
+  STATE_TONES,
   typeScale,
 } from '@transport/shared';
 import { act, type ReactElement } from 'react';
@@ -233,13 +233,16 @@ describe('Pill', () => {
   const checks = (root: ReactTestInstance) =>
     byType(root, 'Ionicons').filter((n) => n.props.name === glyphOf('check'));
 
-  it.each(TONES)('paints "%s" with the fill and the ink of the tone map (light)', async (tone) => {
-    const root = await render(<Pill label="Estado" tone={tone} />);
-    const colors = statusToneColors('light', tone);
-    expect(ground(root)).toBe(colors.bg);
-    expect(ink(root)).toBe(colors.fg);
-    expect(texts(root)).toEqual(['Estado']);
-  });
+  it.each(STATE_TONES)(
+    'paints "%s" with the fill and the ink of the tone map (light)',
+    async (tone) => {
+      const root = await render(<Pill label="Estado" tone={tone} />);
+      const colors = stateToneColors('light', tone);
+      expect(ground(root)).toBe(colors.fill);
+      expect(ink(root)).toBe(colors.ink);
+      expect(texts(root)).toEqual(['Estado']);
+    },
+  );
 
   it('keeps its wording as its accessible name, though it is drawn in capitals', async () => {
     const root = await render(<Pill label="Publicada por Transport" tone="attention" />);
@@ -253,7 +256,7 @@ describe('Pill', () => {
     expect(ground(root)).toBe(palette.light.surfaceHigh);
     expect(ink(root)).toBe(palette.light.text);
     expect(checks(root)).toHaveLength(1);
-    for (const tone of TONES.filter((t) => t !== 'done')) {
+    for (const tone of STATE_TONES.filter((t) => t !== 'done')) {
       expect(checks(await render(<Pill label="Estado" tone={tone} />))).toHaveLength(0);
     }
   });
@@ -270,7 +273,7 @@ describe('Pill', () => {
 
   it('is the inactive pill without a tone', async () => {
     const root = await render(<Pill label="Cerrado" />);
-    expect(ground(root)).toBe(statusToneColors('light', 'inactive').bg);
+    expect(ground(root)).toBe(stateToneColors('light', 'inactive').fill);
     expect(ink(root)).toBe(palette.light.textDim);
   });
 
@@ -284,8 +287,8 @@ describe('Pill', () => {
     ] as const;
     for (const [before, tone] of renamed) {
       const root = await render(<Pill label="Estado" tone={before} />);
-      expect(ground(root)).toBe(statusToneColors('light', tone).bg);
-      expect(ink(root)).toBe(statusToneColors('light', tone).fg);
+      expect(ground(root)).toBe(stateToneColors('light', tone).fill);
+      expect(ink(root)).toBe(stateToneColors('light', tone).ink);
     }
   });
 
@@ -296,8 +299,8 @@ describe('Pill', () => {
         <Pill label="Vencido" tone="problem" />
       </ThemeProvider>,
     );
-    expect(ground(root)).toBe(statusToneColors('dark', 'problem').bg);
-    expect(ink(root)).toBe(statusToneColors('dark', 'problem').fg);
+    expect(ground(root)).toBe(stateToneColors('dark', 'problem').fill);
+    expect(ink(root)).toBe(stateToneColors('dark', 'problem').ink);
   });
 });
 
@@ -319,7 +322,7 @@ describe('Notice', () => {
           Vence en 3 días.
         </Notice>,
       );
-      expect(mark(root)).toBe(statusToneColors('light', status).bg);
+      expect(mark(root)).toBe(stateToneColors('light', status).fill);
       expect(icon(root)).toBe(glyphOf(glyph));
       expect(texts(root)).toEqual(['Sube tu constancia', 'Vence en 3 días.']);
       expect(styleOf(at(byType(root, 'View'))).backgroundColor).toBe(palette.light.cell);

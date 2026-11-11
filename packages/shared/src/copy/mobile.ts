@@ -146,7 +146,6 @@ export const mobileKitCopy = {
   stepOf: (step: number, count: number) => `Paso ${step} de ${count}`,
   sample: {
     title: 'Muestra del kit',
-    eyebrow: 'Fulmis',
     tones: {
       attention: 'Requiere atención',
       progress: 'En curso',

@@ -1,6 +1,39 @@
+import { STATE_TONES, STATUS_TONES } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
-import { badgeText, chunkRows, stepNumber, stepStates } from './kit';
+import {
+  badgeText,
+  chunkRows,
+  LEGACY_TONES,
+  stepNumber,
+  stepStates,
+  toTone,
+  type LegacyTone,
+} from './kit';
+
+describe('the names of a pill before Fulmis', () => {
+  it('each have a tone, the quiet one included', () => {
+    const names: LegacyTone[] = [...STATUS_TONES, 'neutral'];
+    expect(Object.keys(LEGACY_TONES).sort()).toEqual([...names].sort());
+    for (const name of names) expect(STATE_TONES).toContain(toTone(name));
+  });
+
+  it('map to the tone that means the same', () => {
+    expect(toTone('accent')).toBe('attention');
+    expect(toTone('ok')).toBe('done');
+    expect(toTone('amber')).toBe('pending');
+    expect(toTone('red')).toBe('problem');
+    expect(toTone('neutral')).toBe('inactive');
+  });
+
+  it('leave a tone of the system as it is', () => {
+    for (const tone of STATE_TONES) expect(toTone(tone)).toBe(tone);
+  });
+
+  it('do not take a name inherited from Object for a tone', () => {
+    expect(toTone('toString' as LegacyTone)).toBe('toString');
+  });
+});
 
 describe('stepStates', () => {
   it('marks what is behind as done, the step in course and what waits', () => {

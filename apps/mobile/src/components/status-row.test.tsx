@@ -1,4 +1,4 @@
-import { statusToneColors } from '@transport/shared';
+import { stateToneColors } from '@transport/shared';
 import { act, type ReactElement } from 'react';
 import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -53,7 +53,7 @@ describe('StatusRow', () => {
     // The pill is the ink of its tone on the tone's fill (the kit's Pill).
     const pill = root.findAll((n) => String(n.type) === 'Text').at(-1);
     expect([pill?.props.style].flat(Infinity)).toContainEqual({
-      color: statusToneColors('light', 'done').fg,
+      color: stateToneColors('light', 'done').ink,
     });
   });
 

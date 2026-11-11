@@ -12,6 +12,23 @@ export function formatMxn(cents: number | bigint | string): string {
   return mxn.format(toCents(cents) / 100);
 }
 
+const mxnWhole = new Intl.NumberFormat(APP_LOCALE, {
+  style: 'currency',
+  currency: APP_CURRENCY,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * Formats integer MXN cents for a screen of Fulmis (docs/plan-fulmis.md §1.5):
+ * whole pesos drop the `.00` (4000000 → "$40,000") and an amount with cents
+ * keeps both digits (1234550 → "$12,345.50"). `formatMxn` always writes them.
+ */
+export function formatMoney(cents: number | bigint | string): string {
+  const value = toCents(cents);
+  return value % 100 === 0 ? mxnWhole.format(value / 100) : mxn.format(value / 100);
+}
+
 const dateFormat = new Intl.DateTimeFormat(APP_LOCALE, {
   timeZone: APP_TIME_ZONE,
   day: 'numeric',

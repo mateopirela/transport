@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { focusRing } from '@/components/ui/variants';
 import { selectBusinessUnit } from '@/lib/carrier/actions';
 import { ALL_BUSINESS_UNITS, type BusinessUnitOption } from '@/lib/carrier/business-units';
+import { cn } from '@/lib/utils';
 
 const c = carrierWebCopy.businessUnit;
 
@@ -45,7 +47,10 @@ export function BusinessUnitPicker({
         name="unidad"
         defaultValue={selectedId ?? ALL_BUSINESS_UNITS}
         onChange={() => form.current?.requestSubmit()}
-        className="h-8 max-w-56 cursor-pointer rounded-full border bg-cell px-3 text-subhead text-text outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        className={cn(
+          'h-8 max-w-56 cursor-pointer rounded-sm border border-control bg-cell px-3 text-footnote text-text',
+          focusRing,
+        )}
       >
         <option value={ALL_BUSINESS_UNITS}>{c.all}</option>
         {operable.map((unit) => (

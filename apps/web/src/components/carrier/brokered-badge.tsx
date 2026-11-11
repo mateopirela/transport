@@ -9,7 +9,7 @@ import { Tag } from '@/components/ui/tag';
  */
 export function BrokeredTag({ className }: { className?: string }) {
   return (
-    <Tag tone="accent" className={className} data-testid="brokered-badge">
+    <Tag tone="progress" className={className} data-testid="brokered-badge">
       {brokeredCopy.badge}
     </Tag>
   );

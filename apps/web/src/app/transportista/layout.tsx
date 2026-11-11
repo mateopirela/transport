@@ -3,11 +3,23 @@ import {
   carrierWebCopy,
   freightCopy,
   managerCompanyCopy,
+  navCopy,
   notificationsInboxCopy,
   shellCopy,
 } from '@transport/shared';
+import {
+  Bell,
+  Building2,
+  CreditCard,
+  Handshake,
+  House,
+  Package,
+  Route,
+  Truck,
+  Wallet,
+} from 'lucide-react';
 
-import { AppShell } from '@/components/app-shell';
+import { AppShell, type ShellNavGroup } from '@/components/app-shell';
 import { BillingBanner } from '@/components/billing/billing-banner';
 import { BusinessUnitPicker } from '@/components/carrier/business-unit-picker';
 import { NotificationBadge } from '@/components/notifications/notification-badge';
@@ -29,25 +41,71 @@ export default async function CarrierLayout({ children }: { children: React.Reac
     // The banner never takes the carrier area down.
     loadBillingState(supabase).catch(() => null),
   ]);
-  const nav = [
-    { href: paths.carrier, label: carrierWebCopy.nav.home },
-    { href: paths.carrierLoads, label: carrierWebCopy.nav.loads },
-    { href: paths.carrierNegotiations, label: carrierWebCopy.nav.negotiations },
-    { href: paths.carrierTrips, label: carrierWebCopy.nav.trips },
-    { href: paths.carrierUnits, match: paths.carrierFleet, label: carrierWebCopy.nav.fleet },
-    { href: paths.carrierCollections, label: freightCopy.collections.title },
-    ...(isManager ? [{ href: paths.carrierCompany, label: managerCompanyCopy.title }] : []),
-    { href: paths.carrierSubscription, label: billingCopy.title },
+  const groups: ShellNavGroup[] = [
     {
-      href: paths.carrierNotifications,
-      label: notificationsInboxCopy.nav,
-      badge: <NotificationBadge key={unread} userId={viewer.userId} initialCount={unread} />,
+      items: [{ href: paths.carrier, label: carrierWebCopy.nav.home, icon: <House aria-hidden /> }],
+    },
+    {
+      label: navCopy.groups.operation,
+      items: [
+        {
+          href: paths.carrierLoads,
+          label: carrierWebCopy.nav.loads,
+          icon: <Package aria-hidden />,
+        },
+        {
+          href: paths.carrierNegotiations,
+          label: carrierWebCopy.nav.negotiations,
+          icon: <Handshake aria-hidden />,
+        },
+        { href: paths.carrierTrips, label: carrierWebCopy.nav.trips, icon: <Route aria-hidden /> },
+      ],
+    },
+    {
+      label: navCopy.groups.company,
+      items: [
+        {
+          href: paths.carrierUnits,
+          match: paths.carrierFleet,
+          label: carrierWebCopy.nav.fleet,
+          icon: <Truck aria-hidden />,
+        },
+        {
+          href: paths.carrierCollections,
+          label: freightCopy.collections.title,
+          icon: <Wallet aria-hidden />,
+        },
+        ...(isManager
+          ? [
+              {
+                href: paths.carrierCompany,
+                label: managerCompanyCopy.title,
+                icon: <Building2 aria-hidden />,
+              },
+            ]
+          : []),
+        {
+          href: paths.carrierSubscription,
+          label: billingCopy.title,
+          icon: <CreditCard aria-hidden />,
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          href: paths.carrierNotifications,
+          label: notificationsInboxCopy.nav,
+          icon: <Bell aria-hidden />,
+          badge: <NotificationBadge key={unread} userId={viewer.userId} initialCount={unread} />,
+        },
+      ],
     },
   ];
   return (
     <AppShell
       area={isManager ? shellCopy.managerArea : shellCopy.coordinatorArea}
-      nav={nav}
+      groups={groups}
       toolbar={
         <BusinessUnitPicker operable={units.operable} selectedId={units.selected?.id ?? null} />
       }

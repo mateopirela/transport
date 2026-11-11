@@ -7,6 +7,7 @@ import {
   formatDateTime,
   formatDistance,
   formatDuration,
+  formatMoney,
   formatMxn,
   formatTime,
 } from './formatters';
@@ -30,6 +31,34 @@ describe('formatMxn', () => {
 
   it('refuses fractional cents', () => {
     expect(() => formatMxn(10.5)).toThrow();
+  });
+});
+
+describe('formatMoney', () => {
+  it('drops the cents of a whole amount', () => {
+    expect(formatMoney(4_000_000)).toBe('$40,000');
+    expect(formatMoney(100)).toBe('$1');
+    expect(formatMoney(0)).toBe('$0');
+    expect(plain(formatMoney(-970_000))).toBe('-$9,700');
+    expect(formatMoney(10_000_000_000n)).toBe('$100,000,000');
+    expect(formatMoney('3880000')).toBe('$38,800');
+  });
+
+  it('keeps both digits when there are cents', () => {
+    expect(formatMoney(1_234_550)).toBe('$12,345.50');
+    expect(formatMoney(5)).toBe('$0.05');
+    expect(formatMoney(4_000_010)).toBe('$40,000.10');
+    expect(plain(formatMoney(-1050))).toBe('-$10.50');
+    expect(formatMoney('99')).toBe('$0.99');
+  });
+
+  it('never rounds an amount into whole pesos', () => {
+    expect(formatMoney(99_999)).toBe('$999.99');
+    expect(formatMoney(100_001)).toBe('$1,000.01');
+  });
+
+  it('refuses fractional cents, like formatMxn', () => {
+    expect(() => formatMoney(10.5)).toThrow();
   });
 });
 

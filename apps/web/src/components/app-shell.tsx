@@ -1,34 +1,47 @@
-import { authCopy, shellCopy, supportRoleLabel } from '@transport/shared';
+import { shellCopy, supportRoleLabel } from '@transport/shared';
 import { cookies } from 'next/headers';
-import Link from 'next/link';
 
-import { AccountMenu, NavTabs, type ShellNavItem } from '@/components/app-shell-client';
+import { ShellChrome, type ShellNavGroup, type ShellNavItem } from '@/components/app-shell-client';
 import { Button } from '@/components/ui/button';
 import { signOut } from '@/lib/auth/actions';
 import { loadSupportSettings } from '@/lib/support/queries';
 import { themeChoiceFromCookie, THEME_COOKIE } from '@/lib/theme';
 import type { ViewerDetails } from '@/lib/viewer';
 
-/** The width of a page (§1.3): 1040 px, 16 from the edges on a phone and 24 from a tablet up. */
+export type { ShellNavGroup, ShellNavItem };
+
+/** The width of a public page: 1040 px, 16 from the edges on a phone and 24 from a tablet up. */
 export const PAGE_CONTAINER = 'mx-auto w-full max-w-260 px-4 sm:px-6';
 
 /**
+ * The width of a page inside the shell (§1.5): up to 1200 px next to the
+ * sidebar, so a table of six columns fits at 1440; 16 from the edges on a
+ * phone, 24 from a tablet and 40 on the desktop.
+ */
+const SHELL_CONTAINER = 'mx-auto w-full max-w-300 px-4 sm:px-6 lg:px-10';
+
+/**
  * The frame of a signed-in area (Cliente, Gerente or Coordinador, or Admin;
- * §1.6): a light glass bar that stays on top, with the name and the area, the
- * account on the right, and under them the sections as text tabs and any
- * controls of the area (the business unit picker).
+ * §1.5): the sidebar with the brand, the sections in `groups` and the account
+ * (a top bar with a menu panel under 1024 px), and the page next to it.
+ *
+ * `cta` is the action of the area that lives in the navigation (the Cliente's
+ * "Publicar carga"): an outlined link above the sections. `toolbar` holds the
+ * controls that narrow every page of the area (the business unit picker), in
+ * a strip over the page.
  */
 export async function AppShell({
   area,
-  nav,
+  groups = [],
+  cta,
   toolbar,
   viewer,
   children,
 }: {
   area?: string;
-  /** Sections of the area, optionally with a badge. */
-  nav?: readonly ShellNavItem[];
-  /** Controls at the end of the section bar (e.g. the business unit picker). */
+  /** The sections of the area, in groups; each with an icon and maybe a counter. */
+  groups?: readonly ShellNavGroup[];
+  cta?: ShellNavItem;
   toolbar?: React.ReactNode;
   viewer: ViewerDetails;
   children: React.ReactNode;
@@ -45,30 +58,24 @@ export async function AppShell({
       }
     : null;
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-glass-line bg-glass backdrop-blur-xl backdrop-saturate-150">
-        <div className={`${PAGE_CONTAINER} flex h-14 items-center gap-3`}>
-          <Link href="/" className="text-headline text-text">
-            {authCopy.appName}
-          </Link>
-          {area && <span className="text-subhead text-text-dim">{area}</span>}
-          <div className="ml-auto">
-            <AccountMenu
-              name={viewer.fullName}
-              company={viewer.company?.legalName ?? null}
-              theme={theme}
-              help={help}
-            />
+    <div className="flex min-h-dvh flex-col lg:pl-60">
+      <ShellChrome
+        area={area}
+        groups={groups}
+        cta={cta}
+        name={viewer.fullName}
+        company={viewer.company?.legalName ?? null}
+        theme={theme}
+        help={help}
+      />
+      {toolbar && (
+        <div className="border-b">
+          <div className={`${SHELL_CONTAINER} flex min-h-12 items-center justify-end py-2`}>
+            {toolbar}
           </div>
         </div>
-        {(nav ?? toolbar) && (
-          <div className={`${PAGE_CONTAINER} flex flex-wrap items-center gap-x-4`}>
-            {nav && <NavTabs items={nav} />}
-            {toolbar && <div className="ml-auto py-1.5">{toolbar}</div>}
-          </div>
-        )}
-      </header>
-      <main className={`${PAGE_CONTAINER} flex-1 py-8 sm:py-10`}>{children}</main>
+      )}
+      <main className={`${SHELL_CONTAINER} flex-1 py-8 lg:py-10 lg:text-subhead`}>{children}</main>
     </div>
   );
 }

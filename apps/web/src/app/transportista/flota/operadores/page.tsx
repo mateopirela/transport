@@ -27,10 +27,10 @@ export const metadata: Metadata = { title: c.operators.title };
 
 /** Whether the operator already uses the app, was invited or is not invited yet (D15), as a pill. */
 function AccountPill({ operator }: { operator: OperatorSummary }) {
-  if (operator.profile_id) return <Pill tone="ok">{fleetCopy.operators.linked}</Pill>;
+  if (operator.profile_id) return <Pill tone="done">{fleetCopy.operators.linked}</Pill>;
   if (operator.invitation) {
     return (
-      <Pill tone="accent">
+      <Pill tone="pending">
         {fleetCopy.operators.invited(formatDate(operator.invitation.expires_at))}
       </Pill>
     );

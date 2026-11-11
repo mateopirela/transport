@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils';
 import { groupRow } from './variants';
 
 /**
- * A row of a `Group` (§1.6): 50 px or more, an optional icon on a tile, the
- * title and up to two lines under it, a value or a pill on the right, and a
- * chevron when it opens something (`href`). `children` go under the text, the
- * whole width (a form, a list of documents).
+ * A row of a `Group` (§1.3): 44 px or more, an optional icon, the title and
+ * up to two lines under it, a value or a pill on the right, and a chevron
+ * when it opens something (`href`). `children` go under the text, the whole
+ * width (a form, a list of documents).
  */
 export function Cell({
   title,
@@ -34,25 +34,21 @@ export function Cell({
 }) {
   const body = (
     <>
-      {Icon && (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-high text-text-dim">
-          <Icon aria-hidden className="size-4.5" />
-        </span>
-      )}
+      {Icon && <Icon aria-hidden className="size-4.5 shrink-0 text-text-dim" />}
       <span className="min-w-0 flex-1">
-        {title && <span className="block text-body text-text">{title}</span>}
+        {title && <span className="block text-subhead font-medium text-text">{title}</span>}
         {subtitle && (
-          <span className="mt-0.5 line-clamp-2 block text-subhead text-text-dim">{subtitle}</span>
+          <span className="mt-0.5 line-clamp-2 block text-footnote text-text-dim">{subtitle}</span>
         )}
       </span>
       {value !== undefined && (
         <span className="shrink-0 text-subhead text-text-dim tabular-nums">{value}</span>
       )}
       {trailing}
-      {href && <ChevronRight aria-hidden className="size-4.5 shrink-0 text-text-faint" />}
+      {href && <ChevronRight aria-hidden className="size-4 shrink-0 text-text-dim" />}
     </>
   );
-  const row = 'flex min-h-12.5 items-center gap-3 px-4 py-2.5';
+  const row = 'flex min-h-table-row items-center gap-3 px-4 py-2.5';
   if (href) {
     return (
       <Link
@@ -60,7 +56,8 @@ export function Cell({
         className={cn(
           groupRow,
           row,
-          'transition-colors duration-150 outline-none hover:bg-surface-high/60 focus-visible:bg-surface-high',
+          // The page colour, not the raised surface: a row may hold accent text (§1.1).
+          'transition-colors duration-150 hover:bg-bg focus-visible:bg-bg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-text',
           className,
         )}
       >
@@ -73,7 +70,7 @@ export function Cell({
       {children ? (
         <>
           {(title ?? subtitle ?? value ?? trailing ?? Icon) && (
-            <div className="flex min-h-7.5 items-center gap-3">{body}</div>
+            <div className="flex min-h-7 items-center gap-3">{body}</div>
           )}
           {children}
         </>
@@ -98,12 +95,12 @@ export function ValueRow({
     <div
       className={cn(
         groupRow,
-        'flex min-h-12.5 flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-4 py-2.5',
+        'flex min-h-table-row flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-4 py-2.5',
         className,
       )}
     >
-      <span className="text-subhead text-text-dim">{label}</span>
-      <span className="text-body text-text tabular-nums">{children}</span>
+      <span className="text-footnote text-text-dim">{label}</span>
+      <span className="text-subhead font-medium text-text tabular-nums">{children}</span>
     </div>
   );
 }

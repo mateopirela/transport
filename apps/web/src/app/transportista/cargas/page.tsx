@@ -145,7 +145,7 @@ export default async function CarrierLoadsPage({
                 <td>
                   <span className="font-semibold text-text">{loadRoute(load)}</span>
                   {load.status === 'negotiating' && (
-                    <Pill tone="accent" className="ml-2">
+                    <Pill tone="progress" className="ml-2">
                       {c.negotiating}
                     </Pill>
                   )}

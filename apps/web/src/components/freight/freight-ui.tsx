@@ -3,9 +3,7 @@ import {
   formatInvoiceIssuedDate,
   formatMxn,
   freightCarrierStatusLabels,
-  freightCarrierStatusTone,
   freightClientStatusLabels,
-  freightClientStatusTone,
   freightInvoicesCopy,
   freightInvoiceValidationLabels,
   shortCfdiUuid,
@@ -18,6 +16,7 @@ import { textLink } from '@/components/page-section';
 import { Pill } from '@/components/ui/pill';
 import type { FreightInvoice } from '@/lib/freight/invoices';
 import { invoiceFileHref, type InvoiceArea } from '@/lib/freight/invoice-links';
+import { freightCarrierTone, freightClientTone } from '@/lib/status-tones';
 import { cn } from '@/lib/utils';
 
 /** The totals of Cobranza or Cartera: up to three tiles, the amount large. */
@@ -50,11 +49,11 @@ export function FreightTotals({
 }
 
 export function ClientStatusPill({ status }: { status: FreightClientStatus }) {
-  return <Pill tone={freightClientStatusTone(status)}>{freightClientStatusLabels[status]}</Pill>;
+  return <Pill tone={freightClientTone(status)}>{freightClientStatusLabels[status]}</Pill>;
 }
 
 export function CarrierStatusPill({ status }: { status: FreightCarrierStatus }) {
-  return <Pill tone={freightCarrierStatusTone(status)}>{freightCarrierStatusLabels[status]}</Pill>;
+  return <Pill tone={freightCarrierTone(status)}>{freightCarrierStatusLabels[status]}</Pill>;
 }
 
 /** A calendar date ("10 dic 2026"), or the fallback when there is none. */
@@ -88,7 +87,7 @@ export function InvoiceSummary({
       </p>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-subhead">
         {showValidation && (
-          <Pill tone={invoice.validation === 'validated' ? 'ok' : 'amber'}>
+          <Pill tone={invoice.validation === 'validated' ? 'done' : 'pending'}>
             {freightInvoiceValidationLabels[invoice.validation]}
           </Pill>
         )}

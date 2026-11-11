@@ -19,10 +19,20 @@ export const TYPE_STYLES = [
   'label',
   'meta',
   'numeral',
+  'table',
 ] as const;
 
+/**
+ * The heights of globals.css (§1.3). Without them, tailwind-merge does not see
+ * `h-control` as a height and keeps it next to the `h-auto` that replaces it.
+ */
+export const SIZE_STEPS = ['control', 'table-row'] as const;
+
 const twMerge = extendTailwindMerge({
-  extend: { classGroups: { 'font-size': [{ text: [...TYPE_STYLES] }] } },
+  extend: {
+    theme: { spacing: [...SIZE_STEPS] },
+    classGroups: { 'font-size': [{ text: [...TYPE_STYLES] }] },
+  },
 });
 
 export function cn(...inputs: ClassValue[]) {

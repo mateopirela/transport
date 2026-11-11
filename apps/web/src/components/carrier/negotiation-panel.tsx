@@ -187,7 +187,7 @@ export function CarrierNegotiationPanel({
                         : c.side[offer.side]}{' '}
                       · {formatMxn(offer.amount_cents)}
                     </p>
-                    <Pill tone={offer.status === 'accepted' ? 'ok' : 'neutral'}>
+                    <Pill tone={offer.status === 'accepted' ? 'done' : 'inactive'}>
                       {offerStatusLabels[offer.status]}
                     </Pill>
                   </div>

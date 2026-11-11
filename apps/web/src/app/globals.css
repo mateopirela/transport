@@ -266,6 +266,9 @@
   --text-numeral--line-height: 2.375rem;
   --text-numeral--letter-spacing: -0.04em;
   --text-numeral--font-weight: 900;
+  /* Tables are 14 px on the web (§1.2); only the kit's table uses this step. */
+  --text-table: 0.875rem;
+  --text-table--line-height: 1.25rem;
 }
 
 /* What a size cannot carry (§1.2): the two mono styles, and the capitals of a label. */

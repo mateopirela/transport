@@ -99,7 +99,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
       {companyId && (
         <div className="mb-6 flex flex-wrap items-center gap-2 text-subhead">
           <span className="text-text-dim">{c.filtered}</span>
-          <Pill tone="accent">{names.get(companyId) ?? companyId}</Pill>
+          <Pill>{names.get(companyId) ?? companyId}</Pill>
           <Link
             href={paths.adminAudit}
             className={buttonVariants({ variant: 'plain', size: 'sm' })}

@@ -18,11 +18,11 @@ const c = carrierWebCopy.negotiations;
 
 export const metadata: Metadata = { title: c.title };
 
-/** The state's pill: the accent when it is the carrier's turn, green when won. */
+/** The state's pill: attention when it is the carrier's turn, done when won. */
 function stateTone(state: keyof typeof c.stateLabels): PillTone {
-  if (state === 'won') return 'ok';
-  if (state === 'respond') return 'accent';
-  return 'neutral';
+  if (state === 'won') return 'done';
+  if (state === 'respond') return 'attention';
+  return 'inactive';
 }
 
 /** The company's negotiations of the selected business units, most recent first (G10a). */

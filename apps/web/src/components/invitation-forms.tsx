@@ -63,7 +63,7 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
     return (
       <div className="space-y-4">
         <Notice tone="success">{copy.doneTitle}</Notice>
-        <p className="px-1 text-callout text-text-dim">{copy.doneDescription}</p>
+        <p className="text-callout text-text-dim">{copy.doneDescription}</p>
         <a href={OPEN_APP_LINK} className={buttonVariants({ className: 'w-full' })}>
           {c.operator.openApp}
         </a>
@@ -109,7 +109,7 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
       <Button type="submit" className="mt-2 w-full" disabled={pending} loading={pending}>
         {pending ? copy.pending : copy.submit}
       </Button>
-      <p className="text-center text-subhead">
+      <p className="text-subhead">
         <Link href="/login" className="font-semibold text-accent-text hover:underline">
           {authCopy.signUp.signInLink}
         </Link>

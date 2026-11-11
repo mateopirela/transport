@@ -15,12 +15,12 @@ export function Select({ className, ...props }: React.ComponentProps<'select'>) 
   return (
     <span className={cn('relative block', className)}>
       <select
-        className={cn(fieldControl, 'h-11 cursor-pointer appearance-none pr-10')}
+        className={cn(fieldControl, 'h-control cursor-pointer appearance-none pr-9')}
         {...props}
       />
       <ChevronDown
         aria-hidden
-        className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-text-dim"
+        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-text-dim"
       />
     </span>
   );

@@ -23,7 +23,7 @@ export function LoadStatusBadge({
   const stage = brokeredClientStage(quoteStatus, status);
   if (stage) {
     return (
-      <Pill tone={stage === 'quoted' ? 'amber' : 'accent'}>
+      <Pill tone={stage === 'quoted' ? 'attention' : 'progress'}>
         {brokeredCopy.shipper.stage[stage]}
       </Pill>
     );

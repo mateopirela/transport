@@ -4,18 +4,18 @@ import { cn } from '@/lib/utils';
 
 /** The small label over a group (§1.2 `label`). */
 export function GroupLabel({ className, ...props }: React.ComponentProps<'h2'>) {
-  return <h2 className={cn('mb-1.5 px-4 text-label text-text-dim', className)} {...props} />;
+  return <h2 className={cn('mb-2 text-label text-text-dim', className)} {...props} />;
 }
 
 /** The line under a group: a footnote that explains it. */
 export function GroupFooter({ className, ...props }: React.ComponentProps<'p'>) {
-  return <p className={cn('mt-1.5 px-4 text-footnote text-text-dim', className)} {...props} />;
+  return <p className={cn('mt-2 text-footnote text-text-dim', className)} {...props} />;
 }
 
 /**
- * A group of cells (§1.6): white on the warm page, radius 16, a hairline,
- * and the separators of its `Cell`s inset 16. `label` and `footer` sit
- * outside it, above and below.
+ * A group of cells (§1.3): a cell with a hairline and no radius, and the
+ * separators of its `Cell`s inset 16. `label` and `footer` sit outside it,
+ * above and below.
  */
 export function Group({
   label,
@@ -30,7 +30,7 @@ export function Group({
   return (
     <section className={className} {...props}>
       {label && <GroupLabel>{label}</GroupLabel>}
-      <div className="overflow-hidden rounded-2xl border bg-cell">{children}</div>
+      <div className="overflow-hidden border bg-cell">{children}</div>
       {footer && <GroupFooter>{footer}</GroupFooter>}
     </section>
   );

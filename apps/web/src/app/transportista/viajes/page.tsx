@@ -46,7 +46,7 @@ function UnreadBadge({ tripId, count }: { tripId: string; count: number }) {
       title={internalChatCopy.unreadLabel(count)}
       className="ml-2 inline-flex align-middle"
     >
-      <Pill tone="accent">
+      <Pill tone="attention">
         <MessageCircle aria-hidden className="size-3" />
         {internalChatCopy.unreadBadge(count)}
       </Pill>
@@ -108,7 +108,7 @@ export default async function CarrierTripsPage({
         />
         {narrowed && (
           <div className="flex flex-wrap items-center gap-1">
-            <Pill tone="accent">{c.forBusinessUnit(narrowed.name)}</Pill>
+            <Pill>{c.forBusinessUnit(narrowed.name)}</Pill>
             <Link
               href={withParams(paths.carrierTrips, current, {
                 [TRIP_FILTER_PARAMS.businessUnit]: undefined,

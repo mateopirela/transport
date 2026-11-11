@@ -99,7 +99,7 @@ export function SuggestedRoute({
                 {s.highway ? ` · ${s.highway}` : ''}
               </p>
               {s.preference && (
-                <Pill tone={s.preference === 'avoid' ? 'amber' : 'ok'}>
+                <Pill tone={s.preference === 'avoid' ? 'pending' : 'done'}>
                   {s.preference === 'avoid' ? roadsCopy.avoided : roadsCopy.preferred}
                 </Pill>
               )}

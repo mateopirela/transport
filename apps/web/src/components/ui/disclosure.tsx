@@ -11,7 +11,7 @@ import {
 } from './disclosure-variants';
 
 /**
- * An action folded behind its label (§1.6, U8): a native `<details>`, so it
+ * An action folded behind its label: a native `<details>`, so it
  * opens with the keyboard and without JavaScript, drawn as a cell (or as a
  * line of text in a table). The content (a confirmation, a short form) goes
  * under the label. Use it for what must not run on a stray click: archive,
@@ -39,7 +39,7 @@ export function Disclosure({
           aria-hidden
           className={cn(
             'shrink-0 transition-transform duration-200 group-open/disclosure:rotate-180',
-            look === 'inline' ? 'size-3.5' : 'size-4.5 text-text-faint',
+            look === 'inline' ? 'size-3.5' : 'size-4 text-text-dim',
           )}
         />
       </summary>

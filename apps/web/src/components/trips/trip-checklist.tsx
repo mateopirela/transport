@@ -42,7 +42,7 @@ export function TripChecklist({
   const pending = tripChecklistPending(rows);
   return (
     <div className="space-y-5">
-      <Pill tone={pending === 0 ? 'ok' : 'amber'} role="status">
+      <Pill tone={pending === 0 ? 'done' : 'pending'} role="status">
         {c.pendingCount(pending)}
       </Pill>
       {groups.map((group) => (

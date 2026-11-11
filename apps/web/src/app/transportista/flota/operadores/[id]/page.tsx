@@ -53,7 +53,7 @@ export default async function CarrierOperatorPage({
     : operator.invitation
       ? fleetCopy.operators.invited(formatDate(operator.invitation.expires_at))
       : fleetCopy.operators.notInvited;
-  const accountTone = operator.profile_id ? 'ok' : operator.invitation ? 'accent' : 'neutral';
+  const accountTone = operator.profile_id ? 'done' : operator.invitation ? 'pending' : 'inactive';
 
   return (
     <>

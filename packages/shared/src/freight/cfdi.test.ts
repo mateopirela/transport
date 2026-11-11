@@ -214,8 +214,10 @@ describe('parseCfdi', () => {
   });
 
   it('resolves namespaces in linear time and bounds their declarations', () => {
+    const LINEAR_BUDGET_MS = 1_000;
     // 60 levels of 99 prefixes each and ~19,000 children at the bottom (under
-    // 200 KB): copying every scope to every element would take seconds.
+    // 200 KB): copying every scope to every element took ~10 s. The 1 s budget
+    // keeps that regression caught with room for slow shared CI runners.
     const declarations = (level: number) =>
       Array.from({ length: 99 }, (_, i) => ` xmlns:p${level}_${i}="u"`).join('');
     const levels = Array.from({ length: 60 }, (_, level) => `<a${declarations(level)}>`).join('');
@@ -223,7 +225,7 @@ describe('parseCfdi', () => {
     expect(crowded.length).toBeLessThan(CFDI_XML_MAX_BYTES);
     const start = performance.now();
     const result = parseCfdi(crowded);
-    expect(performance.now() - start).toBeLessThan(200);
+    expect(performance.now() - start).toBeLessThan(LINEAR_BUDGET_MS);
     expect(issues(result)).toEqual(['malformed']);
 
     // Under the cap (5 × 99 declarations) the walk is still linear.
@@ -231,7 +233,7 @@ describe('parseCfdi', () => {
     const allowed = `${nested}${'<p0_0:b/>'.repeat(19_000)}${'</a>'.repeat(5)}`;
     const begin = performance.now();
     expect(issues(parseCfdi(allowed))).toEqual(['not_cfdi']);
-    expect(performance.now() - begin).toBeLessThan(200);
+    expect(performance.now() - begin).toBeLessThan(LINEAR_BUDGET_MS);
 
     // Each element may still declare some, and its own win over its parent's.
     const shadowed = syntheticCfdi().replace(

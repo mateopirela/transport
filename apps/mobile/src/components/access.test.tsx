@@ -1,4 +1,4 @@
-import { mobileAuthCopy, palette, type Theme } from '@transport/shared';
+import { mobileAuthCopy, palette, shape, type Theme } from '@transport/shared';
 import { act, type ReactElement } from 'react';
 import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -9,9 +9,10 @@ import { ThemeProvider } from '../theme';
 import { OptionGroup } from './option-group';
 
 /*
- * The access screens of U3 (docs/plan-rediseno.md §2): the sign-in in both
- * themes, with one primary and the texts the Maestro flows look for, and
- * the choice of what is registered as rows with a check.
+ * The access screens (docs/plan-fulmis.md §2, V6): the sign-in in both
+ * themes, with the brand on its Night block, one primary fixed at the bottom
+ * and the texts the Maestro flows look for, and the choice of what is
+ * registered as rows with a check.
  */
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
@@ -70,6 +71,35 @@ describe.each<Theme>(['light', 'dark'])('sign-in (%s)', (theme) => {
     expect(texts(filled[0] as ReactTestInstance)).toEqual([mobileAuthCopy.signInAction]);
     const page = byType(root, 'ScrollView')[0] as ReactTestInstance;
     expect(styleOf(page).backgroundColor).toBe(palette[theme].bg);
+  });
+
+  it('keeps "Entrar" in the bar fixed at the bottom, 56 high, out of the scroll', async () => {
+    setSavedForTest(theme);
+    const root = await render(
+      <ThemeProvider>
+        <SignIn />
+      </ThemeProvider>,
+    );
+    const bar = root.find((n) => typeof n.type === 'string' && n.props.testID === 'bottom-bar');
+    const primary = byRole(bar, 'button');
+    expect(primary).toHaveLength(1);
+    expect(texts(bar)).toEqual([mobileAuthCopy.signInAction]);
+    expect(styleOf(primary[0] as ReactTestInstance).minHeight).toBe(shape.buttonHeightPrimary);
+    const page = byType(root, 'ScrollView')[0] as ReactTestInstance;
+    expect(texts(page)).not.toContain(mobileAuthCopy.signInAction);
+  });
+
+  it('opens with the brand on Night, whatever the theme', async () => {
+    setSavedForTest(theme);
+    const root = await render(
+      <ThemeProvider>
+        <SignIn />
+      </ThemeProvider>,
+    );
+    const tagline = byRole(root, 'header').find((n) =>
+      n.children.includes(mobileAuthCopy.tagline),
+    ) as ReactTestInstance;
+    expect(styleOf(tagline).color).toBe(palette.dark.text);
   });
 
   it('keeps the texts the Maestro flows look for', async () => {

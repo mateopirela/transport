@@ -137,6 +137,59 @@ export const mobilePhoneCopy = {
   current: (phone: string) => `Teléfono: ${phone}`,
 } as const;
 
+/**
+ * The texts of the kit's own pieces (V6), and the sample the developer's kit
+ * screen shows them with (`/dev/kit`, never in a build for people).
+ */
+export const mobileKitCopy = {
+  /** Over a row of steps: "Paso 2 de 4". */
+  stepOf: (step: number, count: number) => `Paso ${step} de ${count}`,
+  sample: {
+    title: 'Muestra del kit',
+    eyebrow: 'Fulmis',
+    tones: {
+      attention: 'Requiere atención',
+      progress: 'En curso',
+      pending: 'Pendiente',
+      done: 'Hecho',
+      problem: 'Problema',
+      inactive: 'Inactivo',
+    },
+    tonesTitle: 'Estados',
+    buttonsTitle: 'Botones',
+    piecesTitle: 'Piezas',
+    noticesTitle: 'Avisos',
+    fieldsTitle: 'Campos',
+    listsTitle: 'Listas',
+    statesTitle: 'Carga y vacío',
+    nextStepLabel: 'Tu siguiente paso',
+    nextStepTitle: 'Marca la llegada al origen',
+    nextStepBody: 'Avisa cuando estés en la puerta para empezar la carga.',
+    nextStepAction: 'Llegué al origen',
+    nextStepDirections: 'Cómo llegar',
+    nextStepReport: 'Reportar incidencia',
+    stepsTitle: 'Avance del viaje',
+    steps: ['Origen', 'Carga', 'En ruta', 'Entrega'],
+    stepDetails: ['8:10', '9:25', 'Ahora', ''],
+    kpis: [
+      { label: 'Viajes activos', value: '4' },
+      { label: 'Ofertas abiertas', value: '7' },
+      { label: 'Unidades libres', value: '2' },
+      { label: 'Por cobrar', value: '$184,500' },
+    ],
+    freightLabel: 'Flete',
+    freightCents: 1845000,
+    balanceLabel: 'Por cobrar',
+    balanceCents: 18450050,
+    attentionTitle: 'Falta un documento',
+    attentionBody: 'Sube la póliza de seguro para poder ofertar.',
+    secondary: 'Secundario',
+    plain: 'Acción de texto',
+    small: 'Pequeño',
+    large: 'Primario de 56',
+  },
+} as const;
+
 export const mobileSystemCopy = {
   offline: 'Sin conexión. Algunos datos pueden no estar actualizados.',
   missingConfigTitle: 'Falta configuración',

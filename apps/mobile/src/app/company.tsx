@@ -4,12 +4,14 @@ import {
   mobileCompanyCopy as copy,
   mobileErrorCopy,
   PERSON_TYPES,
+  PLATFORM_NAME,
   type CarrierSignUpKind,
   type MxState,
   type PersonType,
 } from '@transport/shared';
 import { useState } from 'react';
 
+import { KeyboardBottomBar } from '../components/keyboard-bar';
 import { OptionGroup } from '../components/option-group';
 import { StatePicker } from '../components/state-picker';
 import {
@@ -41,7 +43,7 @@ const PERSON_OPTIONS: { value: PersonType; label: string }[] = PERSON_TYPES.map(
  * contact. The company starts "en revisión"; documents and fleet come in
  * B18. The kind chosen at sign-up only preselects the form. One group per
  * part of the form (the company, its fiscal address, the contact), "Guardar"
- * as the only primary under them.
+ * as the only primary, fixed at the bottom.
  */
 export default function CompanySetup() {
   const { session, profile, actions, refreshProfile } = useSession();
@@ -66,6 +68,7 @@ export default function CompanySetup() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [barHeight, setBarHeight] = useState(0);
 
   type TextField = Exclude<keyof typeof values, 'kind' | 'personType' | 'fiscalState'>;
   const set = (field: TextField) => (text: string) =>
@@ -84,128 +87,143 @@ export default function CompanySetup() {
   }
 
   return (
-    <Screen title={copy.title} subtitle={copy.subtitle}>
-      {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <OptionGroup
-        label={copy.kindLabel}
-        options={KINDS}
-        value={values.kind}
-        onChange={(kind) => setValues((current) => ({ ...current, kind }))}
-        hint={values.kind === 'owner_operator' ? copy.kindOwnerOperatorHint : undefined}
-        error={errors.kind}
-      />
-      <Group>
-        <ControlCell label={copy.personTypeLabel} error={errors.personType}>
-          <Segmented
-            label={copy.personTypeLabel}
-            options={PERSON_OPTIONS}
-            value={values.personType}
-            onChange={(personType) => setValues((current) => ({ ...current, personType }))}
+    <>
+      <Screen
+        title={copy.title}
+        eyebrow={PLATFORM_NAME}
+        subtitle={copy.subtitle}
+        bottom={barHeight}
+      >
+        {formError ? <Notice tone="danger">{formError}</Notice> : null}
+        <OptionGroup
+          label={copy.kindLabel}
+          options={KINDS}
+          value={values.kind}
+          onChange={(kind) => setValues((current) => ({ ...current, kind }))}
+          hint={values.kind === 'owner_operator' ? copy.kindOwnerOperatorHint : undefined}
+          error={errors.kind}
+        />
+        <Group>
+          <ControlCell label={copy.personTypeLabel} error={errors.personType}>
+            <Segmented
+              label={copy.personTypeLabel}
+              options={PERSON_OPTIONS}
+              value={values.personType}
+              onChange={(personType) => setValues((current) => ({ ...current, personType }))}
+            />
+          </ControlCell>
+          <FieldCell
+            label={copy.legalNameLabel}
+            value={values.legalName}
+            onChangeText={set('legalName')}
+            error={errors.legalName}
+            autoComplete="organization"
           />
-        </ControlCell>
-        <FieldCell
-          label={copy.legalNameLabel}
-          value={values.legalName}
-          onChangeText={set('legalName')}
-          error={errors.legalName}
-          autoComplete="organization"
+          <FieldCell
+            label={copy.rfcLabel}
+            value={values.rfc}
+            onChangeText={set('rfc')}
+            error={errors.rfc}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+          <FieldCell
+            label={copy.legalRepresentativeLabel}
+            value={values.legalRepresentativeName}
+            onChangeText={set('legalRepresentativeName')}
+            error={errors.legalRepresentativeName}
+            placeholder={copy.legalRepresentativeHint}
+            autoComplete="name"
+          />
+        </Group>
+        <SectionHeader title={copy.fiscalAddressTitle} />
+        <Group>
+          <FieldCell
+            label={copy.streetLabel}
+            value={values.fiscalStreet}
+            onChangeText={set('fiscalStreet')}
+            error={errors.fiscalStreet}
+            autoComplete="street-address"
+          />
+          <FieldCell
+            label={copy.exteriorNumberLabel}
+            value={values.fiscalExteriorNumber}
+            onChangeText={set('fiscalExteriorNumber')}
+            error={errors.fiscalExteriorNumber}
+          />
+          <FieldCell
+            label={copy.interiorNumberLabel}
+            value={values.fiscalInteriorNumber}
+            onChangeText={set('fiscalInteriorNumber')}
+            error={errors.fiscalInteriorNumber}
+          />
+          <FieldCell
+            label={copy.neighborhoodLabel}
+            value={values.fiscalNeighborhood}
+            onChangeText={set('fiscalNeighborhood')}
+            error={errors.fiscalNeighborhood}
+          />
+          <FieldCell
+            label={copy.postalCodeLabel}
+            value={values.fiscalPostalCode}
+            onChangeText={set('fiscalPostalCode')}
+            error={errors.fiscalPostalCode}
+            keyboardType="number-pad"
+            autoComplete="postal-code"
+            maxLength={5}
+          />
+          <FieldCell
+            label={copy.municipalityLabel}
+            value={values.fiscalMunicipality}
+            onChangeText={set('fiscalMunicipality')}
+            error={errors.fiscalMunicipality}
+          />
+          <StatePicker
+            value={values.fiscalState}
+            onChange={(fiscalState) => setValues((current) => ({ ...current, fiscalState }))}
+            error={errors.fiscalState}
+          />
+        </Group>
+        <SectionHeader title={copy.contactTitle} />
+        <Group>
+          <FieldCell
+            label={mobileAuthCopy.fullNameLabel}
+            value={values.contactName}
+            onChangeText={set('contactName')}
+            error={errors.contactName}
+            autoComplete="name"
+          />
+          <FieldCell
+            label={mobileAuthCopy.emailLabel}
+            value={values.contactEmail}
+            onChangeText={set('contactEmail')}
+            error={errors.contactEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <FieldCell
+            label={mobileAuthCopy.phoneLabel}
+            value={values.contactPhone}
+            onChangeText={set('contactPhone')}
+            error={errors.contactPhone}
+            keyboardType="phone-pad"
+          />
+        </Group>
+        <Button
+          label={mobileAuthCopy.signOut}
+          variant="plain"
+          onPress={() => void actions.signOut()}
         />
-        <FieldCell
-          label={copy.rfcLabel}
-          value={values.rfc}
-          onChangeText={set('rfc')}
-          error={errors.rfc}
-          autoCapitalize="characters"
-          autoCorrect={false}
-        />
-        <FieldCell
-          label={copy.legalRepresentativeLabel}
-          value={values.legalRepresentativeName}
-          onChangeText={set('legalRepresentativeName')}
-          error={errors.legalRepresentativeName}
-          placeholder={copy.legalRepresentativeHint}
-          autoComplete="name"
-        />
-      </Group>
-      <SectionHeader title={copy.fiscalAddressTitle} />
-      <Group>
-        <FieldCell
-          label={copy.streetLabel}
-          value={values.fiscalStreet}
-          onChangeText={set('fiscalStreet')}
-          error={errors.fiscalStreet}
-          autoComplete="street-address"
-        />
-        <FieldCell
-          label={copy.exteriorNumberLabel}
-          value={values.fiscalExteriorNumber}
-          onChangeText={set('fiscalExteriorNumber')}
-          error={errors.fiscalExteriorNumber}
-        />
-        <FieldCell
-          label={copy.interiorNumberLabel}
-          value={values.fiscalInteriorNumber}
-          onChangeText={set('fiscalInteriorNumber')}
-          error={errors.fiscalInteriorNumber}
-        />
-        <FieldCell
-          label={copy.neighborhoodLabel}
-          value={values.fiscalNeighborhood}
-          onChangeText={set('fiscalNeighborhood')}
-          error={errors.fiscalNeighborhood}
-        />
-        <FieldCell
-          label={copy.postalCodeLabel}
-          value={values.fiscalPostalCode}
-          onChangeText={set('fiscalPostalCode')}
-          error={errors.fiscalPostalCode}
-          keyboardType="number-pad"
-          autoComplete="postal-code"
-          maxLength={5}
-        />
-        <FieldCell
-          label={copy.municipalityLabel}
-          value={values.fiscalMunicipality}
-          onChangeText={set('fiscalMunicipality')}
-          error={errors.fiscalMunicipality}
-        />
-        <StatePicker
-          value={values.fiscalState}
-          onChange={(fiscalState) => setValues((current) => ({ ...current, fiscalState }))}
-          error={errors.fiscalState}
-        />
-      </Group>
-      <SectionHeader title={copy.contactTitle} />
-      <Group>
-        <FieldCell
-          label={mobileAuthCopy.fullNameLabel}
-          value={values.contactName}
-          onChangeText={set('contactName')}
-          error={errors.contactName}
-          autoComplete="name"
-        />
-        <FieldCell
-          label={mobileAuthCopy.emailLabel}
-          value={values.contactEmail}
-          onChangeText={set('contactEmail')}
-          error={errors.contactEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <FieldCell
-          label={mobileAuthCopy.phoneLabel}
-          value={values.contactPhone}
-          onChangeText={set('contactPhone')}
-          error={errors.contactPhone}
-          keyboardType="phone-pad"
-        />
-      </Group>
-      <Button label={copy.saveAction} onPress={submit} loading={submitting} />
-      <Button
-        label={mobileAuthCopy.signOut}
-        variant="plain"
-        onPress={() => void actions.signOut()}
+      </Screen>
+      <KeyboardBottomBar
+        action={{
+          label: copy.saveAction,
+          onPress: () => void submit(),
+          loading: submitting,
+          size: 'large',
+        }}
+        onHeight={setBarHeight}
       />
-    </Screen>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { toneColors } from '@transport/shared';
+import { statusToneColors } from '@transport/shared';
 import { act, type ReactElement } from 'react';
 import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -46,14 +46,14 @@ describe('StatusRow', () => {
       <StatusRow
         title="TT-01"
         lines={['Tractocamión', null, 'Monterrey, Nuevo León']}
-        pill={{ label: 'Disponible', tone: 'ok' }}
+        pill={{ label: 'Disponible', tone: 'done' }}
       />,
     );
     expect(texts(root)).toEqual(['TT-01', 'Tractocamión', 'Monterrey, Nuevo León', 'Disponible']);
-    // The pill is the tone's text on its tint (the kit's Pill).
+    // The pill is the ink of its tone on the tone's fill (the kit's Pill).
     const pill = root.findAll((n) => String(n.type) === 'Text').at(-1);
     expect([pill?.props.style].flat(Infinity)).toContainEqual({
-      color: toneColors('light', 'ok').fg,
+      color: statusToneColors('light', 'done').fg,
     });
   });
 

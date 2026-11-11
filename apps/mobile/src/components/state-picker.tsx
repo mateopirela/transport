@@ -35,7 +35,7 @@ export function StatePicker({
         <Text style={[type.label, error ? { color: colors.redText } : null]}>
           {copy.stateLabel}
         </Text>
-        <Text style={value ? type.body : [type.body, { color: colors.textFaint }]}>
+        <Text style={value ? type.body : [type.body, { color: colors.textDim }]}>
           {value || copy.statePlaceholder}
         </Text>
         {error ? <ErrorText>{error}</ErrorText> : null}

@@ -14,11 +14,11 @@ export interface SegmentedItem<T extends string> {
 
 const track = 'inline-flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-surface-high p-0.5';
 
-/** The classes of one segment; the selected one is a cell with the only shadow allowed (§1.3). */
+/** The classes of one segment; the selected one is a cell, with no shadow (§0.4). */
 export function segmentClass(selected: boolean): string {
   return cn(
     'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full px-3.5 text-subhead whitespace-nowrap transition-colors duration-200 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-    selected ? 'bg-cell font-semibold text-text shadow-xs' : 'text-text-dim hover:text-text',
+    selected ? 'bg-cell font-semibold text-text' : 'text-text-dim hover:text-text',
   );
 }
 

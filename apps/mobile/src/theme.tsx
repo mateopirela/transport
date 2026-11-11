@@ -1,16 +1,20 @@
 /**
- * The look of the app: "Transport · Nativo" (D26, docs/plan-rediseno.md §1).
- * A warm neutral page with white cells, one family (Hanken Grotesk), one
- * accent, hairlines instead of shadows, and two themes the person chooses
- * between (light, dark or the phone's), kept on the phone.
+ * The look of the app: "Fulmis" (D26-E2, docs/plan-fulmis.md §1). Paper is
+ * the light theme and Night the dark one; two families (Geist, and Geist Mono
+ * for labels and metadata), one accent, hairlines and no shadow, no glass.
+ * The person chooses between light, dark or the phone's, kept on the phone.
  *
  * The colours come from @transport/shared (design/tokens.ts). Components read
  * them through useTheme(), so the whole app changes theme at once.
  */
-import { HankenGrotesk_400Regular } from '@expo-google-fonts/hanken-grotesk/400Regular';
-import { HankenGrotesk_500Medium } from '@expo-google-fonts/hanken-grotesk/500Medium';
-import { HankenGrotesk_600SemiBold } from '@expo-google-fonts/hanken-grotesk/600SemiBold';
-import { HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk/700Bold';
+import { GeistMono_500Medium } from '@expo-google-fonts/geist-mono/500Medium';
+import { GeistMono_700Bold } from '@expo-google-fonts/geist-mono/700Bold';
+import { Geist_400Regular } from '@expo-google-fonts/geist/400Regular';
+import { Geist_500Medium } from '@expo-google-fonts/geist/500Medium';
+import { Geist_600SemiBold } from '@expo-google-fonts/geist/600SemiBold';
+import { Geist_700Bold } from '@expo-google-fonts/geist/700Bold';
+import { Geist_800ExtraBold } from '@expo-google-fonts/geist/800ExtraBold';
+import { Geist_900Black } from '@expo-google-fonts/geist/900Black';
 import {
   DEFAULT_THEME_CHOICE,
   mixColors,
@@ -47,7 +51,7 @@ export const spacing = tokenSpacing;
 export const iconSize = Object.freeze({ regular: 24, cell: 20, small: 16 });
 
 /**
- * The floating tab bar (§1.6): a pill `height` high, `side` from each edge,
+ * The floating tab bar: a solid pill `height` high, `side` from each edge,
  * `inset` over the bottom edge where the phone has none. Screens in the tabs
  * keep clear of it (Screen does it).
  */
@@ -61,44 +65,39 @@ export const tabBar = Object.freeze({
 /** Durations of the system's motion (§1.5), in milliseconds. */
 export const motion = Object.freeze({ fast: 150, standard: 250, pulse: 700 });
 
-/**
- * The only two shadows of the system (§1.3): the floating tab bar and the
- * selected segment. Shadows are black in both themes.
- */
-export const shadows = Object.freeze({
-  tabBar: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  segment: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-});
-
 /** How see-through a pressed control and a disabled one are. */
 export const opacity = Object.freeze({ pressed: 0.7, disabled: 0.5, backdrop: 0.4 });
 
 /** What useFonts loads before the splash hides. The keys are the family names. */
 export const fontFiles = {
-  HankenGrotesk_400Regular,
-  HankenGrotesk_500Medium,
-  HankenGrotesk_600SemiBold,
-  HankenGrotesk_700Bold,
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+  Geist_800ExtraBold,
+  Geist_900Black,
+  GeistMono_500Medium,
+  GeistMono_700Bold,
 };
 
 /** One family per weight: React Native picks a loaded font by its name. */
 export const font: Record<FontWeight, keyof typeof fontFiles> = {
-  400: 'HankenGrotesk_400Regular',
-  500: 'HankenGrotesk_500Medium',
-  600: 'HankenGrotesk_600SemiBold',
-  700: 'HankenGrotesk_700Bold',
+  400: 'Geist_400Regular',
+  500: 'Geist_500Medium',
+  600: 'Geist_600SemiBold',
+  700: 'Geist_700Bold',
+  800: 'Geist_800ExtraBold',
+  900: 'Geist_900Black',
+};
+
+/** Geist Mono has two weights (§1.2): the medium of metadata and the bold of a label. */
+export const monoFont: Record<FontWeight, keyof typeof fontFiles> = {
+  400: 'GeistMono_500Medium',
+  500: 'GeistMono_500Medium',
+  600: 'GeistMono_700Bold',
+  700: 'GeistMono_700Bold',
+  800: 'GeistMono_700Bold',
+  900: 'GeistMono_700Bold',
 };
 
 /** Where the person's choice is kept (SecureStore keys take letters, digits, ".", "-" and "_"). */
@@ -120,10 +119,11 @@ const COLORS: Record<Theme, AppColors> = { light: colorsOf('light'), dark: color
 function textStyle(name: TypeName, color: string): TextStyle {
   const s = typeScale[name];
   return {
-    fontFamily: font[s.weight],
+    fontFamily: s.family === 'mono' ? monoFont[s.weight] : font[s.weight],
     fontSize: s.size,
     lineHeight: s.lineHeight,
     letterSpacing: s.letterSpacing,
+    ...(s.uppercase ? { textTransform: 'uppercase' as const } : null),
     color,
   };
 }
@@ -143,6 +143,8 @@ function makeLook(theme: Theme) {
     footnote: textStyle('footnote', c.textDim),
     caption: textStyle('caption', c.textDim),
     label: textStyle('label', c.textDim),
+    meta: textStyle('meta', c.textDim),
+    numeral: textStyle('numeral', c.text),
     /** Money, dates and plates: every figure the same width. */
     num: { fontVariant: ['tabular-nums'] },
   });

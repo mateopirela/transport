@@ -18,7 +18,7 @@ import { envResult, supabase } from '../lib/supabase';
 import { SessionProvider, useSession } from '../providers/session';
 import { fontFiles, spacing, ThemeProvider, useStackScreenOptions, useTheme } from '../theme';
 
-// Hanken Grotesk loads before the first screen shows (D26).
+// Geist and Geist Mono load before the first screen shows (D26-E2).
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootLayout() {

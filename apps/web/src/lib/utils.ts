@@ -17,6 +17,8 @@ export const TYPE_STYLES = [
   'footnote',
   'caption',
   'label',
+  'meta',
+  'numeral',
 ] as const;
 
 const twMerge = extendTailwindMerge({

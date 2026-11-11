@@ -1,7 +1,7 @@
 /**
- * Design tokens of "Transport · Nativo" (D26, docs/plan-rediseno.md §1): the
- * single source of the colours, type scale, spacing and radii of the web and
- * the app. Pure data, no React: the app builds its theme on it
+ * Design tokens of "Fulmis" (D26-E2, docs/plan-fulmis.md §1): the single
+ * source of the colours, type scale, spacing and radii of the web and the
+ * app. Pure data, no React: the app builds its theme on it
  * (apps/mobile/src/theme.tsx) and the web mirrors it as CSS variables
  * (apps/web/src/app/globals.css, checked by a test).
  */
@@ -9,93 +9,153 @@
 export const THEMES = ['light', 'dark'] as const;
 export type Theme = (typeof THEMES)[number];
 
-/** The colours of one theme. Names follow the ShowBe "C · Nativo" system. */
+/**
+ * The colours of one theme (§1.1): Paper is the light one, Night the dark one.
+ * The `brand*` colours are Night in both, for the surfaces that never change
+ * with the theme. The keys under "Temporary aliases" belong to the previous
+ * system: screens still read them, V2 and V6 move those screens to the keys
+ * above them and V9 deletes the aliases.
+ */
 export interface Palette {
   /** The page. */
   readonly bg: string;
-  /** Cells, cards, groups and fields. */
+  /** Cards, tables and fields. */
   readonly cell: string;
-  /** Hairlines. */
+  /** Hairlines between surfaces (decorative: below 3:1 on purpose). */
   readonly separator: string;
-  /** A step above the page: icon tiles, disabled controls, own chat bubbles. */
+  /** The selected row, the neutral chip, highlighted blocks. */
   readonly surfaceHigh: string;
+  /** The border of fields and controls (at least 3:1 on `bg` and `cell`). */
+  readonly control: string;
   readonly text: string;
+  /** Secondary text and placeholders. */
   readonly textDim: string;
-  /** Tertiary text and placeholders. */
-  readonly textFaint: string;
-  /** The accent: the primary button, selection and badges. */
+  /** The accent: the fill of the primary button, selection and counters. Never text on Paper (2.4:1). */
   readonly accent: string;
-  /** The accent as text on the page. */
-  readonly accentText: string;
   /** Ink on the accent. */
   readonly accentInk: string;
-  /** The accent at 14 %: pills and selected rows. */
-  readonly accentSoft: string;
-  /** Success: fills, icons and text of 20 px or more. */
-  readonly ok: string;
-  /** Success as small text. */
-  readonly okText: string;
-  /** Pending or due soon: fills and icons. */
+  /** The accent as text and links. Not on `surfaceHigh` (4.25:1 on Paper). */
+  readonly accentText: string;
+  /** "In progress" as text and icons. */
+  readonly info: string;
+  /** The fill of an "in progress" pill, and its ink. */
+  readonly infoFill: string;
+  readonly infoInk: string;
+  /** The fill of "pending", and its ink. */
   readonly amber: string;
+  readonly amberInk: string;
+  /** A warning as text. */
   readonly amberText: string;
-  /** Error, overdue, destructive: fills, icons and the destructive button. */
+  /** The fill of error, overdue and destructive, and its ink. Not a text colour. */
   readonly red: string;
+  readonly redInk: string;
+  /** An error as text. */
   readonly redText: string;
-  /** Notice after something went well. */
+
+  /** Brand surfaces (the web's sidebar, the access panel, "Tu siguiente paso"): Night in both themes. */
+  readonly brandBg: string;
+  readonly brandText: string;
+  readonly brandTextDim: string;
+  readonly brandLine: string;
+  /** The selected element of a brand surface. */
+  readonly brandSelected: string;
+  /** Its text, and the fill of the button of a brand surface. */
+  readonly brandAccent: string;
+
+  // Temporary aliases (V9 deletes them).
+  /** Alias of `textDim`. */
+  readonly textFaint: string;
+  /** A ground on which `accentText` is AA: the page on Paper, `surfaceHigh` on Night. */
+  readonly accentSoft: string;
+  /** Aliases of `text`: Fulmis has no green, "done" is a quiet state. */
+  readonly ok: string;
+  readonly okText: string;
+  /** Alias of `cell`. */
   readonly highlight: string;
-  /** The floating bar and the bottom bar (with blur). */
+  /** Aliases of `cell` and `separator`: bars are solid, nothing is glass. */
   readonly glass: string;
   readonly glassLine: string;
 }
 
+/** Night, for the surfaces of the brand: the same in both themes. */
+const brand = {
+  brandBg: '#121415',
+  brandText: '#F4EFE6',
+  brandTextDim: '#A29A90',
+  brandLine: '#2C2F32',
+  brandSelected: '#1C1E20',
+  brandAccent: '#E5630B',
+} as const;
+
 export const palette: Readonly<Record<Theme, Palette>> = Object.freeze({
+  // Paper.
   light: Object.freeze({
-    bg: '#F4F2EE',
-    cell: '#FFFFFF',
-    separator: '#E7E2DA',
-    surfaceHigh: '#ECE8E2',
-    text: '#1A1917',
-    textDim: '#6E6963',
-    textFaint: '#736D67',
-    accent: '#1F5EFF',
-    accentText: '#0F47D4',
-    accentInk: '#FFFFFF',
-    accentSoft: '#E4ECFF',
-    ok: '#2B8A57',
-    okText: '#1F6B43',
-    amber: '#B8781A',
-    amberText: '#8A5A12',
-    red: '#C0392B',
-    redText: '#A52E22',
-    highlight: '#F4E9DA',
-    glass: 'rgba(255,255,255,0.74)',
-    glassLine: 'rgba(0,0,0,0.06)',
+    bg: '#E7D5BA',
+    cell: '#F0E8DA',
+    separator: '#CDB894',
+    surfaceHigh: '#DCC7A5',
+    control: '#7A6440',
+    text: '#121415',
+    textDim: '#5C544B',
+    accent: '#E5630B',
+    accentInk: '#121415',
+    accentText: '#993C09',
+    info: '#0B5F8C',
+    infoFill: '#0B5F8C',
+    infoInk: '#F4EFE6',
+    amber: '#FCD090',
+    amberInk: '#121415',
+    amberText: '#993C09',
+    red: '#61150D',
+    redInk: '#F4EFE6',
+    redText: '#61150D',
+    ...brand,
+    textFaint: '#5C544B',
+    accentSoft: '#E7D5BA',
+    ok: '#121415',
+    okText: '#121415',
+    highlight: '#F0E8DA',
+    glass: '#F0E8DA',
+    glassLine: '#CDB894',
   }),
+  // Night.
   dark: Object.freeze({
-    bg: '#131214',
-    cell: '#1D1C1F',
-    separator: '#2D2B30',
-    surfaceHigh: '#2A282C',
-    text: '#F2F0EE',
-    textDim: '#A5A09B',
-    textFaint: '#8F8A84',
-    accent: '#5C8CFF',
-    accentText: '#8AB0FF',
-    accentInk: '#0B1430',
-    accentSoft: '#1C2742',
-    ok: '#5FCF95',
-    okText: '#5FCF95',
-    amber: '#E9B45A',
-    amberText: '#E9B45A',
-    red: '#FF8A7E',
-    redText: '#FF8A7E',
-    highlight: '#3E3328',
-    glass: 'rgba(29,28,31,0.82)',
-    glassLine: 'rgba(255,255,255,0.08)',
+    bg: '#121415',
+    cell: '#1C1E20',
+    separator: '#2C2F32',
+    surfaceHigh: '#261D18',
+    control: '#6E7377',
+    text: '#F4EFE6',
+    textDim: '#A29A90',
+    accent: '#E5630B',
+    accentInk: '#121415',
+    accentText: '#E5630B',
+    info: '#35A9DE',
+    infoFill: '#065AA5',
+    infoInk: '#F4EFE6',
+    amber: '#FCD090',
+    amberInk: '#121415',
+    amberText: '#FCD090',
+    red: '#61150D',
+    redInk: '#F4EFE6',
+    // Not a Fulmis colour: derived, so that an error reads as text on Night.
+    redText: '#F2917F',
+    ...brand,
+    textFaint: '#A29A90',
+    accentSoft: '#261D18',
+    ok: '#F4EFE6',
+    okText: '#F4EFE6',
+    highlight: '#1C1E20',
+    glass: '#1C1E20',
+    glassLine: '#2C2F32',
   }),
 });
 
-/** The status tones of a pill: the base tone at 14 % under its `*Text` tone. */
+/**
+ * The status tones of a pill as the screens still ask for them: the base tone
+ * at 14 % under its `*Text` tone. V2 and V6 replace them with the six filled
+ * tones of §1.1; `ok` is one of the temporary aliases.
+ */
 export const STATUS_TONES = ['accent', 'ok', 'amber', 'red'] as const;
 export type StatusTone = (typeof STATUS_TONES)[number];
 
@@ -109,7 +169,11 @@ const STATUS_TONE_TEXT: Record<StatusTone, keyof Palette> = {
 /** How much of the base tone a pill's ground has over `cell`. */
 export const SOFT_ALPHA = 0.14;
 
-/** The ground and the text of a pill of `tone` (§1.1). */
+/**
+ * The ground and the text of a pill of `tone`. The accent one sits on the
+ * `accentSoft` token and never on a 14 % mix of the accent: on Night the
+ * orange on its own mix is 4.1:1.
+ */
 export function toneColors(theme: Theme, tone: StatusTone): { bg: string; fg: string } {
   const colors = palette[theme];
   return {
@@ -118,58 +182,100 @@ export function toneColors(theme: Theme, tone: StatusTone): { bg: string; fg: st
   };
 }
 
-/** Font weights of Hanken Grotesk, the only family (§1.2). */
-export type FontWeight = 400 | 500 | 600 | 700;
+/** Font weights of Geist (§1.2). Geist Mono is used in 500 and 700 only. */
+export type FontWeight = 400 | 500 | 600 | 700 | 800 | 900;
+
+/** The two families (§1.2): Geist for text and titles, Geist Mono for labels and metadata. */
+export type TypeFamily = 'sans' | 'mono';
 
 export interface TypeStyle {
+  readonly family: TypeFamily;
   /** Size in px (points in the app). */
   readonly size: number;
   readonly lineHeight: number;
   readonly weight: FontWeight;
+  /** Letter spacing in em, as §1.2 gives it (the web uses it as is). */
+  readonly tracking: number;
+  /** The same in px, for the app: `size × tracking`. */
   readonly letterSpacing: number;
+  /** Drawn in capitals (the text itself does not change). */
+  readonly uppercase: boolean;
 }
 
-/** iOS-like type scale (§1.2). */
+function typeStyle(
+  family: TypeFamily,
+  size: number,
+  lineHeight: number,
+  weight: FontWeight,
+  tracking = 0,
+  uppercase = false,
+): TypeStyle {
+  const letterSpacing = Math.round(size * tracking * 100) / 100;
+  return { family, size, lineHeight, weight, tracking, letterSpacing, uppercase };
+}
+
+/** The tracking of every title (§1.2). */
+const TITLE_TRACKING = -0.035;
+
+/**
+ * Type scale (§1.2). Titles in 800 with tight tracking, body in 400. `label`
+ * is for short labels (up to three words: a table heading, the name of a
+ * figure, a section title), never for sentences nor for what the person
+ * types; `meta` for folios, dates, times and plates; `numeral` for the main
+ * figure of an indicator or of an amount.
+ */
 export const typeScale = Object.freeze({
-  largeTitle: { size: 34, lineHeight: 41, weight: 700, letterSpacing: -0.75 },
-  title1: { size: 28, lineHeight: 34, weight: 700, letterSpacing: -0.6 },
-  title2: { size: 22, lineHeight: 28, weight: 700, letterSpacing: -0.3 },
-  title3: { size: 20, lineHeight: 25, weight: 600, letterSpacing: -0.24 },
-  headline: { size: 17, lineHeight: 22, weight: 600, letterSpacing: 0 },
-  body: { size: 17, lineHeight: 22, weight: 400, letterSpacing: 0 },
-  callout: { size: 16, lineHeight: 21, weight: 400, letterSpacing: 0 },
-  subhead: { size: 15, lineHeight: 20, weight: 400, letterSpacing: 0 },
-  footnote: { size: 13, lineHeight: 18, weight: 400, letterSpacing: 0 },
-  caption: { size: 12, lineHeight: 16, weight: 400, letterSpacing: 0 },
-  label: { size: 13, lineHeight: 18, weight: 600, letterSpacing: 0 },
+  largeTitle: typeStyle('sans', 34, 41, 800, TITLE_TRACKING),
+  title1: typeStyle('sans', 28, 34, 800, TITLE_TRACKING),
+  title2: typeStyle('sans', 22, 28, 800, TITLE_TRACKING),
+  title3: typeStyle('sans', 20, 25, 800, TITLE_TRACKING),
+  headline: typeStyle('sans', 17, 22, 600),
+  body: typeStyle('sans', 17, 22, 400),
+  callout: typeStyle('sans', 16, 21, 400),
+  subhead: typeStyle('sans', 15, 20, 400),
+  footnote: typeStyle('sans', 13, 18, 400),
+  caption: typeStyle('sans', 12, 16, 400),
+  label: typeStyle('mono', 11, 16, 700, 0.14, true),
+  meta: typeStyle('mono', 12, 16, 500, 0.08),
+  numeral: typeStyle('sans', 34, 38, 900, -0.04),
 } satisfies Record<string, TypeStyle>);
 
 export type TypeName = keyof typeof typeScale;
 
-/** The family, by name, for the web (`next/font/google`) and the docs. */
-export const fontFamily = 'Hanken Grotesk';
+/** The families, by name, for the web (`next/font/google`) and the docs. */
+export const fontFamily = 'Geist';
+export const monoFontFamily = 'Geist Mono';
 
-/** Spacing steps (§1.3). */
+/** Spacing steps (§1.3): the 4 pt scale. */
 export const spacing = Object.freeze({ xs: 4, sm: 8, md: 16, lg: 24, xl: 40 });
 
-/** Radii (§1.3): small tag 6, field 12, cell/group/card/photo 16, sheet top 28, pills 999. */
-export const radii = Object.freeze({ sm: 6, md: 12, lg: 16, sheet: 28, pill: 999 });
+/**
+ * Radii (§1.3): 0 for cards, tables, sheets, the sidebar and dialogs; 3 for
+ * fields, chips, checkboxes and navigation items; 8 for buttons; 999 for
+ * status pills, avatars and switches.
+ */
+export const radii = Object.freeze({ none: 0, sm: 3, md: 8, pill: 999 });
 
 /** Sizes of the shapes the components share (§1.3). */
 export const shape = Object.freeze({
-  field: radii.md,
-  card: radii.lg,
-  photo: radii.lg,
-  sheet: radii.sheet,
+  field: radii.sm,
   tag: radii.sm,
+  button: radii.md,
+  card: radii.none,
+  photo: radii.none,
+  sheet: radii.none,
   pill: radii.pill,
   /** Minimum height of a cell. */
   cellMinHeight: 50,
-  /** Button heights in the app: regular and small. */
-  buttonHeight: 52,
+  /** Control heights in the app: a button, the operator's primary and the small button. */
+  buttonHeight: 48,
+  buttonHeightPrimary: 56,
   buttonHeightSmall: 40,
   /** Field height in the app. */
   fieldHeight: 48,
+  /** Heights on the web (`h-control`, `h-table-row`): a control and a table row. */
+  webControlHeight: 40,
+  webTableRowHeight: 44,
   /** Left inset of the separator between cells. */
   separatorInset: 16,
   /** The smallest touch target (Apple HIG): smaller controls reach it with a hit slop. */

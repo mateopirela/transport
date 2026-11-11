@@ -1,20 +1,9 @@
-import { BlurView } from 'expo-blur';
 import type { Tabs } from 'expo-router/js-tabs';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  font,
-  iconSize,
-  lookOf,
-  shadows,
-  shape,
-  spacing,
-  tabBar,
-  useTheme,
-  type Look,
-} from '../theme';
+import { font, iconSize, lookOf, shape, spacing, tabBar, useTheme, type Look } from '../theme';
 import { Icon, type IconName } from './icons';
 import { tabBarBottom } from './ui';
 
@@ -49,11 +38,11 @@ function useKeyboardShown(): boolean {
 }
 
 /**
- * The floating tab bar of the system (§1.6): a frosted pill 16 from each
- * side over the bottom edge, with the one allowed soft shadow; the selected
- * tab on the cell colour with its filled icon and the accent; a count on a
- * tab whose `tabBarBadge` is set. Screens keep clear of it through
- * TabScreens and Screen (components/ui.tsx).
+ * The floating tab bar of the system: a solid pill of the cell colour 16
+ * from each side over the bottom edge, with a hairline and no shadow nor
+ * glass (docs/plan-fulmis.md §0.4); the selected tab on the page colour with
+ * its filled icon and the accent; a count on a tab whose `tabBarBadge` is
+ * set. Screens keep clear of it through TabScreens and Screen (components/ui.tsx).
  */
 export function TabBar({
   state,
@@ -73,78 +62,74 @@ export function TabBar({
       pointerEvents="box-none"
       style={[styles.float, { bottom: tabBarBottom(insets.bottom) }]}
     >
-      <View style={styles.shadow}>
-        <BlurView intensity={40} tint={theme} style={styles.bar}>
-          {state.routes.map((route, index) => {
-            const descriptor = descriptors[route.key];
-            if (!descriptor || isHidden(descriptor.options)) return null;
-            const { options } = descriptor;
-            const label =
-              typeof options.tabBarLabel === 'string'
-                ? options.tabBarLabel
-                : (options.title ?? route.name);
-            const focused = state.index === index;
-            const tint = focused ? colors.accentText : colors.textDim;
-            const badge = options.tabBarBadge;
-            return (
-              <Pressable
-                key={route.key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: focused }}
-                accessibilityLabel={tabAccessibilityLabel(label, index, state.routes.length)}
-                onPress={() => {
-                  const event = navigation.emit({
-                    type: 'tabPress',
-                    target: route.key,
-                    canPreventDefault: true,
-                  });
-                  if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-                }}
-                onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-                style={[styles.tab, focused ? styles.tabOn : null]}
+      <View style={styles.bar}>
+        {state.routes.map((route, index) => {
+          const descriptor = descriptors[route.key];
+          if (!descriptor || isHidden(descriptor.options)) return null;
+          const { options } = descriptor;
+          const label =
+            typeof options.tabBarLabel === 'string'
+              ? options.tabBarLabel
+              : (options.title ?? route.name);
+          const focused = state.index === index;
+          const tint = focused ? colors.accentText : colors.textDim;
+          const badge = options.tabBarBadge;
+          return (
+            <Pressable
+              key={route.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={tabAccessibilityLabel(label, index, state.routes.length)}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+              }}
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+              style={[styles.tab, focused ? styles.tabOn : null]}
+            >
+              <View>
+                <Icon
+                  name={icons[route.name] ?? 'more'}
+                  size={iconSize.regular}
+                  color={tint}
+                  filled={focused}
+                />
+                {badge !== undefined && badge !== '' && badge !== 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{String(badge)}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text
+                style={[styles.label, { color: tint }, focused ? styles.labelOn : null]}
+                numberOfLines={1}
               >
-                <View>
-                  <Icon
-                    name={icons[route.name] ?? 'more'}
-                    size={iconSize.regular}
-                    color={tint}
-                    filled={focused}
-                  />
-                  {badge !== undefined && badge !== '' && badge !== 0 ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{String(badge)}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text
-                  style={[styles.label, { color: tint }, focused ? styles.labelOn : null]}
-                  numberOfLines={1}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </BlurView>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
-function makeStyles({ colors, type, theme }: Look) {
+function makeStyles({ colors, type }: Look) {
   const inner = tabBar.height - tabBar.padding * 2;
   return StyleSheet.create({
     float: { position: 'absolute', left: tabBar.side, right: tabBar.side },
-    // The floating tab bar carries one of the two shadows of the system (§1.3).
-    shadow: { borderRadius: shape.pill, ...shadows.tabBar },
     bar: {
       flexDirection: 'row',
       height: tabBar.height,
       padding: tabBar.padding,
       borderRadius: shape.pill,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.glassLine,
-      backgroundColor: colors.glass,
+      borderColor: colors.separator,
+      backgroundColor: colors.cell,
       overflow: 'hidden',
     },
     tab: {
@@ -155,11 +140,8 @@ function makeStyles({ colors, type, theme }: Look) {
       justifyContent: 'center',
       gap: 2,
     },
-    // On the dark glass the cell colour would not show: the selected tab takes a step up.
-    tabOn: {
-      backgroundColor: theme === 'dark' ? colors.surfaceHigh : colors.cell,
-      ...shadows.segment,
-    },
+    // The selected tab is a step down to the page colour, where `accentText` meets AA.
+    tabOn: { backgroundColor: colors.bg },
     label: { ...type.caption, fontFamily: font[500] },
     labelOn: { fontFamily: font[600] },
     badge: {

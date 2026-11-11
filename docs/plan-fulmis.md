@@ -82,7 +82,7 @@ Fuente: el sistema de diseño Fulmis de la organización (temas Paper y Night). 
 | `accentText` | `#993c09` | `#e5630b` | El acento como texto y enlaces |
 | `info` (nuevo) | `#0b5f8c` | `#35a9de` | "En curso": texto e iconos |
 | `infoFill` / `infoInk` (nuevos) | `#0b5f8c` / `#f4efe6` | `#065aa5` / `#f4efe6` | Píldora "en curso" |
-| `amber` | `#fcd090` | `#fcd090` | Relleno de "pendiente" (tinta `#121415`) |
+| `amber` / `amberInk` | `#fcd090` / `#121415` | `#fcd090` / `#121415` | Relleno de "pendiente" y su tinta |
 | `amberText` | `#993c09` | `#fcd090` | Aviso como texto |
 | `red` / `redInk` | `#61150d` / `#f4efe6` | `#61150d` / `#f4efe6` | Relleno de error, vencido y destructivo |
 | `redText` | `#61150d` | `#f2917f` | Error como texto. El valor Night no existe en Fulmis: es derivado |
@@ -98,6 +98,8 @@ Se retiran `textFaint`, `accentSoft`, `ok`/`okText`, `highlight`, `glass` y `gla
 | `glass`, `glassLine` | los de `cell` y `separator`, opacos | — |
 
 En el sistema final, lo que hoy usa `accentSoft` con `accentText` pasa al tono "Atención" o a `surfaceHigh` con tinta `text`.
+
+Mientras existan las píldoras teñidas del kit anterior (hasta V2 y V6), la de tono acento va sobre `accentSoft` y **no** sobre el acento al 14 %: en Night ese fondo deja `accentText` en 4.1:1. Las de los otros tonos siguen sobre su tono al 14 % encima de `cell`, que sí cumple AA en los dos temas. V1 cambia esa única clase del kit web (`bg-accent/14` → `bg-accent-soft`); la app ya usaba `accentSoft`.
 
 **No hay verde.** Fulmis no lo tiene. "Hecho" (entregado, pagado, verificado) es un estado **silencioso**: píldora `surfaceHigh` con tinta `text` y un icono de palomita. Lo que pide atención es lo único con color fuerte.
 

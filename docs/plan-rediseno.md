@@ -1,5 +1,7 @@
 # Plan de rediseño visual: "Transport · Nativo"
 
+> **Sustituido en lo visual por la ola V** (D26-E2, 2026-11-11): la paleta, la tipografía, los radios y la navegación vigentes están en [plan-fulmis.md](plan-fulmis.md). Este documento queda como registro de la ola U; sus reglas valen solo donde la ola V no las cambia (plan-fulmis.md §0.1).
+
 Rediseño de la web y la app para que se vean y se sientan **limpias, sencillas y con aire de Apple**: una sola familia tipográfica, una página neutra cálida con celdas blancas agrupadas, un solo color de acento usado con moderación, bordes finos en vez de sombras, botones en píldora, estados de carga y vacíos que parecen contenido, y tema claro y oscuro. La referencia es el sistema "C · Nativo" de la app de ShowBe (2026-10-16), adaptado a la marca de Transport.
 
 Se ejecuta como los demás planes: un PR por bloque, gate de Greptile (D14), definición de terminado de [plan-v1.md §0.3](plan-v1.md) más lo que agrega §0.3 de este documento. **No cambia ninguna funcionalidad, texto, ruta, RPC ni política**: es solo presentación.
@@ -303,3 +305,4 @@ Los nueve bloques están en `main` (U1 #60, U6 #62, U7 #63, U8 #64, U2 #65, U4 #
 2. Web: decidir si `PageSection`, `BackLink`, `FactList`, `CheckboxList` y `status-tones` pasan al kit.
 3. Lo de §5 sigue abierto: nombre comercial, icono y splash nuevos, barra lateral del admin.
 4. `/` redirige a `/login` (no hay landing): es navegación, decisión de Mateo.
+5. La barra lateral, la marca y el icono pasan a la ola V ([plan-fulmis.md](plan-fulmis.md)).

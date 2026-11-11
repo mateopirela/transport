@@ -55,7 +55,7 @@ Después de V2 y V6 el kit queda **congelado para los bloques de pantalla**: V3�
 
 - Capturas en el PR, en claro y oscuro, en una rama `assets/<ID>-screenshots`: web a 1440 px y a 390 px; app en el simulador de iPhone. Con el entorno local y los datos de `supabase db reset` (nunca con cuentas de producción).
 - Contraste AA: texto ≥ 4.5:1; bordes de controles y foco ≥ 3:1.
-- Un solo primario por pantalla, visible sin scroll a 1440×900 (web) y en la zona inferior fija (app).
+- Un solo primario por pantalla (el único botón con relleno `accent`), visible sin scroll a 1440×900 (web) y en la zona inferior fija (app). La navegación (barra lateral, barra de pestañas) no cuenta ni lleva botones rellenos.
 - Sin sombras, sin valores sueltos (higiene), tema oscuro revisado pantalla por pantalla.
 - El estado nunca se comunica solo con color: cada tono lleva texto y, donde ayude, icono.
 - E2E de la zona en verde.
@@ -87,7 +87,17 @@ Fuente: el sistema de diseño Fulmis de la organización (temas Paper y Night). 
 | `red` / `redInk` | `#61150d` / `#f4efe6` | `#61150d` / `#f4efe6` | Relleno de error, vencido y destructivo |
 | `redText` | `#61150d` | `#f2917f` | Error como texto. El valor Night no existe en Fulmis: es derivado |
 
-Se retiran `textFaint` (pasa a `textDim`), `accentSoft` (pasa a `surfaceHigh`), `ok`/`okText`, `highlight`, `glass` y `glassLine`. En V1 quedan como alias de los valores nuevos; V9 los borra.
+Se retiran `textFaint`, `accentSoft`, `ok`/`okText`, `highlight`, `glass` y `glassLine`. Como V1 no edita pantallas, ahí quedan como **alias temporales** con valores elegidos para que los pares que hoy comprueba la prueba de contraste sigan pasando; V2 y V6 migran a sus consumidores y V9 los borra:
+
+| Alias | Valor en V1 (Paper / Night) | Par que se sigue comprobando |
+|---|---|---|
+| `textFaint` | los de `textDim` | sobre `bg` y `cell` |
+| `accentSoft` | `#e7d5ba` / `#261d18` | `accentText` encima: 4.9 / 4.8. **No** es `surfaceHigh`, que en Paper daría 4.25 |
+| `ok`, `okText` | los de `text` | `okText` sobre su suave |
+| `highlight` | los de `surfaceHigh` | `text` encima |
+| `glass`, `glassLine` | los de `cell` y `separator`, opacos | — |
+
+En el sistema final, lo que hoy usa `accentSoft` con `accentText` pasa al tono "Atención" o a `surfaceHigh` con tinta `text`.
 
 **No hay verde.** Fulmis no lo tiene. "Hecho" (entregado, pagado, verificado) es un estado **silencioso**: píldora `surfaceHigh` con tinta `text` y un icono de palomita. Lo que pide atención es lo único con color fuerte.
 
@@ -150,7 +160,7 @@ Dos restricciones que salen de la medición: el naranja `accent` **no se usa com
 **Web**
 
 - **Shell:** barra lateral Night fija de 240 px desde 1024 px de ancho: marca, navegación del perfil en grupos con icono y contador, y abajo la cuenta ("Apariencia", cerrar sesión). Por debajo de 1024 px, una barra superior con botón de menú que abre la misma navegación en un panel. Los enlaces conservan su nombre accesible.
-  - Cliente: Inicio, Mis cargas, Viajes, Cartera, Empresa, Notificaciones; "Publicar carga" pasa a ser el botón primario de la barra lateral (sigue siendo un enlace con el mismo nombre).
+  - Cliente: Inicio, Mis cargas, Viajes, Cartera, Empresa, Notificaciones; "Publicar carga" va arriba de la lista como enlace **con contorno** (borde, sin relleno; mismo nombre accesible). No es el primario: la barra lateral es navegación y nunca lleva un botón relleno. El primario relleno de cada pantalla vive en el contenido: "Publicar carga" en el encabezado de Inicio y de "Mis cargas", "Aceptar oferta" en el detalle de una carga, "Publicar" en el formulario. En `/cliente/cargas/nueva` el enlace de la barra queda como elemento seleccionado.
   - Transportista: Inicio · **Operación** (Cargas, Negociaciones, Viajes) · **Empresa** (Flota y el resto de las pestañas actuales de empresa, cobranza y suscripción) · Notificaciones.
   - Admin: Inicio · **Verificación** (Cola, Usuarios) · **Operación** (Cargas, Intermediadas, Viajes, Incidencias, Carreteras) · **Dinero** (Flete, Suscripciones) · **Sistema** (Auditoría, Ajustes).
 - **Inicio como tablero:** una fila de hasta cuatro indicadores (rótulo `label`, cifra `numeral`, enlace al listado ya filtrado), la lista "Requiere tu atención" con una acción por fila, y debajo lo que está vivo (cargas activas en tabla, viaje en curso con su avance por pasos, resumen de cartera o cobranza).
@@ -180,8 +190,8 @@ Formato: objetivo, alcance, fuera de alcance, tests, aceptación, E2E que probab
 
 - **Objetivo:** que la web y la app pasen a Paper/Night, Geist y los radios nuevos desde los tokens, sin editar pantallas.
 - **Alcance:**
-  - `packages/shared/src/design/tokens.ts`: paleta de §1.1 (claves nuevas `control`, `info`, `infoFill`, `infoInk`, `redInk`, `brand*`; alias temporales de las retiradas), `typeScale` con `label`, `meta` y `numeral`, radios 0/3/8/999, alturas.
-  - `tokens.test.ts`: los pares de la tabla de contrastes de §1.1 (texto ≥ 4.5, bordes ≥ 3), en los dos temas.
+  - `packages/shared/src/design/tokens.ts`: paleta de §1.1 (claves nuevas `control`, `info`, `infoFill`, `infoInk`, `redInk`, `brand*`; alias temporales de las retiradas con los valores de la tabla de alias de §1.1), `typeScale` con `label`, `meta` y `numeral`, radios 0/3/8/999, alturas.
+  - `tokens.test.ts`: los pares de la tabla de contrastes de §1.1 (texto ≥ 4.5, bordes ≥ 3) y los de los alias mientras existan, en los dos temas.
   - Web: `globals.css` con las variables nuevas, Geist y Geist Mono en `layout.tsx`; `theme-tokens.test.ts` sigue comprobando CSS ↔ tokens.
   - App: `theme.tsx` con la paleta y las fuentes nuevas; la barra de pestañas y las cabeceras dejan el cristal.
   - Higiene (`hygiene.ts` y los dos `hygiene.test.ts`): se agregan a lo prohibido `Hanken`, los hex de la paleta anterior y cualquier sombra (ya sin excepciones).

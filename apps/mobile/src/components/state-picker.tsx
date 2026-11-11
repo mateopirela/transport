@@ -4,7 +4,7 @@ import { Text } from 'react-native';
 
 import { useTheme } from '../theme';
 import { OptionSheet, type SheetHandle } from './sheet';
-import { Cell, ErrorText } from './ui';
+import { Caps, Cell, ErrorText } from './ui';
 
 const OPTIONS = MX_STATES.map((state) => ({ value: state, label: state }));
 
@@ -32,9 +32,9 @@ export function StatePicker({
         chevron
         onPress={() => sheet.current?.open()}
       >
-        <Text style={[type.label, error ? { color: colors.redText } : null]}>
+        <Caps style={[type.label, error ? { color: colors.redText } : null]}>
           {copy.stateLabel}
-        </Text>
+        </Caps>
         <Text style={value ? type.body : [type.body, { color: colors.textDim }]}>
           {value || copy.statePlaceholder}
         </Text>

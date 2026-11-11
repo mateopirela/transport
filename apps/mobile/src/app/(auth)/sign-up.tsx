@@ -12,7 +12,7 @@ import { CheckEmail } from '../../components/check-email';
 import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { TermsCheckbox } from '../../components/legal-links';
 import { OptionGroup } from '../../components/option-group';
-import { Button, FieldCell, Group, Notice, Screen, SectionHeader } from '../../components/ui';
+import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
 
@@ -108,7 +108,6 @@ export default function SignUp() {
             textContentType="telephoneNumber"
           />
         </Group>
-        <SectionHeader title={copy.passwordLabel} />
         <Group>
           <FieldCell
             label={copy.passwordLabel}

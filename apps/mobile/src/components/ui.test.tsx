@@ -241,6 +241,13 @@ describe('Pill', () => {
     expect(texts(root)).toEqual(['Estado']);
   });
 
+  it('keeps its wording as its accessible name, though it is drawn in capitals', async () => {
+    const root = await render(<Pill label="Publicada por Transport" tone="attention" />);
+    const text = at(byType(root, 'Text'));
+    expect(styleOf(text).textTransform).toBe('uppercase');
+    expect(text.props.accessibilityLabel).toBe('Publicada por Transport');
+  });
+
   it('marks what is done with a check on the quiet fill, never with green', async () => {
     const root = await render(<Pill label="Entregado" tone="done" />);
     expect(ground(root)).toBe(palette.light.surfaceHigh);

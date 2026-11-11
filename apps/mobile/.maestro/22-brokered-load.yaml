@@ -19,7 +19,8 @@ tags: [carrier, owner-operator]
     element: 'Apodaca → Zapopan.*'
     centerElement: true
     timeout: 30000
-- assertVisible: 'Publicada por Transport'
+# The row is one accessible element that reads all its lines, the badge last.
+- assertVisible: 'Apodaca → Zapopan.*Publicada por Transport'
 - assertNotVisible: '.*\$12,000.00.*'
 - takeScreenshot: 22-1-brokered-load-list
 - tapOn: 'Apodaca → Zapopan.*'

@@ -29,11 +29,8 @@ tags: [operator, dwell]
     direction: DOWN
     centerElement: true
 - takeScreenshot: 19-2-operator-unloading
-# deliver.yaml looks for the photos upwards: start below the badge.
-- scrollUntilVisible:
-    element: 'Fotos de entrega'
-    direction: DOWN
-    centerElement: true
+# deliver.yaml looks for the photos upwards, and the estimate is right below
+# them: the flow is already where it has to start.
 - runFlow:
     file: subflows/deliver.yaml
 - takeScreenshot: 19-3-operator-delivered

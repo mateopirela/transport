@@ -37,6 +37,7 @@ import {
   View,
   type StyleProp,
   type TextInputProps,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -190,7 +191,7 @@ export function LargeTitle({
   return (
     <View style={kit.largeTitle}>
       {right ? <View style={kit.largeTitleRight}>{right}</View> : null}
-      {eyebrow ? <Text style={kit.label}>{eyebrow}</Text> : null}
+      {eyebrow ? <Caps style={kit.label}>{eyebrow}</Caps> : null}
       <Text accessibilityRole="header" style={kit.largeTitleText}>
         {title}
       </Text>
@@ -222,10 +223,35 @@ export function SectionHeader({
   );
 }
 
+/**
+ * A label drawn in capitals. iOS reads a transformed text the way it is drawn,
+ * so the label keeps its own wording as its accessible name: a screen reader
+ * and the E2E flows get "Publicada por Transport", not "PUBLICADA POR TRANSPORT".
+ */
+export function Caps({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  style: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
+  return (
+    <Text
+      {...(typeof children === 'string' ? { accessibilityLabel: children } : null)}
+      style={style}
+      numberOfLines={numberOfLines}
+    >
+      {children}
+    </Text>
+  );
+}
+
 /** The small label over a group of fields or choices. */
 export function GroupLabel({ children }: { children: ReactNode }) {
   const kit = useKit();
-  return <Text style={[kit.label, kit.groupLabel]}>{children}</Text>;
+  return <Caps style={[kit.label, kit.groupLabel]}>{children}</Caps>;
 }
 
 /** The line under a group that explains it. */
@@ -465,7 +491,7 @@ export function FieldCell({
   const Input = inSheet ? BottomSheetTextInput : TextInput;
   return (
     <View style={kit.controlCell}>
-      <Text style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Text>
+      <Caps style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Caps>
       <Input
         accessibilityLabel={label}
         placeholderTextColor={colors.textDim}
@@ -496,7 +522,7 @@ export function ControlCell({
   const kit = useKit();
   return (
     <View style={kit.controlCell}>
-      {label ? <Text style={kit.fieldLabel}>{label}</Text> : null}
+      {label ? <Caps style={kit.fieldLabel}>{label}</Caps> : null}
       {children}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </View>
@@ -683,9 +709,9 @@ export function BottomBar({
       <View style={kit.barRow}>
         {figure ? (
           <View style={kit.grow}>
-            <Text style={kit.label} numberOfLines={1}>
+            <Caps style={kit.label} numberOfLines={1}>
               {figure.label}
-            </Text>
+            </Caps>
             <Text style={[kit.title3, kit.num]} numberOfLines={1}>
               {figure.value}
             </Text>
@@ -735,7 +761,7 @@ export function Field({
   const { colors, theme } = useTheme();
   return (
     <View style={kit.field}>
-      <Text style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Text>
+      <Caps style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Caps>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.textDim}
@@ -988,9 +1014,9 @@ export function Pill({ label, tone = 'neutral' }: { label: string; tone?: PillTo
       ]}
     >
       {check ? <Icon name="check" size={PILL_CHECK} color={fg} /> : null}
-      <Text style={[kit.pillText, { color: fg }]} numberOfLines={1}>
+      <Caps style={[kit.pillText, { color: fg }]} numberOfLines={1}>
         {label}
-      </Text>
+      </Caps>
     </View>
   );
 }
@@ -1182,7 +1208,7 @@ function BrandContent({
       ) : null}
       {label || title || body ? (
         <View style={kit.brandText}>
-          {label ? <Text style={kit.label}>{label}</Text> : null}
+          {label ? <Caps style={kit.label}>{label}</Caps> : null}
           {title ? (
             <Text accessibilityRole="header" style={kit.brandTitle}>
               {title}
@@ -1255,7 +1281,7 @@ export function Steps({
   return (
     <View style={[kit.steps, inset ? kit.stepsInset : null]}>
       <View style={kit.stepsHeader}>
-        {title ? <Text style={[kit.label, kit.grow]}>{title}</Text> : <View style={kit.grow} />}
+        {title ? <Caps style={[kit.label, kit.grow]}>{title}</Caps> : <View style={kit.grow} />}
         <Text style={kit.meta}>{count}</Text>
       </View>
       <View
@@ -1337,9 +1363,9 @@ export function Money({
   if (!label) return figure;
   return (
     <View style={kit.money}>
-      <Text style={[kit.label, right]} numberOfLines={1}>
+      <Caps style={[kit.label, right]} numberOfLines={1}>
         {label}
-      </Text>
+      </Caps>
       {figure}
     </View>
   );
@@ -1363,9 +1389,9 @@ export function KpiTile({
   const kit = useKit();
   const content = (
     <>
-      <Text style={kit.label} numberOfLines={2}>
+      <Caps style={kit.label} numberOfLines={2}>
         {label}
-      </Text>
+      </Caps>
       <Text style={[kit.kpiValue, kit.num]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
@@ -1658,7 +1684,8 @@ function makeStyles({ colors, type, theme }: Look) {
     bone: {
       height: spacing.sm + spacing.xs,
       borderRadius: shape.tag,
-      backgroundColor: colors.surfaceHigh,
+      // The line colour reads on the cell in both themes; `surfaceHigh` is lost on Night.
+      backgroundColor: colors.separator,
     },
     boneShort: { width: '35%', height: spacing.sm + 2 },
     notice: {

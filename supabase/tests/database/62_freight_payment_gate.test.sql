@@ -197,7 +197,7 @@ insert into public.freight_invoices (
   trip_id, direction, cfdi_uuid, issuer_rfc, receiver_rfc, total_cents, currency, issued_at, validation, xml_path
 )
 select f.trip_id, 'carrier_to_fulmis', gen_random_uuid(), 'FGA040404CD7', 'FUL201015AB1',
-       f.carrier_net_cents, 'MXN', now(), 'unvalidated', f.trip_id || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
+       f.carrier_net_cents, 'MXN', now(), 'validated', f.trip_id || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
 from public.freight_ledgers f where f.trip_id in (tests.val('trip2'), tests.val('trip3'));
 
 -- ---------------------------------------------------------------------------

@@ -6,9 +6,9 @@ import {
   FREIGHT_INVOICE_FUNCTIONS,
   FREIGHT_PAGE_SIZE,
   freightInvoiceUploadErrors,
-  isQuickPayBlocker,
   parseFreightPayments,
   parseFulmisSettings,
+  parseQuickPayBlocker,
   quickPayErrorText,
   toCents,
   type Database,
@@ -85,7 +85,7 @@ export async function loadCollections(client: Supabase): Promise<CollectionRow[]
     payments: parseFreightPayments(row.payments),
     quick_pay_fee_cents: nullableCents(row.quick_pay_fee_cents),
     quick_pay_net_cents: nullableCents(row.quick_pay_net_cents),
-    quick_pay_blocker: isQuickPayBlocker(row.quick_pay_blocker) ? row.quick_pay_blocker : null,
+    quick_pay_blocker: parseQuickPayBlocker(row.quick_pay_blocker),
   }));
 }
 

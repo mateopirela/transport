@@ -7,14 +7,17 @@
 --     is a sum over every ledger) and then asks for a confirmation;
 --   * the client's full payment while the admin approves the same trip: the
 --     payment waits, and the approved quick pay stays (Fulmis paid early; the
---     fee was the carrier's choice).
+--     fee was the carrier's choice);
+--   * a carrier CFDI registered "Sin validar" while the admin saves Fulmis'
+--     RFC (I4 fix, 65_quick_pay_validated_cfdi), either first: it is
+--     validated all the same, none is left "Sin validar" for the quick pay.
 -- Committed fixtures through the setup connection, deleted at the end (same
 -- approach as 54_freight_ledger_concurrency).
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(14);
+select plan(20);
 
 create schema tests;
 
@@ -120,7 +123,7 @@ as $$
   select extensions.dblink_exec('setup', $sql$
     reset request.jwt.claims;
     update public.platform_settings set value = 'null'
-    where key = 'freight.quick_pay_exposure_limit_cents';
+    where key in ('freight.quick_pay_exposure_limit_cents', 'fulmis.rfc');
     -- The admins of the seed were told of these requests too.
     delete from public.notifications
     where data ->> 'tripId' in (
@@ -207,7 +210,8 @@ declare
   v_load uuid;
   v_offer uuid;
 begin
-  for i in 1..4 loop
+  -- trip5 and trip6: no CFDI yet (section 4).
+  for i in 1..6 loop
     v_load := tests.as_user('a6000000-0000-4000-8000-000000000001', $sql$
       select public.create_load(jsonb_build_object(
         'origin', jsonb_build_object('address', 'Av. Constitución 100', 'city', 'Monterrey', 'state', 'Nuevo León',
@@ -241,7 +245,7 @@ select extensions.dblink_exec('setup', format($sql$
     trip_id, direction, cfdi_uuid, issuer_rfc, receiver_rfc, total_cents, currency, issued_at, validation, xml_path
   )
   select t.id, 'carrier_to_fulmis', gen_random_uuid(), 'FCO040404CD4', 'FUL201015AB1', 970000, 'MXN', now(),
-         'unvalidated', t.id || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
+         'validated', t.id || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
   from public.trips t where t.id in (%1$L, %2$L, %3$L, %4$L);
 $sql$, tests.val('trip1'), tests.val('trip2'), tests.val('trip3'), tests.val('trip4')));
 
@@ -343,6 +347,72 @@ select is(
     from public.freight_ledgers where trip_id = %L
   $sql$, tests.val('trip4'))),
   'paid,scheduled,24250,t', 'the client paid and the approved quick pay stays'
+);
+
+-- ---------------------------------------------------------------------------
+-- 4. A carrier CFDI registered "Sin validar" while the admin saves Fulmis' RFC
+-- ---------------------------------------------------------------------------
+-- As the Edge Function registers it without the RFC: made out to the RFC the
+-- admin is saving.
+create function tests.cfdi_sql(p_trip text)
+returns text
+language sql
+stable
+as $$
+  select format($q$
+    insert into public.freight_invoices (
+      trip_id, direction, cfdi_uuid, issuer_rfc, receiver_rfc, total_cents, currency, issued_at, validation, xml_path
+    ) values (
+      %1$L, 'carrier_to_fulmis', gen_random_uuid(), 'FCO040404CD4', 'FUL201015AB1', 970000, 'MXN', now(),
+      'unvalidated', %1$L || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
+    ) returning validation::text
+  $q$, tests.val(p_trip))
+$$;
+
+create function tests.save_rfc_sql()
+returns text
+language sql
+immutable
+as $$ select $q$ select public.admin_set_platform_setting('fulmis.rfc', '"FUL201015AB1"')::text $q$ $$;
+
+-- The admin saves first: the registration waits for it and reads the RFC.
+select tests.begin_as('s1', 'a6000000-0000-4000-8000-000000000003');
+select lives_ok(
+  format($$ select * from extensions.dblink('s1', %L) as t(r text) $$, tests.save_rfc_sql()),
+  'the admin saves Fulmis'' RFC (not committed yet)'
+);
+select extensions.dblink_exec('s2', 'begin');
+select extensions.dblink_send_query('s2', tests.cfdi_sql('trip5'));
+select ok(tests.wait_until_blocked('s2'), 'a carrier CFDI registered meanwhile waits for the save');
+select extensions.dblink_exec('s1', 'commit');
+select is(
+  (select r from extensions.dblink_get_result('s2') as t(r text)), 'validated',
+  'and it is validated with the RFC just saved'
+);
+select * from extensions.dblink_get_result('s2', false) as t(r text);
+select extensions.dblink_exec('s2', 'commit');
+
+-- The registration first: the save waits for it and then validates it.
+select extensions.dblink_exec('setup', $sql$
+  update public.platform_settings set value = 'null' where key = 'fulmis.rfc';
+$sql$);
+select extensions.dblink_exec('s2', 'begin');
+select is(
+  (select r from extensions.dblink('s2', tests.cfdi_sql('trip6')) as t(r text)), 'unvalidated',
+  'without the RFC, a carrier CFDI is registered "Sin validar" (not committed yet)'
+);
+select tests.begin_as('s1', 'a6000000-0000-4000-8000-000000000003');
+select extensions.dblink_send_query('s1', tests.save_rfc_sql());
+select ok(tests.wait_until_blocked('s1'), 'the admin''s save of the RFC meanwhile waits for it');
+select extensions.dblink_exec('s2', 'commit');
+select * from extensions.dblink_get_result('s1') as t(r text);
+select * from extensions.dblink_get_result('s1', false) as t(r text);
+select extensions.dblink_exec('s1', 'commit');
+select is(
+  tests.peek(format($sql$
+    select validation::text from public.freight_invoices where trip_id = %L and direction = 'carrier_to_fulmis'
+  $sql$, tests.val('trip6'))),
+  'validated', 'and then validates it: none is left "Sin validar"'
 );
 
 select tests.cleanup();

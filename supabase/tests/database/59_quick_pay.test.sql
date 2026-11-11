@@ -142,7 +142,8 @@ begin
 end;
 $$;
 
--- Registers the carrier's CFDI of a trip (as the I5 Edge Function would).
+-- Registers the carrier's CFDI of a trip, validated (as the I5 Edge Function
+-- would with Fulmis' RFC set: quick pay needs it validated, 65_quick_pay_validated_cfdi).
 create function tests.carrier_cfdi(p_trip text)
 returns void
 language sql
@@ -152,7 +153,7 @@ as $$
     xml_path
   )
   select tests.val(p_trip), 'carrier_to_fulmis', gen_random_uuid(), 'FQP040404CD4', 'FUL201015AB1',
-         f.carrier_net_cents, 'MXN', now(), 'unvalidated',
+         f.carrier_net_cents, 'MXN', now(), 'validated',
          tests.val(p_trip) || '/carrier_to_fulmis/' || gen_random_uuid() || '.xml'
   from public.freight_ledgers f where f.trip_id = tests.val(p_trip);
 $$;

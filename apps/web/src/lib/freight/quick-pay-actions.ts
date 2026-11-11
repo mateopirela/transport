@@ -2,6 +2,7 @@
 
 import {
   authErrors,
+  isQuickPayInvoiceBlocker,
   isValidExposureLimitCents,
   isValidQuickPayFeeBps,
   parsePesosToCents,
@@ -75,9 +76,11 @@ export async function approveQuickPayAction(
     // the new exposure and the form asks for the confirmation.
     if (error.details === 'over_limit') {
       revalidatePath(paths.adminFreight);
-      return { error: quickPayErrorText(error), values: { overLimit: '1' } };
+      return { error: quickPayErrorText(error, 'admin'), values: { overLimit: '1' } };
     }
-    return { error: quickPayErrorText(error) };
+    // The carrier's CFDI is not validated (I4): the page comes back saying why.
+    if (isQuickPayInvoiceBlocker(error.details)) revalidatePath(paths.adminFreight);
+    return { error: quickPayErrorText(error, 'admin') };
   }
   refreshLedger();
   return { message: q.admin.approvedDone };
@@ -98,7 +101,7 @@ export async function rejectQuickPayAction(
     p_trip_id: tripId.data,
     p_reason: reason,
   });
-  if (error) return { error: quickPayErrorText(error) };
+  if (error) return { error: quickPayErrorText(error, 'admin') };
   refreshLedger();
   return { message: q.admin.rejectedDone };
 }

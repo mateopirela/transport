@@ -2,6 +2,15 @@
 // client's terms, for a fee; the admin approves or rejects each request.
 // Cobranza (app and web) and /admin/flete.
 
+/** Why the carrier's CFDI to Fulmis does not allow the quick pay (QuickPayInvoiceBlocker). */
+const invoiceBlockerTexts = {
+  invoice_missing: 'Sube tu CFDI a Fulmis para pedir pago rápido.',
+  fulmis_rfc_missing:
+    'Tu CFDI quedó "Sin validar" porque Fulmis aún no tiene su RFC. Podrás pedir pago rápido en cuanto lo capture.',
+  invoice_unvalidated:
+    'Tu CFDI quedó "Sin validar": no está a nombre del RFC de Fulmis. Escríbenos por soporte para corregirlo y pedir pago rápido.',
+} as const;
+
 /**
  * Why a trip cannot ask for the quick pay (QuickPayBlocker), as Cobranza
  * says it. Null: nothing to say (its status already tells, or the trip is
@@ -11,7 +20,7 @@ export const quickPayBlockerLabels = {
   not_open: null,
   partially_paid: 'Sin pago rápido: Fulmis ya te pagó una parte de este viaje.',
   not_delivered: null,
-  invoice_missing: 'Sube tu CFDI a Fulmis para pedir pago rápido.',
+  ...invoiceBlockerTexts,
 } as const;
 
 export const quickPayCopy = {
@@ -65,11 +74,27 @@ export const quickPayCopy = {
     rejectReasonHelp: 'Lo verá el transportista. Hasta 500 caracteres.',
     rejectSubmit: 'Rechazar solicitud',
     rejectedDone: 'Listo: la solicitud quedó rechazada.',
+    /** Why a pending request cannot be approved: the carrier's CFDI (QuickPayInvoiceBlocker). */
+    invoiceBlockers: {
+      invoice_missing:
+        'No se puede aprobar: el transportista no ha subido su CFDI a Fulmis. Recházala con el motivo.',
+      fulmis_rfc_missing:
+        'No se puede aprobar: el CFDI del transportista está "Sin validar" porque falta el RFC de Fulmis. Captúralo en Ajustes (el CFDI a su nombre queda validado) o recházala con el motivo.',
+      invoice_unvalidated:
+        'No se puede aprobar: el CFDI del transportista está "Sin validar" porque no está a nombre del RFC de Fulmis. Recházala con el motivo.',
+    },
   },
   errors: {
     notAllowed: 'No puedes pedir el pago rápido de este viaje.',
     feeChanged: 'La tarifa de pago rápido cambió. Revisa el nuevo monto y vuelve a confirmar.',
-    notOpen: 'Este viaje ya no admite pago rápido.',
+    /** request_quick_pay refused (55000): the reason in its detail (QuickPayBlocker). */
+    blockers: {
+      not_open: 'Este viaje ya no admite pago rápido.',
+      partially_paid: 'Este viaje ya no admite pago rápido: Fulmis ya te pagó una parte.',
+      not_delivered:
+        'Podrás pedir pago rápido cuando el viaje esté entregado, con su evidencia firmada.',
+      ...invoiceBlockerTexts,
+    },
     notRequested: 'Esta solicitud ya se resolvió.',
     overLimit:
       'Esta aprobación pasa el límite de exposición. Marca "Aprobar aunque pase el límite" para confirmarla.',

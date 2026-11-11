@@ -9,11 +9,15 @@ describe('themeChoiceFromCookie', () => {
     expect(themeChoiceFromCookie('system')).toBe('system');
   });
 
-  it('falls back to the system without a cookie or with garbage', () => {
-    expect(themeChoiceFromCookie(undefined)).toBe('system');
-    expect(themeChoiceFromCookie('')).toBe('system');
-    expect(themeChoiceFromCookie('purple')).toBe('system');
-    expect(themeChoiceFromCookie('dark; Path=/')).toBe('system');
+  it('falls back to light without a cookie or with garbage (D26-E1)', () => {
+    expect(themeChoiceFromCookie(undefined)).toBe('light');
+    expect(themeChoiceFromCookie('')).toBe('light');
+    expect(themeChoiceFromCookie('purple')).toBe('light');
+    expect(themeChoiceFromCookie('dark; Path=/')).toBe('light');
+  });
+
+  it('never lets the system darken a first visit (D26-E1)', () => {
+    expect(themeClass(themeChoiceFromCookie(undefined))).toBe('light');
   });
 });
 

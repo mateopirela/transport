@@ -55,12 +55,12 @@ describe('globals.css mirrors the design tokens', () => {
 });
 
 describe('theme cookie', () => {
-  it('reads a valid choice and falls back to the system', () => {
+  it('reads a valid choice and falls back to light (D26-E1)', () => {
     expect(themeChoiceFromCookie('dark')).toBe('dark');
     expect(themeChoiceFromCookie('light')).toBe('light');
     expect(themeChoiceFromCookie('system')).toBe('system');
-    expect(themeChoiceFromCookie('purple')).toBe('system');
-    expect(themeChoiceFromCookie(undefined)).toBe('system');
+    expect(themeChoiceFromCookie('purple')).toBe('light');
+    expect(themeChoiceFromCookie(undefined)).toBe('light');
   });
 
   it('maps the choice to the class of <html>', () => {

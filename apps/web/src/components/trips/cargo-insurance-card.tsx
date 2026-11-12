@@ -66,7 +66,7 @@ export function CargoInsuranceCard({
           {side === 'shipper' ? c.shipperHelp : c.carrierHelp}
         </p>
       </div>
-      <div className="space-y-4 rounded-2xl border bg-cell p-4">
+      <div className="space-y-4 border bg-cell p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p
             className={cn('text-body', missing ? 'text-amber-text' : 'text-text')}

@@ -28,7 +28,6 @@ import { textLink } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';
-import { Money } from '@/components/ui/money';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
@@ -380,7 +379,7 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
           />
           <KpiTile
             label={q.exposure}
-            value={<Money cents={quickPay.exposureCents} />}
+            cents={quickPay.exposureCents}
             hint={
               <span data-testid="quick-pay-exposure">
                 {q.exposureLine(

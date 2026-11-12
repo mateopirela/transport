@@ -14,7 +14,8 @@ import {
   setQuickPaySettingsAction,
 } from '@/lib/freight/quick-pay-actions';
 
-import { ConfirmSubmit, formAmount, formText } from './confirm-submit';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
+import { formAmount, formText } from '@/lib/admin/confirm-text';
 
 // Quick pay (I4, D38), the admin's side: the decision on a request in
 // /admin/flete and the settings in /admin/ajustes. Each one asks first

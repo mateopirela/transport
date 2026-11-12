@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,10 @@ const TEXTS: Record<FreightInvoiceDirection, Texts> = {
     doneUnvalidated: freightInvoicesCopy.admin.doneUnvalidated,
   },
 };
+
+function hasFile(value: FormDataEntryValue | null): boolean {
+  return value instanceof File && value.size > 0;
+}
 
 /** The status and JSON body of a failed Edge Function call (supabase-js FunctionsHttpError). */
 async function failureOf(error: unknown): Promise<{ status: number | null; body: unknown }> {
@@ -162,9 +167,24 @@ export function InvoiceUpload({
             />
           </Field>
         </div>
-        <Button type="submit" variant="secondary" size="sm" disabled={pending} loading={pending}>
-          {pending ? t.submitting : t.submit}
-        </Button>
+        {direction === 'fulmis_to_client' ? (
+          // The admin's upload asks first (§1.5); without an XML the function answers why.
+          <ConfirmSubmit
+            title={freightInvoicesCopy.admin.confirmTitle}
+            description={freightInvoicesCopy.admin.confirmBody}
+            confirmLabel={freightInvoicesCopy.admin.confirmSubmit}
+            skip={(data) => !hasFile(data.get('xml'))}
+            size="sm"
+            disabled={pending}
+            loading={pending}
+          >
+            {pending ? t.submitting : t.submit}
+          </ConfirmSubmit>
+        ) : (
+          <Button type="submit" variant="secondary" size="sm" disabled={pending} loading={pending}>
+            {pending ? t.submitting : t.submit}
+          </Button>
+        )}
       </form>
     </Disclosure>
   );

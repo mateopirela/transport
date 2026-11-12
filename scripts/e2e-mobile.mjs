@@ -69,6 +69,9 @@ const PEDRO = '5eed0003-0000-4000-8000-000000000001';
 // so 23-quick-pay can ask for its quick pay.
 const QUICK_PAY_MANAGER = 'jorge.villarreal@demo.test';
 const HELD_TRIP = '5eed0008-0000-4000-8000-000000000008';
+// The admin of the seed sets Fulmis' RFC (synthetic), which the CFDI is checked against.
+const ADMIN = 'admin@demo.test';
+const FULMIS_RFC = 'FUL201015AB1';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -187,6 +190,30 @@ async function shipperAccepts(status) {
 async function signIn(status, email) {
   const session = await api(status, '/auth/v1/token?grant_type=password', {
     body: { email, password: DEMO_PASSWORD },
+  });
+  return session.access_token;
+}
+
+/**
+ * The seed's admin, past the second factor (R5: admin RPCs ask for aal2):
+ * signs in with the password, then answers a TOTP challenge with a code of
+ * the seed's test key.
+ */
+async function adminSignIn(status) {
+  const password = await signIn(status, ADMIN);
+  const user = await api(status, '/auth/v1/user', { token: password });
+  const factor = (user.factors ?? []).find(
+    (f) => f.factor_type === 'totp' && f.status === 'verified',
+  );
+  if (!factor) throw new Error(`${ADMIN} has no verified TOTP factor in the seed`);
+  const { DEMO_ADMIN_TOTP_KEY, unusedCode } = await import('../e2e/support/totp.ts');
+  const challenge = await api(status, `/auth/v1/factors/${factor.id}/challenge`, {
+    token: password,
+    body: {},
+  });
+  const session = await api(status, `/auth/v1/factors/${factor.id}/verify`, {
+    token: password,
+    body: { challenge_id: challenge.id, code: await unusedCode(DEMO_ADMIN_TOTP_KEY) },
   });
   return session.access_token;
 }
@@ -409,13 +436,20 @@ async function tripLinksForPedro(status) {
  * and UUID).
  */
 async function carrierCfdiForHeldTrip(status) {
+  // Since I4 a quick pay needs the CFDI validated against Fulmis' RFC, which
+  // the seed leaves unset: the admin sets it first, as on /admin/ajustes.
+  const admin = await adminSignIn(status);
+  await api(status, '/rest/v1/rpc/admin_set_platform_setting', {
+    token: admin,
+    body: { p_key: 'fulmis.rfc', p_value: FULMIS_RFC },
+  });
   const token = await signIn(status, QUICK_PAY_MANAGER);
   const { syntheticCfdi } = await import('../packages/shared/src/freight/cfdi-fixtures.ts');
   const body = new FormData();
   body.append('tripId', HELD_TRIP);
   const xml = syntheticCfdi({
     issuerRfc: 'TRN120210LP5',
-    receiverRfc: 'FUL201015AB1',
+    receiverRfc: FULMIS_RFC,
     total: '38800.00',
     uuid: crypto.randomUUID(),
   });

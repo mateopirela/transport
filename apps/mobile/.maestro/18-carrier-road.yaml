@@ -42,5 +42,6 @@ tags: [carrier, roads]
     element: '.*MTY–GDL por Saltillo y San Luis Potosí.*'
     direction: DOWN
     timeout: 20000
-- assertVisible: '.*desde \$748.00.*'
+- assertVisible: '.*desde \$748.*'
+- assertNotVisible: '.*desde \$748\.00.*'
 - takeScreenshot: 18-2-carrier-suggested-road

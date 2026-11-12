@@ -1,4 +1,4 @@
-import { STATE_TONE_KEYS, STATE_TONES } from '@transport/shared';
+import { findStrictHygieneViolations, STATE_TONE_KEYS, STATE_TONES } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { cn } from '@/lib/utils';
@@ -118,7 +118,8 @@ describe('pillVariants and tagVariants', () => {
         expect(value).not.toEqual(
           expect.arrayContaining([expect.stringMatching(/^text-(accent|amber|red|info)$/u)]),
         );
-        expect(value.join(' ')).not.toMatch(/\bok\b|green|accent-soft|\/14/u);
+        expect(value.join(' ')).not.toMatch(/green|\/14/u);
+        expect(findStrictHygieneViolations(value.join(' '), 'web')).toEqual([]);
       }
     }
   });

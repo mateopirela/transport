@@ -2,7 +2,7 @@ import { clientListsCopy, clientTripsCopy, formatDate } from '@transport/shared'
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { rowLink } from '@/components/client/panel';
+import { rowLink } from '@/components/ui/panel';
 import { Pager } from '@/components/pager';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { Empty } from '@/components/ui/empty';

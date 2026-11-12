@@ -70,7 +70,7 @@ export function TripChecklist({
                   <span
                     className={cn(
                       'text-footnote tabular-nums',
-                      row.done_at ? 'text-ok-text' : 'text-text-dim',
+                      row.done_at ? 'text-text' : 'text-text-dim',
                     )}
                   >
                     {row.code === 'cargo_insurance' && cargoInsurance?.kind === 'annual_policy'

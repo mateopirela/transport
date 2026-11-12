@@ -3,7 +3,8 @@
 import { adminPanelCopy, brokeredCopy, centsToPesosInput } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { ConfirmSubmit, formAmount } from '@/components/admin/confirm-submit';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
+import { formAmount } from '@/lib/admin/confirm-text';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

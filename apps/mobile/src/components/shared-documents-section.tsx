@@ -108,7 +108,7 @@ export function SharedDocumentsSection({
       </Group>
       <SectionHeader title={copy.carrier.title} />
       {message ? (
-        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+        <Notice tone={message.tone === 'info' ? 'done' : 'danger'}>{message.text}</Notice>
       ) : null}
       {rows.length === 0 ? (
         <Group>

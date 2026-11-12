@@ -84,7 +84,7 @@ export function MoveToBusinessUnit({
         />
       </Group>
       {message ? (
-        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+        <Notice tone={message.tone === 'info' ? 'done' : 'danger'}>{message.text}</Notice>
       ) : null}
       {target ? (
         <Button

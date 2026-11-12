@@ -386,8 +386,14 @@ function makeStyles({ colors, type }: Look) {
       gap: 2,
       maxWidth: '85%',
     },
-    own: { alignSelf: 'flex-end', backgroundColor: colors.accentSoft },
-    theirs: { alignSelf: 'flex-start', backgroundColor: colors.surfaceHigh },
+    // Never `surfaceHigh`: the links in a bubble are `accentText`, which is not AA on it (§1.1).
+    own: { alignSelf: 'flex-end', backgroundColor: colors.bg },
+    theirs: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.cell,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.separator,
+    },
     meta: type.caption,
     body: type.body,
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

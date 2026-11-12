@@ -10,8 +10,7 @@
  * system and the system asks for it.
  *
  * The `--brand-*` colours are Night in both themes (the surfaces of the
- * brand). The last block of each theme holds the temporary aliases of the
- * keys Fulmis retires: V2 moves their consumers and V9 deletes them.
+ * brand). There is no green: "done" is a quiet state (§1.1).
  */
 :root {
   color-scheme: light;
@@ -41,14 +40,6 @@
   --brand-line: #2c2f32;
   --brand-selected: #1c1e20;
   --brand-accent: #e5630b;
-
-  --text-faint: #5c544b;
-  --accent-soft: #e7d5ba;
-  --ok: #121415;
-  --ok-text: #121415;
-  --highlight: #f0e8da;
-  --glass: #f0e8da;
-  --glass-line: #cdb894;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -80,14 +71,6 @@
     --brand-line: #2c2f32;
     --brand-selected: #1c1e20;
     --brand-accent: #e5630b;
-
-    --text-faint: #a29a90;
-    --accent-soft: #261d18;
-    --ok: #f4efe6;
-    --ok-text: #f4efe6;
-    --highlight: #1c1e20;
-    --glass: #1c1e20;
-    --glass-line: #2c2f32;
   }
 }
 
@@ -119,14 +102,6 @@
   --brand-line: #2c2f32;
   --brand-selected: #1c1e20;
   --brand-accent: #e5630b;
-
-  --text-faint: #a29a90;
-  --accent-soft: #261d18;
-  --ok: #f4efe6;
-  --ok-text: #f4efe6;
-  --highlight: #1c1e20;
-  --glass: #1c1e20;
-  --glass-line: #2c2f32;
 }
 
 /* The shadcn names the components already use, on the tokens. */
@@ -142,9 +117,6 @@
   --muted-foreground: var(--text-dim);
   /* A fill (its ink is `--red-ink`); an error as text is `--red-text`. */
   --destructive: var(--red);
-  /* Fulmis has no green: "done" is the ink, and a fill of it takes the cell as its ink. */
-  --success: var(--ok-text);
-  --success-foreground: var(--cell);
   --border: var(--separator);
   --input: var(--control);
   /* The focus ring is the ink (§1.3), in both themes. */
@@ -181,15 +153,6 @@
   --color-brand-selected: var(--brand-selected);
   --color-brand-accent: var(--brand-accent);
 
-  /* Temporary aliases (V9 deletes them). */
-  --color-text-faint: var(--text-faint);
-  --color-accent-soft: var(--accent-soft);
-  --color-ok: var(--ok);
-  --color-ok-text: var(--ok-text);
-  --color-highlight: var(--highlight);
-  --color-glass: var(--glass);
-  --color-glass-line: var(--glass-line);
-
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -201,17 +164,15 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-destructive: var(--destructive);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
   /*
-   * Radii (§1.3): 0, 3, 8 and `rounded-full`. The classes keep the meaning
-   * the pages already give them: `rounded-sm` a chip and `rounded-md` a field
-   * (3), `rounded-lg` a button (8), `rounded-xl` and `rounded-2xl` a card, a
-   * table or a dialog (0).
+   * Radii (§1.3): 0, 3, 8 and `rounded-full`. `rounded-sm` a chip and
+   * `rounded-md` a field (3), `rounded-lg` a button (8). A card, a table or a
+   * dialog has no radius and no screen writes one (the hygiene forbids
+   * `rounded-xl` and up); the two larger steps stay at 0 all the same.
    */
   --radius-sm: 3px;
   --radius-md: 3px;

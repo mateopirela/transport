@@ -10,7 +10,7 @@ import {
 } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { ConfirmSubmit } from '@/components/admin/confirm-submit';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
 import { bpsText, formAmount, formText } from '@/lib/admin/confirm-text';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';

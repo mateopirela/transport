@@ -10,6 +10,7 @@ import {
   formatMoney,
   formatMxn,
   formatTime,
+  formatDayMonth,
 } from './formatters';
 
 // ICU may use narrow no-break spaces; normalize them for readable assertions.
@@ -131,5 +132,14 @@ describe('formatDuration', () => {
 
   it('throws on negative values', () => {
     expect(() => formatDuration(-5)).toThrow(RangeError);
+  });
+});
+
+describe('formatDayMonth', () => {
+  it('writes the day and the short month in Mexico City, without the year', () => {
+    expect(formatDayMonth('2026-10-14T18:00:00Z')).toBe('14 oct');
+    // 3:00 UTC on the 15th is still the 14th in Mexico City.
+    expect(formatDayMonth('2026-10-15T03:00:00Z')).toBe('14 oct');
+    expect(formatDayMonth('not a date')).toBe(formatterCopy.invalidDate);
   });
 });

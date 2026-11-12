@@ -11,7 +11,7 @@ import {
 
 import { syntheticCfdi } from '../../packages/shared/src/freight/cfdi-fixtures';
 import { ids } from '../support/demo';
-import { SAMPLE_PDF, signInOnWeb } from '../support/web';
+import { confirmDialog, SAMPLE_PDF, signInOnWeb } from '../support/web';
 
 // Freight invoices (I5, D37), with the seed's settled trip: Monterrey →
 // Guadalajara of Aceros del Norte (RFC ADN150301KQ2) with Transportes Regios
@@ -57,6 +57,7 @@ test('the admin uploads the client CFDI, the client downloads it and the carrier
     );
     await form.getByLabel(f.admin.pdf, { exact: true }).setInputFiles(SAMPLE_PDF);
     await form.getByRole('button', { name: f.admin.submit, exact: true }).click();
+    await confirmDialog(admin, f.admin.confirmSubmit);
     await expect(form.getByText(freightInvoiceFailureLabels.receiver_mismatch)).toBeVisible();
   });
 
@@ -76,6 +77,7 @@ test('the admin uploads the client CFDI, the client downloads it and the carrier
     );
     await form.getByLabel(f.admin.pdf, { exact: true }).setInputFiles(SAMPLE_PDF);
     await form.getByRole('button', { name: f.admin.submit, exact: true }).click();
+    await confirmDialog(admin, f.admin.confirmSubmit);
     await expect(form.getByText(freightInvoiceFailureLabels.issued_at)).toBeVisible();
   });
 
@@ -93,6 +95,7 @@ test('the admin uploads the client CFDI, the client downloads it and the carrier
     );
     await form.getByLabel(f.admin.pdf, { exact: true }).setInputFiles(SAMPLE_PDF);
     await form.getByRole('button', { name: f.admin.submit, exact: true }).click();
+    await confirmDialog(admin, f.admin.confirmSubmit);
     const invoice = section.getByTestId('invoice-fulmis_to_client');
     await expect(invoice).toContainText(shortCfdiUuid(clientUuid));
     // Without fulmis.rfc, Fulmis' side was not checked.

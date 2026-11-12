@@ -42,7 +42,7 @@ export function RequirementList({
   action?: (item: Progress[number]) => React.ReactNode;
 }) {
   return (
-    <ul className="overflow-hidden rounded-2xl border bg-cell">
+    <ul className="overflow-hidden border bg-cell">
       {progress.map((item) => {
         const { requirement, document, state } = item;
         return (

@@ -16,18 +16,13 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import {
-  AttentionList,
-  DashboardSection,
-  sectionLink,
-  type AttentionItem,
-} from '@/components/carrier/dashboard';
+import { DashboardSection, sectionLink } from '@/components/carrier/dashboard';
 import { RECOMMENDATION_LIST, RecommendationCard } from '@/components/carrier/recommendation-card';
+import { AttentionList, type AttentionRow } from '@/components/ui/attention-list';
 import { Cell } from '@/components/ui/cell';
 import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';
-import { Money } from '@/components/ui/money';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
@@ -254,43 +249,51 @@ export default async function CarrierHomePage() {
   const assign = firstOf(toAssign.rows, ATTENTION_PER_KIND);
   const assignMore = toAssign.total - assign.shown.length;
   const [firstDocument] = expiring;
-  const attention: AttentionItem[] = [
+  const attention: AttentionRow[] = [
     ...pendingReleases.map((p) => ({
       key: `release-${p.taskId}`,
-      tag: { label: d.attention.tags.release, tone: 'problem' as const },
+      tag: d.attention.tags.release,
+      tone: 'problem' as const,
       title: vehicleReleaseCopy.home.item(p.unit, p.route),
       detail: vehicleReleaseCopy.home.help,
-      action: { href: carrierUnitPath(p.vehicleId), label: vehicleReleaseCopy.home.open },
+      href: carrierUnitPath(p.vehicleId),
+      action: vehicleReleaseCopy.home.open,
     })),
     ...answer.shown.map((n) => ({
       key: `respond-${n.negotiationId}`,
-      tag: { label: d.attention.tags.respond, tone: 'attention' as const },
+      tag: d.attention.tags.respond,
+      tone: 'attention' as const,
       title: n.route,
       detail: d.attention.respondDetail(formatMoney(n.amountCents)),
-      action: { href: carrierNegotiationPath(n.negotiationId), label: d.attention.respondAction },
+      href: carrierNegotiationPath(n.negotiationId),
+      action: d.attention.respondAction,
     })),
     ...assign.shown.map((trip) => ({
       key: `assign-${trip.id}`,
-      tag: { label: d.attention.tags.assign, tone: 'pending' as const },
+      tag: d.attention.tags.assign,
+      tone: 'pending' as const,
       title: tripRoute(trip),
       detail: trip.load
         ? d.attention.assignDetail(formatDate(trip.load.pickup_window_start))
         : undefined,
-      action: { href: carrierTripPath(trip.id), label: d.attention.assignAction },
+      href: carrierTripPath(trip.id),
+      action: d.attention.assignAction,
     })),
     // The documents are one row; the section below lists every one of them.
     ...(firstDocument
       ? [
           {
             key: 'expiring',
-            tag: { label: d.attention.tags.expiring, tone: 'pending' as const },
+            tag: d.attention.tags.expiring,
+            tone: 'pending' as const,
             title: d.attention.expiringTitle(expiring.length),
             detail: d.attention.expiringFirst(
               firstDocument.requirementName,
               firstDocument.owner.label,
               d.attention.expiringDetail(firstDocument.daysLeft),
             ),
-            action: { href: `#${EXPIRING_SECTION_ID}`, label: d.attention.expiringAction },
+            href: `#${EXPIRING_SECTION_ID}`,
+            action: d.attention.expiringAction,
           },
         ]
       : []),
@@ -332,7 +335,8 @@ export default async function CarrierHomePage() {
           />
           <KpiTile
             label={d.kpis.receivable}
-            value={totals ? <Money cents={totals.receivableCents} size="numeral" /> : '—'}
+            cents={totals?.receivableCents ?? null}
+            value="—"
             hint={d.kpis.receivableHint(
               totals && totals.onHoldCents > 0 ? formatMoney(totals.onHoldCents) : null,
             )}
@@ -356,17 +360,19 @@ export default async function CarrierHomePage() {
           {attention.length === 0 ? (
             <Empty title={d.attention.empty} description={d.attention.emptyHelp} />
           ) : (
-            <AttentionList
-              items={attention}
-              footer={
-                overflow.length > 0 &&
-                overflow.map((link) => (
-                  <Link key={link.href} href={link.href} className={sectionLink}>
-                    {link.label}
-                  </Link>
-                ))
-              }
-            />
+            <div className="border bg-cell">
+              <AttentionList
+                rows={attention}
+                footer={
+                  overflow.length > 0 &&
+                  overflow.map((link) => (
+                    <Link key={link.href} href={link.href} className={sectionLink}>
+                      {link.label}
+                    </Link>
+                  ))
+                }
+              />
+            </div>
           )}
         </DashboardSection>
 

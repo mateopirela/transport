@@ -47,7 +47,7 @@ export function ProviderStatusForm({
   const notesError = result.fieldErrors?.notes;
   const helpId = fieldHelpId(notesId);
   return (
-    <form action={action} className="space-y-4 rounded-2xl border bg-cell p-4" noValidate>
+    <form action={action} className="space-y-4 border bg-cell p-4" noValidate>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-headline text-text">{c.title}</p>
         <ProviderBadge state={state} />

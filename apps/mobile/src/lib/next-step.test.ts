@@ -87,7 +87,8 @@ describe('nextStep', () => {
 });
 
 describe('stepDetails', () => {
-  // 14:10 and 15:25 UTC are 8:10 and 9:25 in Mexico City.
+  // 14:10 and 15:25 UTC are 8:10 and 9:25 in Mexico City; "now" is later that day.
+  const now = Date.parse('2026-11-11T20:00:00Z');
   const events = [
     { type: 'departed', occurredAt: '2026-11-11T13:30:00Z' },
     { type: 'arrived_at_pickup', occurredAt: '2026-11-11T14:10:00+00:00' },
@@ -96,7 +97,12 @@ describe('stepDetails', () => {
   ] as const;
 
   it('gives a done step the time it ended, "Ahora" to the one in course and nothing ahead', () => {
-    expect(stepDetails(2, events)).toEqual(['8:10', '9:25', operatorNextStepCopy.now, undefined]);
+    expect(stepDetails(2, events, now)).toEqual([
+      '8:10',
+      '9:25',
+      operatorNextStepCopy.now,
+      undefined,
+    ]);
   });
 
   it('takes the latest record of a step, whatever way its moment is written', () => {
@@ -104,11 +110,26 @@ describe('stepDetails', () => {
       ...events,
       { type: 'arrived_at_pickup', occurredAt: '2026-11-11T14:40:00Z' } as const,
     ];
-    expect(stepDetails(2, again)[0]).toBe('8:40');
+    expect(stepDetails(2, again, now)[0]).toBe('8:40');
   });
 
   it('leaves a done step without a line when its event is not known', () => {
-    expect(stepDetails(4, [])).toEqual([undefined, undefined, undefined, undefined]);
-    expect(stepDetails(0, [])).toEqual([operatorNextStepCopy.now, undefined, undefined, undefined]);
+    expect(stepDetails(4, [], now)).toEqual([undefined, undefined, undefined, undefined]);
+    expect(stepDetails(0, [], now)).toEqual([
+      operatorNextStepCopy.now,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('gives a step of another day its date instead of its time', () => {
+    // 4:10 UTC on the 11th is 22:10 of the 10th in Mexico City.
+    const lastNight = [{ type: 'arrived_at_pickup', occurredAt: '2026-11-11T04:10:00Z' }] as const;
+    expect(stepDetails(1, lastNight, now)[0]).toBe('10 nov');
+    // The same moment, read that night, is still a time.
+    expect(stepDetails(1, lastNight, Date.parse('2026-11-11T05:00:00Z'))[0]).toBe('22:10');
+    // A year later, on the same day and month, it is a date again.
+    expect(stepDetails(1, lastNight, Date.parse('2027-11-11T05:00:00Z'))[0]).toBe('10 nov');
   });
 });

@@ -1,7 +1,7 @@
 import {
   dwellCopy,
   formatDistance,
-  formatMxn,
+  formatMoney,
   formatTime,
   riskWarningText,
   roadsCopy,
@@ -110,7 +110,7 @@ export function SuggestedRoute({
                 roadsCopy.segmentPass(formatTime(s.enterAt)),
                 s.isToll
                   ? roadsCopy.segmentToll(
-                      s.tollCents === null ? roadsCopy.noData : formatMxn(s.tollCents),
+                      s.tollCents === null ? roadsCopy.noData : formatMoney(s.tollCents),
                     )
                   : null,
               ]

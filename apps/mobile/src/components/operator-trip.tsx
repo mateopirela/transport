@@ -153,7 +153,8 @@ export function NextStepBlock({
     <BrandBlock
       label={stepCopy.label}
       title={step.title}
-      body={body ?? (place ? `${place.place}\n${place.window}` : undefined)}
+      body={body ?? place?.place}
+      meta={body === undefined ? place?.window : undefined}
     >
       {lines.map((line) => (
         <BlockLine key={line} strong>

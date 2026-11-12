@@ -58,7 +58,14 @@ describe('findHygieneViolations', () => {
     expect(rules('<p className="text-sm" />', 'web')).toEqual(['font-size']);
     expect(rules('<p className="text-[13px]" />', 'web')).toEqual(['font-size']);
     expect(rules('<div className="rounded-[10px]" />', 'web')).toEqual(['border-radius']);
-    expect(rules('<div className="rounded-2xl shadow-md" />', 'web')).toEqual(['shadow']);
+    expect(rules('<div className="rounded-2xl shadow-md" />', 'web')).toEqual([
+      'border-radius',
+      'shadow',
+    ]);
+    expect(rules('<div className="rounded-xl rounded-t-3xl" />', 'web')).toEqual([
+      'border-radius',
+      'border-radius',
+    ]);
     expect(rules('<div className="border shadow" />', 'web')).toEqual(['shadow']);
     // The scale and the tokens are fine.
     expect(
@@ -154,6 +161,33 @@ describe('findStrictHygieneViolations', () => {
         'mobile',
       ),
     ).toEqual(['old-font', 'old-font']);
+  });
+
+  it('finds the colour keys Fulmis retired, as keys, variables and classes', () => {
+    expect(strict('own: { backgroundColor: colors.accentSoft },', 'mobile')).toEqual([
+      'retired-token',
+    ]);
+    expect(strict('dot: { backgroundColor: colors.ok },', 'mobile')).toEqual(['retired-token']);
+    expect(strict('const c = palette.light.textFaint;', 'mobile')).toEqual(['retired-token']);
+    expect(strict('<p className="text-text-faint hover:bg-accent-soft/40" />', 'web')).toEqual([
+      'retired-token',
+      'retired-token',
+    ]);
+    expect(strict('<span className="text-ok-text border-glass-line bg-ok" />', 'web')).toEqual([
+      'retired-token',
+      'retired-token',
+      'retired-token',
+    ]);
+    expect(strict('--color-highlight: var(--highlight);', 'web')).toEqual([
+      'retired-token',
+      'retired-token',
+    ]);
+    // What only looks like one is fine: a word, another key, a longer class.
+    expect(strict("const ok = true; const label = 'okay';", 'mobile')).toEqual([]);
+    expect(
+      strict('<p className="text-text-dim bg-surface-high text-accent-text" />', 'web'),
+    ).toEqual([]);
+    expect(strict('colors.okay; colors.glassy;', 'mobile')).toEqual([]);
   });
 
   it('finds the hexes of the previous palette, in either case and with an alpha', () => {

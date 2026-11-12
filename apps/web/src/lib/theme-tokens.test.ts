@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 
-import { palette, radii, shape, typeScale, type Palette, type TypeName } from '@transport/shared';
+import {
+  findStrictHygieneViolations,
+  palette,
+  radii,
+  shape,
+  typeScale,
+  type Palette,
+  type TypeName,
+} from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { themeChoiceFromCookie, themeClass, themeCookie } from './theme';
@@ -114,7 +122,9 @@ describe('globals.css mirrors the design tokens', () => {
   it('has the two families of Fulmis and none of the previous values', () => {
     expect(css).toMatch(/--font-sans: var\(--font-geist\),/u);
     expect(css).toMatch(/--font-mono: var\(--font-geist-mono\),/u);
-    expect(css).not.toMatch(/Hanken|Marcellus|Manrope|Georgia|oklch/iu);
+    expect(css).not.toMatch(/Marcellus|Manrope|Georgia|oklch/iu);
+    // The previous family, its palette and the retired keys: the strict hygiene.
+    expect(findStrictHygieneViolations(css, 'web')).toEqual([]);
     expect(css).not.toMatch(/box-shadow|backdrop-filter/u);
   });
 

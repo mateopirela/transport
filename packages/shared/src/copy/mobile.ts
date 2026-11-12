@@ -3,8 +3,11 @@
 import { LOGIN_LOCKOUT } from '../auth-security';
 import { accessSecurityCopy } from './auth-security';
 
+import { PLATFORM_NAME } from './brokered';
+
 export const mobileAuthCopy = {
-  appName: 'Transport',
+  /** The brand (§1.4): one constant, PLATFORM_NAME. */
+  appName: PLATFORM_NAME,
   tagline: 'Tu siguiente viaje, antes de terminar el actual.',
   emailLabel: 'Correo electrónico',
   identifierLabel: 'Correo o teléfono',

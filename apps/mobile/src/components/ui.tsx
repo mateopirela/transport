@@ -39,7 +39,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { chunkRows, stepNumber, stepStates, toTone, type LegacyTone } from '../lib/kit';
+import { chunkRows, stepNumber, stepStates } from '../lib/kit';
 import {
   BrandSurface,
   font,
@@ -980,11 +980,8 @@ export function SearchBox({
 // Status, states and notices
 // ---------------------------------------------------------------------------
 
-/**
- * The tones of a pill: the six of Fulmis (docs/plan-fulmis.md §1.1), and the
- * names the screens used before it, which read as the tone each one became.
- */
-export type PillTone = StateTone | LegacyTone;
+/** The tones of a pill: the six of Fulmis (docs/plan-fulmis.md §1.1). */
+export type PillTone = StateTone;
 
 export interface PillColors {
   readonly bg: string;
@@ -997,9 +994,8 @@ export interface PillColors {
 
 /** The fill, the ink, the outline and the check of a pill of `tone` in a theme. */
 export function pillColors(look: Look, tone: PillTone): PillColors {
-  const state = toTone(tone);
-  const { fill, ink, border } = stateToneColors(look.theme, state);
-  return { bg: fill, fg: ink, border, check: state === 'done' };
+  const { fill, ink, border } = stateToneColors(look.theme, tone);
+  return { bg: fill, fg: ink, border, check: tone === 'done' };
 }
 
 /** The check of a pill, as high as its text. */
@@ -1010,7 +1006,7 @@ const PILL_CHECK = iconSize.small - spacing.xs;
  * name says the state and the tone how much it asks, so colour is never the
  * only sign; what is done is the quiet pill with a check.
  */
-export function Pill({ label, tone = 'neutral' }: { label: string; tone?: PillTone }) {
+export function Pill({ label, tone = 'inactive' }: { label: string; tone?: PillTone }) {
   const kit = useKit();
   const { bg, fg, border, check } = pillColors(useTheme(), tone);
   return (
@@ -1116,11 +1112,11 @@ export function LoadError({
   );
 }
 
-export type NoticeTone = 'highlight' | 'info' | 'warning' | 'danger' | 'attention';
+export type NoticeTone = 'done' | 'info' | 'warning' | 'danger' | 'attention';
 
 /** The status tone and the icon each notice wears on its mark. */
 const NOTICE_MARK: Readonly<Record<NoticeTone, { tone: StateTone; icon: IconName }>> = {
-  highlight: { tone: 'done', icon: 'check' },
+  done: { tone: 'done', icon: 'check' },
   info: { tone: 'progress', icon: 'info' },
   warning: { tone: 'pending', icon: 'warning' },
   danger: { tone: 'problem', icon: 'alert' },
@@ -1129,13 +1125,13 @@ const NOTICE_MARK: Readonly<Record<NoticeTone, { tone: StateTone; icon: IconName
 
 /**
  * A notice, on the cell colour with a fine line and a mark in its tone:
- * `highlight` after something went well, `info` for what is under way,
+ * `done` after something went well, `info` for what is under way,
  * `warning` for what waits or is about to expire, `danger` for what failed
  * (read out as an alert) and `attention` for what the person has to do. The
  * title and the icon say it: the colour is never the only sign.
  */
 export function Notice({
-  tone = 'highlight',
+  tone = 'done',
   title,
   children,
 }: {
@@ -1194,14 +1190,17 @@ function BrandContent({
   label,
   title,
   body,
+  meta,
   children,
 }: {
   mark: boolean;
   label?: string | undefined;
   title?: string | undefined;
-  body?: string | undefined;
+  body?: BrandBody;
+  meta?: string | undefined;
   children?: ReactNode;
 }) {
+  const lines = body === undefined ? [] : typeof body === 'string' ? [body] : body;
   const kit = useKit();
   const { colors } = useTheme();
   return (
@@ -1214,7 +1213,7 @@ function BrandContent({
           <Text style={kit.title3}>{PLATFORM_NAME}</Text>
         </View>
       ) : null}
-      {label || title || body ? (
+      {label || title || lines.length > 0 || meta ? (
         <View style={kit.brandText}>
           {label ? <Caps style={kit.label}>{label}</Caps> : null}
           {title ? (
@@ -1222,7 +1221,12 @@ function BrandContent({
               {title}
             </Text>
           ) : null}
-          {body ? <Text style={kit.dim}>{body}</Text> : null}
+          {lines.map((line, i) => (
+            <Text key={i} style={kit.dim}>
+              {line}
+            </Text>
+          ))}
+          {meta ? <Text style={kit.meta}>{meta}</Text> : null}
         </View>
       ) : null}
       {children}
@@ -1230,31 +1234,37 @@ function BrandContent({
   );
 }
 
+/** The lines of a brand block under its title: one text, or one per line. */
+export type BrandBody = string | readonly string[] | undefined;
+
 /**
  * The Night block, the same in both themes: the brand on the way in (`mark`
  * draws it with the platform's name) and, on a trip, "Tu siguiente paso" (a
- * short `label`, the step as `title`, a line of `body`). Its children are
- * its actions, and they read the Night look: the one primary of the screen,
- * 56 high, and the secondary ones under it.
+ * short `label`, the step as `title`, the lines of `body` — the place — and
+ * a `meta` line — its window, in Geist Mono). Its children are its actions,
+ * and they read the Night look: the one primary of the screen, 56 high, and
+ * the secondary ones under it.
  */
 export function BrandBlock({
   mark = false,
   label,
   title,
   body,
+  meta,
   children,
 }: {
   mark?: boolean;
   label?: string | undefined;
   title?: string | undefined;
-  body?: string | undefined;
+  body?: BrandBody;
+  meta?: string | undefined;
   children?: ReactNode;
 }) {
   const kit = useKit();
   return (
     <View style={kit.brand}>
       <BrandSurface>
-        <BrandContent mark={mark} label={label} title={title} body={body}>
+        <BrandContent mark={mark} label={label} title={title} body={body} meta={meta}>
           {children}
         </BrandContent>
       </BrandSurface>

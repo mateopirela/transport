@@ -82,7 +82,7 @@ export function PositionMap({ position }: { position: LatLng }) {
   const mapsHref = `https://www.google.com/maps?q=${position.lat},${position.lng}`;
   return (
     <div className="space-y-2">
-      <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high">
+      <div className="relative h-72 overflow-hidden border bg-surface-high">
         <div ref={container} className="absolute inset-0" hidden={!showMap} />
         {!showMap && (
           <p className="flex h-full items-center justify-center px-6 text-center text-subhead text-text-dim">

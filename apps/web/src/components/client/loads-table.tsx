@@ -13,7 +13,7 @@ import { Table, TableCell, TableRow } from '@/components/ui/table';
 import type { ClientLoadListRow } from '@/lib/loads/queries';
 import { loadPath } from '@/lib/routing';
 
-import { rowLink } from './panel';
+import { rowLink } from '@/components/ui/panel';
 
 const c = loadsCopy.list.columns;
 

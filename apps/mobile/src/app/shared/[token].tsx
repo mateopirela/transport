@@ -2,7 +2,7 @@ import {
   cargoTypeLabels,
   carrierLoadsCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   loadStatusLabels,
   shareLinksCopy,
   specialRequirementLabels,
@@ -85,7 +85,7 @@ export default function SharedLoad() {
             value={`${l.origin.city}, ${l.origin.state} → ${l.destination.city}, ${l.destination.state}`}
           />
           <ValueRow label={copy.internal.labels.status} value={loadStatusLabels[l.status]} />
-          <ValueRow label={detail.proposedPrice} value={formatMxn(l.proposedPriceCents)} strong />
+          <ValueRow label={detail.proposedPrice} value={formatMoney(l.proposedPriceCents)} strong />
           <DetailRow
             label={detail.pickupWindow}
             value={detail.window(

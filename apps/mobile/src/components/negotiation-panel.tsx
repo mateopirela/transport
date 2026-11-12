@@ -55,7 +55,7 @@ function stateNotice(state: CarrierNegotiationState): NoticeTone {
     case 'attention':
       return 'attention';
     case 'done':
-      return 'highlight';
+      return 'done';
     default:
       return 'info';
   }

@@ -31,7 +31,7 @@ export function ConfirmDeliveryForm({
   const attemptKey = useAttemptKey(clientEventId, state);
   const notesError = state.fieldErrors?.notes;
   return (
-    <form action={action} className="space-y-4 rounded-2xl border bg-cell p-4" noValidate>
+    <form action={action} className="space-y-4 border bg-cell p-4" noValidate>
       <div className="space-y-1">
         <p className="text-headline text-text">{c.title}</p>
         <p className="text-subhead text-text-dim">{c.help}</p>

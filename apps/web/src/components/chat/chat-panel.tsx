@@ -224,7 +224,7 @@ export function ChatPanel({
   }
 
   return (
-    <section className="flex flex-col overflow-hidden rounded-2xl border bg-cell">
+    <section className="flex flex-col overflow-hidden border bg-cell">
       <ol
         ref={listRef}
         className="max-h-112 min-h-48 space-y-2 overflow-y-auto p-4"
@@ -244,8 +244,9 @@ export function ChatPanel({
             <li key={message.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
                 className={cn(
-                  'max-w-[85%] space-y-1 rounded-2xl px-3.5 py-2 text-callout text-text',
-                  mine ? 'rounded-br-sm bg-accent-soft' : 'rounded-bl-sm bg-surface-high',
+                  'max-w-[85%] space-y-1 px-3.5 py-2 text-callout text-text',
+                  // Never `surface-high`: the links are `accent-text`, not AA on it (§1.1).
+                  mine ? 'rounded-br-sm bg-bg' : 'rounded-bl-sm border bg-cell',
                 )}
               >
                 <p className="text-caption text-text-dim">

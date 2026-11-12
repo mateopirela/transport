@@ -10,11 +10,8 @@ import {
   palette,
   radii,
   shape,
-  SOFT_ALPHA,
   spacing,
-  STATUS_TONES,
   THEMES,
-  toneColors,
   typeScale,
   type Palette,
 } from './tokens';
@@ -92,33 +89,36 @@ describe.each(THEMES)('palette (%s)', (theme) => {
     expect(contrastRatio(c[fg], c[bg])).toBeGreaterThanOrEqual(AA_BORDER);
   });
 
-  // The temporary aliases (§1.1), for as long as a screen reads them.
-  const aliases: Pair[] = [
-    ['textFaint on bg', 'textFaint', 'bg'],
-    ['textFaint on cell', 'textFaint', 'cell'],
-    ['accentText on accentSoft', 'accentText', 'accentSoft'],
-    ['okText on bg', 'okText', 'bg'],
-    ['okText on cell', 'okText', 'cell'],
-    ['text on highlight', 'text', 'highlight'],
-    ['amberText on highlight', 'amberText', 'highlight'],
-    ['text on glass', 'text', 'glass'],
-    ['textDim on glass', 'textDim', 'glass'],
-    ['accentText on glass', 'accentText', 'glass'],
-  ];
-
-  it.each(aliases)('%s is AA (alias)', (_, fg, bg) => {
-    expect(contrastRatio(c[fg], c[bg])).toBeGreaterThanOrEqual(AA);
-  });
-
-  it('keeps each alias on the value of the key it stands for', () => {
-    expect(c.textFaint).toBe(c.textDim);
-    expect(c.ok).toBe(c.text);
-    expect(c.okText).toBe(c.text);
-    expect(c.highlight).toBe(c.cell);
-    expect(c.glass).toBe(c.cell);
-    expect(c.glassLine).toBe(c.separator);
-    // Not `surfaceHigh` on Paper, where `accentText` is 4.25:1.
-    expect(c.accentSoft).toBe(theme === 'light' ? c.bg : c.surfaceHigh);
+  it('has only the keys of §1.1: the aliases of the previous system are gone', () => {
+    expect(Object.keys(c).sort()).toEqual(
+      [
+        'bg',
+        'cell',
+        'separator',
+        'surfaceHigh',
+        'control',
+        'text',
+        'textDim',
+        'accent',
+        'accentInk',
+        'accentText',
+        'info',
+        'infoFill',
+        'infoInk',
+        'amber',
+        'amberInk',
+        'amberText',
+        'red',
+        'redInk',
+        'redText',
+        'brandBg',
+        'brandText',
+        'brandTextDim',
+        'brandLine',
+        'brandSelected',
+        'brandAccent',
+      ].sort(),
+    );
   });
 
   // The surfaces of the brand: Night in both themes.
@@ -134,26 +134,6 @@ describe.each(THEMES)('palette (%s)', (theme) => {
 
   it.each(brand)('%s is AA (brand)', (_, fg, bg) => {
     expect(contrastRatio(c[fg], c[bg])).toBeGreaterThanOrEqual(AA);
-  });
-
-  it.each(STATUS_TONES)('the %s pill text is AA on its ground', (tone) => {
-    const { fg, bg } = toneColors(theme, tone);
-    expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(AA);
-  });
-
-  it('puts the accent pill on the accentSoft token, the others on a 14 % mix over the cell', () => {
-    // Never a 14 % mix of the accent: the orange of Night on it is 4.1:1.
-    expect(toneColors(theme, 'accent').bg).toBe(c.accentSoft);
-    for (const tone of ['ok', 'amber', 'red'] as const) {
-      expect(toneColors(theme, tone).bg).toBe(mixColors(c[tone], c.cell, SOFT_ALPHA));
-    }
-  });
-
-  it('keeps an error readable on its soft ground', () => {
-    // The destructive notice of the app: `redText` on `red` at 14 % over the cell.
-    expect(contrastRatio(c.redText, mixColors(c.red, c.cell, SOFT_ALPHA))).toBeGreaterThanOrEqual(
-      AA,
-    );
   });
 
   it('never draws on pure black or pure white pages', () => {

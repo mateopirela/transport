@@ -94,8 +94,8 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await row.getByText(q.carrier.request, { exact: true }).click();
     const form = row.getByTestId(`quick-pay-request-${trip}`);
     await expect(form.getByText(q.carrier.fee('2.5 %'))).toBeVisible();
-    await expect(form.getByTestId('quick-pay-fee')).toHaveText('$970.00');
-    await expect(form.getByTestId('quick-pay-net')).toHaveText('$37,830.00');
+    await expect(form.getByTestId('quick-pay-fee')).toHaveText('$970');
+    await expect(form.getByTestId('quick-pay-net')).toHaveText('$37,830');
     await form.getByRole('button', { name: q.carrier.confirm }).click();
     // The page comes back with the request in place of the form.
     await expect(row).toContainText(carrierLabels.quick_pay_requested);

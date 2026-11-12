@@ -87,6 +87,11 @@ export const freightInvoicesCopy = {
     pdf: 'PDF del CFDI',
     submit: 'Subir factura',
     submitting: 'Validando…',
+    /** The dialog before the upload (§1.5: every "Registrar" of the admin asks first). */
+    confirmTitle: '¿Subir la factura del cliente?',
+    confirmBody:
+      'Si el XML pasa la validación, la factura queda registrada en este viaje y el cliente la ve en Cartera.',
+    confirmSubmit: 'Sí, subir factura',
     done: 'Listo: la factura quedó registrada y el cliente ya la ve en Cartera.',
     doneUnvalidated:
       'Listo: la factura quedó registrada "Sin validar" (falta el RFC de Fulmis en Ajustes) y el cliente ya la ve en Cartera.',

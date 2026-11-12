@@ -3,8 +3,7 @@ import { CryptoDigestAlgorithm, digest, randomUUID } from 'expo-crypto';
 import { Directory, File as LocalFile, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 
-import { compressPhoto } from './document-upload';
-import { FAKE_PHOTO_SIZE, fakePhotoBase64, isFakeCameraEnabled } from './e2e-camera';
+import { compressPhoto, fakeCamera, fakeCameraAsset } from './document-upload';
 import {
   evidenceRpcArgs,
   isDuplicateUpload,
@@ -48,22 +47,6 @@ export function deletePhotoFile(item: Pick<QueuedPhoto, 'fileName'>): void {
   } catch {
     // A leftover file only takes space; the next capture does not depend on it.
   }
-}
-
-// Development builds only (F14): the iOS simulator has no camera.
-const fakeCamera = isFakeCameraEnabled(process.env.EXPO_PUBLIC_E2E_FAKE_CAMERA, __DEV__);
-
-/** The fixed photo of the stand-in camera, as the camera would return it. */
-function fakeCameraAsset(): ImagePicker.ImagePickerAsset {
-  const file = new LocalFile(Paths.cache, 'e2e-photo.jpg');
-  file.write(fakePhotoBase64(), { encoding: 'base64' });
-  return {
-    uri: file.uri,
-    width: FAKE_PHOTO_SIZE,
-    height: FAKE_PHOTO_SIZE,
-    type: 'image',
-    mimeType: 'image/jpeg',
-  };
 }
 
 /** The photo the operator took, or undefined when they cancelled. */

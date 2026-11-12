@@ -323,6 +323,9 @@ export default async function AccountInReviewPage({
       <>
         <PageSection title={s.titles.verification} description={s.descriptions.verification}>
           <Notice tone={summary.todo > 0 ? 'attention' : 'info'}>{summary.message}</Notice>
+          {ownerOperator && vehicles.length === 0 && (
+            <Notice tone="attention">{s.ownerOperator.noUnits}</Notice>
+          )}
           <DocumentStatusList base={base} groups={groups} readOnly={readOnly} />
         </PageSection>
         {missingFields.length > 0 && (

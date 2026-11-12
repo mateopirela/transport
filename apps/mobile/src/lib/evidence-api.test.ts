@@ -14,7 +14,11 @@ vi.mock('expo-crypto', () => ({
   digest: vi.fn(),
   randomUUID: () => '00000000-0000-4000-8000-000000000000',
 }));
-vi.mock('./document-upload', () => ({ compressPhoto: vi.fn() }));
+vi.mock('./document-upload', () => ({
+  compressPhoto: vi.fn(),
+  fakeCamera: false,
+  fakeCameraAsset: vi.fn(),
+}));
 vi.mock('./location', () => ({ currentPosition: vi.fn() }));
 
 import * as ImagePicker from 'expo-image-picker';

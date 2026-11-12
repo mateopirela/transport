@@ -168,6 +168,9 @@ export default function OnboardingScreen() {
             ) : (
               <>
                 <Footnote>{copy.descriptions.verification}</Footnote>
+                {ownerOperator && state.data.vehicles.length === 0 ? (
+                  <Notice tone="warning">{copy.ownerOperator.noUnits}</Notice>
+                ) : null}
                 <OnboardingStatus groups={steps.groups} onOpenStep={open} />
               </>
             )}

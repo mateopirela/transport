@@ -96,9 +96,10 @@ tags: [operator, invitation, terms]
 - tapOn:
     text: 'Not Now'
     optional: true
-# The terms were accepted at sign-up: straight to the operator area.
+# The terms were accepted at sign-up: straight to the operator area, on
+# step 4 of his profile (R3, D43).
 - extendedWaitUntil:
-    visible: 'No tienes un viaje asignado por ahora.*'
+    visible: 'Sube tu INE, tu licencia vigente y una selfie.*'
     timeout: 30000
 - assertNotVisible: 'Aceptar y continuar'
 - takeScreenshot: 20-3-operator-in

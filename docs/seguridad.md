@@ -34,12 +34,16 @@ La matriz crece con el esquema: falla si una tabla nueva no tiene regla de propi
 
 | Bucket | Ruta | Sube | Lee |
 | --- | --- | --- | --- |
-| `documents` | `{empresa}/{company\|vehicle\|operator}/{dueño}/{uuid}.ext` | Cliente o Transportista de la empresa | La empresa (no sus operadores) y el Admin |
+| `documents` | `{empresa}/{company\|vehicle\|operator}/{dueño}/{uuid}.ext` | Cliente o Transportista de la empresa; el Operador, solo en `operator/{su fila}` (R3) | La empresa, el Operador solo su carpeta (R3), y el Admin |
 | `evidence` | `{viaje}/{etapa}/{uuid}.{imagen}` | Operador asignado, con el viaje activo o recién entregado | Partes del viaje |
 | `trip-documents` | `{viaje}/{uuid}.{pdf\|imagen}` | Transportista del viaje (no cancelado) | Partes del viaje |
 | `chat` | `{conversación}/{uuid}.{imagen\|pdf}` | Participantes | Participantes |
 
 Los cuatro buckets son privados y limitan tamaño y tipo MIME. No hay políticas de `update` ni `delete`, así que nadie reemplaza ni borra un archivo subido. Las RPC que registran un archivo (`submit_document`, `add_trip_evidence`, `add_trip_document`, `send_message`) validan que la ruta sea la del dueño y que el archivo exista. Salvo en `submit_document`, también validan que lo haya subido quien llama.
+
+### El operador y sus propios documentos (R3)
+
+Desde R3 el operador sube su INE, su licencia y su selfie (D44) en la app. Lo que se abrió es lo mínimo: `submit_document` acepta el rol `operator` solo con `owner_type = 'operator'` y `owner_id = auth_operator_id()` (su fila activa; el mismo mensaje `owner does not belong to the caller company` para todo lo demás, así no revela si existe un dueño ajeno), y su subida nunca regresa a revisión una empresa rechazada. Dos políticas nuevas de Storage (`documents_bucket_insert_own_operator`, `documents_bucket_select_own_operator`) y una de tabla (`documents_select_own_operator`) le dan escribir y leer solo `{su empresa}/operator/{su fila}/…`. Un operador con la fila archivada no sube ni lee nada. La suite `69_onboarding_documents` cubre la matriz (otro operador de la empresa, el camión, la empresa, otra empresa, cliente, coordinador de otra unidad, admin sin segundo factor).
 
 ## Funciones `security definer`
 

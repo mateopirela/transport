@@ -11,6 +11,10 @@
     {
       "path": "CONTRIBUTING.md",
       "description": "Contribution conventions: language, money, dates, geography, IDs, soft delete, commits and PR template."
+    },
+    {
+      "path": "docs/plan-registro.md",
+      "description": "Plan of the access and registration wave (R1-R6): step-by-step sign-up, invitations, onboarding documents, trip lock by documents and admin MFA. Each R block PR is checked against its section."
     }
   ]
 }

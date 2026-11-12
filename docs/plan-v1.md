@@ -484,6 +484,8 @@ Formato de cada bloque: **objetivo · depende de · alcance · fuera de alcance 
 
 > **Ola I (respuestas de JP, 2026-11-07):** [§I](#i--pagos-facturación-y-seguro-respuestas-de-jp-2026-11-07): seguro del cliente y términos (I1), soporte y documentos del hombre-camión (I2), libro del flete con Cobranza y Cartera (I3), pago rápido (I4), facturas CFDI (I5), cargas intermediadas (I6) y carga de regreso (I7). El pago del flete y las comisiones **entran** a la V1 (D08-E2).
 
+> **Ola R (acceso y registro, lista de JP del 2026-11-12):** [plan-registro.md](plan-registro.md): registro por pasos en la web (R1) y en la app (R2), pasos 3–5 del alta con documentos comunes, por perfil y verificación (R3), candado de viajes por documentos (R4), seguridad del acceso con segundo factor para admins (R5) y revisión en dispositivos (R6). Decisiones D42–D47, D10-E1, D15-E2 y D16-E3.
+
 Predicción de fin de descarga con los datos de `trip_events`; comparación de fotos con IA; emisión de Carta Porte por la plataforma; integración con GPS de flotas (D17); calificaciones y reputación; app de cliente en móvil; inglés; hardware propio. La web del transportista **entró** a la V1 el 2026-10-16 (§G). La suscripción también entró, pero quedó pospuesta ese mismo día (D24, G8); se retoma en H3 (D24-E1). La predicción de fin de descarga empieza en H5 con estadística simple de los eventos (sin IA).
 
 ---

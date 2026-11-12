@@ -39,6 +39,11 @@ tags: [operator, star]
 - eraseText: 10
 - inputText: ${output.estimate.input}
 - tapOn: 'Fin estimado de descarga'
+# Closing the keyboard can move the page (the trip reloads as the location
+# consent starts the tracking): find the button again before tapping it.
+- scrollUntilVisible:
+    element: 'Guardar fin estimado'
+    centerElement: true
 - tapOn: 'Guardar fin estimado'
 - extendedWaitUntil:
     visible: 'Fin estimado: .*, ${output.estimate.shown}'

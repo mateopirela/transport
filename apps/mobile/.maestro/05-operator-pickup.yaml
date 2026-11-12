@@ -49,10 +49,10 @@ tags: [operator]
           file: subflows/take-photo.yaml
           env:
             BUTTON: 'Tomar foto'
-            NOTICE: UP
+            NOTICE: DOWN
 - scrollUntilVisible:
     element: '2 de 2 fotos mínimas'
-    direction: DOWN
+    direction: UP
     timeout: 30000
 - takeScreenshot: 05-3-operator-pickup-photos
 - runFlow:

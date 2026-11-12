@@ -19,6 +19,8 @@ appId: ${APP_ID}
       - extendedWaitUntil:
           visible: 'Sí, confirmar'
           timeout: 8000
+# The sheet slides up: tap its button once it settled.
+- waitForAnimationToEnd
 - tapOn: 'Sí, confirmar'
 - extendedWaitUntil:
     notVisible: 'Sí, confirmar'

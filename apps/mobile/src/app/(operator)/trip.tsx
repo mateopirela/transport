@@ -140,6 +140,18 @@ function NoticeAction({ label, onPress }: { label: string; onPress: () => void }
   );
 }
 
+/** What became of an action, in its tone; "Abrir configuración" when a permission is missing. */
+function MessageNotice({ message }: { message: Message }) {
+  return (
+    <Notice tone={message.tone}>
+      <NoticeText>{message.text}</NoticeText>
+      {message.settings ? (
+        <NoticeAction label={copy.openSettings} onPress={() => void Linking.openSettings()} />
+      ) : null}
+    </Notice>
+  );
+}
+
 /**
  * "Reportar al coordinador" (H1, D28): the operator's channel to their
  * coordinator, with the unread messages. Only in the operator's area: the
@@ -400,6 +412,7 @@ function TripView({
   const operatorArea = useSession().area === 'operator';
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
+  const [photoMessage, setPhotoMessage] = useState<Message | null>(null);
   const { type } = useTheme();
   const confirmSheet = useRef<ConfirmSheetHandle>(null);
   const incidentSheet = useRef<IncidentSheetHandle>(null);
@@ -518,7 +531,7 @@ function TripView({
 
   /** Camera only; the photo is queued on the phone and uploaded when possible. */
   async function takePhoto(stage: EvidenceStage, incident: IncidentPhotoTarget | null) {
-    const show = incident ? setIncidentMessage : setMessage;
+    const show = incident ? setIncidentMessage : setPhotoMessage;
     setBusy('photo');
     show(null);
     try {
@@ -748,14 +761,7 @@ function TripView({
           onReport={() => incidentSheet.current?.open()}
         />
 
-        {message ? (
-          <Notice tone={message.tone}>
-            <NoticeText>{message.text}</NoticeText>
-            {message.settings ? (
-              <NoticeAction label={copy.openSettings} onPress={() => void Linking.openSettings()} />
-            ) : null}
-          </Notice>
-        ) : null}
+        {message ? <MessageNotice message={message} /> : null}
 
         {notice}
         {pendingNotice}
@@ -781,6 +787,8 @@ function TripView({
             onCapture={() => void takePhoto(captureStage, null)}
           />
         ) : null}
+        {/* What became of the last photo, under the camera button that took it. */}
+        {captureStage && photoMessage ? <MessageNotice message={photoMessage} /> : null}
 
         {status === 'unloading' ? (
           <View style={styles.section}>

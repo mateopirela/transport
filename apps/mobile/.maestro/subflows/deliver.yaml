@@ -2,7 +2,8 @@
 # writes who receives and finishes the unloading (B23).
 appId: ${APP_ID}
 ---
-# The photos come before the estimate and receiver forms.
+# The photos come before the estimate and receiver forms; each photo's
+# confirmation shows under the camera button.
 - scrollUntilVisible:
     element: 'Fotos de entrega'
     direction: UP
@@ -14,12 +15,13 @@ appId: ${APP_ID}
           file: take-photo.yaml
           env:
             BUTTON: 'Tomar foto'
-            NOTICE: UP
+            NOTICE: DOWN
 # A tap can land while the screen re-renders after the first photo: if
-# only one counted, take the missing one.
+# only one counted, take the missing one. The count is the pill above the
+# photos.
 - scrollUntilVisible:
     element: '[0-9] de 2 fotos mínimas'
-    direction: DOWN
+    direction: UP
     timeout: 30000
 - runFlow:
     when:
@@ -29,11 +31,11 @@ appId: ${APP_ID}
           file: take-photo.yaml
           env:
             BUTTON: 'Tomar foto'
-            NOTICE: UP
+            NOTICE: DOWN
 # (A photo of an interrupted run may still upload: 3 of 2 is fine too.)
 - scrollUntilVisible:
     element: '[2-9] de 2 fotos mínimas'
-    direction: DOWN
+    direction: UP
     timeout: 30000
 - runFlow:
     file: fill-field.yaml

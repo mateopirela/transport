@@ -1,4 +1,4 @@
-import { carrierTripsCopy, mobileErrorCopy } from '@transport/shared';
+import { carrierTripsCopy, documentGateCopy, mobileErrorCopy } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { carrierTripErrorMessage } from './carrier-trip-errors';
@@ -28,6 +28,15 @@ describe('carrierTripErrorMessage', () => {
       [
         'operator license is not suitable for hazardous cargo: Raúl Méndez',
         e.operatorLicenseHazmat('Raúl Méndez'),
+      ],
+      // R4 (D45): the document gate, by name.
+      [
+        'vehicle has missing documents: vehicle_registration_card, vehicle_permit',
+        `Falta aprobar: Tarjeta de circulación y Permisos correspondientes. ${documentGateCopy.errors.assignUnit}`,
+      ],
+      [
+        'operator has expired documents: federal_driver_license: Pedro López',
+        `La licencia de Pedro López venció. ${documentGateCopy.errors.assignOperator}`,
       ],
       ['invalid storage path', e.invalidFile],
       ['file was not uploaded', e.invalidFile],

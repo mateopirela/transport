@@ -305,6 +305,11 @@ select tests.approve('company', 'c2900000-0000-4000-8000-000000000003', 'legal_r
 select tests.approve('vehicle', 'e2900000-0000-4000-8000-000000000002', 'vehicle_registration_card');
 select tests.approve('vehicle', 'e2900000-0000-4000-8000-000000000002', 'vehicle_permit');
 select tests.approve('vehicle', 'e2900000-0000-4000-8000-000000000002', 'vehicle_insurance_policy');
+-- R4 (D45): the operators' official ids, and Omar's license, are approved, so
+-- only the license decides below.
+select tests.approve('operator', o.id, 'operator_official_id')
+from public.operators o where o.company_id = 'c2900000-0000-4000-8000-000000000003';
+select tests.approve('operator', 'd2900000-0000-4000-8000-000000000005', 'federal_driver_license');
 
 set local role authenticated;
 select tests.login('a2900000-0000-4000-8000-000000000001');
@@ -331,12 +336,12 @@ select lives_ok(
 );
 select throws_ok(
   $$ select public.assign_trip(tests.val('trip1'), 'e2900000-0000-4000-8000-000000000002', 'd2900000-0000-4000-8000-000000000006') $$,
-  '55000', 'operator license is missing or expired: Elena Federal',
+  '55000', 'operator has missing documents: federal_driver_license: Elena Federal',
   'an operator whose license date passed and has no approved license document cannot be assigned'
 );
 select throws_ok(
   $$ select public.assign_trip(tests.val('trip1'), 'e2900000-0000-4000-8000-000000000002', 'd2900000-0000-4000-8000-000000000007') $$,
-  '55000', 'operator license is missing or expired: Luis Sin Licencia',
+  '55000', 'operator has missing documents: federal_driver_license: Luis Sin Licencia',
   'an operator without a license cannot be assigned'
 );
 reset role;

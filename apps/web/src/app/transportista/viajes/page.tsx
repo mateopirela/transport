@@ -5,7 +5,7 @@ import {
   INTERNAL_CHAT_PARAM,
   internalChatCopy,
 } from '@transport/shared';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Route } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -17,7 +17,8 @@ import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { Segmented } from '@/components/ui/segmented';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
+import { Tag } from '@/components/ui/tag';
 import { carrierContext } from '@/lib/carrier/context';
 import {
   CARRIER_TRIPS_VIEWS,
@@ -44,7 +45,7 @@ function UnreadBadge({ tripId, count }: { tripId: string; count: number }) {
       href={`${carrierTripPath(tripId)}?chat=${INTERNAL_CHAT_PARAM}`}
       aria-label={internalChatCopy.unreadLabel(count)}
       title={internalChatCopy.unreadLabel(count)}
-      className="ml-2 inline-flex align-middle"
+      className="inline-flex align-middle"
     >
       <Pill tone="attention">
         <MessageCircle aria-hidden className="size-3" />
@@ -124,50 +125,60 @@ export default async function CarrierTripsPage({
 
       {rows.length === 0 ? (
         total === 0 && (
-          <Empty title={view === 'open' ? c.emptyOpen : carrierTripsCopy.list.empty[view]} />
+          <Empty
+            icon={Route}
+            title={view === 'open' ? c.emptyOpen : carrierTripsCopy.list.empty[view]}
+          />
         )
       ) : (
         <Table
+          cards
           headers={[
             c.columns.route,
             c.columns.businessUnit,
             c.columns.pickup,
             c.columns.assignment,
             c.columns.status,
-            c.columns.actions,
+            { label: c.open, srOnly: true },
           ]}
         >
           {rows.map((trip) => (
-            <tr key={trip.id}>
-              <td className="font-semibold">
-                {trip.load
-                  ? carrierTripsCopy.list.route(
-                      `${trip.load.origin_city}, ${trip.load.origin_state}`,
-                      `${trip.load.destination_city}, ${trip.load.destination_state}`,
-                    )
-                  : ''}
-                <UnreadBadge tripId={trip.id} count={unread.get(trip.id) ?? 0} />
-              </td>
-              <td className="text-text-dim">{trip.businessUnitName ?? ''}</td>
-              <td className="whitespace-nowrap tabular-nums">
+            <TableRow key={trip.id}>
+              <TableCell primary>
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>
+                    {trip.load
+                      ? carrierTripsCopy.list.route(
+                          `${trip.load.origin_city}, ${trip.load.origin_state}`,
+                          `${trip.load.destination_city}, ${trip.load.destination_state}`,
+                        )
+                      : ''}
+                  </span>
+                  <UnreadBadge tripId={trip.id} count={unread.get(trip.id) ?? 0} />
+                </span>
+              </TableCell>
+              <TableCell label={c.columns.businessUnit} className="text-text-dim">
+                {trip.businessUnitName ?? ''}
+              </TableCell>
+              <TableCell label={c.columns.pickup} className="text-meta whitespace-nowrap">
                 {trip.load ? formatDate(trip.load.pickup_window_start) : ''}
-              </td>
-              <td>
+              </TableCell>
+              <TableCell label={c.columns.assignment}>
                 {trip.unitName && trip.operatorName ? (
                   carrierTripsCopy.list.assignedTo(trip.unitName, trip.operatorName)
                 ) : (
-                  <span className="text-amber-text">{carrierTripsCopy.list.unassigned}</span>
+                  <Tag tone="pending">{carrierTripsCopy.list.unassigned}</Tag>
                 )}
-              </td>
-              <td>
+              </TableCell>
+              <TableCell label={c.columns.status}>
                 <TripStatusBadge status={trip.status} />
-              </td>
-              <td>
+              </TableCell>
+              <TableCell action>
                 <Link href={carrierTripPath(trip.id)} className={textLink}>
                   {c.open}
                 </Link>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
         </Table>
       )}

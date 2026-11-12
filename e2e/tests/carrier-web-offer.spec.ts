@@ -105,7 +105,8 @@ test('the carrier staff negotiate on the web within their business units', async
       .selectOption({ label: 'Regional Monterrey' });
     await form.getByRole('button', { name: carrierWebCopy.offer.submit }).click();
     await expect(jorge.getByText(states.awaiting_shipper)).toBeVisible();
-    await expect(jorge.getByText('$46,000.00').first()).toBeVisible();
+    // Amounts drop a whole `.00` (docs/plan-fulmis.md §1.5).
+    await expect(jorge.getByText('$46,000').first()).toBeVisible();
   });
 
   await test.step('each coordinator sees only the negotiations of their business unit', async () => {

@@ -28,7 +28,7 @@ const app = carrierTripsCopy.assign;
  * again (business unit, documents, license D16) and notifies the operator;
  * the form only explains beforehand what the server would reject, with the
  * same pure rules as the app (checkAssignment). Assigning is the primary of
- * the trip's screen.
+ * the trip's screen until the trip has its unit and operator.
  */
 export function TripAssignForm({
   tripId,
@@ -98,7 +98,7 @@ export function TripAssignForm({
     >
       <div className="space-y-1">
         <p className="text-subhead text-text-dim">{assigned ? app.reassignHelp : app.help}</p>
-        <p className="text-footnote text-text-faint">
+        <p className="text-footnote text-text-dim">
           {isManager ? c.managerHint : c.coordinatorHint}
         </p>
       </div>
@@ -164,7 +164,7 @@ export function TripAssignForm({
         </Notice>
       ))}
       {confirming && unit && operator ? (
-        <div className="space-y-3 rounded-2xl bg-accent-soft px-4 py-4">
+        <div className="space-y-3 border border-control bg-surface-high px-4 py-4">
           <div className="space-y-0.5">
             <p className="text-headline text-text">{c.confirmTitle}</p>
             <p className="text-subhead text-text">{app.confirmBody(unit.name, operator.name)}</p>
@@ -186,7 +186,8 @@ export function TripAssignForm({
       ) : (
         <Button
           type="submit"
-          variant="primary"
+          // Reassigning is a correction: once assigned, the trip's primary is sending it (H2).
+          variant={assigned ? 'secondary' : 'primary'}
           disabled={pending || blockers.length > 0 || unchanged}
           className="w-full"
         >

@@ -35,7 +35,7 @@ export function RouteForm() {
   const errors = state.fieldErrors ?? {};
   const values = state.values ?? {};
   return (
-    <form action={action} className="space-y-5 rounded-2xl border bg-cell p-5" noValidate>
+    <form action={action} className="space-y-5 border bg-cell p-5" noValidate>
       <h2 className="text-headline text-text">{c.add}</h2>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}

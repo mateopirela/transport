@@ -98,7 +98,7 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await form.getByRole('button', { name: q.carrier.confirm }).click();
     // The page comes back with the request in place of the form.
     await expect(row).toContainText(carrierLabels.quick_pay_requested);
-    await expect(row.getByTestId('quick-pay-status')).toHaveText(q.carrier.requested('$37,830.00'));
+    await expect(row.getByTestId('quick-pay-status')).toHaveText(q.carrier.requested('$37,830'));
   });
 
   const ana = await browser.newPage();
@@ -154,7 +154,7 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
 
     await jorge.reload();
     await expect(row).toContainText(carrierLabels.paid);
-    await expect(row.getByTestId('quick-pay-status')).toHaveText(q.carrier.approved('$37,830.00'));
+    await expect(row.getByTestId('quick-pay-status')).toHaveText(q.carrier.approved('$37,830'));
     await expect(row).toContainText('MBAN0100E2E00000000004');
   });
 

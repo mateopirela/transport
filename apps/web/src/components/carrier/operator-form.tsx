@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Field as FormField, fieldHelpId } from '@/components/ui/field';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
+import { StickyFormActions } from '@/components/carrier/form-actions';
 import type { BusinessUnitOption } from '@/lib/carrier/business-units';
 import { saveCarrierOperator } from '@/lib/carrier/fleet-actions';
 import type { FormState } from '@/lib/forms';
@@ -128,9 +129,11 @@ export function OperatorForm({
           state={fieldState}
         />
       </div>
-      <Button type="submit" variant="primary" loading={pending}>
-        {c.save}
-      </Button>
+      <StickyFormActions>
+        <Button type="submit" variant="primary" loading={pending}>
+          {c.save}
+        </Button>
+      </StickyFormActions>
     </form>
   );
 }

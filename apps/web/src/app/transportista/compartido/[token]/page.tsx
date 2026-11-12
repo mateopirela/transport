@@ -3,7 +3,7 @@ import {
   cargoTypeLabels,
   carrierWebCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   internalSharedLoadSchema,
   isShareToken,
   loadStatusLabels,
@@ -95,7 +95,7 @@ export default async function CarrierSharedPage({
         ? c.labels.noRequirements
         : load.specialRequirements.map((r) => specialRequirementLabels[r]).join(', '),
     ],
-    [c.labels.price, formatMxn(load.proposedPriceCents)],
+    [c.labels.price, formatMoney(load.proposedPriceCents)],
     [c.labels.notes, load.notes],
   ];
 

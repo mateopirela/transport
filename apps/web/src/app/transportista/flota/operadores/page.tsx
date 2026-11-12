@@ -5,6 +5,7 @@ import {
   formatDate,
   managerCompanyCopy,
 } from '@transport/shared';
+import { Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -15,7 +16,7 @@ import { Empty } from '@/components/ui/empty';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { listCarrierOperators, type OperatorSummary } from '@/lib/carrier/fleet';
 import { parseFleetFlash } from '@/lib/carrier/fleet-forms';
@@ -73,37 +74,39 @@ export default async function CarrierOperatorsPage({
           </>
         }
       />
-      <FleetNav current="operators" />
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <FleetNav current="operators" />
+        {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}
+      </div>
       {flash === 'baja' && (
         <Notice tone="success" className="mb-6">
           {c.operators.archived}
         </Notice>
       )}
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-title2 text-text">{c.operators.title}</h2>
-        {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}
-      </div>
       {operators.length === 0 ? (
-        <Empty title={c.operators.empty} />
+        <Empty icon={Users} title={c.operators.empty} />
       ) : (
         <Table
+          cards
           headers={[
             c.operators.columns.name,
             c.operators.columns.contact,
             c.operators.columns.license,
             c.operators.columns.businessUnit,
             c.operators.columns.account,
-            c.operators.columns.actions,
+            { label: c.operators.open, srOnly: true },
           ]}
         >
           {operators.map((operator) => (
-            <tr key={operator.id}>
-              <td className="font-semibold">{operator.full_name}</td>
-              <td>
-                <p className="tabular-nums">{operator.phone}</p>
-                {operator.email && <p className="text-footnote text-text-dim">{operator.email}</p>}
-              </td>
-              <td className="whitespace-nowrap text-text-dim">
+            <TableRow key={operator.id}>
+              <TableCell primary>{operator.full_name}</TableCell>
+              <TableCell label={c.operators.columns.contact}>
+                <span className="block text-meta">{operator.phone}</span>
+                {operator.email && (
+                  <span className="block text-footnote text-text-dim">{operator.email}</span>
+                )}
+              </TableCell>
+              <TableCell label={c.operators.columns.license} className="text-text-dim">
                 {operator.license_type
                   ? c.operators.license(
                       operator.license_type,
@@ -112,17 +115,19 @@ export default async function CarrierOperatorsPage({
                         : null,
                     )
                   : c.operators.noLicense}
-              </td>
-              <td className="text-text-dim">{operator.businessUnitName ?? ''}</td>
-              <td>
+              </TableCell>
+              <TableCell label={c.operators.columns.businessUnit} className="text-text-dim">
+                {operator.businessUnitName ?? ''}
+              </TableCell>
+              <TableCell label={c.operators.columns.account}>
                 <AccountPill operator={operator} />
-              </td>
-              <td>
+              </TableCell>
+              <TableCell action>
                 <Link href={carrierOperatorPath(operator.id)} className={textLink}>
                   {c.operators.open}
                 </Link>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
         </Table>
       )}

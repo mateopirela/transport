@@ -66,9 +66,10 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     await signInOnWeb(jorge, 'jorge');
     await jorge.goto('/transportista/cobranza');
     const row = jorge.getByTestId(`collections-row-${trip}`);
-    await expect(row).toContainText('$10,000.00');
-    await expect(row).toContainText('$300.00 · 3 %');
-    await expect(row).toContainText('$9,700.00');
+    // Cobranza drops a whole `.00` (docs/plan-fulmis.md §1.5).
+    await expect(row).toContainText('$10,000');
+    await expect(row).toContainText('$300 · 3 %');
+    await expect(row).toContainText('$9,700');
     await expect(row).toContainText(carrierLabels.pending);
   });
 
@@ -76,7 +77,7 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     const andrea = await browser.newPage();
     await signInOnWeb(andrea, 'andrea');
     await andrea.goto('/transportista/cobranza');
-    await expect(andrea.getByTestId(`collections-row-${trip}`)).toContainText('$9,700.00');
+    await expect(andrea.getByTestId(`collections-row-${trip}`)).toContainText('$9,700');
     await andrea.close();
     const hector = await browser.newPage();
     await signInOnWeb(hector, 'hector');

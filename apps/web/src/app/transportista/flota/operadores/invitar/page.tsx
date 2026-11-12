@@ -27,7 +27,7 @@ export default async function InviteCarrierOperatorPage() {
       {units.operable.length === 0 ? (
         <Notice tone="info">{carrierWebCopy.businessUnit.none}</Notice>
       ) : (
-        <div className="max-w-xl rounded-2xl border bg-cell p-5 sm:p-6">
+        <div className="max-w-xl border bg-cell p-5">
           <InvitationLinkForm
             kind="operator"
             label={c.invite}

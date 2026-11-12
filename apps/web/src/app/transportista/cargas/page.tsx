@@ -3,10 +3,10 @@ import {
   carrierWebCopy,
   CITY_PRESETS,
   formatDate,
-  formatMxn,
   UNIT_TYPES,
   unitTypeLabels,
 } from '@transport/shared';
+import { PackageSearch } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -17,10 +17,11 @@ import { Pager } from '@/components/pager';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Label } from '@/components/ui/label';
+import { Money } from '@/components/ui/money';
 import { PageHeader } from '@/components/ui/page-header';
-import { Pill } from '@/components/ui/pill';
 import { Select } from '@/components/ui/select';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
+import { Tag } from '@/components/ui/tag';
 import { carrierContext } from '@/lib/carrier/context';
 import {
   hasLoadFilters,
@@ -37,7 +38,7 @@ const kg = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 0 });
 
 export const metadata: Metadata = { title: c.title };
 
-/** One filter of the bar: its label over a native select. */
+/** One filter of the bar: its label over a select. */
 function FilterSelect({
   id,
   label,
@@ -52,11 +53,9 @@ function FilterSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={id} className="px-1">
-        {label}
-      </Label>
-      <Select id={id} name={name} defaultValue={value} className="w-56 max-w-full">
+    <div className="grid min-w-0 gap-1.5 sm:w-56">
+      <Label htmlFor={id}>{label}</Label>
+      <Select id={id} name={name} defaultValue={value}>
         <option value="">{c.filters.any}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -74,7 +73,11 @@ const CITIES = CITY_PRESETS.map((city) => ({
 }));
 const TYPES = UNIT_TYPES.map((type) => ({ value: type, label: unitTypeLabels[type] }));
 
-/** Open loads with filters by origin, destination and unit type (G10a; B19 on the app). */
+/**
+ * Open loads with filters by origin, destination and unit type (G10a; B19 on
+ * the app), as a table (docs/plan-fulmis.md §1.5): the filters on top, the
+ * proposed freight standing out on the right, each row a card on a phone.
+ */
 export default async function CarrierLoadsPage({
   searchParams,
 }: PageProps<'/transportista/cargas'>) {
@@ -84,6 +87,12 @@ export default async function CarrierLoadsPage({
   const page = parsePage(params.p);
   const current = { ...loadFilterParams(filters), p: String(page) };
   const { rows, total } = await searchLoads(supabase, filters, page);
+  const filtered = hasLoadFilters(filters);
+  const clear = (
+    <Link href={paths.carrierLoads} className={buttonVariants({ variant: 'plain' })}>
+      {c.filters.clear}
+    </Link>
+  );
 
   return (
     <>
@@ -91,7 +100,7 @@ export default async function CarrierLoadsPage({
 
       <form
         action={paths.carrierLoads}
-        className="mb-6 flex flex-wrap items-end gap-3"
+        className="mb-6 flex flex-col gap-3 border bg-cell p-4 sm:flex-row sm:flex-wrap sm:items-end"
         role="search"
       >
         <FilterSelect
@@ -115,58 +124,57 @@ export default async function CarrierLoadsPage({
           value={filters.unitType ?? ''}
           options={TYPES}
         />
-        <Button type="submit" variant="secondary">
-          {c.filters.apply}
-        </Button>
-        {hasLoadFilters(filters) && (
-          <Link href={paths.carrierLoads} className={buttonVariants({ variant: 'plain' })}>
-            {c.filters.clear}
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="secondary">
+            {c.filters.apply}
+          </Button>
+          {filtered && clear}
+        </div>
       </form>
 
       {rows.length === 0 ? (
-        total === 0 && <Empty title={c.empty} />
+        total === 0 && (
+          <Empty icon={PackageSearch} title={c.empty} action={filtered ? clear : undefined} />
+        )
       ) : (
         <>
-          <p className="mb-2 px-1 text-footnote text-text-dim tabular-nums">{c.results(total)}</p>
+          <p className="mb-3 text-label text-text-dim">{c.results(total)}</p>
           <Table
+            cards
             headers={[
               c.columns.route,
               c.columns.pickup,
               c.columns.unit,
-              c.columns.weight,
-              c.columns.price,
-              c.columns.actions,
+              { label: c.columns.weight, align: 'right' },
+              { label: c.columns.price, align: 'right' },
+              { label: c.open, srOnly: true },
             ]}
           >
             {rows.map((load) => (
-              <tr key={load.id}>
-                <td>
-                  <span className="font-semibold text-text">{loadRoute(load)}</span>
-                  {load.status === 'negotiating' && (
-                    <Pill tone="progress" className="ml-2">
-                      {c.negotiating}
-                    </Pill>
-                  )}
-                  {load.brokered && <BrokeredTag className="ml-2" />}
-                </td>
-                <td className="whitespace-nowrap tabular-nums">
+              <TableRow key={load.id}>
+                <TableCell primary>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span>{loadRoute(load)}</span>
+                    {load.status === 'negotiating' && <Tag tone="progress">{c.negotiating}</Tag>}
+                    {load.brokered && <BrokeredTag />}
+                  </span>
+                </TableCell>
+                <TableCell label={c.columns.pickup} className="text-meta whitespace-nowrap">
                   {formatDate(load.pickup_window_start)}
-                </td>
-                <td>{unitTypeLabels[load.unit_type]}</td>
-                <td className="whitespace-nowrap tabular-nums">
+                </TableCell>
+                <TableCell label={c.columns.unit}>{unitTypeLabels[load.unit_type]}</TableCell>
+                <TableCell label={c.columns.weight} numeric className="font-normal">
                   {c.weight(kg.format(load.weight_kg))}
-                </td>
-                <td className="whitespace-nowrap font-semibold tabular-nums">
-                  {formatMxn(load.proposed_price_cents)}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell label={c.columns.price} numeric>
+                  <Money cents={load.proposed_price_cents} className="text-headline" />
+                </TableCell>
+                <TableCell action>
                   <Link href={carrierLoadPath(load.id)} className={textLink}>
                     {c.open}
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
           </Table>
         </>

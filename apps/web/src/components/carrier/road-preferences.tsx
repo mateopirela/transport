@@ -77,7 +77,7 @@ export function RoadPreferences({
   const free = segments.filter((s) => !marked[s.id]);
 
   return (
-    <section className="space-y-3 rounded-2xl border bg-cell p-5" aria-label={title}>
+    <section className="space-y-3 border bg-cell p-5" aria-label={title}>
       <h3 className="text-headline text-text">{title}</h3>
       {segments.length === 0 ? (
         <p className="text-subhead text-text-dim">{c.noCatalog}</p>
@@ -87,13 +87,13 @@ export function RoadPreferences({
             const list = byPreference(preference);
             return (
               <div key={preference} className="space-y-1.5">
-                <p className="px-1 text-label text-text-dim">
+                <p className="text-label text-text-dim">
                   {preference === 'prefer' ? c.preferredTitle : c.avoidedTitle}
                 </p>
                 {list.length === 0 ? (
-                  <p className="px-1 text-subhead text-text-faint">{c.empty}</p>
+                  <p className="text-subhead text-text-dim">{c.empty}</p>
                 ) : (
-                  <ul className="overflow-hidden rounded-xl border">
+                  <ul className="overflow-hidden border">
                     {list.map((segment) => (
                       <MarkedSegment key={segment.id} routeId={routeId} segment={segment} />
                     ))}

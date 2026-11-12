@@ -31,6 +31,63 @@ export const carrierWebCopy = {
     score: (points: number) => `${points} pts`,
     noUnitsSelected: 'La unidad de negocio seleccionada no tiene camiones con tipo de unidad.',
   },
+  /** The home as a dashboard (docs/plan-fulmis.md §1.5, V4). */
+  dashboard: {
+    description: 'Lo que requiere tu atención y las cargas para tus camiones.',
+    kpis: {
+      respond: 'Por responder',
+      respondHint: (count: number) =>
+        count === 0 ? 'Ninguna contraoferta pendiente' : 'Contraofertas del cliente',
+      active: 'Viajes en curso',
+      activeHint: (toAssign: number) =>
+        toAssign === 0 ? 'Ninguno por asignar' : `${toAssign} por asignar`,
+      receivable: 'Por cobrar',
+      receivableHint: (onHold: string | null) =>
+        onHold ? `${onHold} retenido` : 'Neto de tus viajes',
+      expiring: 'Por vencer',
+      expiringHint: (days: number) => `Documentos en ${days} días`,
+    },
+    attention: {
+      title: 'Requiere tu atención',
+      empty: 'Nada pendiente',
+      emptyHelp:
+        'Aquí aparecen las contraofertas, los viajes por asignar, los camiones por liberar y los documentos por vencer.',
+      moreRespond: (count: number) =>
+        count === 1 ? 'Ver 1 contraoferta más' : `Ver ${count} contraofertas más`,
+      moreAssign: (count: number) =>
+        count === 1 ? 'Ver 1 viaje más por asignar' : `Ver ${count} viajes más por asignar`,
+      tags: {
+        release: 'Por liberar',
+        respond: 'Contraoferta',
+        assign: 'Por asignar',
+        expiring: 'Por vencer',
+      },
+      respondDetail: (price: string) => `El cliente propone ${price}`,
+      respondAction: 'Responder',
+      assignDetail: (date: string) => `Recolección: ${date}`,
+      assignAction: 'Asignar',
+      expiringTitle: (count: number) =>
+        count === 1 ? '1 documento por vencer' : `${count} documentos por vencer`,
+      expiringFirst: (document: string, owner: string, due: string) =>
+        `El primero: ${document} de ${owner}, ${due.toLowerCase()}`,
+      expiringDetail: (days: number) =>
+        days <= 0 ? 'Vence hoy' : days === 1 ? 'Vence mañana' : `Vence en ${days} días`,
+      expiringAction: 'Ver documentos',
+    },
+    expiring: {
+      title: 'Documentos por vencer',
+      description: (days: number) =>
+        `Los documentos aprobados de tus camiones y operadores que vencen en los próximos ${days} días. Sube el nuevo antes de que venza.`,
+      columns: { document: 'Documento', owner: 'De', due: 'Vence' },
+      vehicle: 'Camión',
+      operator: 'Operador',
+    },
+    activeTrips: {
+      title: 'Viajes en curso',
+      all: 'Ver todos',
+      empty: 'Ningún viaje en camino ahora.',
+    },
+  },
   loads: {
     title: 'Cargas publicadas',
     description: 'Cargas que aceptan ofertas, de la recolección más próxima a la más lejana.',
@@ -197,6 +254,10 @@ export const carrierWebCopy = {
       incidentReported: (kind: string, description: string) => `${kind}: ${description}`,
       receivedBy: (name: string) => `Recibió: ${name}`,
       estimate: (at: string) => `Fin estimado: ${at}`,
+      /** The anchors over the long sections of the trip (docs/plan-fulmis.md §1.5). */
+      sections: 'Secciones del viaje',
+      documents: 'Documentos',
+      chat: 'Chat',
     },
     assign: {
       unit: 'Camión',

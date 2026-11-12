@@ -75,7 +75,7 @@ export default async function CarrierSubscriptionPage({
         {back === 'ok' && <Notice tone="success">{c.returnOk}</Notice>}
         {back === 'cancelado' && <Notice tone="info">{c.returnCanceled}</Notice>}
         {pilot && (
-          <div className="space-y-1 rounded-2xl bg-highlight px-5 py-4">
+          <div className="space-y-1 border bg-cell px-5 py-4">
             <h2 className="text-headline text-text">{c.pilotTitle}</h2>
             <p className="text-subhead text-text-dim">{c.pilotBody}</p>
           </div>

@@ -4,6 +4,7 @@ import { fleetCopy, managerCompanyCopy } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,8 +34,9 @@ function StateNotice({ state }: { state: FormState }) {
 }
 
 /**
- * A destructive change folded until opened and confirmed, so a stray click
- * never archives or removes anything (as FleetArchiveForm, G10b).
+ * A destructive change behind a dialog that says what happens
+ * (docs/plan-fulmis.md §1.5), so a stray click never archives or removes
+ * anything (as FleetArchiveForm, G10b).
  */
 function ConfirmForm({
   action,
@@ -53,21 +55,24 @@ function ConfirmForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
-    <Disclosure summary={summary} look="inline" tone="red" open={Boolean(state.error)}>
-      <form action={formAction} className="space-y-3">
-        <div className="space-y-0.5">
-          <p className="text-headline text-text">{title}</p>
-          <p className="text-subhead text-text-dim">{body}</p>
-        </div>
-        <StateNotice state={state} />
-        {Object.entries(hidden).map(([name, value]) => (
-          <input key={name} type="hidden" name={name} value={value} />
-        ))}
-        <Button type="submit" variant="destructive" size="sm" loading={pending}>
-          {confirm}
+    <ConfirmDialog
+      trigger={
+        <Button variant="destructive" size="sm">
+          {summary}
         </Button>
-      </form>
-    </Disclosure>
+      }
+      title={title}
+      description={body}
+      confirmLabel={confirm}
+      destructive
+      action={formAction}
+      pending={pending}
+      error={state.error}
+    >
+      {Object.entries(hidden).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+    </ConfirmDialog>
   );
 }
 
@@ -81,7 +86,7 @@ export function CreateBusinessUnitForm() {
   return (
     <form action={action} className="flex max-w-xl flex-wrap items-end gap-2" noValidate>
       <div className="min-w-56 flex-1 space-y-1.5">
-        <Label htmlFor={`${id}-name`} className="block px-1">
+        <Label htmlFor={`${id}-name`} className="block">
           {c.businessUnits.nameLabel}
         </Label>
         {/* React resets the form after the action; an error refills the name. */}

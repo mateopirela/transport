@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  carrierWebCopy,
   clientTripsCopy,
   tripCancelCopy,
   tripCancellationReasonLabels,
@@ -70,7 +71,12 @@ test('a trip cancelled on its way leaves the unit pending until the carrier rele
 
   await test.step('Carmen sees the unit pending release on her home and fleet', async () => {
     await carmen.goto('/transportista');
-    await expect(carmen.getByRole('heading', { name: r.home.title(1) })).toBeVisible();
+    // V4: the release is a row of "Requiere tu atención", with its one action.
+    const release = carmen
+      .getByRole('listitem')
+      .filter({ hasText: carrierWebCopy.dashboard.attention.tags.release })
+      .filter({ hasText: 'RB-01' });
+    await expect(release.getByRole('link', { name: r.home.open })).toBeVisible();
     await carmen.goto('/transportista/flota/unidades');
     await expect(
       carmen

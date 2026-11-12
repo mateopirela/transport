@@ -3,6 +3,7 @@ import {
   carrierTripsCopy,
   checkAssignment,
   defaultAssignment,
+  documentGateCopy,
   type SpecialRequirement,
   type TripStatus,
   type UnitType,
@@ -66,7 +67,7 @@ export function useTripAssignment({
   const operator = options.operators.find((o) => o.id === operatorId) ?? null;
   const unchanged =
     assigned && vehicleId === current.vehicleId && operatorId === current.operatorId;
-  const { blockers, warnings } = checkAssignment({
+  const { blockers, warnings, details } = checkAssignment({
     unit,
     operator,
     loadUnitType,
@@ -130,7 +131,14 @@ export function useTripAssignment({
               label={copy.unit}
               options={options.units.map((u) => ({
                 value: u.id,
-                label: tagged(u.name, u.expiredDocuments ? copy.unitExpiredTag : null),
+                label: tagged(
+                  u.name,
+                  u.expiredDocuments
+                    ? copy.unitExpiredTag
+                    : u.documentIssue
+                      ? documentGateCopy.assign.notReadyTag
+                      : null,
+                ),
               }))}
               value={vehicleId ?? undefined}
               onChange={(next) => {
@@ -147,9 +155,11 @@ export function useTripAssignment({
                   o.name,
                   !o.hasAccount
                     ? copy.noAccountTag
-                    : o.licenseType
-                      ? copy.licenseTag(o.licenseType, o.licenseCurrent)
-                      : copy.noLicenseTag,
+                    : o.documentIssue && o.licenseCurrent
+                      ? documentGateCopy.assign.notReadyTag
+                      : o.licenseType
+                        ? copy.licenseTag(o.licenseType, o.licenseCurrent)
+                        : copy.noLicenseTag,
                 ),
               }))}
               value={operatorId ?? undefined}
@@ -165,7 +175,7 @@ export function useTripAssignment({
         .filter((b) => b !== 'missingSelection')
         .map((b) => (
           <Notice key={b} tone="danger">
-            {copy.blockers[b]}
+            {details[b] ?? copy.blockers[b]}
           </Notice>
         ))}
       {warnings.map((w) => (

@@ -106,6 +106,11 @@ export const carrierTripsCopy = {
       operatorLicenseMismatch:
         'La licencia de este operador no es adecuada para esta unidad o esta carga. Elige otra unidad u otro operador.',
       unitExpired: 'Esta unidad tiene documentos vencidos. Actualízalos o elige otra unidad.',
+      /** R4 (D45): the form shows the documents by name; these are the fallbacks. */
+      unitDocuments:
+        'Esta unidad tiene documentos obligatorios sin aprobar. Elige otra unidad o espera a que se aprueben.',
+      operatorDocuments:
+        'Este operador tiene documentos obligatorios sin aprobar o vencidos. Elige otro operador o espera a que se aprueben.',
     } satisfies Record<AssignmentBlocker, string>,
     warnings: {
       unitTypeMismatch: 'El tipo de esta unidad es distinto al que pidió el cliente.',

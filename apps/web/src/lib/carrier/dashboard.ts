@@ -111,7 +111,7 @@ export async function fleetExpiringDocuments(
   const context = await loadFleetContext(supabase, companyId);
   const [vehicles, operators] = await Promise.all([
     listCarrierVehicles(supabase, context, businessUnitIds),
-    listCarrierOperators(supabase, companyId, businessUnitIds),
+    listCarrierOperators(supabase, context, businessUnitIds),
   ]);
   return expiringDocuments(context, [
     ...vehicles.map((v) => ({ type: 'vehicle' as const, id: v.id, label: unitLabel(v) })),

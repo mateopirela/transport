@@ -1,5 +1,6 @@
 import {
   carrierWebCopy,
+  documentsBlockUnit,
   fleetCopy,
   unitLabel,
   vehicleKindLabels,
@@ -101,7 +102,7 @@ export default async function CarrierUnitPage({
                   <AvailabilityForm
                     vehicleId={vehicle.id}
                     current={vehicle.availability}
-                    blocked={vehicle.readiness === 'expired_documents'}
+                    blocked={documentsBlockUnit(vehicle.readiness)}
                   />
                 )}
               </RailSection>
@@ -158,6 +159,12 @@ export default async function CarrierUnitPage({
         </PageSection>
 
         <PageSection title={fleetCopy.units.documentsTitle} description={c.documents.description}>
+          {/* R4 (D45): what keeps the unit from travelling, by name. */}
+          {vehicle.documentIssue && (
+            <Notice tone="attention" className="mb-4">
+              {vehicle.documentIssue}
+            </Notice>
+          )}
           <FleetDocuments
             companyId={companyId}
             owner={{ type: 'vehicle', id: vehicle.id }}

@@ -226,6 +226,12 @@ describe('summarizeVehicles', () => {
         owner_id: 'v2',
         expires_at: '2026-10-01T00:00:00Z',
       }),
+      document({
+        id: 'd2',
+        requirement_id: 'seguro',
+        owner_id: 'v1',
+        expires_at: '2027-01-01T00:00:00Z',
+      }),
     ];
     const [summary] = summarizeVehicles(
       context([insurance], docs),
@@ -242,6 +248,31 @@ describe('summarizeVehicles', () => {
       NOW,
     );
     expect(summary?.readiness).toBe('available');
+    expect(summary?.documentIssue).toBeNull();
+  });
+
+  it('blocks a unit with a required document never approved, and names it (R4, D45)', () => {
+    const card = requirement({ id: 'tarjeta', name: 'Tarjeta de circulación' });
+    const docs = [
+      document({ id: 'd1', requirement_id: 'seguro', expires_at: '2027-01-01T00:00:00Z' }),
+      document({ id: 'd2', requirement_id: 'tarjeta', status: 'pending_review' }),
+    ];
+    const [summary] = summarizeVehicles(
+      context([insurance, card], docs),
+      [vehicle('v1')],
+      [
+        {
+          vehicle_id: 'v1',
+          available_from: '2026-10-19T12:00:00Z',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+        },
+      ],
+      new Set(),
+      NOW,
+    );
+    expect(summary?.readiness).toBe('missing_documents');
+    expect(summary?.documentIssue).toBe('Falta aprobar: Tarjeta de circulación.');
   });
 
   it('holds a unit pending release ahead of everything else (G5)', () => {
@@ -267,11 +298,13 @@ describe('summarizeVehicles', () => {
 describe('summarizeOperators', () => {
   it('attaches the pending invitation of each operator by operator id', () => {
     const [withInvite, without] = summarizeOperators(
+      context([]),
       [operator('o1'), operator('o2', null)],
       [
         { id: 'i1', operator_id: 'o1', expires_at: '2026-10-26T00:00:00Z' },
         { id: 'i9', operator_id: 'o9', expires_at: '2026-10-26T00:00:00Z' },
       ],
+      NOW,
     );
     expect(withInvite).toMatchObject({
       id: 'o1',
@@ -281,5 +314,48 @@ describe('summarizeOperators', () => {
     expect(withInvite?.invitation).not.toHaveProperty('operator_id');
     expect(withInvite).not.toHaveProperty('business_unit');
     expect(without).toMatchObject({ id: 'o2', businessUnitName: null, invitation: null });
+  });
+
+  it('says what keeps an operator from travelling, from the documents only (R4, D45)', () => {
+    const license = requirement({
+      id: 'licencia',
+      code: 'federal_driver_license',
+      name: 'Licencia de conducir vigente',
+      owner_type: 'operator',
+      requires_expiry: true,
+    });
+    const officialId = requirement({
+      id: 'ine',
+      name: 'Identificación oficial',
+      owner_type: 'operator',
+      requires_expiry: true,
+    });
+    // o1 typed a license date (2027) but has no approved license document: gap 2.
+    const docs = [
+      document({
+        id: 'd1',
+        requirement_id: 'ine',
+        owner_type: 'operator',
+        owner_id: 'o2',
+        expires_at: '2027-01-01T00:00:00Z',
+      }),
+      document({
+        id: 'd2',
+        requirement_id: 'licencia',
+        owner_type: 'operator',
+        owner_id: 'o2',
+        expires_at: '2027-01-01T00:00:00Z',
+      }),
+    ];
+    const [blocked, ready] = summarizeOperators(
+      context([license, officialId], docs),
+      [operator('o1'), operator('o2')],
+      [],
+      NOW,
+    );
+    expect(blocked?.documentIssue).toBe(
+      'Falta aprobar: Licencia de conducir vigente e Identificación oficial de Operador o1.',
+    );
+    expect(ready?.documentIssue).toBeNull();
   });
 });

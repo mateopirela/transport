@@ -7,6 +7,7 @@ import { fleetErrorCopy } from './copy/fleet';
 import { validationMessages as m } from './copy/validation';
 import { tripCancellationReasonLabels, vehicleReleaseCopy } from './copy/vehicle-release';
 import type { TripCancellationReason, TripStatus } from './enums';
+import { documentGateErrorText } from './document-gate';
 import { CITY_PRESETS, mexicoCityDateTime, type CityPreset } from './fleet';
 import { haversineKm, type LatLng } from './geo';
 import { enumField, formError, optionalText } from './schemas/common';
@@ -124,6 +125,9 @@ const RELEASE_ERRORS: readonly (readonly [RegExp, string])[] = [
 
 /** Spanish text for a known error message of the release RPCs, or null when unknown. */
 export function releaseErrorText(message: string): string | null {
+  // R4: the same gate as set_vehicle_availability, with the codes that block the unit.
+  const gate = documentGateErrorText(message, 'availability');
+  if (gate) return gate;
   for (const [pattern, text] of RELEASE_ERRORS) if (pattern.test(message)) return text;
   return null;
 }

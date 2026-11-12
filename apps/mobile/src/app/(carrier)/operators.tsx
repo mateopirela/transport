@@ -1,4 +1,4 @@
-import { fleetCopy, formatDate, managerCompanyCopy } from '@transport/shared';
+import { documentGateCopy, fleetCopy, formatDate, managerCompanyCopy } from '@transport/shared';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 
@@ -12,12 +12,31 @@ import {
   TextCell,
   type PillTone,
 } from '../../components/ui';
-import { listOperators, type OperatorSummary } from '../../lib/fleet-api';
+import {
+  listOperators,
+  loadCompanyContext,
+  ownerDocumentIssue,
+  type OperatorSummary,
+} from '../../lib/fleet-api';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
 
 const copy = fleetCopy.operators;
 
-const loadOperators = ({ client, companyId }: CarrierContext) => listOperators(client, companyId);
+/** The operators with what their documents block (R4, D45). */
+async function loadOperators({ client, companyId }: CarrierContext) {
+  const [context, operators] = await Promise.all([
+    loadCompanyContext(client, companyId),
+    listOperators(client, companyId),
+  ]);
+  return operators.map((operator) => ({
+    ...operator,
+    documentIssue: ownerDocumentIssue(
+      context,
+      { type: 'operator', id: operator.id },
+      operator.full_name,
+    ),
+  }));
+}
 
 /** Whether the operator already uses the app, was invited or not yet. */
 function operatorPill(operator: OperatorSummary): { label: string; tone: PillTone } {
@@ -61,6 +80,10 @@ export default function Operators() {
                   operator.businessUnitName
                     ? fleetCopy.businessUnit(operator.businessUnitName)
                     : null,
+                  // R4 (D45): whether the documents let them travel and, if not, why.
+                  operator.documentIssue
+                    ? `${documentGateCopy.fleet.cannotTravel}. ${operator.documentIssue}`
+                    : documentGateCopy.fleet.canTravel,
                 ]}
                 pill={operatorPill(operator)}
                 onPress={() =>

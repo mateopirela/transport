@@ -69,6 +69,7 @@ const unit = (over: Partial<AssignableUnit> = {}): AssignableUnit => ({
   kind: 'trailer',
   unitType: 'dry_van',
   expiredDocuments: false,
+  documentIssue: null,
   currentOperatorId: null,
   otherTrips: 0,
   ...over,
@@ -79,6 +80,7 @@ const operator = (over: Partial<AssignableOperator> = {}): AssignableOperator =>
   hasAccount: true,
   licenseType: 'E',
   licenseCurrent: true,
+  documentIssue: null,
   otherTrips: 0,
   ...over,
 });
@@ -182,7 +184,33 @@ describe('checkAssignment', () => {
         operator: operator({ hasAccount: false }),
         loadUnitType: 'dry_van',
       }),
-    ).toEqual({ blockers: ['operatorWithoutAccount', 'unitExpired'], warnings: [] });
+    ).toEqual({ blockers: ['operatorWithoutAccount', 'unitExpired'], warnings: [], details: {} });
+  });
+
+  it('blocks a unit or an operator whose documents are not approved, with their names (R4)', () => {
+    const check = checkAssignment({
+      unit: unit({ documentIssue: 'Falta aprobar: Tarjeta de circulación.' }),
+      operator: operator({
+        licenseCurrent: false,
+        documentIssue:
+          'La licencia de Pedro venció. Falta aprobar: Identificación oficial de Pedro.',
+      }),
+      loadUnitType: 'dry_van',
+    });
+    expect(check.blockers).toEqual(['operatorDocuments', 'unitDocuments']);
+    expect(check.details).toEqual({
+      operatorDocuments:
+        'La licencia de Pedro venció. Falta aprobar: Identificación oficial de Pedro.',
+      unitDocuments: 'Falta aprobar: Tarjeta de circulación.',
+    });
+    // An expired unit keeps its blocker, now with the names.
+    expect(
+      checkAssignment({
+        unit: unit({ expiredDocuments: true, documentIssue: 'Venció: Seguro vigente.' }),
+        operator: operator(),
+        loadUnitType: 'dry_van',
+      }).details,
+    ).toEqual({ unitExpired: 'Venció: Seguro vigente.' });
   });
 
   it('blocks an operator whose license is expired or does not fit the unit or the cargo (D16)', () => {
@@ -217,13 +245,17 @@ describe('checkAssignment', () => {
         operator: operator({ otherTrips: 2 }),
         loadUnitType: 'dry_van',
       }),
-    ).toEqual({ blockers: [], warnings: ['unitTypeMismatch', 'unitBusy', 'operatorBusy'] });
+    ).toEqual({
+      blockers: [],
+      warnings: ['unitTypeMismatch', 'unitBusy', 'operatorBusy'],
+      details: {},
+    });
   });
 
   it('passes a ready pair', () => {
     expect(
       checkAssignment({ unit: unit(), operator: operator(), loadUnitType: 'dry_van' }),
-    ).toEqual({ blockers: [], warnings: [] });
+    ).toEqual({ blockers: [], warnings: [], details: {} });
   });
 });
 
@@ -251,6 +283,17 @@ describe('defaultAssignment', () => {
         operators,
       }),
     ).toEqual({ vehicleId: 'u1', operatorId: 'o2' });
+  });
+
+  it('skips an offered unit whose documents are not approved (R4)', () => {
+    expect(
+      defaultAssignment({
+        current: { vehicleId: null, operatorId: null },
+        offeredUnitId: 'u1',
+        units: [unit({ id: 'u1', documentIssue: 'Falta aprobar: Permisos correspondientes.' })],
+        operators: [operator({ id: 'o1' })],
+      }).vehicleId,
+    ).toBeNull();
   });
 
   it('skips an offered unit with expired documents and an usual operator without account', () => {
@@ -342,7 +385,7 @@ describe('canCancelTrip', () => {
 describe('operatorLicenseCurrent', () => {
   const now = new Date('2026-10-15T18:00:00Z');
   const license = { id: 'req-1', code: 'federal_driver_license' };
-  const operator = { id: 'op-1', license_expires_on: null };
+  const operator = { id: 'op-1' };
   const approved = {
     requirement_id: 'req-1',
     owner_type: 'operator' as const,
@@ -352,13 +395,9 @@ describe('operatorLicenseCurrent', () => {
     archived_at: null,
   };
 
-  it('is current with a license date today or later', () => {
-    expect(
-      operatorLicenseCurrent({ ...operator, license_expires_on: '2026-10-15' }, [], [], now),
-    ).toBe(true);
-    expect(
-      operatorLicenseCurrent({ ...operator, license_expires_on: '2026-10-14' }, [], [], now),
-    ).toBe(false);
+  it('ignores the license date typed on the operator (R4, D45)', () => {
+    const typed = { id: 'op-1', license_expires_on: '2030-01-01' };
+    expect(operatorLicenseCurrent(typed, [license], [], now)).toBe(false);
   });
 
   it('is current with an approved unexpired license document of the operator', () => {

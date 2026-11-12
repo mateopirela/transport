@@ -1,6 +1,7 @@
 import {
   applicableRequirements,
-  expiredRequirementIds,
+  documentGate,
+  documentGateText,
   requirementProgress,
   vehicleReadiness,
   type Requirement,
@@ -20,6 +21,21 @@ export interface FleetContext {
   company: Pick<Tables<'companies'>, 'id' | 'type' | 'rfc' | 'legal_name'>;
   requirements: Requirement[];
   documents: SubmittedDocument[];
+}
+
+/**
+ * Why the documents keep a unit (no `operatorName`) or an operator from
+ * travelling (R4, D45), or null when every required one is approved and
+ * current. The same rule as assign_trip.
+ */
+export function ownerDocumentIssue(
+  context: FleetContext,
+  owner: { type: 'vehicle' | 'operator'; id: string },
+  operatorName: string | null = null,
+  now: Date = new Date(),
+): string | null {
+  const requirements = applicableRequirements(context.requirements, owner.type, context.company);
+  return documentGateText(documentGate(requirements, context.documents, owner, now), operatorName);
 }
 
 /** Requirements of one unit or operator with the state of each (requirementProgress). */
@@ -60,6 +76,8 @@ export type VehicleRow = Pick<
 export interface VehicleSummary extends VehicleRow {
   availability: Availability | null;
   readiness: VehicleReadiness;
+  /** R4: why its documents keep it from travelling, or null (ownerDocumentIssue). */
+  documentIssue: string | null;
   /** Name of the business unit that runs it (G1a). */
   businessUnitName: string | null;
 }
@@ -78,19 +96,21 @@ export function summarizeVehicles(
   const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
   return vehicles.map(({ business_unit: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
+    const gate = documentGate(
+      requirements,
+      context.documents,
+      { type: 'vehicle', id: vehicle.id },
+      now,
+    );
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
       availability: current,
+      documentIssue: documentGateText(gate),
       readiness: vehicleReadiness(
         {
-          expiredDocuments:
-            expiredRequirementIds(
-              requirements,
-              context.documents,
-              { type: 'vehicle', id: vehicle.id },
-              now,
-            ).length > 0,
+          expiredDocuments: gate.expired.length > 0,
+          missingDocuments: gate.notApproved.length > 0,
           availableFrom: current?.available_from ?? null,
           pendingRelease: pendingRelease.has(vehicle.id),
         },
@@ -122,6 +142,8 @@ export interface OperatorSummary extends OperatorRow {
   invitation: Pick<Tables<'operator_invitations'>, 'id' | 'expires_at'> | null;
   /** Name of the business unit the operator drives for (G1a). */
   businessUnitName: string | null;
+  /** R4: why its documents keep the operator from travelling, or null (ownerDocumentIssue). */
+  documentIssue: string | null;
 }
 
 export type OperatorRead = OperatorRow & { business_unit: { name: string } | null };
@@ -130,10 +152,12 @@ export type PendingInvitation = Pick<
   'id' | 'operator_id' | 'expires_at'
 >;
 
-/** Business unit name and pending invitation of the given operator rows. */
+/** Business unit name, pending invitation and document issue of the given operator rows. */
 export function summarizeOperators(
+  context: FleetContext,
   operators: OperatorRead[],
   invitations: PendingInvitation[],
+  now: Date = new Date(),
 ): OperatorSummary[] {
   const pending = new Map(invitations.map((i) => [i.operator_id, i]));
   return operators.map(({ business_unit: unit, ...operator }) => {
@@ -141,6 +165,12 @@ export function summarizeOperators(
     return {
       ...operator,
       businessUnitName: unit?.name ?? null,
+      documentIssue: ownerDocumentIssue(
+        context,
+        { type: 'operator', id: operator.id },
+        operator.full_name,
+        now,
+      ),
       invitation: invitation ? { id: invitation.id, expires_at: invitation.expires_at } : null,
     };
   });

@@ -6,6 +6,7 @@ import {
   carrierWebCopy,
   checkAssignment,
   defaultAssignment,
+  documentGateCopy,
   type SpecialRequirement,
   type TripStatus,
   type UnitType,
@@ -68,7 +69,7 @@ export function TripAssignForm({
   const operator = options.operators.find((o) => o.id === operatorId) ?? null;
   const unchanged =
     assigned && vehicleId === current.vehicleId && operatorId === current.operatorId;
-  const { blockers, warnings } = checkAssignment({
+  const { blockers, warnings, details } = checkAssignment({
     unit,
     operator,
     loadUnitType,
@@ -120,7 +121,15 @@ export function TripAssignForm({
           <option value="">{c.choose}</option>
           {options.units.map((u) => (
             <option key={u.id} value={u.id}>
-              {tagged(u.name, u.expiredDocuments ? app.unitExpiredTag : null, u.businessUnitName)}
+              {tagged(
+                u.name,
+                u.expiredDocuments
+                  ? app.unitExpiredTag
+                  : u.documentIssue
+                    ? documentGateCopy.assign.notReadyTag
+                    : null,
+                u.businessUnitName,
+              )}
             </option>
           ))}
         </Select>
@@ -142,9 +151,11 @@ export function TripAssignForm({
                 o.name,
                 !o.hasAccount
                   ? app.noAccountTag
-                  : o.licenseType
-                    ? app.licenseTag(o.licenseType, o.licenseCurrent)
-                    : app.noLicenseTag,
+                  : o.documentIssue && o.licenseCurrent
+                    ? documentGateCopy.assign.notReadyTag
+                    : o.licenseType
+                      ? app.licenseTag(o.licenseType, o.licenseCurrent)
+                      : app.noLicenseTag,
                 o.businessUnitName,
               )}
             </option>
@@ -155,7 +166,7 @@ export function TripAssignForm({
         .filter((b) => b !== 'missingSelection')
         .map((b) => (
           <Notice key={b} tone="error">
-            {app.blockers[b]}
+            {details[b] ?? app.blockers[b]}
           </Notice>
         ))}
       {warnings.map((w) => (

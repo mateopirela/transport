@@ -171,7 +171,7 @@ async function assignmentOptions(
   const context = await loadFleetContext(supabase, companyId);
   const [vehicles, operators, busy, offer, pairs] = await Promise.all([
     listCarrierVehicles(supabase, context, businessUnitIds),
-    listCarrierOperators(supabase, companyId, businessUnitIds),
+    listCarrierOperators(supabase, context, businessUnitIds),
     selectAll<{ id: string; vehicle_id: string | null; operator_id: string | null }>((from, to) =>
       supabase
         .from('trips')
@@ -198,6 +198,7 @@ async function assignmentOptions(
         kind: v.kind,
         unitType: v.unit_type,
         expiredDocuments: v.readiness === 'expired_documents',
+        documentIssue: v.documentIssue,
         currentOperatorId: v.current_operator_id,
         otherTrips: others.filter((t) => t.vehicle_id === v.id).length,
       })),
@@ -208,6 +209,7 @@ async function assignmentOptions(
       hasAccount: o.profile_id !== null,
       licenseType: o.license_type,
       licenseCurrent: operatorLicenseCurrent(o, context.requirements, context.documents, now),
+      documentIssue: o.documentIssue,
       otherTrips: others.filter((t) => t.operator_id === o.id).length,
     })),
     offeredUnitId: offer.data?.vehicle_id ?? null,

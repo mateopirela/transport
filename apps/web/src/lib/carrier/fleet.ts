@@ -171,14 +171,15 @@ const OPERATOR_COLUMNS =
 
 /**
  * Active operators of the given business units, oldest first, with their
- * pending invitation. Paged past the 1,000-row cap of PostgREST.
+ * pending invitation and what their documents block (R4). Paged past the 1,000-row cap of PostgREST.
  */
 export async function listCarrierOperators(
   supabase: Supabase,
-  companyId: string,
+  context: FleetContext,
   businessUnitIds: readonly string[],
 ): Promise<OperatorSummary[]> {
   if (businessUnitIds.length === 0) return [];
+  const companyId = context.company.id;
   const now = new Date().toISOString();
   const [operators, invitations] = await Promise.all([
     selectAll<OperatorRead>((from, to) =>
@@ -204,7 +205,7 @@ export async function listCarrierOperators(
         .range(from, to),
     ),
   ]);
-  return summarizeOperators(operators, invitations);
+  return summarizeOperators(context, operators, invitations);
 }
 
 /** One active operator of the company with its documents, or null. */
@@ -232,7 +233,7 @@ export async function getCarrierOperator(
   ]);
   if (operator.error) throw new Error(`Operator query failed: ${operator.error.message}`);
   if (!operator.data) return null;
-  const [summary] = summarizeOperators([operator.data], check(invitations));
+  const [summary] = summarizeOperators(context, [operator.data], check(invitations));
   if (!summary) return null;
   return { ...summary, progress: ownerProgress(context, { type: 'operator', id: summary.id }) };
 }

@@ -1,7 +1,8 @@
 import {
   applicableRequirements,
   cityPreset,
-  expiredRequirementIds,
+  documentGate,
+  documentGateText,
   requirementProgress,
   toEwktPoint,
   vehicleReadiness,
@@ -92,6 +93,20 @@ export async function loadCompanyContext(
   };
 }
 
+/**
+ * Why the documents keep a unit (no `operatorName`) or an operator from
+ * travelling (R4, D45), or null when every required one is approved and
+ * current. The same rule as assign_trip.
+ */
+export function ownerDocumentIssue(
+  context: CompanyContext,
+  owner: { type: 'vehicle' | 'operator'; id: string },
+  operatorName: string | null = null,
+): string | null {
+  const requirements = applicableRequirements(context.requirements, owner.type, context.company);
+  return documentGateText(documentGate(requirements, context.documents, owner), operatorName);
+}
+
 /** Requirements of one owner with the state of each (see requirementProgress). */
 export function ownerProgress(
   context: CompanyContext,
@@ -113,6 +128,8 @@ export type Availability = Pick<
 export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'business_unit_id'> {
   availability: Availability | null;
   readiness: VehicleReadiness;
+  /** R4: why its documents keep it from travelling, or null (ownerDocumentIssue). */
+  documentIssue: string | null;
   /** Name of the business unit that runs it (G1a.2). */
   businessUnitName: string | null;
   businessUnitId: string;
@@ -150,13 +167,16 @@ export async function listVehicles(
     const current = byVehicle.get(vehicle.id) ?? null;
     const owner = { type: 'vehicle', id: vehicle.id } as const;
     const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
+    const gate = documentGate(requirements, context.documents, owner);
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
       businessUnitId: vehicle.business_unit_id,
       availability: current,
+      documentIssue: documentGateText(gate),
       readiness: vehicleReadiness({
-        expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
+        expiredDocuments: gate.expired.length > 0,
+        missingDocuments: gate.notApproved.length > 0,
         availableFrom: current?.available_from ?? null,
         pendingRelease: pendingRelease.has(vehicle.id),
       }),

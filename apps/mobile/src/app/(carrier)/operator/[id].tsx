@@ -23,6 +23,7 @@ import {
   archiveOperator,
   listOperators,
   loadCompanyContext,
+  ownerDocumentIssue,
   type CompanyContext,
   type OperatorSummary,
 } from '../../../lib/fleet-api';
@@ -128,6 +129,11 @@ function OperatorDetail({
 }) {
   const router = useRouter();
   const userId = useSession().session?.user.id;
+  const documentIssue = ownerDocumentIssue(
+    context,
+    { type: 'operator', id: operator.id },
+    operator.full_name,
+  );
   const confirmSheet = useRef<ConfirmSheetHandle>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const form = useOperatorForm({
@@ -198,6 +204,8 @@ function OperatorDetail({
         />
       )}
       <SectionHeader title={copy.documentsTitle} />
+      {/* R4 (D45): what keeps the operator from travelling, by name. */}
+      {documentIssue ? <Notice tone="attention">{documentIssue}</Notice> : null}
       <DocumentList
         client={carrier.client}
         context={context}

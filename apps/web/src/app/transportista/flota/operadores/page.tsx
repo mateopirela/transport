@@ -1,5 +1,6 @@
 import {
   carrierWebCopy,
+  documentGateCopy,
   fleetCopy,
   formatCalendarDate,
   formatDate,
@@ -18,7 +19,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
-import { listCarrierOperators, type OperatorSummary } from '@/lib/carrier/fleet';
+import { listCarrierOperators, loadFleetContext, type OperatorSummary } from '@/lib/carrier/fleet';
 import { parseFleetFlash } from '@/lib/carrier/fleet-forms';
 import { carrierOperatorPath, paths } from '@/lib/routing';
 
@@ -39,13 +40,30 @@ function AccountPill({ operator }: { operator: OperatorSummary }) {
   return <Pill>{fleetCopy.operators.notInvited}</Pill>;
 }
 
-/** The operators of the selected business units with their license and account (G10b; B18 on the app). */
+/** Whether the operator's documents let them travel (R4, D45) and, if not, why. */
+function TravelCell({ operator }: { operator: OperatorSummary }) {
+  if (!operator.documentIssue) {
+    return <Pill tone="done">{documentGateCopy.fleet.canTravel}</Pill>;
+  }
+  return (
+    <>
+      <Pill tone="problem">{documentGateCopy.fleet.cannotTravel}</Pill>
+      <span className="mt-1 block text-footnote text-text-dim">{operator.documentIssue}</span>
+    </>
+  );
+}
+
+/**
+ * The operators of the selected business units with their license, account and
+ * whether their documents let them travel (G10b, R4; B18 on the app).
+ */
 export default async function CarrierOperatorsPage({
   searchParams,
 }: PageProps<'/transportista/flota/operadores'>) {
   const { supabase, companyId, isManager, units } = await carrierContext(paths.carrierOperators);
   const flash = parseFleetFlash((await searchParams).aviso);
-  const operators = await listCarrierOperators(supabase, companyId, units.ids);
+  const context = await loadFleetContext(supabase, companyId);
+  const operators = await listCarrierOperators(supabase, context, units.ids);
 
   return (
     <>
@@ -94,6 +112,7 @@ export default async function CarrierOperatorsPage({
             c.operators.columns.license,
             c.operators.columns.businessUnit,
             c.operators.columns.account,
+            documentGateCopy.fleet.column,
             { label: c.operators.open, srOnly: true },
           ]}
         >
@@ -121,6 +140,9 @@ export default async function CarrierOperatorsPage({
               </TableCell>
               <TableCell label={c.operators.columns.account}>
                 <AccountPill operator={operator} />
+              </TableCell>
+              <TableCell label={documentGateCopy.fleet.column}>
+                <TravelCell operator={operator} />
               </TableCell>
               <TableCell action>
                 <Link href={carrierOperatorPath(operator.id)} className={textLink}>

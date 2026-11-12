@@ -3,7 +3,7 @@ import {
   cargoInsuranceState,
   isTripActive,
   licensePairsFrom,
-  toMexicoCityDate,
+  operatorLicenseCurrent,
   tripDocumentStoragePath,
   uploadableTripDocumentKinds,
   type AssignableOperator,
@@ -22,7 +22,7 @@ import { randomUUID } from 'expo-crypto';
 import { File as LocalFile } from 'expo-file-system';
 
 import type { PickedFile } from './document-upload';
-import { listOperators, listVehicles, loadCompanyContext, type CompanyContext } from './fleet-api';
+import { listOperators, listVehicles, loadCompanyContext, ownerDocumentIssue } from './fleet-api';
 import { unitLabel } from './loads-api';
 import type { Supabase } from './supabase';
 
@@ -335,28 +335,6 @@ export type TripDocument = Pick<
   'id' | 'kind' | 'storage_path' | 'file_name' | 'created_at'
 >;
 
-/** Whether the operator's license is current: an approved unexpired license document, or its date on the operator (mirrors operator_license_current). */
-function licenseCurrent(
-  operator: { id: string; license_expires_on: string | null },
-  context: CompanyContext,
-  now: Date,
-): boolean {
-  const today = toMexicoCityDate(now.toISOString());
-  if (operator.license_expires_on && operator.license_expires_on >= today) return true;
-  const license = context.requirements.find((r) => r.code === 'federal_driver_license');
-  return context.documents.some(
-    (d) =>
-      license !== undefined &&
-      d.requirement_id === license.id &&
-      d.owner_type === 'operator' &&
-      d.owner_id === operator.id &&
-      d.status === 'approved' &&
-      d.archived_at === null &&
-      d.expires_at !== null &&
-      Date.parse(d.expires_at) > now.getTime(),
-  );
-}
-
 /**
  * Units and operators the carrier can assign, with what else they are busy
  * with. A Coordinador may only assign those of the trip's business unit
@@ -401,6 +379,7 @@ async function assignmentOptions(
         kind: v.kind,
         unitType: v.unit_type,
         expiredDocuments: v.readiness === 'expired_documents',
+        documentIssue: v.documentIssue,
         currentOperatorId: usualOperator.get(v.id) ?? null,
         otherTrips: others.filter((t) => t.vehicle_id === v.id).length,
       })),
@@ -409,7 +388,8 @@ async function assignmentOptions(
       name: o.full_name,
       hasAccount: o.profile_id !== null,
       licenseType: o.license_type,
-      licenseCurrent: licenseCurrent(o, context, now),
+      licenseCurrent: operatorLicenseCurrent(o, context.requirements, context.documents, now),
+      documentIssue: ownerDocumentIssue(context, { type: 'operator', id: o.id }, o.full_name),
       otherTrips: others.filter((t) => t.operator_id === o.id).length,
     })),
     offeredUnitId: offer.data?.vehicle_id ?? null,

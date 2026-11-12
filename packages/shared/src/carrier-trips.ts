@@ -5,10 +5,11 @@
 // again in assign_trip (B06).
 import { carrierTripsCopy } from './copy/carrier-trips';
 import { vehicleReleaseCopy } from './copy/vehicle-release';
+import { documentGateErrorText } from './document-gate';
 import type { LicenseType, SpecialRequirement, TripStatus, UnitType, VehicleKind } from './enums';
 import { haversineKm, type LatLng } from './geo';
 import { isTripActive } from './trips';
-import { toMexicoCityDate, type Requirement, type SubmittedDocument } from './verification';
+import type { Requirement, SubmittedDocument } from './verification';
 
 /** Sections of the carrier's trips tab. */
 export type CarrierTripGroup = 'to_assign' | 'upcoming' | 'active' | 'history';
@@ -129,11 +130,12 @@ export function licenseAllowsLoad(
 
 /**
  * Whether the operator's license is current, as assign_trip checks it
- * (operator_license_current, D16): a license date today or later on the
- * operator, or an approved, unexpired "federal_driver_license" document.
+ * (operator_license_current): an approved, unexpired "federal_driver_license"
+ * document. The license date typed on the operator is information only (R4,
+ * D45).
  */
 export function operatorLicenseCurrent(
-  operator: { id: string; license_expires_on: string | null },
+  operator: { id: string },
   requirements: readonly Pick<Requirement, 'id' | 'code'>[],
   documents: readonly Pick<
     SubmittedDocument,
@@ -141,8 +143,6 @@ export function operatorLicenseCurrent(
   >[],
   now: Date = new Date(),
 ): boolean {
-  const today = toMexicoCityDate(now.toISOString());
-  if (operator.license_expires_on && operator.license_expires_on >= today) return true;
   const license = requirements.find((r) => r.code === 'federal_driver_license');
   if (!license) return false;
   return documents.some(
@@ -167,6 +167,11 @@ export interface AssignableUnit {
   unitType: UnitType | null;
   /** A required document is expired: assign_trip rejects it. */
   expiredDocuments: boolean;
+  /**
+   * R4 (D45): why its documents keep it from travelling (documentGateText),
+   * or null when every required one is approved and current.
+   */
+  documentIssue: string | null;
   /** Operator the fleet usually pairs with this unit. */
   currentOperatorId: string | null;
   /** Other trips of the carrier this unit is assigned to and not yet delivered. */
@@ -178,8 +183,10 @@ export interface AssignableOperator {
   /** Only operators who accepted their invitation can record the trip. */
   hasAccount: boolean;
   licenseType: LicenseType | null;
-  /** The license is current (approved unexpired document, or a license date today or later). */
+  /** The license is current: an approved, unexpired license document (R4). */
   licenseCurrent: boolean;
+  /** R4 (D45): why its documents keep the operator from travelling, or null. */
+  documentIssue: string | null;
   otherTrips: number;
 }
 
@@ -189,7 +196,9 @@ export type AssignmentBlocker =
   | 'operatorWithoutAccount'
   | 'operatorLicenseExpired'
   | 'operatorLicenseMismatch'
-  | 'unitExpired';
+  | 'operatorDocuments'
+  | 'unitExpired'
+  | 'unitDocuments';
 
 /** Allowed, but worth a second look before confirming. */
 export type AssignmentWarning = 'unitTypeMismatch' | 'unitBusy' | 'operatorBusy';
@@ -197,6 +206,8 @@ export type AssignmentWarning = 'unitTypeMismatch' | 'unitBusy' | 'operatorBusy'
 export interface AssignmentCheck {
   blockers: AssignmentBlocker[];
   warnings: AssignmentWarning[];
+  /** The exact text of a blocker, when it depends on the documents (R4); else the copy's. */
+  details: Partial<Record<AssignmentBlocker, string>>;
 }
 
 /** What stops or deserves a warning in assigning `unit` and `operator` to a load. */
@@ -216,9 +227,15 @@ export function checkAssignment({
 }): AssignmentCheck {
   const blockers: AssignmentBlocker[] = [];
   const warnings: AssignmentWarning[] = [];
+  const details: AssignmentCheck['details'] = {};
   if (!unit || !operator) blockers.push('missingSelection');
   if (operator && !operator.hasAccount) blockers.push('operatorWithoutAccount');
-  if (operator && !operator.licenseCurrent) blockers.push('operatorLicenseExpired');
+  // R4: every required document of the operator (the license among them);
+  // the license alone stays as a floor, as in assign_trip.
+  if (operator?.documentIssue) {
+    blockers.push('operatorDocuments');
+    details.operatorDocuments = operator.documentIssue;
+  } else if (operator && !operator.licenseCurrent) blockers.push('operatorLicenseExpired');
   if (
     unit &&
     operator &&
@@ -227,11 +244,15 @@ export function checkAssignment({
   ) {
     blockers.push('operatorLicenseMismatch');
   }
-  if (unit?.expiredDocuments) blockers.push('unitExpired');
+  if (unit?.expiredDocuments || unit?.documentIssue) {
+    const blocker = unit.expiredDocuments ? 'unitExpired' : 'unitDocuments';
+    blockers.push(blocker);
+    if (unit.documentIssue) details[blocker] = unit.documentIssue;
+  }
   if (unit?.unitType && unit.unitType !== loadUnitType) warnings.push('unitTypeMismatch');
   if (unit && unit.otherTrips > 0) warnings.push('unitBusy');
   if (operator && operator.otherTrips > 0) warnings.push('operatorBusy');
-  return { blockers, warnings };
+  return { blockers, warnings, details };
 }
 
 /**
@@ -252,8 +273,10 @@ export function defaultAssignment({
 }): { vehicleId: string | null; operatorId: string | null } {
   if (current.vehicleId && current.operatorId) return current;
   const unit =
-    units.find((u) => u.id === offeredUnitId && !u.expiredDocuments) ??
-    (units.length === 1 && !units[0]?.expiredDocuments ? units[0] : undefined);
+    units.find((u) => u.id === offeredUnitId && !u.expiredDocuments && !u.documentIssue) ??
+    (units.length === 1 && !units[0]?.expiredDocuments && !units[0]?.documentIssue
+      ? units[0]
+      : undefined);
   const usual = operators.find((o) => o.id === unit?.currentOperatorId && o.hasAccount);
   const onlyOperator = operators.filter((o) => o.hasAccount);
   const operator = usual ?? (onlyOperator.length === 1 ? onlyOperator[0] : undefined);
@@ -430,6 +453,9 @@ const TRIP_ERRORS: readonly (readonly [RegExp, string | ((detail: string) => str
 
 /** Spanish text for a known error message of a trip RPC, or null when unknown. */
 export function carrierTripErrorText(message: string): string | null {
+  // R4: the document gate of assign_trip, with the codes that block the unit or the operator.
+  const gate = documentGateErrorText(message, 'assign');
+  if (gate) return gate;
   for (const [pattern, text] of TRIP_ERRORS) {
     const match = pattern.exec(message);
     if (match) return typeof text === 'string' ? text : text(message.slice(match[0].length));

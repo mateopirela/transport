@@ -5,6 +5,7 @@ import type { VehicleReadiness } from '../fleet';
 export const vehicleReadinessLabels: Record<VehicleReadiness, string> = {
   pending_release: 'No disponible: pendiente de liberar',
   expired_documents: 'No disponible: documentos vencidos',
+  missing_documents: 'No disponible: documentos sin aprobar',
   unset: 'Sin disponibilidad registrada',
   scheduled: 'Disponible próximamente',
   available: 'Disponible',
@@ -79,7 +80,7 @@ export const fleetCopy = {
     current: (city: string, state: string, when: string) => `${city}, ${state} · desde ${when}`,
     none: 'La unidad no tiene disponibilidad registrada.',
     blocked:
-      'La unidad tiene documentos vencidos. Sube los documentos vigentes para marcarla como disponible.',
+      'La unidad no puede viajar: tiene documentos obligatorios vencidos o sin aprobar. Cuando estén aprobados y vigentes podrás marcarla como disponible.',
     cityLabel: 'Ciudad',
     dateLabel: 'Fecha (AAAA-MM-DD)',
     timeLabel: 'Hora (HH:MM)',

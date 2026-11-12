@@ -17,6 +17,7 @@ export * from './catalogs';
 export * from './dwell';
 export * from './client-trips';
 export * from './client-web';
+export * from './document-gate';
 export * from './errors';
 export * from './fleet';
 export * from './freight';

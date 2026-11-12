@@ -12,6 +12,7 @@ export * from './chat';
 export * from './constants';
 export * from './copy';
 export * from './design';
+export * from './document-gate';
 export * from './dwell';
 export * from './enums';
 export * from './evidence';

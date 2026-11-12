@@ -28,6 +28,7 @@ const col = adminCopy.columns;
 const l = adminPanelCopy.lists;
 /** Entries per page: the log is paged instead of cut at the latest ones. */
 const PAGE_SIZE = 50;
+const AUDIT_MAX_PAGE = 1_000_000;
 
 export const metadata: Metadata = { title: c.title };
 
@@ -58,7 +59,8 @@ function describeChanges(oldData: unknown, newData: unknown): string {
 export default async function AdminAuditPage({ searchParams }: PageProps<'/admin/auditoria'>) {
   await requireAccess(paths.adminAudit);
   const { empresa, pagina } = await searchParams;
-  const page = parsePage(pagina);
+  // The log keeps everything: its pages go past the lists' bound (a million pages of 50).
+  const page = parsePage(pagina, AUDIT_MAX_PAGE);
   const companyId =
     typeof empresa === 'string' && uuidField.safeParse(empresa).success ? empresa : null;
 

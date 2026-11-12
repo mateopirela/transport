@@ -17,6 +17,14 @@ describe('parsePage', () => {
   });
 });
 
+describe('parsePage with a bound of its own', () => {
+  it('reaches pages past the default bound', () => {
+    expect(parsePage('1001', 1_000_000)).toBe(1001);
+    expect(parsePage('5000000', 1_000_000)).toBe(1_000_000);
+    expect(parsePage(undefined, 1_000_000)).toBe(1);
+  });
+});
+
 describe('withParams', () => {
   it('replaces and drops parameters', () => {
     expect(withParams('/admin/verificacion', { pe: '2', pd: '3' }, { pd: 4 })).toBe(

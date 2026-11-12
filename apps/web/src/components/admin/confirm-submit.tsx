@@ -1,6 +1,5 @@
 'use client';
 
-import { formatMoney, parsePesosToCents } from '@transport/shared';
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -123,14 +122,4 @@ export function ConfirmSubmit({
   );
 }
 
-/** The text of a form field, trimmed ("" when it is missing or a file). */
-export function formText(data: FormData, field: string): string {
-  const entry = data.get(field);
-  return typeof entry === 'string' ? entry.trim() : '';
-}
-
-/** An amount of a form field written as money ("$38,000"), or null when it is not one. */
-export function formAmount(data: FormData, field: string): string | null {
-  const cents = parsePesosToCents(formText(data, field));
-  return cents === null ? null : formatMoney(cents);
-}
+export { formAmount, formText } from '@/lib/admin/confirm-text';

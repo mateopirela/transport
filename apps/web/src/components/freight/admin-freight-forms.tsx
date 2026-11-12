@@ -2,7 +2,6 @@
 
 import {
   adminPanelCopy,
-  formatBasisPoints,
   freightCopy,
   freightPaymentDirectionLabels,
   PAYMENT_TERMS_DAYS,
@@ -11,7 +10,8 @@ import {
 } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { ConfirmSubmit, formAmount, formText } from '@/components/admin/confirm-submit';
+import { ConfirmSubmit } from '@/components/admin/confirm-submit';
+import { bpsText, formAmount, formText } from '@/lib/admin/confirm-text';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,12 +28,6 @@ import type { FormState } from '@/lib/forms';
 
 const c = freightCopy.admin;
 const k = adminPanelCopy.confirm;
-
-/** A commission in basis points as the dialog says it ("3 %"), or the text as typed. */
-function bpsText(value: string): string {
-  const bps = Number(value);
-  return value !== '' && Number.isInteger(bps) ? formatBasisPoints(bps) : value;
-}
 
 function StateNotice({ state }: { state: FormState }) {
   if (state.error) return <Notice tone="error">{state.error}</Notice>;

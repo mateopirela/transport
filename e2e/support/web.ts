@@ -52,3 +52,12 @@ export const SAMPLE_PDF = {
 export async function acceptTermsOnWeb(page: Page): Promise<void> {
   await page.getByLabel(legalCopy.acceptTerms.label).check();
 }
+
+/**
+ * Confirms the dialog an admin action opened (docs/plan-fulmis.md §2 V5: an
+ * action with an effect on money or on accounts asks first): presses the
+ * dialog's own button, named `label`.
+ */
+export async function confirmDialog(page: Page, label: string): Promise<void> {
+  await page.getByRole('alertdialog').getByRole('button', { name: label, exact: true }).click();
+}

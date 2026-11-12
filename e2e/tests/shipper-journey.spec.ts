@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   adminCopy,
+  adminPanelCopy,
   authCopy,
   clientTripsCopy,
   loadsCopy,
@@ -23,7 +24,13 @@ import {
 import { hoursFromNow, testMoralRfc, toDateInput, toDateTimeLocal } from '../support/data';
 import { carrierName, ids, places } from '../support/demo';
 import { waitForConfirmationPath } from '../support/mailpit';
-import { acceptPendingOffer, acceptTermsOnWeb, SAMPLE_PDF, signInOnWeb } from '../support/web';
+import {
+  acceptPendingOffer,
+  acceptTermsOnWeb,
+  confirmDialog,
+  SAMPLE_PDF,
+  signInOnWeb,
+} from '../support/web';
 
 // Web journey of a new shipper (B26): sign-up → verification → publish →
 // negotiate → accept → follow the trip. The carrier and its operator answer
@@ -71,9 +78,11 @@ async function approveCompany(page: Page, legalName: string) {
   await expect(approve.first()).toBeVisible();
   for (let left = await approve.count(); left > 0; left -= 1) {
     await approve.first().click();
+    await confirmDialog(page, adminPanelCopy.confirm.approveDocument.confirm);
     await expect(approve).toHaveCount(left - 1);
   }
   await page.getByRole('button', { name: adminCopy.companyActions.approve }).click();
+  await confirmDialog(page, adminPanelCopy.confirm.approveCompany.confirm);
   await expect(page.getByText(adminCopy.companyActions.done)).toBeVisible();
 }
 

@@ -1,7 +1,9 @@
 import {
   adminOpsCopy,
+  adminPanelCopy,
   formatDateTime,
   incidentKindLabels,
+  uiCopy,
   userRoleLabels,
   type IncidentStatus,
 } from '@transport/shared';
@@ -14,13 +16,15 @@ import { Pager } from '@/components/pager';
 import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
-import { groupRow } from '@/components/ui/variants';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { formatRoute, parseIncidentFilters } from '@/lib/admin/filters';
 import { ADMIN_PAGE_SIZE, adminContext, listAdminIncidents } from '@/lib/admin/queries';
 import { withParams } from '@/lib/pagination';
 import { adminLoadPath, paths } from '@/lib/routing';
 
 const c = adminOpsCopy.incidents;
+const col = adminPanelCopy.incidents.columns;
+const l = adminPanelCopy.lists;
 
 export const metadata: Metadata = { title: c.title };
 
@@ -29,7 +33,11 @@ const TABS: { status: IncidentStatus; label: string }[] = [
   { status: 'resolved', label: c.tabs.resolved },
 ];
 
-/** Incidents of every trip: follow-up and resolution (B16, resolve_incident from B06). */
+/**
+ * Incidents of every trip in a table (B16, resolve_incident from B06): the
+ * open ones, oldest first, each resolved from a dialog that asks for the
+ * resolution and says what happens; the resolved ones with their resolution.
+ */
 export default async function AdminIncidentsPage({
   searchParams,
 }: PageProps<'/admin/incidencias'>) {
@@ -37,63 +45,81 @@ export default async function AdminIncidentsPage({
   const filters = parseIncidentFilters(await searchParams);
   const { rows, total } = await listAdminIncidents(supabase, filters);
   const estado = filters.status === 'open' ? undefined : filters.status;
+  const open = filters.status === 'open';
 
   return (
     <>
       <PageHeader title={c.title} description={c.description} />
-      <Segmented
-        label={c.title}
-        value={filters.status}
-        className="mb-6"
-        items={TABS.map((tab) => ({
-          value: tab.status,
-          label: tab.label,
-          href: withParams(
-            paths.adminIncidents,
-            {},
-            { estado: tab.status === 'open' ? undefined : tab.status },
-          ),
-        }))}
-      />
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-b pb-6">
+        <Segmented
+          label={c.title}
+          value={filters.status}
+          items={TABS.map((tab) => ({
+            value: tab.status,
+            label: tab.label,
+            href: withParams(
+              paths.adminIncidents,
+              {},
+              { estado: tab.status === 'open' ? undefined : tab.status },
+            ),
+          }))}
+        />
+        <p className="text-footnote text-text-dim tabular-nums sm:ml-auto">
+          {l.count(total, ...l.incidents)}
+        </p>
+      </div>
 
       {rows.length === 0 ? (
-        total === 0 && <Empty title={filters.status === 'open' ? c.emptyOpen : c.emptyResolved} />
+        total === 0 && <Empty title={open ? c.emptyOpen : c.emptyResolved} />
       ) : (
-        <ul className="overflow-hidden rounded-2xl border bg-cell">
+        <Table
+          cards
+          headers={[
+            col.kind,
+            col.trip,
+            col.description,
+            col.reported,
+            open ? { label: uiCopy.actions, srOnly: true } : col.resolution,
+          ]}
+        >
           {rows.map((incident) => (
-            <li key={incident.id} className={`${groupRow} space-y-2 px-4 py-4`}>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                <p className="text-headline text-text">{incidentKindLabels[incident.kind]}</p>
-                <p className="text-footnote text-text-dim tabular-nums">
-                  {formatDateTime(incident.occurred_at)} · {userRoleLabels[incident.reporter_role]}
-                </p>
-              </div>
-              {incident.trip?.load && (
-                <Link
-                  href={adminLoadPath(incident.trip.load_id)}
-                  className={`inline-block text-subhead ${textLink}`}
-                >
-                  {formatRoute(incident.trip.load)}
-                </Link>
-              )}
-              <p className="text-subhead whitespace-pre-line text-text">{incident.description}</p>
-              {incident.status === 'open' ? (
-                <div className="pt-1">
+            <TableRow key={incident.id}>
+              <TableCell primary className="whitespace-nowrap">
+                {incidentKindLabels[incident.kind]}
+              </TableCell>
+              <TableCell label={col.trip} className="whitespace-nowrap">
+                {incident.trip?.load && (
+                  <Link href={adminLoadPath(incident.trip.load_id)} className={textLink}>
+                    {formatRoute(incident.trip.load)}
+                  </Link>
+                )}
+              </TableCell>
+              <TableCell label={col.description} className="min-w-64 whitespace-pre-line">
+                {incident.description}
+              </TableCell>
+              <TableCell label={col.reported} className="whitespace-nowrap">
+                <span className="block tabular-nums">{formatDateTime(incident.occurred_at)}</span>
+                <span className="block text-footnote text-text-dim">
+                  {userRoleLabels[incident.reporter_role]}
+                </span>
+              </TableCell>
+              {open ? (
+                <TableCell action>
                   <ResolveIncidentForm incidentId={incident.id} />
-                </div>
+                </TableCell>
               ) : (
-                <div className="rounded-md bg-surface-high px-3.5 py-3 text-subhead">
-                  <p className="whitespace-pre-line text-text">{incident.resolution}</p>
+                <TableCell label={col.resolution} className="min-w-56">
+                  <span className="block whitespace-pre-line">{incident.resolution}</span>
                   {incident.resolved_at && (
-                    <p className="mt-1 text-footnote text-text-dim">
+                    <span className="block text-footnote text-text-dim">
                       {c.resolvedAt(formatDateTime(incident.resolved_at))}
-                    </p>
+                    </span>
                   )}
-                </div>
+                </TableCell>
               )}
-            </li>
+            </TableRow>
           ))}
-        </ul>
+        </Table>
       )}
       <div className="mt-4">
         <Pager

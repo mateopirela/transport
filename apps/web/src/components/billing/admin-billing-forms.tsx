@@ -2,13 +2,15 @@
 
 import {
   adminBillingCopy,
+  adminPanelCopy,
   billingEnforcementLabels,
   type BillingEnforcement,
   centsToPesosInput,
   toMexicoCityDate,
 } from '@transport/shared';
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useId } from 'react';
 
+import { ConfirmSubmit } from '@/components/admin/confirm-submit';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
@@ -33,35 +35,24 @@ function StateNotice({ state }: { state: FormState }) {
   return null;
 }
 
-/** Ends or resumes the pilot, folded behind a confirmation. */
+/** Ends or resumes the pilot, after a dialog that says what changes. */
 export function PilotModeForm({ pilotMode }: { pilotMode: boolean }) {
   const [state, action, pending] = useActionState(setPilotModeAction, {});
   return (
-    <Disclosure
-      summary={pilotMode ? c.endPilot : c.resumePilot}
-      look="inline"
-      tone={pilotMode ? 'red' : 'accent'}
-      open={Boolean(state.error)}
-    >
-      <form action={action} className="space-y-3">
-        <input type="hidden" name="pilotMode" value={pilotMode ? 'false' : 'true'} />
-        {pilotMode && (
-          <div className="space-y-0.5">
-            <p className="text-headline text-text">{c.endPilotConfirmTitle}</p>
-            <p className="text-subhead text-text-dim">{c.endPilotConfirmBody}</p>
-          </div>
-        )}
-        <StateNotice state={state} />
-        <Button
-          type="submit"
-          variant={pilotMode ? 'destructive' : 'secondary'}
-          size="sm"
-          loading={pending}
-        >
-          {pilotMode ? c.confirm : c.resumePilot}
-        </Button>
-      </form>
-    </Disclosure>
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="pilotMode" value={pilotMode ? 'false' : 'true'} />
+      <StateNotice state={state} />
+      <ConfirmSubmit
+        variant={pilotMode ? 'destructive' : 'secondary'}
+        destructive={pilotMode}
+        loading={pending}
+        title={pilotMode ? c.endPilotConfirmTitle : adminPanelCopy.confirm.resumePilot.title}
+        description={pilotMode ? c.endPilotConfirmBody : adminPanelCopy.confirm.resumePilot.body}
+        confirmLabel={pilotMode ? c.endPilot : c.resumePilot}
+      >
+        {pilotMode ? c.endPilot : c.resumePilot}
+      </ConfirmSubmit>
+    </form>
   );
 }
 
@@ -73,7 +64,7 @@ export function PilotEndForm({ pilotEndsAt }: { pilotEndsAt: string | null }) {
     <form action={action} className="space-y-2" noValidate>
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-48 space-y-1.5">
-          <Label htmlFor={`${id}-date`} className="block px-1">
+          <Label htmlFor={`${id}-date`} className="block">
             {c.pilotEndsAt}
           </Label>
           <Input
@@ -92,7 +83,7 @@ export function PilotEndForm({ pilotEndsAt }: { pilotEndsAt: string | null }) {
           </Button>
         )}
       </div>
-      <p className="px-1 text-footnote text-text-dim">{c.pilotEndsAtHelp}</p>
+      <p className="text-footnote text-text-dim">{c.pilotEndsAtHelp}</p>
       <StateNotice state={state} />
     </form>
   );
@@ -102,21 +93,14 @@ export function PilotEndForm({ pilotEndsAt }: { pilotEndsAt: string | null }) {
 export function EnforcementForm({ enforcement }: { enforcement: BillingEnforcement }) {
   const id = useId();
   const [state, action, pending] = useActionState(setEnforcementAction, {});
-  const [choice, setChoice] = useState<BillingEnforcement>(enforcement);
-  const confirming = choice === 'block' && enforcement !== 'block';
   return (
     <form action={action} className="space-y-3" noValidate>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-72 flex-1 space-y-1.5">
-          <Label htmlFor={`${id}-mode`} className="block px-1">
+        <div className="min-w-72 flex-1 space-y-2">
+          <Label htmlFor={`${id}-mode`} className="block">
             {c.enforcement}
           </Label>
-          <Select
-            id={`${id}-mode`}
-            name="enforcement"
-            value={choice}
-            onChange={(event) => setChoice(event.target.value as BillingEnforcement)}
-          >
+          <Select id={`${id}-mode`} name="enforcement" defaultValue={enforcement}>
             {(Object.keys(billingEnforcementLabels) as BillingEnforcement[]).map((value) => (
               <option key={value} value={value}>
                 {billingEnforcementLabels[value]}
@@ -124,28 +108,18 @@ export function EnforcementForm({ enforcement }: { enforcement: BillingEnforceme
             ))}
           </Select>
         </div>
-        {!confirming && (
-          <Button type="submit" variant="secondary" loading={pending}>
-            {c.saveEnforcement}
-          </Button>
-        )}
+        <ConfirmSubmit
+          loading={pending}
+          title={c.blockConfirmTitle}
+          description={c.blockConfirmBody}
+          confirmLabel={c.confirm}
+          destructive
+          // Only switching the block on asks first: the other modes stop nothing.
+          skip={(data) => data.get('enforcement') !== 'block' || enforcement === 'block'}
+        >
+          {c.saveEnforcement}
+        </ConfirmSubmit>
       </div>
-      {confirming && (
-        <div className="space-y-3 rounded-2xl bg-red/14 px-4 py-3">
-          <div className="space-y-0.5">
-            <p className="text-headline text-red-text">{c.blockConfirmTitle}</p>
-            <p className="text-subhead text-text">{c.blockConfirmBody}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" variant="destructive" size="sm" loading={pending}>
-              {c.confirm}
-            </Button>
-            <Button type="button" variant="plain" size="sm" onClick={() => setChoice(enforcement)}>
-              {c.cancel}
-            </Button>
-          </div>
-        </div>
-      )}
       <StateNotice state={state} />
     </form>
   );
@@ -161,13 +135,13 @@ export function PlanForm({ plan }: { plan: SubscriptionPlan }) {
         <input type="hidden" name="planId" value={plan.id} />
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-name`} className="block px-1">
+            <Label htmlFor={`${id}-name`} className="block">
               {c.planName}
             </Label>
             <Input id={`${id}-name`} name="name" defaultValue={plan.name} maxLength={80} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-price`} className="block px-1">
+            <Label htmlFor={`${id}-price`} className="block">
               {c.planPrice}
             </Label>
             <Input
@@ -179,7 +153,7 @@ export function PlanForm({ plan }: { plan: SubscriptionPlan }) {
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor={`${id}-description`} className="block px-1">
+            <Label htmlFor={`${id}-description`} className="block">
               {c.planDescription}
             </Label>
             <Textarea
@@ -190,7 +164,7 @@ export function PlanForm({ plan }: { plan: SubscriptionPlan }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-stripe`} className="block px-1">
+            <Label htmlFor={`${id}-stripe`} className="block">
               {c.planStripePrice}
             </Label>
             <Input
@@ -212,9 +186,15 @@ export function PlanForm({ plan }: { plan: SubscriptionPlan }) {
           </label>
         </div>
         <StateNotice state={state} />
-        <Button type="submit" variant="secondary" size="sm" loading={pending}>
+        <ConfirmSubmit
+          size="sm"
+          loading={pending}
+          title={adminPanelCopy.confirm.plan.title}
+          description={adminPanelCopy.confirm.plan.body}
+          confirmLabel={adminPanelCopy.confirm.plan.confirm}
+        >
           {c.savePlan}
-        </Button>
+        </ConfirmSubmit>
       </form>
     </Disclosure>
   );

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test } from '@playwright/test';
 import {
+  adminPanelCopy,
   adminSettingsCopy,
   freightCarrierStatusLabels as carrierLabels,
   freightClientStatusLabels as clientLabels,
@@ -15,7 +16,7 @@ import {
 
 import { syntheticCfdi } from '../../packages/shared/src/freight/cfdi-fixtures';
 import { ids } from '../support/demo';
-import { signInOnWeb } from '../support/web';
+import { confirmDialog, signInOnWeb } from '../support/web';
 
 // Quick pay (I4, D38), with the seed's held trip: Monterrey → Guadalajara of
 // Aceros del Norte with Transportes Regios, $40,000 ($38,800 net at 3 %),
@@ -119,8 +120,8 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
   await test.step('the admin finds it under "Pago rápido" and approves it', async () => {
     await admin.goto('/admin/flete?filtro=rapido');
     const quickPay = card.getByTestId('freight-quick-pay');
-    await expect(quickPay).toContainText('$970.00');
-    await expect(quickPay).toContainText('$37,830.00');
+    await expect(quickPay).toContainText('$970');
+    await expect(quickPay).toContainText('$37,830');
     await expect(quickPay).toContainText(q.admin.clientUnchanged);
     // Its CFDI is validated: nothing keeps the approval back.
     await expect(quickPay.getByTestId('quick-pay-invoice-blocker')).toHaveCount(0);
@@ -135,11 +136,12 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     // Approved, it leaves the filter: approve it from the whole ledger.
     await admin.goto('/admin/flete');
     await quickPay.getByRole('button', { name: q.admin.approve }).click();
+    await confirmDialog(admin, adminPanelCopy.confirm.approveQuickPay.confirm);
     await expect(card.getByTestId('freight-carrier-status')).toHaveText(carrierLabels.scheduled);
     await expect(card.getByTestId('freight-client-status')).toHaveText(clientLabels.overdue);
     await expect(quickPay.getByRole('button', { name: q.admin.approve })).toHaveCount(0);
     await admin.reload();
-    await expect(admin.getByTestId('quick-pay-exposure')).toContainText('$37,830.00');
+    await expect(admin.getByTestId('quick-pay-exposure')).toContainText('$37,830');
   });
 
   await test.step('the admin records the $37,830 sent; Jorge is paid', async () => {
@@ -150,6 +152,7 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await card.getByLabel(a.paymentAmount, { exact: true }).fill('37,830');
     await card.getByLabel(a.speiReference, { exact: true }).fill('mban0100e2e00000000004');
     await card.getByRole('button', { name: a.save }).click();
+    await confirmDialog(admin, adminPanelCopy.confirm.recordPayment.confirm);
     await expect(card.getByTestId('freight-carrier-status')).toHaveText(carrierLabels.paid);
 
     await jorge.reload();

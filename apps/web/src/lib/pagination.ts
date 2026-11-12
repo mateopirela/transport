@@ -1,11 +1,14 @@
 /** Upper bound for page numbers taken from the URL. */
 export const MAX_PAGE = 1000;
 
-/** 1-based page number from an untrusted query parameter. */
-export function parsePage(value: string | string[] | undefined): number {
+/**
+ * 1-based page number from an untrusted query parameter, at most `max`. A
+ * list that must reach every row (the audit log) passes a bound of its own.
+ */
+export function parsePage(value: string | string[] | undefined, max: number = MAX_PAGE): number {
   const raw = Array.isArray(value) ? value[0] : value;
   const page = Number.parseInt(raw ?? '', 10);
-  return Number.isFinite(page) ? Math.min(Math.max(page, 1), MAX_PAGE) : 1;
+  return Number.isFinite(page) ? Math.min(Math.max(page, 1), max) : 1;
 }
 
 /** URL of `pathname` with `params` replaced (empty values dropped). */

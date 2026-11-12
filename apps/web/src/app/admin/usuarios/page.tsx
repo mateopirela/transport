@@ -1,15 +1,20 @@
-import { adminCopy, formatDateTime, userRoleLabels } from '@transport/shared';
+import {
+  adminCopy,
+  adminPanelCopy,
+  formatDateTime,
+  uiCopy,
+  userRoleLabels,
+} from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Search } from '@/components/ui/search';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/verification';
 import { parsePage, withParams } from '@/lib/pagination';
 import { adminCompanyPath, paths } from '@/lib/routing';
@@ -51,18 +56,23 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
   return (
     <>
       <PageHeader title={c.title} description={c.description} />
-      <form className="mb-6 flex max-w-xl items-center gap-2" role="search">
+      <form className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3" role="search">
         <Search
           name="q"
           defaultValue={query}
           placeholder={c.searchPlaceholder}
           aria-label={c.search}
           maxLength={100}
-          className="flex-1"
+          className="w-full max-w-md"
         />
         <Button type="submit" variant="secondary">
           {c.search}
         </Button>
+        {result && !result.error && (
+          <p className="text-footnote text-text-dim tabular-nums sm:ml-auto">
+            {adminPanelCopy.lists.count(total, ...adminPanelCopy.lists.users)}
+          </p>
+        )}
       </form>
 
       {!result || result.error ? (
@@ -75,33 +85,47 @@ export default async function AdminUsersPage({ searchParams }: PageProps<'/admin
       ) : (
         <div className="space-y-4">
           <Table
-            headers={[col.user, col.email, col.role, col.company, col.status, col.lastSignIn, '']}
+            cards
+            headers={[
+              col.user,
+              col.email,
+              col.role,
+              col.company,
+              col.status,
+              col.lastSignIn,
+              { label: uiCopy.actions, srOnly: true },
+            ]}
           >
             {users.map((user) => (
-              <tr key={user.id}>
-                <td className="font-semibold">{user.full_name ?? '—'}</td>
-                <td className="break-all text-text-dim">{user.email}</td>
-                <td>{userRoleLabels[user.role]}</td>
-                <td>{user.company_legal_name ?? c.noCompany}</td>
-                <td>
+              <TableRow key={user.id}>
+                <TableCell primary>{user.full_name ?? '—'}</TableCell>
+                <TableCell label={col.email} className="break-all text-text-dim">
+                  {user.email}
+                </TableCell>
+                <TableCell label={col.role}>{userRoleLabels[user.role]}</TableCell>
+                <TableCell label={col.company}>{user.company_legal_name ?? c.noCompany}</TableCell>
+                <TableCell label={col.status}>
                   {user.company_status && (
                     <StatusBadge state={user.company_status} kind="verification" />
                   )}
-                </td>
-                <td className="whitespace-nowrap text-text-dim tabular-nums">
+                </TableCell>
+                <TableCell
+                  label={col.lastSignIn}
+                  className="whitespace-nowrap text-text-dim tabular-nums"
+                >
                   {user.last_sign_in_at ? formatDateTime(user.last_sign_in_at) : c.never}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell action>
                   {user.company_id && (
                     <Link
                       href={adminCompanyPath(user.company_id)}
-                      className={`whitespace-nowrap ${textLink}`}
+                      className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                     >
                       {c.manage}
                     </Link>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
           </Table>
           {pager}

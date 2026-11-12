@@ -47,6 +47,21 @@ export async function loadAdminBrokered(supabase: Supabase): Promise<AdminBroker
   return data.map((row) => toRow(row));
 }
 
+/**
+ * The brokered loads that wait for the admin (the dashboard): a request to
+ * quote, or a published load with offers to answer. Filtered in the query,
+ * so the closed loads of the inbox never push one out of the page read.
+ */
+export async function loadAdminBrokeredAttention(supabase: Supabase): Promise<AdminBrokeredLoad[]> {
+  const { data, error } = await supabase
+    .rpc('admin_brokered_loads')
+    .or(
+      'and(load_status.eq.draft,quote_status.eq.requested),and(load_status.in.(published,negotiating),pending_offers.gt.0)',
+    );
+  if (error) throw new Error(`Brokered attention query failed: ${error.message}`);
+  return data.map((row) => toRow(row));
+}
+
 /** One brokered load, or null when the id is malformed or not a brokered load. */
 export async function getAdminBrokered(
   supabase: Supabase,

@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { brokeredCopy, freightCopy, loadsCopy } from '@transport/shared';
+import { adminPanelCopy, brokeredCopy, freightCopy, loadsCopy } from '@transport/shared';
 
 import { makeOffer, signInAs } from '../support/actors';
 import { hoursFromNow, toDateTimeLocal } from '../support/data';
 import { ids } from '../support/demo';
-import { signInOnWeb } from '../support/web';
+import { confirmDialog, signInOnWeb } from '../support/web';
 
 // Brokered loads (I6, D39). The client never sees the carriers' rate, the
 // carrier never sees the client's price, and only the admin sees the margin.
@@ -85,10 +85,12 @@ test('the client sends a load to Transport, approves its price and the carriers 
     await quote.getByLabel(b.admin.clientPrice).fill('13000');
     await quote.getByLabel(b.admin.carrierPrice).fill('14000');
     await quote.getByRole('button', { name: b.admin.quote }).click();
+    await confirmDialog(admin, adminPanelCopy.confirm.quote.confirm);
     await expect(quote.getByText(b.errors.carrierOverClient)).toBeVisible();
     await quote.getByLabel(b.admin.clientPrice).fill('12000');
     await quote.getByLabel(b.admin.carrierPrice).fill('10800');
     await quote.getByRole('button', { name: b.admin.quote }).click();
+    await confirmDialog(admin, adminPanelCopy.confirm.quote.confirm);
     await expect(admin.getByText(b.admin.saved)).toBeVisible();
     await admin.close();
   });
@@ -151,7 +153,8 @@ test('the carrier takes the brokered load at its rate and the margin stays with 
     await admin.goto(`/admin/intermediadas/${load}`);
     await expect(admin.getByText(b.admin.offerFrom.carrier).first()).toBeVisible();
     await admin.getByRole('button', { name: b.admin.accept, exact: true }).click();
-    await expect(admin.getByTestId('brokered-margin')).toHaveText('$1,200.00');
+    await confirmDialog(admin, adminPanelCopy.confirm.acceptBrokeredOffer.confirm);
+    await expect(admin.getByTestId('brokered-margin')).toHaveText('$1,200');
     await expect(admin.getByText(b.admin.stage.contracted).first()).toBeVisible();
   });
 
@@ -161,9 +164,9 @@ test('the carrier takes the brokered load at its rate and the margin stays with 
   await test.step('the ledger: $12,000 from Ana, $10,800 to José, $1,200 of margin', async () => {
     await admin.goto('/admin/flete');
     const row = admin.getByTestId(`freight-row-${trip.id}`);
-    await expect(row).toContainText('$12,000.00');
-    await expect(row).toContainText('$10,800.00');
-    await expect(row.getByTestId('freight-margin')).toHaveText('$1,200.00');
+    await expect(row).toContainText('$12,000');
+    await expect(row).toContainText('$10,800');
+    await expect(row.getByTestId('freight-margin')).toHaveText('$1,200');
   });
 
   await test.step('Ana sees her price only', async () => {

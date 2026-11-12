@@ -33,18 +33,24 @@ const kinds = authCopy.registrationKinds;
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
-/** A form bound to a server action, with its global error or notice. */
+/**
+ * A form bound to a server action, with its global error or notice. Its
+ * button is the screen's primary unless `submitVariant` says otherwise (a
+ * form that is not the main action of its page).
+ */
 export function ActionForm({
   action,
   initial = {},
   submit,
   pending: pendingLabel,
+  submitVariant = 'primary',
   children,
 }: {
   action: Action;
   initial?: FormState;
   submit: string;
   pending: string;
+  submitVariant?: 'primary' | 'secondary';
   children: (state: FormState) => React.ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
@@ -53,7 +59,13 @@ export function ActionForm({
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       {children(state)}
-      <Button type="submit" className="mt-2 w-full" disabled={pending} loading={pending}>
+      <Button
+        type="submit"
+        variant={submitVariant}
+        className="mt-2 w-full"
+        disabled={pending}
+        loading={pending}
+      >
         {pending ? pendingLabel : submit}
       </Button>
     </form>

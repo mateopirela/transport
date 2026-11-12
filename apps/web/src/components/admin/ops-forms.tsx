@@ -1,16 +1,21 @@
 'use client';
 
-import { adminOpsCopy, type OfferSide } from '@transport/shared';
-import { useActionState } from 'react';
+import { adminOpsCopy, adminPanelCopy, type OfferSide } from '@transport/shared';
+import { useActionState, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Disclosure } from '@/components/ui/disclosure';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { adminAcceptOffer, adminCreateOffer, resolveIncident } from '@/lib/admin/actions';
+import type { FormState } from '@/lib/forms';
+
+import { ConfirmSubmit, formAmount, formText } from './confirm-submit';
+
+const k = adminPanelCopy.confirm;
 
 /** `aria-describedby` of a control whose field shows an error. */
 function describedBy(id: string, error?: string) {
@@ -19,7 +24,8 @@ function describedBy(id: string, error?: string) {
 
 /**
  * Manual contract: an offer in the name of a carrier, optionally accepted at
- * once. The only primary of the load's screen.
+ * once. The only primary of the load's screen, in its rail; it asks first,
+ * saying whether the load will be contracted.
  */
 export function ContractForm({
   loadId,
@@ -32,12 +38,9 @@ export function ContractForm({
   const [state, action, pending] = useActionState(adminCreateOffer, {});
   const errors = state.fieldErrors ?? {};
   if (carriers.length === 0) return <Notice tone="info">{c.noCarriers}</Notice>;
+  const carrierName = (id: string) => carriers.find((carrier) => carrier.id === id)?.legal_name;
   return (
-    <form action={action} className="space-y-4 rounded-2xl border bg-cell p-5" noValidate>
-      <div className="space-y-1">
-        <h2 className="text-headline text-text">{c.title}</h2>
-        <p className="text-subhead text-text-dim">{c.help}</p>
-      </div>
+    <form action={action} className="space-y-4" noValidate>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <input type="hidden" name="loadId" value={loadId} />
@@ -73,23 +76,42 @@ export function ContractForm({
           name="conditions"
           rows={2}
           maxLength={1000}
+          className="min-h-16"
           defaultValue={state.values?.conditions}
           aria-invalid={errors.conditions ? true : undefined}
           aria-describedby={describedBy('contract-conditions', errors.conditions)}
         />
       </Field>
-      <label className="flex items-center gap-2.5 px-1 text-subhead text-text">
+      <label className="flex items-start gap-2.5 text-subhead text-text">
         <input
           type="checkbox"
           name="accept"
           defaultChecked={state.values?.accept === 'on'}
-          className="size-4 accent-accent"
+          className="mt-0.5 size-4 shrink-0 accent-accent"
         />
         {c.accept}
       </label>
-      <Button type="submit" variant="primary" loading={pending} className="w-full">
+      <ConfirmSubmit
+        variant="primary"
+        className="w-full"
+        loading={pending}
+        title={k.contract.title}
+        confirmLabel={k.contract.confirm}
+        // Nothing to confirm while a field is missing: the server says which.
+        skip={(data) =>
+          !carrierName(formText(data, 'carrierCompanyId')) || !formAmount(data, 'amount')
+        }
+        description={(data) => {
+          const carrier = carrierName(formText(data, 'carrierCompanyId')) ?? '';
+          const amount = formAmount(data, 'amount') ?? '';
+          return data.get('accept') === 'on'
+            ? k.contract.bodyAccept(carrier, amount)
+            : k.contract.body(carrier, amount);
+        }}
+      >
         {pending ? c.pending : c.submit}
-      </Button>
+      </ConfirmSubmit>
+      <p className="text-footnote text-text-dim">{c.help}</p>
     </form>
   );
 }
@@ -99,41 +121,61 @@ export function AcceptOfferForm({ offerId, side }: { offerId: string; side: Offe
   const c = adminOpsCopy.load;
   const [state, action, pending] = useActionState(adminAcceptOffer, {});
   return (
-    <Disclosure
-      summary={c.acceptFor(side)}
-      look="inline"
-      tone="accent"
-      open={Boolean(state.error)}
-      className="max-w-xs"
-    >
-      <form action={action} className="space-y-3">
-        <p className="text-subhead text-text-dim">{c.acceptConfirm}</p>
-        {state.error && <Notice tone="error">{state.error}</Notice>}
-        <input type="hidden" name="offerId" value={offerId} />
-        <Button type="submit" size="sm" variant="secondary" loading={pending}>
-          {pending ? c.accepting : c.acceptFor(side)}
+    <ConfirmDialog
+      trigger={
+        <Button type="button" size="sm" variant="secondary">
+          {c.acceptFor(side)}
         </Button>
-      </form>
-    </Disclosure>
+      }
+      title={k.acceptOffer.title}
+      description={c.acceptConfirm}
+      confirmLabel={pending ? c.accepting : k.acceptOffer.confirm}
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
+      <input type="hidden" name="offerId" value={offerId} />
+    </ConfirmDialog>
   );
 }
 
-/** Resolves an open incident with a resolution note. */
+/** Resolves an open incident: a dialog that says what happens and takes the resolution. */
 export function ResolveIncidentForm({ incidentId }: { incidentId: string }) {
   const c = adminOpsCopy.incidents;
-  const [state, action, pending] = useActionState(resolveIncident, {});
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(
+    async (previous: FormState, data: FormData): Promise<FormState> => {
+      const next = await resolveIncident(previous, data);
+      // Resolved: the dialog closes and the row leaves the open incidents.
+      if (next.message) setOpen(false);
+      return next;
+    },
+    {},
+  );
   const id = `resolution-${incidentId}`;
   const error = state.fieldErrors?.resolution;
-  if (state.message) return <Notice tone="success">{state.message}</Notice>;
   return (
-    <form action={action} className="max-w-xl space-y-3" noValidate>
-      {state.error && <Notice tone="error">{state.error}</Notice>}
+    <ConfirmDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button type="button" size="sm" variant="secondary">
+          {c.resolve}
+        </Button>
+      }
+      title={k.resolveIncident.title}
+      description={k.resolveIncident.body}
+      confirmLabel={pending ? c.resolving : k.resolveIncident.confirm}
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
       <input type="hidden" name="incidentId" value={incidentId} />
       <Field label={c.resolution} htmlFor={id} error={error}>
         <Textarea
           id={id}
           name="resolution"
-          rows={2}
+          rows={3}
           maxLength={2000}
           defaultValue={state.values?.resolution}
           aria-invalid={error ? true : undefined}
@@ -141,9 +183,6 @@ export function ResolveIncidentForm({ incidentId }: { incidentId: string }) {
           className="min-h-20"
         />
       </Field>
-      <Button type="submit" size="sm" variant="secondary" loading={pending}>
-        {pending ? c.resolving : c.resolve}
-      </Button>
-    </form>
+    </ConfirmDialog>
   );
 }

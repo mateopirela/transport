@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  adminPanelCopy,
   freightCarrierStatusLabels as carrierLabels,
   freightClientStatusLabels as clientLabels,
   freightCopy,
@@ -7,7 +8,7 @@ import {
 } from '@transport/shared';
 
 import { ids } from '../support/demo';
-import { signInOnWeb } from '../support/web';
+import { confirmDialog, signInOnWeb } from '../support/web';
 
 // Freight ledger (I3, D33-E1, D34-E1), with the seed's acceptance trip:
 // Escobedo → Saltillo of Aceros del Norte (30 days) with Transportes Regios, $10,000
@@ -37,6 +38,7 @@ async function recordPayment(
   await card.getByLabel(a.paymentAmount, { exact: true }).fill(amount);
   await card.getByLabel(a.speiReference, { exact: true }).fill(reference);
   await card.getByRole('button', { name: a.save }).click();
+  await confirmDialog(page, adminPanelCopy.confirm.recordPayment.confirm);
   // The callers assert the resulting statuses: the last payment of a trip
   // removes the form (and its "saved" message) from the card.
 }
@@ -95,8 +97,8 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     await admin.getByRole('link', { name: a.nav, exact: true }).click();
     await expect(admin).toHaveURL(/\/admin\/flete/u);
     const card = admin.getByTestId(`freight-row-${trip}`);
-    await expect(card).toContainText('$10,000.00');
-    await expect(card).toContainText('$9,700.00');
+    await expect(card).toContainText('$10,000');
+    await expect(card).toContainText('$9,700');
     // D33-E1: the carrier is paid once the client paid, so only the client's
     // payment is offered until then.
     await expect(card).toContainText(a.carrierWaitsForClient);

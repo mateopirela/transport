@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { adminBillingCopy, billingCopy } from '@transport/shared';
+import { adminBillingCopy, adminPanelCopy, billingCopy } from '@transport/shared';
 
 import { signInOnWeb } from '../support/web';
 
@@ -52,6 +52,12 @@ test('the pilot is free, the coordinator only sees it and the admin announces it
     await admin.getByRole('link', { name: a.nav }).click();
     await expect(admin).toHaveURL(/\/admin\/suscripciones/u);
     await expect(admin.getByTestId('pilot-mode')).toHaveText(a.pilotOn);
+    // The pilot is changed in Ajustes, with every other setting (V5).
+    await admin
+      .getByRole('link', { name: adminPanelCopy.subscriptions.settingsLink })
+      .first()
+      .click();
+    await expect(admin).toHaveURL(/\/admin\/ajustes/u);
     await admin.getByLabel(a.pilotEndsAt).fill(inAWeek());
     await admin.getByRole('button', { name: a.saveDate }).click();
     await expect(admin.getByText(a.saved)).toBeVisible();

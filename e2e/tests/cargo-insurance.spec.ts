@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   adminCopy,
+  adminPanelCopy,
   cargoInsuranceCopy,
   formatDate,
   notificationContent,
@@ -20,7 +21,7 @@ import {
 } from '../support/actors';
 import { hoursFromNow, toDateInput } from '../support/data';
 import { ids, places } from '../support/demo';
-import { SAMPLE_PDF, signInOnWeb } from '../support/web';
+import { confirmDialog, SAMPLE_PDF, signInOnWeb } from '../support/web';
 
 // I1 (D35-E1), the acceptance of the block on the seed: Luis (Alimentos de
 // Occidente) has no annual cargo insurance policy. José, the hombre-camión,
@@ -85,6 +86,7 @@ test('a trip without cargo insurance cannot leave until the annual policy is app
     const approve = admin.getByRole('button', { name: adminCopy.document.approve, exact: true });
     await expect(approve).toHaveCount(1);
     await approve.click();
+    await confirmDialog(admin, adminPanelCopy.confirm.approveDocument.confirm);
     await expect(approve).toHaveCount(0);
     await adminContext.close();
   });

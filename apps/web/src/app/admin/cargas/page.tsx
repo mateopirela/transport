@@ -1,20 +1,22 @@
 import {
   adminOpsCopy,
+  adminPanelCopy,
   formatDate,
-  formatMxn,
   LOAD_STATUSES,
   loadStatusLabels,
+  uiCopy,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { FilterBar } from '@/components/admin/filter-bar';
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
-import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';
+import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
+import { Money } from '@/components/ui/money';
 import { PageHeader } from '@/components/ui/page-header';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { formatRoute, parseLoadFilters } from '@/lib/admin/filters';
 import { ADMIN_PAGE_SIZE, adminContext, listAdminLoads } from '@/lib/admin/queries';
 import { withParams } from '@/lib/pagination';
@@ -22,6 +24,7 @@ import { adminLoadPath, paths } from '@/lib/routing';
 
 const c = adminOpsCopy.loads;
 const col = adminOpsCopy.columns;
+const l = adminPanelCopy.lists;
 
 export const metadata: Metadata = { title: c.title };
 
@@ -42,33 +45,48 @@ export default async function AdminLoadsPage({ searchParams }: PageProps<'/admin
         statuses={STATUSES}
         status={filters.status}
         city={filters.city}
+        count={l.count(total, ...l.loads)}
       />
       {rows.length === 0 ? (
         total === 0 && <Empty title={c.empty} />
       ) : (
         <Table
-          headers={[col.route, col.shipper, col.carrier, col.pickup, col.price, col.status, '']}
+          cards
+          headers={[
+            col.route,
+            col.shipper,
+            col.carrier,
+            col.pickup,
+            { label: col.price, align: 'right' },
+            col.status,
+            { label: uiCopy.actions, srOnly: true },
+          ]}
         >
           {rows.map((load) => (
-            <tr key={load.id}>
-              <td className="font-semibold">{formatRoute(load)}</td>
-              <td>{load.shipper?.legal_name ?? ''}</td>
-              <td>{load.carrier?.legal_name ?? '—'}</td>
-              <td className="whitespace-nowrap tabular-nums">
+            <TableRow key={load.id}>
+              <TableCell primary>{formatRoute(load)}</TableCell>
+              <TableCell label={col.shipper}>{load.shipper?.legal_name ?? ''}</TableCell>
+              <TableCell label={col.carrier} className="text-text-dim">
+                {load.carrier?.legal_name ?? '—'}
+              </TableCell>
+              <TableCell label={col.pickup} className="whitespace-nowrap tabular-nums">
                 {formatDate(load.pickup_window_start)}
-              </td>
-              <td className="whitespace-nowrap tabular-nums">
-                {formatMxn(load.agreed_price_cents ?? load.proposed_price_cents)}
-              </td>
-              <td>
+              </TableCell>
+              <TableCell label={col.price} numeric>
+                <Money cents={load.agreed_price_cents ?? load.proposed_price_cents} />
+              </TableCell>
+              <TableCell label={col.status}>
                 <LoadStatusBadge status={load.status} />
-              </td>
-              <td>
-                <Link href={adminLoadPath(load.id)} className={textLink}>
+              </TableCell>
+              <TableCell action>
+                <Link
+                  href={adminLoadPath(load.id)}
+                  className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+                >
                   {c.open}
                 </Link>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
         </Table>
       )}

@@ -1,17 +1,21 @@
 import {
   adminCopy,
+  adminPanelCopy,
   companyTypeLabels,
   documentOwnerTypeLabels,
   formatDateTime,
+  uiCopy,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { PageSection, textLink } from '@/components/page-section';
+import { PageSection } from '@/components/page-section';
 import { Pager } from '@/components/pager';
+import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
-import { Table } from '@/components/ui/table';
+import { Pill } from '@/components/ui/pill';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -24,6 +28,8 @@ import {
 
 const c = adminCopy.queue;
 const col = adminCopy.columns;
+const actions = { label: uiCopy.actions, srOnly: true } as const;
+const rowLink = buttonVariants({ variant: 'secondary', size: 'sm' });
 
 export const metadata: Metadata = { title: c.title };
 
@@ -53,26 +59,38 @@ export default async function VerificationQueuePage({
       <PageHeader title={c.title} description={c.description} />
 
       <div className="space-y-12">
-        <PageSection title={c.companies}>
+        <PageSection
+          title={c.companies}
+          description={adminPanelCopy.lists.count(
+            companyResult.total,
+            ...adminPanelCopy.lists.companies,
+          )}
+        >
           {companies.length === 0 ? (
             companyResult.total === 0 && companyPage === 1 && <Empty title={c.emptyCompanies} />
           ) : (
-            <Table headers={[col.company, col.type, col.rfc, col.since, col.status, '']}>
+            <Table cards headers={[col.company, col.type, col.rfc, col.since, col.status, actions]}>
               {companies.map((company) => (
-                <tr key={company.id}>
-                  <td className="font-semibold">{company.legal_name}</td>
-                  <td>{companyTypeLabels[company.type]}</td>
-                  <td className="tabular-nums">{company.rfc}</td>
-                  <td className="whitespace-nowrap tabular-nums">
+                <TableRow key={company.id}>
+                  <TableCell primary>{company.legal_name}</TableCell>
+                  <TableCell label={col.type}>{companyTypeLabels[company.type]}</TableCell>
+                  <TableCell label={col.rfc} className="text-meta">
+                    {company.rfc}
+                  </TableCell>
+                  <TableCell label={col.since} className="whitespace-nowrap tabular-nums">
                     {formatDateTime(company.created_at)}
-                  </td>
-                  <td className="text-text-dim">{c.missing(company.missing)}</td>
-                  <td>
-                    <Link href={adminCompanyPath(company.id)} className={textLink}>
+                  </TableCell>
+                  <TableCell label={col.status}>
+                    <Pill tone={company.missing === 0 ? 'done' : 'pending'}>
+                      {c.missing(company.missing)}
+                    </Pill>
+                  </TableCell>
+                  <TableCell action>
+                    <Link href={adminCompanyPath(company.id)} className={rowLink}>
                       {c.open}
                     </Link>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
             </Table>
           )}
@@ -85,33 +103,39 @@ export default async function VerificationQueuePage({
           />
         </PageSection>
 
-        <PageSection title={c.documents}>
+        <PageSection
+          title={c.documents}
+          description={adminPanelCopy.lists.count(
+            documentResult.total,
+            ...adminPanelCopy.lists.documents,
+          )}
+        >
           {documents.length === 0 ? (
             documentResult.total === 0 && documentPage === 1 && <Empty title={c.emptyDocuments} />
           ) : (
-            <Table headers={[col.document, col.owner, col.company, col.since, '']}>
+            <Table cards headers={[col.document, col.owner, col.company, col.since, actions]}>
               {documents.map((doc) => (
-                <tr key={doc.id}>
-                  <td className="font-semibold">{doc.requirementName}</td>
-                  <td>
+                <TableRow key={doc.id}>
+                  <TableCell primary>{doc.requirementName}</TableCell>
+                  <TableCell label={col.owner}>
                     <span className="text-text-dim">
                       {documentOwnerTypeLabels[doc.ownerType]}:{' '}
                     </span>
                     {doc.ownerName}
-                  </td>
-                  <td>{doc.companyName}</td>
-                  <td className="whitespace-nowrap tabular-nums">
+                  </TableCell>
+                  <TableCell label={col.company}>{doc.companyName}</TableCell>
+                  <TableCell label={col.since} className="whitespace-nowrap tabular-nums">
                     {formatDateTime(doc.createdAt)}
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell action>
                     <Link
                       href={`${adminCompanyPath(doc.companyId)}#doc-${doc.id}`}
-                      className={textLink}
+                      className={rowLink}
                     >
                       {c.open}
                     </Link>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
             </Table>
           )}

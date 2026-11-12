@@ -1,26 +1,30 @@
 import {
+  adminPanelCopy,
   carrierWebCopy,
   companyFiscalFieldLabels,
   isCarrierStaff,
   onboardingCopy,
   progressSummary,
   shellCopy,
+  verificationStatusLabels,
   type CompanyFiscalColumn,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 
-import { Check } from 'lucide-react';
-
 import { AppShell } from '@/components/app-shell';
-import { Notice } from '@/components/auth-forms';
 import { DocumentUpload } from '@/components/document-upload';
+import { PageSection } from '@/components/page-section';
+import { DetailLayout, DetailRail, RailSection } from '@/components/ui/detail-layout';
+import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
+import { Steps, type Step } from '@/components/ui/steps';
 import { RequirementList } from '@/components/verification';
 import { CompanyContactForm, RequestReviewForm } from '@/components/verification-forms';
+import { verificationStatusTone } from '@/lib/status-tones';
 import { paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
-import { cn } from '@/lib/utils';
 import { loadCompanyVerification } from '@/lib/verification/queries';
 
 const c = shellCopy.review;
@@ -28,68 +32,14 @@ const o = onboardingCopy;
 
 export const metadata: Metadata = { title: c.pending_review.title };
 
-type StepState = 'done' | 'current' | 'todo';
-
-function Stepper({ steps }: { steps: { label: string; state: StepState }[] }) {
-  return (
-    <ol className="mb-8 grid gap-2 sm:grid-cols-3">
-      {steps.map((step, index) => (
-        <li
-          key={step.label}
-          aria-current={step.state === 'current' ? 'step' : undefined}
-          className={cn(
-            'flex min-h-14 items-center gap-3 rounded-2xl border bg-cell px-4 py-2.5',
-            step.state === 'current' && 'border-accent',
-          )}
-        >
-          <span
-            className={cn(
-              'flex size-7 shrink-0 items-center justify-center rounded-full text-footnote font-semibold tabular-nums',
-              step.state === 'done' && 'bg-ok/14 text-ok-text',
-              step.state === 'current' && 'bg-accent text-accent-ink',
-              step.state === 'todo' && 'bg-surface-high text-text-dim',
-            )}
-          >
-            {step.state === 'done' ? <Check aria-hidden className="size-4" /> : index + 1}
-          </span>
-          <span className="min-w-0">
-            <span className="block text-callout font-semibold text-text">{step.label}</span>
-            <span className="block text-footnote text-text-dim">
-              {step.state === 'done' ? o.stepDone : step.state === 'current' ? o.stepCurrent : ''}
-            </span>
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** A section of the page: its title, the line under it, and its content. */
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="space-y-1 px-1">
-        <h2 className="text-title2 text-text">{title}</h2>
-        {description}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 /**
- * Onboarding (B12) while the company is not approved: company data, upload
- * of the required documents with the state of each one, and review. Since
- * G10a the carrier's Gerente lands here too; a Coordinador only reads it
- * (company documents are the Gerente's, G1a).
+ * Onboarding (B12) while the company is not approved, in two columns
+ * (docs/plan-fulmis.md §1.5): the required documents, each with its state and
+ * its upload, and the company's data on the left; on the right the rail with
+ * the state, how many documents are approved, the three steps and, after a
+ * rejection, "Solicitar revisión". Since G10a the carrier's Gerente lands
+ * here too; a Coordinador only reads it (company documents are the
+ * Gerente's, G1a).
  */
 export default async function AccountInReviewPage() {
   const viewer = await requireAccess(paths.review);
@@ -120,48 +70,60 @@ export default async function AccountInReviewPage() {
         : carrierWebCopy.review.description
       : text.description;
 
+  const steps: Step[] = [
+    { label: o.steps.company, state: 'done' },
+    { label: o.steps.documents, state: docsDone ? 'done' : 'current' },
+    { label: o.steps.review, state: docsDone ? 'current' : 'upcoming' },
+  ];
+
+  const rail = (
+    <DetailRail>
+      <RailSection label={adminPanelCopy.review.status}>
+        <Pill tone={verificationStatusTone(status)}>{verificationStatusLabels[status]}</Pill>
+      </RailSection>
+      <RailSection label={adminPanelCopy.review.documents}>
+        <p className="text-numeral text-text tabular-nums">
+          {adminPanelCopy.companyDetail.progress(summary.approved, summary.required)}
+        </p>
+        <p className="text-footnote text-text-dim">{adminPanelCopy.review.documentsHint}</p>
+      </RailSection>
+      <RailSection label={adminPanelCopy.review.steps}>
+        <Steps steps={steps} label={adminPanelCopy.review.steps} />
+      </RailSection>
+      {company && status === 'rejected' && !readOnly && (
+        <RailSection label={o.requestReview.title}>
+          <p className="text-footnote text-text-dim">{o.requestReview.description}</p>
+          <RequestReviewForm />
+        </RailSection>
+      )}
+    </DetailRail>
+  );
+
   return (
     <AppShell viewer={viewer}>
-      <div className="mx-auto max-w-3xl">
-        <PageHeader title={text.title} description={description} />
-        <Stepper
-          steps={[
-            { label: o.steps.company, state: 'done' },
-            { label: o.steps.documents, state: docsDone ? 'done' : 'current' },
-            { label: o.steps.review, state: docsDone ? 'current' : 'todo' },
-          ]}
-        />
+      <PageHeader title={text.title} description={description} />
+      <DetailLayout rail={rail}>
         {company?.status_reason && (status === 'rejected' || status === 'suspended') && (
-          <Notice tone="error" className="mb-6">
+          <Notice tone="error">
             {c.reasonLabel}: {company.status_reason}
           </Notice>
         )}
         {missingFields.length > 0 && (
-          <Notice tone="info" className="mb-6">
+          <Notice tone="attention">
             <strong className="font-semibold">{o.company.missingFiscalTitle}.</strong>{' '}
             {o.company.missingFiscal(missingLabels)}
           </Notice>
         )}
         {company && (
-          <div className="space-y-10">
-            {status === 'rejected' && !readOnly && (
-              <Section
-                title={o.requestReview.title}
-                description={
-                  <p className="text-subhead text-text-dim">{o.requestReview.description}</p>
-                }
-              >
-                <RequestReviewForm />
-              </Section>
-            )}
-            <Section
+          <>
+            <PageSection
               title={o.documents.title}
               description={
                 <>
-                  <p className="text-subhead text-text-dim">{o.documents.description}</p>
-                  <p className="pt-1 text-subhead font-semibold text-text tabular-nums">
+                  {o.documents.description}{' '}
+                  <span className="font-semibold text-text tabular-nums">
                     {o.documents.progress(summary.approved, summary.required)}
-                  </p>
+                  </span>
                 </>
               }
             >
@@ -188,17 +150,13 @@ export default async function AccountInReviewPage() {
                   }
                 />
               </div>
-            </Section>
+            </PageSection>
 
-            <Section
+            <PageSection
               title={o.company.title}
-              description={
-                <p className="text-subhead text-text-dim">
-                  {editable ? o.company.description : o.company.readOnly}
-                </p>
-              }
+              description={editable ? o.company.description : o.company.readOnly}
             >
-              <div className="space-y-5 rounded-2xl border bg-cell p-4 sm:p-5">
+              <div className="space-y-5 border bg-cell p-5">
                 <p className="text-callout">
                   <span className="text-text-dim">{o.company.rfc}: </span>
                   <span className="font-semibold text-text">{company.rfc}</span>
@@ -222,10 +180,10 @@ export default async function AccountInReviewPage() {
                   />
                 )}
               </div>
-            </Section>
-          </div>
+            </PageSection>
+          </>
         )}
-      </div>
+      </DetailLayout>
     </AppShell>
   );
 }

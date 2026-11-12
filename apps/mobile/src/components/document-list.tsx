@@ -5,8 +5,8 @@ import {
   fleetErrorCopy,
   formatDate,
   requirementStateLabels,
+  requirementStateTone,
   type DocumentOwnerType,
-  type RequirementState,
 } from '@transport/shared';
 import { useRef, useState } from 'react';
 
@@ -18,25 +18,7 @@ import type { Supabase } from '../lib/supabase';
 import type { IconName } from './icons';
 import { Sheet, type SheetHandle } from './sheet';
 import { StatusRow } from './status-row';
-import {
-  Cell,
-  ErrorText,
-  FieldCell,
-  Group,
-  groupInset,
-  Notice,
-  TextCell,
-  type PillTone,
-} from './ui';
-
-const STATE_TONES: Record<RequirementState, PillTone> = {
-  missing: 'amber',
-  pending_review: 'accent',
-  approved: 'ok',
-  rejected: 'red',
-  expired: 'red',
-  suspended: 'red',
-};
+import { Cell, ErrorText, FieldCell, Group, groupInset, Notice, TextCell } from './ui';
 
 const copy = fleetCopy.documents;
 
@@ -102,7 +84,7 @@ export function DocumentList({
                   ? copy.validUntil(formatDate(document.expires_at))
                   : null,
               ]}
-              pill={{ label: requirementStateLabels[state], tone: STATE_TONES[state] }}
+              pill={{ label: requirementStateLabels[state], tone: requirementStateTone(state) }}
               onPress={
                 uploadable
                   ? () => {

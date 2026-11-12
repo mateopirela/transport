@@ -27,7 +27,7 @@ export interface MapTrip {
  * Schematic map of trips on the road: origin, destination, the trail and the
  * last position of each, numbered as in the list below it. It needs no Maps
  * SDK key (none exists yet): coordinates are projected into the box with one
- * shared scale, north up, with the legend on glass over it. The embedded
+ * shared scale, north up, with the legend on a solid tag over it. The embedded
  * Google map replaces it when the keys arrive. It reaches the edges of the
  * group it sits in (§1.7), which rounds and outlines it.
  */
@@ -56,12 +56,12 @@ export function TripMap({ trips }: { trips: readonly MapTrip[] }) {
       {width > 0
         ? drawn.map((t, index) => (
             <View key={t.key} style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Segment from={t.origin} to={t.destination} color={colors.textFaint} />
+              <Segment from={t.origin} to={t.destination} color={colors.textDim} />
               {t.trail.slice(1).map((p, i) => (
                 <Segment key={i} from={t.trail[i] ?? p} to={p} color={colors.accent} />
               ))}
               <Dot at={t.origin} color={colors.accent} size={STOP_DOT} />
-              <Dot at={t.destination} color={colors.ok} size={STOP_DOT} />
+              <Dot at={t.destination} color={colors.info} size={STOP_DOT} />
               {t.position ? (
                 <Dot
                   at={t.position}
@@ -75,7 +75,7 @@ export function TripMap({ trips }: { trips: readonly MapTrip[] }) {
         : null}
       <View style={styles.legend}>
         <LegendDot color={colors.accent} label={copy.origin} />
-        <LegendDot color={colors.ok} label={copy.destination} />
+        <LegendDot color={colors.info} label={copy.destination} />
         <LegendDot color={colors.text} label={copy.lastPosition} />
       </View>
     </View>
@@ -189,10 +189,10 @@ function makeStyles({ colors, type }: Look) {
       gap: spacing.sm + spacing.xs,
       paddingHorizontal: spacing.sm + spacing.xs,
       paddingVertical: spacing.xs,
-      borderRadius: shape.pill,
-      backgroundColor: colors.glass,
+      borderRadius: shape.tag,
+      backgroundColor: colors.cell,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.glassLine,
+      borderColor: colors.separator,
     },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     legendDot: { width: LEGEND_DOT, height: LEGEND_DOT, borderRadius: LEGEND_DOT / 2 },

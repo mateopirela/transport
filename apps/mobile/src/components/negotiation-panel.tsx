@@ -2,12 +2,14 @@ import {
   brokeredCopy,
   carrierLoadsCopy,
   carrierNegotiationState,
+  carrierNegotiationTone,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   offerStatusLabels,
+  offerStatusTone,
   sortOffers,
+  type CarrierNegotiationState,
   type NegotiationOffer,
-  type OfferStatus,
 } from '@transport/shared';
 import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
 
@@ -37,12 +39,27 @@ import {
   GroupLabel,
   Notice,
   SectionHeader,
-  type PillTone,
+  type NoticeTone,
 } from './ui';
 
 const copy = carrierLoadsCopy;
 
-const OFFER_TONES: Partial<Record<OfferStatus, PillTone>> = { accepted: 'ok', pending: 'accent' };
+/**
+ * The notice of each state, in the tone of §1.1 the negotiation has: the
+ * carrier's turn asks to act, a won load is done, a lost one is a warning, the
+ * rest say what is going on.
+ */
+function stateNotice(state: CarrierNegotiationState): NoticeTone {
+  if (state === 'lost') return 'warning';
+  switch (carrierNegotiationTone(state)) {
+    case 'attention':
+      return 'attention';
+    case 'done':
+      return 'highlight';
+    default:
+      return 'info';
+  }
+}
 
 type BarProps = Pick<ComponentProps<typeof BottomBar>, 'action' | 'secondary'>;
 
@@ -111,7 +128,7 @@ export function useNegotiation({
     });
   }
 
-  const proposed = formatMxn(load.proposed_price_cents);
+  const proposed = formatMoney(load.proposed_price_cents);
 
   /** Sends an offer (or a counteroffer) and records where it came from. */
   async function sendOffer(input: OfferInput, counterTo?: string) {
@@ -135,7 +152,7 @@ export function useNegotiation({
   }
 
   function accept(offer: NegotiationOffer) {
-    confirm(copy.actions.accept, copy.actions.acceptHelp(formatMxn(offer.amount_cents)), () =>
+    confirm(copy.actions.accept, copy.actions.acceptHelp(formatMoney(offer.amount_cents)), () =>
       run(() => acceptOffer(client, offer.id), copy.actions.accepted),
     );
   }
@@ -188,7 +205,7 @@ export function useNegotiation({
   const section = (
     <>
       <SectionHeader title={copy.negotiation.title} />
-      <Notice tone={state === 'lost' ? 'warning' : 'info'}>{copy.negotiation.states[state]}</Notice>
+      <Notice tone={stateNotice(state)}>{copy.negotiation.states[state]}</Notice>
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {notice ? <Notice>{notice}</Notice> : null}
 
@@ -256,7 +273,7 @@ export function useNegotiation({
               return (
                 <StatusRow
                   key={o.id}
-                  title={`${o.side === 'shipper' && load.brokered ? brokeredCopy.counterpart : copy.negotiation.side[o.side]} · ${formatMxn(o.amount_cents)}`}
+                  title={`${o.side === 'shipper' && load.brokered ? brokeredCopy.counterpart : copy.negotiation.side[o.side]} · ${formatMoney(o.amount_cents)}`}
                   lines={[
                     formatDateTime(o.created_at),
                     // The conditions in full: the carrier reads them before accepting.
@@ -265,10 +282,7 @@ export function useNegotiation({
                       ? `${copy.negotiation.unit}: ${unit ? unitLabel(unit) : copy.negotiation.noUnit}`
                       : null,
                   ]}
-                  pill={{
-                    label: offerStatusLabels[o.status],
-                    tone: OFFER_TONES[o.status] ?? 'neutral',
-                  }}
+                  pill={{ label: offerStatusLabels[o.status], tone: offerStatusTone(o.status) }}
                 />
               );
             })}

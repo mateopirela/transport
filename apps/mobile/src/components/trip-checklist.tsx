@@ -81,7 +81,7 @@ function makeStyles({ colors, type }: Look) {
   return StyleSheet.create({
     item: type.body,
     meta: type.footnote,
-    done: { ...type.footnote, color: colors.okText },
+    done: { ...type.footnote, color: colors.text },
     pending: { ...type.footnote, color: colors.amberText },
   });
 }

@@ -1,10 +1,15 @@
 import 'server-only';
 
-import { carrierNegotiationState, unitLabel, type NegotiationOffer } from '@transport/shared';
+import {
+  carrierNegotiationState,
+  expiringDocuments,
+  unitLabel,
+  type ExpiringDocument,
+  type NegotiationOffer,
+} from '@transport/shared';
 
 import { selectAll } from '../verification/paging';
 import type { Supabase } from '../viewer';
-import { expiringDocuments, type ExpiringDocument } from './dashboard-summary';
 import { listCarrierOperators, listCarrierVehicles, loadFleetContext } from './fleet';
 
 // Reads of the carrier's home as a dashboard (docs/plan-fulmis.md §1.5, V4).

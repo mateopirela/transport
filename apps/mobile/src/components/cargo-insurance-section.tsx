@@ -8,10 +8,10 @@ import {
 import { Cell, Footnote, Group, SectionHeader, type PillTone } from './ui';
 
 const tones: Record<CargoInsuranceState['kind'], PillTone> = {
-  trip_policy: 'ok',
-  annual_policy: 'ok',
-  missing: 'amber',
-  not_required: 'neutral',
+  trip_policy: 'done',
+  annual_policy: 'done',
+  missing: 'pending',
+  not_required: 'inactive',
 };
 
 /** The line that says how the trip is (or is not) insured. */

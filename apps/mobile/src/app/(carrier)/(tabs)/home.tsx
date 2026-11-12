@@ -1,34 +1,51 @@
 import {
   buildCarrierFeed,
+  carrierAppCopy,
   carrierLoadsCopy,
+  carrierWebCopy,
+  collectionsTotals,
+  EXPIRY_WINDOW_DAYS,
+  expiringDocuments,
   fleetCopy,
+  formatMoney,
+  groupCarrierTrips,
   INTERNAL_CHAT_PARAM,
   internalChatCopy,
   internalMessagePreview,
   mobileNavCopy,
   progressSummary,
-  vehicleReleaseCopy,
+  toMexicoCityDate,
 } from '@transport/shared';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback } from 'react';
 
 import { BillingBanner } from '../../../components/billing-banner';
+import { CarrierTripRow } from '../../../components/carrier-trip-row';
 import { CompanyStatus } from '../../../components/company-status';
 import type { IconName } from '../../../components/icons';
 import { RecommendationCell } from '../../../components/load-card';
 import { StatusRow } from '../../../components/status-row';
 import {
-  Button,
   Cell,
+  Empty,
   Footnote,
   Group,
   groupInset,
+  KpiGrid,
+  KpiTile,
   LoadError,
   Screen,
   SectionHeader,
   Skeleton,
   TextCell,
 } from '../../../components/ui';
+import { listCarrierTrips } from '../../../lib/carrier-trips-api';
+import {
+  attentionItems,
+  negotiationsToAnswer,
+  type AttentionItem,
+  type AttentionTarget,
+} from '../../../lib/carrier-home';
 import {
   listOperators,
   listRoutes,
@@ -36,8 +53,10 @@ import {
   loadCompanyContext,
   ownerProgress,
 } from '../../../lib/fleet-api';
+import { loadCollections } from '../../../lib/freight-api';
 import {
   listCarrierUnits,
+  listNegotiations,
   returnTripCities,
   unitLabel,
   unitRecommendations,
@@ -50,22 +69,59 @@ import { useSession } from '../../../providers/session';
 
 const copy = fleetCopy.onboarding;
 const feedCopy = carrierLoadsCopy.home;
+const d = carrierWebCopy.dashboard;
 
-/** Onboarding progress of the carrier's company and fleet (B18). */
-async function loadOnboarding({ client, companyId }: CarrierContext) {
-  const context = await loadCompanyContext(client, companyId);
-  const [vehicles, operators, routes] = await Promise.all([
-    listVehicles(client, context),
+/** Active trips the home lists under "Viajes en curso"; the rest are a tap away in Viajes. */
+const ACTIVE_ON_HOME = 3;
+
+/**
+ * Everything the dashboard reads, at once: the onboarding counts (B18), the
+ * documents about to expire, the client's counteroffers, the trips, the units
+ * to release (G5) and Cobranza's totals (I3). Only what RLS already shows the
+ * carrier staff, through the same reads as their screens; Cobranza never takes
+ * the home down.
+ */
+async function loadDashboard({ client, companyId }: CarrierContext) {
+  const [context, operators, routes, negotiations, trips, releases, ledger] = await Promise.all([
+    loadCompanyContext(client, companyId),
     listOperators(client, companyId),
     listRoutes(client, companyId),
+    listNegotiations(client, companyId),
+    listCarrierTrips(client, companyId),
+    listPendingReleases(client, companyId),
+    loadCollections(client).catch(() => null),
   ]);
+  const vehicles = await listVehicles(client, context);
+  const groups = groupCarrierTrips(trips.trips);
   return {
-    documents: progressSummary(ownerProgress(context, { type: 'company', id: companyId })),
-    vehicles: vehicles.length,
-    operators: operators.length,
-    routes: routes.length,
+    onboarding: {
+      documents: progressSummary(ownerProgress(context, { type: 'company', id: companyId })),
+      vehicles: vehicles.length,
+      operators: operators.length,
+      routes: routes.length,
+    },
+    expiring: expiringDocuments(context, [
+      ...vehicles.map((v) => ({ type: 'vehicle' as const, id: v.id, label: unitLabel(v) })),
+      ...operators.map((o) => ({ type: 'operator' as const, id: o.id, label: o.full_name })),
+    ]),
+    toAnswer: negotiationsToAnswer(negotiations),
+    active: groups.active,
+    toAssign: groups.to_assign,
+    releases,
+    totals: ledger
+      ? collectionsTotals(
+          ledger.map((row) => ({
+            status: row.status,
+            pendingCents: row.pending_cents,
+            payments: row.payments,
+          })),
+          toMexicoCityDate(new Date().toISOString()),
+        )
+      : null,
   };
 }
+
+type Dashboard = Awaited<ReturnType<typeof loadDashboard>>;
 
 /**
  * Recommendations of every unit (B08), as the home feed: return trips first.
@@ -94,32 +150,55 @@ async function loadFeed({ client, companyId }: CarrierContext) {
   };
 }
 
-/** Units waiting for their release (G5, D20), for the group on top of the home. */
-async function loadPendingReleases({ client, companyId }: CarrierContext) {
-  return listPendingReleases(client, companyId);
-}
-
 /** The internal chats of the trips (H1), for "Mensajes de operadores". */
 async function loadOperatorMessages({ client }: CarrierContext) {
   return loadInternalInbox(client);
 }
 
+/** The screen a row of "Requiere tu atención" opens. */
+function hrefOf(target: AttentionTarget): Href {
+  switch (target.screen) {
+    case 'vehicle':
+      return { pathname: '/vehicle/[id]', params: { id: target.id } };
+    case 'operator':
+      return { pathname: '/operator/[id]', params: { id: target.id } };
+    case 'load':
+      return { pathname: '/load/[id]', params: { id: target.id } };
+    case 'trip':
+      return { pathname: '/trip/[id]', params: { id: target.id } };
+  }
+}
+
 /**
- * Carrier home: the operators' unread messages (H1), the units to release
- * (G5), recommended loads and return trips (B19), then the onboarding steps
- * (B18).
+ * Carrier home as a dashboard (docs/plan-fulmis.md §1.5, V8): four
+ * indicators (counteroffers to answer, trips on the road, what Fulmis owes
+ * and documents about to expire), "Requiere tu atención" with one row per
+ * thing to do (units to release, G5; counteroffers; trips to assign;
+ * documents), the operators' unread messages (H1), the trips on the road, the
+ * recommended loads and return trips (B19) and, last, the onboarding steps
+ * (B18). The same as the web's home (V4), on a phone.
  */
 export default function HomeTab() {
   const { profile } = useSession();
   const approved = profile?.companyStatus === 'approved';
+  const { state, reload } = useCarrierData(loadDashboard);
 
   return (
-    <Screen title={profile?.companyName ?? mobileNavCopy.home}>
+    <Screen
+      title={profile?.companyName ?? mobileNavCopy.home}
+      subtitle={approved ? d.description : undefined}
+    >
       {profile ? <CompanyStatus profile={profile} /> : null}
       <BillingBanner />
+      {state.status === 'loading' ? (
+        <Skeleton rows={4} />
+      ) : state.status === 'error' ? (
+        <LoadError onRetry={() => void reload()} />
+      ) : approved ? (
+        <DashboardSections data={state.data} />
+      ) : null}
       {/* Only unread messages of others: never for a hombre-camión working alone (D13-E1). */}
       {approved ? <OperatorMessages /> : null}
-      {approved ? <PendingReleases /> : null}
       {approved ? (
         <Feed />
       ) : (
@@ -127,14 +206,118 @@ export default function HomeTab() {
           <TextCell tone="dim">{feedCopy.notApproved}</TextCell>
         </Group>
       )}
-      <Onboarding title={approved ? feedCopy.onboarding : copy.title} />
+      {state.status === 'ready' ? (
+        <Onboarding
+          title={approved ? feedCopy.onboarding : copy.title}
+          data={state.data.onboarding}
+        />
+      ) : null}
     </Screen>
+  );
+}
+
+/** The indicators, "Requiere tu atención" and the trips on the road. */
+function DashboardSections({ data }: { data: Dashboard }) {
+  const router = useRouter();
+  const attention = attentionItems(data);
+  const { totals } = data;
+  return (
+    <>
+      <KpiGrid>
+        <KpiTile
+          label={d.kpis.respond}
+          value={String(data.toAnswer.length)}
+          hint={d.kpis.respondHint(data.toAnswer.length)}
+          onPress={() => router.push('/loads')}
+        />
+        <KpiTile
+          label={d.kpis.active}
+          value={String(data.active.length)}
+          hint={d.kpis.activeHint(data.toAssign.length)}
+          onPress={() => router.push('/trips')}
+        />
+        <KpiTile
+          label={d.kpis.receivable}
+          value={totals ? formatMoney(totals.receivableCents) : carrierAppCopy.home.noFigure}
+          hint={d.kpis.receivableHint(
+            totals && totals.onHoldCents > 0 ? formatMoney(totals.onHoldCents) : null,
+          )}
+          onPress={() => router.push('/collections')}
+        />
+        <KpiTile
+          label={d.kpis.expiring}
+          value={String(data.expiring.length)}
+          hint={d.kpis.expiringHint(EXPIRY_WINDOW_DAYS)}
+        />
+      </KpiGrid>
+
+      <SectionHeader title={d.attention.title} />
+      {attention.items.length === 0 ? (
+        <Empty title={d.attention.empty} body={d.attention.emptyHelp} />
+      ) : (
+        <>
+          <Group>
+            {attention.items.map((item) => (
+              <AttentionRow key={item.key} item={item} />
+            ))}
+          </Group>
+          {attention.more.respond > 0 ? (
+            <Footnote>{d.attention.moreRespond(attention.more.respond)}</Footnote>
+          ) : null}
+          {attention.more.assign > 0 ? (
+            <Footnote>{d.attention.moreAssign(attention.more.assign)}</Footnote>
+          ) : null}
+          {attention.more.expiring > 0 ? (
+            <Footnote>{carrierAppCopy.home.moreExpiring(attention.more.expiring)}</Footnote>
+          ) : null}
+        </>
+      )}
+
+      <SectionHeader
+        title={d.activeTrips.title}
+        action={
+          data.active.length > 0
+            ? { label: d.activeTrips.all, onPress: () => router.push('/trips') }
+            : undefined
+        }
+      />
+      {data.active.length === 0 ? (
+        <Group>
+          <TextCell tone="dim">{d.activeTrips.empty}</TextCell>
+        </Group>
+      ) : (
+        <Group>
+          {data.active.slice(0, ACTIVE_ON_HOME).map((trip) => (
+            <CarrierTripRow
+              key={trip.id}
+              trip={trip}
+              onPress={() => router.push({ pathname: '/trip/[id]', params: { id: trip.id } })}
+            />
+          ))}
+        </Group>
+      )}
+    </>
+  );
+}
+
+/** One thing to do: what it is and its detail, its kind on a pill, and the screen where it is done. */
+function AttentionRow({ item }: { item: AttentionItem }) {
+  const router = useRouter();
+  return (
+    <StatusRow
+      strong
+      title={item.title}
+      lines={[item.detail]}
+      pill={{ label: item.tag, tone: item.tone }}
+      onPress={() => router.push(hrefOf(item.target))}
+    />
   );
 }
 
 function Feed() {
   const router = useRouter();
   const { state, reload } = useCarrierData(loadFeed);
+  const search = { label: feedCopy.searchAll, onPress: () => router.push('/loads') };
   if (state.status === 'loading') return <Skeleton />;
   if (state.status === 'error') return <LoadError onRetry={() => void reload()} />;
   const { units, feed, hasUnits } = state.data;
@@ -158,7 +341,7 @@ function Feed() {
           <Footnote>{feedCopy.returnTripsHelp}</Footnote>
         </>
       ) : null}
-      <SectionHeader title={feedCopy.recommended} />
+      <SectionHeader title={feedCopy.recommended} action={search} />
       {feed.recommended.length === 0 ? (
         <Group>
           <TextCell tone="dim">{hasUnits ? feedCopy.empty : feedCopy.noUnits}</TextCell>
@@ -178,12 +361,6 @@ function Feed() {
           <Footnote>{feedCopy.recommendedHelp}</Footnote>
         </>
       )}
-      <Button
-        label={feedCopy.searchAll}
-        variant="secondary"
-        icon="search"
-        onPress={() => router.push('/loads')}
-      />
     </>
   );
 }
@@ -223,7 +400,7 @@ function OperatorMessages() {
               row.operatorName,
               internalMessagePreview(row.lastMessageBody, row.lastMessageAttachments),
             ]}
-            pill={{ label: internalChatCopy.unreadLabel(row.unread), tone: 'accent' }}
+            pill={{ label: internalChatCopy.unreadLabel(row.unread), tone: 'attention' }}
             onPress={() =>
               router.push({
                 pathname: '/trip/[id]',
@@ -237,86 +414,40 @@ function OperatorMessages() {
   );
 }
 
-/** "Unidades por liberar (n)": nothing while there are none. */
-function PendingReleases() {
-  const router = useRouter();
-  const { state } = useCarrierData(loadPendingReleases);
-  if (state.status !== 'ready' || state.data.length === 0) return null;
-  const pending = state.data;
-  return (
-    <>
-      <SectionHeader title={vehicleReleaseCopy.home.title(pending.length)} />
-      <Group>
-        {pending.map((p) => (
-          <StatusRow
-            key={p.taskId}
-            title={vehicleReleaseCopy.home.item(p.unit, p.route)}
-            pill={{ label: vehicleReleaseCopy.badge, tone: 'amber' }}
-            onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: p.vehicleId } })}
-          />
-        ))}
-      </Group>
-      <Footnote>{vehicleReleaseCopy.home.help}</Footnote>
-    </>
-  );
-}
-
 /** The onboarding steps (B18): each opens its screen and says how far it is. */
-function Onboarding({ title }: { title: string }) {
+function Onboarding({ title, data }: { title: string; data: Dashboard['onboarding'] }) {
   const router = useRouter();
-  const onboarding = useCarrierData(loadOnboarding);
-  const state = onboarding.state;
+  const steps: [IconName, string, string, Href][] = [
+    [
+      'document',
+      copy.companyDocuments,
+      copy.documentsProgress(data.documents.approved, data.documents.required),
+      '/company-documents',
+    ],
+    ['units', copy.units, data.vehicles ? copy.count(data.vehicles) : copy.pending, '/units'],
+    [
+      'people',
+      copy.operators,
+      data.operators ? copy.operatorsCount(data.operators) : copy.pending,
+      '/operators',
+    ],
+    ['route', copy.routes, data.routes ? copy.count(data.routes) : copy.pending, '/routes'],
+  ];
   return (
     <>
       <SectionHeader title={title} />
-      {state.status === 'loading' ? (
-        <Skeleton rows={4} />
-      ) : state.status === 'error' ? (
-        <LoadError onRetry={() => void onboarding.reload()} />
-      ) : (
-        <Group inset={groupInset.icon}>
-          {(
-            [
-              [
-                'document',
-                copy.companyDocuments,
-                copy.documentsProgress(
-                  state.data.documents.approved,
-                  state.data.documents.required,
-                ),
-                '/company-documents',
-              ],
-              [
-                'units',
-                copy.units,
-                state.data.vehicles ? copy.count(state.data.vehicles) : copy.pending,
-                '/units',
-              ],
-              [
-                'people',
-                copy.operators,
-                state.data.operators ? copy.operatorsCount(state.data.operators) : copy.pending,
-                '/operators',
-              ],
-              [
-                'route',
-                copy.routes,
-                state.data.routes ? copy.count(state.data.routes) : copy.pending,
-                '/routes',
-              ],
-            ] satisfies [IconName, string, string, Href][]
-          ).map(([icon, stepTitle, value, href]) => (
-            <Cell
-              key={stepTitle}
-              role="link"
-              icon={icon}
-              title={stepTitle}
-              subtitle={value}
-              onPress={() => router.push(href)}
-            />
-          ))}
-        </Group>
-      )}
+      <Group inset={groupInset.icon}>
+        {steps.map(([icon, stepTitle, value, href]) => (
+          <Cell
+            key={stepTitle}
+            role="link"
+            icon={icon}
+            title={stepTitle}
+            subtitle={value}
+            onPress={() => router.push(href)}
+          />
+        ))}
+      </Group>
       <Footnote>{copy.subtitle}</Footnote>
     </>
   );

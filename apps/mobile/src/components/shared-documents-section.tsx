@@ -4,9 +4,9 @@ import {
   groupSharedDocuments,
   providerState,
   providerStateLabels,
+  providerStateTone,
   revokeShareErrorMessage,
   sharedDocumentsCopy,
-  type ProviderState,
   type ProviderStatus,
   type SharedDocumentGroup,
   type SharedDocumentRow,
@@ -18,25 +18,9 @@ import { revokeDocumentShare } from '../lib/carrier-trips-api';
 import type { Supabase } from '../lib/supabase';
 import { spacing, useTheme } from '../theme';
 import { ConfirmSheet, type ConfirmSheetHandle } from './sheet';
-import {
-  Button,
-  Cell,
-  Footnote,
-  Group,
-  Notice,
-  SectionHeader,
-  TextCell,
-  type PillTone,
-} from './ui';
+import { Button, Cell, Footnote, Group, Notice, SectionHeader, TextCell } from './ui';
 
 const copy = sharedDocumentsCopy;
-
-const PROVIDER_TONES: Record<ProviderState, PillTone> = {
-  pending: 'neutral',
-  approved: 'ok',
-  rejected: 'red',
-  revoked: 'red',
-};
 
 function ownerTitle(group: SharedDocumentGroup): string {
   switch (group.ownerType) {
@@ -119,7 +103,7 @@ export function SharedDocumentsSection({
           title={copy.provider.status}
           subtitle={provider?.notes}
           subtitleLines={0}
-          pill={{ label: providerStateLabels[state], tone: PROVIDER_TONES[state] }}
+          pill={{ label: providerStateLabels[state], tone: providerStateTone(state) }}
         />
       </Group>
       <SectionHeader title={copy.carrier.title} />

@@ -41,7 +41,7 @@ export function RoutePreview({
       <View accessibilityLabel={copy.mapPlaceholder} style={styles.box}>
         {emptyLeg ? (
           <>
-            <StopRow color={colors.textFaint} label={emptyLeg.start.city} />
+            <StopRow color={colors.textDim} label={emptyLeg.start.city} />
             <Leg text={copy.emptyLeg(formatDistance(emptyLeg.km), emptyLeg.start.city)} dashed />
           </>
         ) : (
@@ -49,7 +49,7 @@ export function RoutePreview({
         )}
         <StopRow color={colors.accent} label={`${pickup.city}, ${pickup.state}`} />
         <Leg text={copy.loadedLeg(formatDistance(loadedKm))} />
-        <StopRow color={colors.ok} label={`${delivery.city}, ${delivery.state}`} />
+        <StopRow color={colors.info} label={`${delivery.city}, ${delivery.state}`} />
       </View>
       <Cell
         icon="navigate"

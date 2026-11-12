@@ -1,10 +1,11 @@
-import { toMexicoCityDate, type CarrierNegotiationState, type StateTone } from '@transport/shared';
+import type { CarrierNegotiationState } from './carrier-loads';
+import type { StateTone } from './design/status-tones';
+import { toMexicoCityDate, type Requirement, type SubmittedDocument } from './verification';
 
-import type { FleetContext } from './fleet-summary';
-
-// Pure part of the carrier's home as a dashboard (docs/plan-fulmis.md §1.5,
-// V4): which documents are about to expire and how a negotiation reads as a
-// tone. No I/O, so Vitest covers it; dashboard.ts loads the rows.
+// The pure part of the carrier's home as a dashboard (docs/plan-fulmis.md
+// §1.5): which documents are about to expire, how a negotiation reads as a
+// tone and how many rows a list shows. The web (V4) and the app (V8) read
+// their rows each in their own way and share this.
 
 /**
  * Days ahead the home counts a document as "por vencer": the first notice of
@@ -43,14 +44,14 @@ function calendarDay(timestamp: string): number {
  * readiness says it).
  */
 export function expiringDocuments(
-  context: Pick<FleetContext, 'requirements' | 'documents'>,
+  context: { requirements: readonly Requirement[]; documents: readonly SubmittedDocument[] },
   owners: readonly FleetOwner[],
   now: Date = new Date(),
   windowDays: number = EXPIRY_WINDOW_DAYS,
 ): ExpiringDocument[] {
   const ownerByKey = new Map(owners.map((owner) => [`${owner.type}:${owner.id}`, owner]));
   const names = new Map(context.requirements.map((r) => [r.id, r.name]));
-  const latest = new Map<string, FleetContext['documents'][number]>();
+  const latest = new Map<string, SubmittedDocument>();
   for (const document of context.documents) {
     if (document.archived_at !== null) continue;
     const key = `${document.owner_type}:${document.owner_id}:${document.requirement_id}`;

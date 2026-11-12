@@ -4,6 +4,7 @@ export * from './backhaul';
 export * from './billing';
 export * from './brokered';
 export * from './cargo-insurance';
+export * from './carrier-dashboard';
 export * from './carrier-loads';
 export * from './carrier-trips';
 export * from './chat';

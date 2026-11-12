@@ -9,12 +9,23 @@ tags: [carrier, star]
     file: subflows/sign-in.yaml
     env:
       EMAIL: jorge.villarreal@demo.test
+# The home opens as a dashboard (V8): the indicators and "Requiere tu
+# atención" first, the recommendations further down.
 - extendedWaitUntil:
-    visible: 'Viajes de regreso'
+    visible: 'Requiere tu atención'
     timeout: 30000
-- assertVisible: 'CS53-01 · termina en Guadalajara'
+- scrollUntilVisible:
+    element: 'Viajes de regreso'
+    centerElement: true
+    timeout: 30000
+- scrollUntilVisible:
+    element: 'CS53-01 · termina en Guadalajara'
+    centerElement: true
 - takeScreenshot: 01-1-carrier-home-return-trip
-- tapOn: 'Guadalajara → Monterrey.*'
+# The recommendation under the unit (a trip on the road may share the route).
+- tapOn:
+    text: 'Guadalajara → Monterrey.*'
+    below: 'CS53-01 · termina en Guadalajara'
 - extendedWaitUntil:
     visible: 'Detalle de la carga'
     timeout: 15000

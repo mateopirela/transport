@@ -27,11 +27,12 @@ tags: [carrier, manager]
 - scrollUntilVisible:
     element: 'General Escobedo → Saltillo'
     centerElement: true
+# Whole pesos read without ".00" (docs/plan-fulmis.md §1.5).
 - scrollUntilVisible:
-    element: '\$9,700.00'
+    element: '\$9,700'
     centerElement: true
 - assertVisible: 'Comisión \(3 %\)'
-- assertVisible: '\$300.00'
-- assertVisible: '\$10,000.00'
+- assertVisible: '\$300'
+- assertVisible: '\$10,000'
 - assertNotVisible: 'Plazo.*'
 - takeScreenshot: 21-2-collections-trip

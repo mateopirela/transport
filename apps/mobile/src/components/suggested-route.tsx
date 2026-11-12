@@ -90,7 +90,7 @@ export function SuggestedRoute({
               s.preference
                 ? {
                     label: s.preference === 'avoid' ? roadsCopy.avoided : roadsCopy.preferred,
-                    tone: s.preference === 'avoid' ? 'amber' : 'ok',
+                    tone: s.preference === 'avoid' ? 'pending' : 'done',
                   }
                 : undefined
             }

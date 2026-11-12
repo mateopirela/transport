@@ -1,7 +1,13 @@
 import { authErrors, registrationSignUpSchema, signInSchema } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
-import { authErrorKey, authErrorMessage, isAuthErrorKey } from './auth-errors';
+import {
+  authErrorField,
+  authErrorKey,
+  authErrorMessage,
+  authFailureState,
+  isAuthErrorKey,
+} from './auth-errors';
 import { formEntries, invalidForm, refillValues } from './forms';
 
 function formData(entries: Record<string, string>): FormData {
@@ -76,5 +82,27 @@ describe('auth error keys', () => {
     for (const value of ['toString', '__proto__', 'otra cosa', undefined, ['rfcTaken']]) {
       expect(isAuthErrorKey(value)).toBe(false);
     }
+  });
+});
+
+describe('authFailureState (D42: the error on its field)', () => {
+  const entries = { email: 'ana@empresa.mx', password: 'carga2026', rfc: 'TNO850101AB1' };
+
+  it('puts a taken email, a taken phone and a weak password on their fields', () => {
+    expect(authErrorField({ code: 'email_exists' })).toBe('email');
+    expect(authErrorField({ code: 'weak_password' })).toBe('password');
+    expect(authErrorField({ code: 'same_password' })).toBe('password');
+    expect(authFailureState({ code: 'user_already_exists' }, entries)).toEqual({
+      fieldErrors: { email: authErrors.emailTaken },
+      values: { email: 'ana@empresa.mx', rfc: 'TNO850101AB1' },
+    });
+  });
+
+  it('keeps the rest on the whole form, never with the passwords', () => {
+    expect(authErrorField({ code: 'over_request_rate_limit' })).toBeNull();
+    expect(authFailureState({ code: 'over_request_rate_limit' }, entries)).toEqual({
+      error: authErrors.rateLimited,
+      values: { email: 'ana@empresa.mx', rfc: 'TNO850101AB1' },
+    });
   });
 });

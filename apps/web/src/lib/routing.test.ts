@@ -11,6 +11,7 @@ import {
   chatAttachmentHref,
   homeFor,
   invitationPath,
+  invitationPathFromLink,
   needsSecondFactor,
   paths,
   resolveRoute,
@@ -45,6 +46,36 @@ describe('invitation links (G2)', () => {
     expect(resolveRoute(path, manager)).toBeNull();
     expect(resolveRoute(path, { role: 'coordinator', company: null })).toBeNull();
     expect(resolveRoute(path, operator)).toBeNull();
+  });
+
+  it('opens the page to paste a link (R1, D43) under the same rule', () => {
+    for (const viewer of [null, manager, newShipper, operator, admin]) {
+      expect(resolveRoute(paths.invitation, viewer)).toBeNull();
+    }
+  });
+
+  it('turn a pasted web link, deep link or bare token into its page (R1)', () => {
+    const token = 'Ab_-'.repeat(10) + 'xyz';
+    const page = `/invitacion/${token}`;
+    expect(invitationPathFromLink(`https://transport.mx/invitacion/${token}`)).toBe(page);
+    expect(invitationPathFromLink(`  https://transport.mx/invitacion/${token}/?utm=x#y `)).toBe(
+      page,
+    );
+    expect(invitationPathFromLink(`transport://invitacion/${token}`)).toBe(page);
+    expect(invitationPathFromLink(token)).toBe(page);
+  });
+
+  it('reject what is not an invitation link (R1)', () => {
+    for (const input of [
+      undefined,
+      '',
+      'hola',
+      'https://transport.mx/invitacion/corto',
+      `https://transport.mx/viaje/${'a'.repeat(43)}`,
+      `https://transport.mx/invitacion/${'a'.repeat(43)}/../admin`,
+    ]) {
+      expect(invitationPathFromLink(input)).toBeNull();
+    }
   });
 });
 

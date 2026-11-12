@@ -5,6 +5,8 @@ import {
   LOGIN_LOCKOUT,
 } from '@transport/shared';
 
+import { refillValues, type FormState } from './forms';
+
 export type AuthErrorKey = keyof typeof authErrors;
 
 /** Error codes of Supabase Auth (`AuthError.code`) and Postgres (`PostgrestError.code`). */
@@ -55,6 +57,40 @@ export function authErrorMessage(
     return accessSecurityCopy.accountLocked(LOGIN_LOCKOUT.lockMinutes);
   }
   return authErrors[authErrorKey(error)];
+}
+
+/**
+ * The form field an auth error is about (D42: the error goes on the field
+ * that failed). The others stay on the whole form.
+ */
+const ERROR_FIELDS: Partial<Record<AuthErrorKey, string>> = {
+  emailTaken: 'email',
+  phoneTaken: 'phone',
+  weakPassword: 'password',
+  samePassword: 'password',
+};
+
+/** The field an auth error belongs to, or null when it is about the whole form. */
+export function authErrorField(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+): string | null {
+  if (isAccountLockedError(error)) return null;
+  return ERROR_FIELDS[authErrorKey(error)] ?? null;
+}
+
+/**
+ * The form state of a failed sign-up or sign-in: the message on its field
+ * when it has one, on the whole form otherwise, and the typed values back
+ * (never the passwords).
+ */
+export function authFailureState(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+  entries: Record<string, string>,
+): FormState {
+  const message = authErrorMessage(error);
+  const field = authErrorField(error);
+  const values = refillValues(entries);
+  return field ? { fieldErrors: { [field]: message }, values } : { error: message, values };
 }
 
 /** Whether an untrusted value (e.g. a query parameter) names an auth error. */

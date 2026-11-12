@@ -5,6 +5,7 @@
 // this only decides which screens a user may open.
 import {
   LEGAL_PATHS,
+  parseInvitationLink,
   SHARE_PATHS,
   TRIP_LINK_PATH,
   type UserRole,
@@ -82,6 +83,15 @@ export const paths = {
 
 /** The web page of an invitation link (G2). */
 export const invitationPath = (token: string) => `${paths.invitation}/${token}`;
+
+/**
+ * /invitacion (D43, R1): the page of a pasted invitation link (web, deep link
+ * or the bare token), or null when it is not one.
+ */
+export function invitationPathFromLink(input: string | null | undefined): string | null {
+  const token = parseInvitationLink(input);
+  return token ? invitationPath(token) : null;
+}
 
 /** Shipper load detail and edit screens (B13). */
 export const loadPath = (loadId: string) => `/cliente/cargas/${loadId}`;

@@ -4,6 +4,7 @@ import {
   companyFiscalFieldLabels,
   isCarrierStaff,
   onboardingCopy,
+  personTypeOfRfc,
   progressSummary,
   shellCopy,
   verificationStatusLabels,
@@ -163,6 +164,7 @@ export default async function AccountInReviewPage() {
                 </p>
                 {editable && (
                   <CompanyContactForm
+                    personType={personTypeOfRfc(company.rfc)}
                     values={{
                       legalName: company.legal_name,
                       contactName: company.contact_name ?? '',

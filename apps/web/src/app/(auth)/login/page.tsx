@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { AuthCard } from '@/components/auth-card';
-import { SignInForm } from '@/components/auth-forms';
+import { InvitationEntry, SignInForm } from '@/components/auth-forms';
 import { Notice } from '@/components/ui/notice';
 import { paths, safeNextPath } from '@/lib/routing';
 import { SESSION_END_PARAM, sessionEndFromParam } from '@/lib/session-limits';
@@ -31,6 +31,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/login'>) 
               {c.forgotPassword}
             </Link>
           </p>
+          <InvitationEntry />
           <p>
             {c.noAccount}{' '}
             <Link href={paths.signUp} className="font-semibold text-accent-text hover:underline">

@@ -41,10 +41,14 @@ export const authCopy = {
     newPassword: 'Nueva contraseña',
     passwordConfirmation: 'Confirma la contraseña',
     passwordHint: 'Mínimo 8 caracteres, con al menos una letra y un número.',
+    /** The button next to every password field (D42); `aria-pressed` says whether it is shown. */
+    showPassword: 'Mostrar contraseña',
     personType: 'Tipo de persona',
     personTypeMoral: 'Persona moral (empresa)',
     personTypeFisica: 'Persona física',
     legalName: 'Razón social',
+    /** "Razón social" of a persona física (D42). */
+    fiscalName: 'Nombre fiscal',
     rfc: 'RFC',
     fiscalAddress: 'Domicilio fiscal',
     fiscalStreet: 'Calle',
@@ -59,15 +63,33 @@ export const authCopy = {
     legalRepresentativeHint:
       'Obligatorio para personas morales. Si eres persona física, eres tu propio representante.',
   },
-  /** What the person registers (G2, D13). */
+  /** What the person registers (G2, D13; texts of D42). */
   registrationKinds: {
     label: '¿Qué vas a registrar?',
     shipper: 'Soy cliente',
-    shipperHint: 'Publico cargas y contrato transportistas.',
-    carrier: 'Soy transportista (empresa)',
-    carrierHint: 'Tengo camiones y operadores; busco cargas.',
-    owner_operator: 'Soy hombre camión',
-    ownerOperatorHint: 'Manejo mi propio camión: busco cargas y hago los viajes.',
+    shipperHint: 'Necesito transportar mercancía.',
+    carrier: 'Soy transportista (Gerente)',
+    carrierHint: 'Tengo camiones y busco cargas.',
+    owner_operator: 'Soy hombre-camión',
+    ownerOperatorHint: 'Dueño y operador de mi camión.',
+    /** Under the kinds when the Gerente is chosen: who runs the company's account (D42). */
+    managerNote: 'Posteriormente podrás invitar y administrar a los colaboradores de tu empresa.',
+  },
+  /** The way in for people whose company already uses Transport (D43). */
+  invitationEntry: {
+    question: '¿Tu empresa ya utiliza Transport?',
+    link: 'Únete con tu invitación',
+  },
+  /** /invitacion: paste the link of an invitation (D43, R1). */
+  joinInvitation: {
+    title: 'Únete con tu invitación',
+    description:
+      'Pega el enlace que te envió tu Gerente o tu Coordinador. Te llevamos a tu invitación para crear tu cuenta.',
+    field: 'Enlace de invitación',
+    hint: 'Cópialo completo del mensaje que recibiste.',
+    submit: 'Continuar',
+    pending: 'Abriendo…',
+    invalid: 'Ese enlace no es una invitación. Cópialo completo del mensaje que recibiste.',
   },
   signIn: {
     title: 'Inicia sesión',
@@ -81,10 +103,22 @@ export const authCopy = {
   signUp: {
     title: 'Crea tu cuenta',
     description:
-      'Registra tu empresa como cliente, transportista u hombre camión. La revisaremos antes de activarla.',
+      'Registra tu empresa como cliente, transportista u hombre-camión. La revisaremos antes de activarla.',
     accountSection: 'Tus datos',
     companySection: 'Datos fiscales',
     companyHint: 'Como aparecen en tu constancia de situación fiscal.',
+    /** The five steps of the sign-up (D42); the form fills the first two. */
+    stepsLabel: 'Pasos del registro',
+    steps: {
+      account: 'Tu cuenta',
+      fiscal: 'Datos fiscales',
+      documents: 'Documentos',
+      profile: 'Tu perfil',
+      verification: 'Verificación',
+    },
+    stepOf: (step: number, total: number) => `Paso ${step} de ${total}`,
+    next: 'Siguiente',
+    back: 'Regresar',
     submit: 'Crear cuenta',
     pending: 'Creando cuenta…',
     haveAccount: '¿Ya tienes cuenta?',

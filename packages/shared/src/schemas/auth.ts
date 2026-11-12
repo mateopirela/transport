@@ -91,6 +91,39 @@ export const registrationSignUpSchema = z
   }, onlyWhenValid);
 export type RegistrationSignUpValues = z.output<typeof registrationSignUpSchema>;
 
+/**
+ * The fields of the first step of the web sign-up (D42, R1): the kind and
+ * the account. The rest (fiscal data, address and the terms) is step 2.
+ */
+export const REGISTRATION_ACCOUNT_FIELDS = [
+  'kind',
+  'fullName',
+  'phone',
+  'email',
+  'password',
+  'passwordConfirmation',
+] as const;
+export type RegistrationAccountField = (typeof REGISTRATION_ACCOUNT_FIELDS)[number];
+
+/**
+ * Step 1 of the web sign-up, checked in the browser before step 2 (R1): the
+ * same fields and rules as registrationSignUpSchema, nothing new. The server
+ * validates the whole form again with registrationSignUpSchema.
+ */
+export const registrationAccountStepSchema = z
+  .object(
+    {
+      kind: enumField(COMPANY_REGISTRATION_KINDS),
+      fullName: accountFields.fullName,
+      phone: accountFields.phone,
+      email: accountFields.email,
+      password: accountFields.password,
+      passwordConfirmation: accountFields.passwordConfirmation,
+    } satisfies Record<RegistrationAccountField, z.ZodType>,
+    formError,
+  )
+  .superRefine(checkPasswordsMatch, onlyWhenValid);
+
 /** The company registration (./company) a web sign-up describes. */
 export function companyFromSignUp(values: RegistrationSignUpValues): CompanyRegistrationValues {
   const {

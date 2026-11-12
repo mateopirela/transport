@@ -97,6 +97,8 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await page.getByLabel(f.email).fill(shipper.email);
     await page.getByLabel(f.password, { exact: true }).fill(shipper.password);
     await page.getByLabel(f.passwordConfirmation).fill(shipper.password);
+    // D42: the account is step 1; the fiscal data, step 2.
+    await page.getByRole('button', { name: authCopy.signUp.next }).click();
     await page.getByLabel(f.personTypeMoral).check();
     await page.getByLabel(f.legalName).fill(shipper.legalName);
     await page.getByLabel(f.rfc).fill(shipper.rfc);

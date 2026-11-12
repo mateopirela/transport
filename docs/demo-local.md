@@ -10,7 +10,8 @@ Contraseña de todos: **`Demo1234`**
 
 | Correo                       | Perfil                    | Empresa                                    | Para probar                                                        |
 | ---------------------------- | ------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
-| `admin@demo.test`            | Admin                     | —                                          | Cola de verificación (1 documento pendiente), todas las cargas     |
+| `admin@demo.test`            | Admin                     | —                                          | Cola de verificación (1 documento pendiente), todas las cargas. Pide el segundo factor (R5): ver abajo |
+| `admin.nuevo@demo.test`      | Admin sin segundo factor  | —                                          | Primer ingreso de un admin: inscribe su app autenticadora en `/segundo-factor` (R5) |
 | `ana.garza@demo.test`        | Cliente                   | Aceros del Norte (Monterrey)               | Viaje en descarga en GDL con mapa y chat; oferta pendiente         |
 | `luis.ramirez@demo.test`     | Cliente                   | Alimentos de Occidente (Guadalajara)       | Carga GDL → MTY publicada; contraoferta esperando al transportista; sin póliza anual del seguro de la mercancía (I1) |
 | `sofia.trevino@demo.test`    | Cliente                   | Empaques Plásticos Regios (Monterrey)      | Borrador, carga contratada con viaje asignado, carga expirada      |
@@ -23,6 +24,8 @@ Contraseña de todos: **`Demo1234`**
 | `raul.mendez@demo.test`      | Operador                  | Transportes Regios del Norte               | Operador sin viaje activo                                          |
 | `miguel.hernandez@demo.test` | Operador                  | Fletes Tapatíos                            | Viaje asignado Apodaca → GDL: registrar la salida                  |
 | `81 1000 0013` (teléfono)    | Operador sin correo (G2)  | TRN · "Regional Monterrey"                 | Iván Garza: entra con su teléfono y `Demo1234` ("Correo o teléfono"); licencia aprobada, se le puede asignar `RF53-01` |
+
+**Segundo factor del admin (R5, D46):** `admin@demo.test` tiene un factor TOTP con la clave de prueba **`JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`** (solo local; la usa `e2e/support/totp.ts`). Agrégala como clave manual a una app autenticadora (Google Authenticator, 1Password…) y escribe el código que muestra en `/segundo-factor`, después de la contraseña. `admin.nuevo@demo.test` no tiene factor: al entrar, la web le pide configurarlo. Cinco contraseñas o códigos equivocados seguidos bloquean la cuenta 15 minutos (`supabase db reset` lo limpia).
 
 Arturo Cantú y Daniel Ortiz son operadores **sin cuenta** (para probar la invitación, D15).
 

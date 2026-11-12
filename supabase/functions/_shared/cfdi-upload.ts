@@ -8,7 +8,9 @@
 //
 // 1. The body is read with a hard limit (XML 1 MiB, PDF 5 MiB), never more.
 // 2. The user comes from the JWT (Auth `/user`), never from the body, and is
-//    rate limited (consume_rate_limit with the user's JWT).
+//    rate limited (consume_rate_limit with the user's JWT). An upload only
+//    admins make (Fulmis' CFDI to the client) also asks is_admin() with the
+//    user's JWT, so the admin's session needs the second factor (R5, D46).
 // 3. The XML is parsed without DTDs (packages/shared/src/freight/cfdi.ts) and
 //    the PDF must start as a PDF.
 // 4. check_freight_invoice_service (service role only) checks the uploader
@@ -147,6 +149,25 @@ async function userIdOf(
   return typeof user?.id === 'string' && UUID.test(user.id) ? user.id : null;
 }
 
+/**
+ * Whether the JWT is an admin's session with the second factor: is_admin()
+ * with the user's JWT (aal2, R5). Null when PostgREST fails.
+ */
+async function isAdminSession(
+  supabaseUrl: string,
+  anonKey: string,
+  authorization: string,
+  fetch: FetchLike,
+): Promise<boolean | null> {
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/is_admin`, {
+    method: 'POST',
+    headers: { apikey: anonKey, Authorization: authorization, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (!response.ok) return response.status === 401 ? false : null;
+  return (await response.json().catch(() => null)) === true;
+}
+
 /** One hit of the caller's limit; a Response when refused. */
 async function consumeRateLimit(
   supabaseUrl: string,
@@ -193,6 +214,8 @@ export interface UploadOptions {
   provider: string;
   /** Whether the PDF is required (Fulmis' invoice: the client downloads it). */
   pdfRequired: boolean;
+  /** Only an admin with the second factor uploads it (Fulmis' invoice, R5). */
+  adminOnly?: boolean;
 }
 
 /** Takes a CFDI upload of the trip in `options.direction`. */
@@ -224,6 +247,15 @@ export async function handleCfdiUpload(
   try {
     const userId = await userIdOf(supabaseUrl, anonKey, authorization, deps.fetch);
     if (!userId) return json({ error: 'unauthorized' }, 401);
+    if (options.adminOnly) {
+      const admin = await isAdminSession(supabaseUrl, anonKey, authorization, deps.fetch);
+      if (admin === null) {
+        log.error('is_admin failed');
+        return json({ error: 'upstream_error' }, 502);
+      }
+      // The same answer as a trip the caller cannot reach: nothing revealed.
+      if (!admin) return json({ error: 'not_found' }, 404);
+    }
     const refusal = await consumeRateLimit(supabaseUrl, anonKey, authorization, deps.fetch, log);
     if (refusal) return refusal;
 

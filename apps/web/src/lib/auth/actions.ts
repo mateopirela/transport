@@ -23,7 +23,14 @@ import { isIP } from 'node:net';
 import { authErrorMessage } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
-import { homeFor, invitationPath, paths, safeNextPath } from '../routing';
+import {
+  homeFor,
+  invitationPath,
+  needsSecondFactor,
+  paths,
+  safeNextPath,
+  secondFactorPath,
+} from '../routing';
 import { createClient } from '../supabase/server';
 import { loadViewer, type Supabase } from '../viewer';
 import {
@@ -65,7 +72,12 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   const companyError = await registerPendingCompany(supabase);
   if (companyError) redirect(completeCompanyPath(companyError));
   const next = safeNextPath(entries.next);
-  if (next) redirect(next);
+  if (next) {
+    // Straight to where `next` ends up (an admin goes through the second
+    // factor first, D46): the client router does not follow a second redirect.
+    const viewer = await loadViewer(supabase);
+    redirect(viewer && needsSecondFactor(viewer) ? secondFactorPath(next) : next);
+  }
   await redirectHome(supabase);
   return {};
 }

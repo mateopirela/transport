@@ -17,7 +17,7 @@ const OBJECT = 'd3500000-0000-4000-8000-000000000001';
 const ok = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-function setup(env: Record<string, string | undefined> = {}) {
+function setup(env: Record<string, string | undefined> = {}, admin: unknown = true) {
   const urls: string[] = [];
   const bodies: Record<string, unknown> = {};
   const lines: string[] = [];
@@ -35,6 +35,7 @@ function setup(env: Record<string, string | undefined> = {}) {
       urls.push(url);
       if (typeof init.body === 'string') bodies[url] = JSON.parse(init.body);
       if (url.endsWith('/auth/v1/user')) return ok({ id: USER });
+      if (url.endsWith('/rpc/is_admin')) return ok(admin);
       if (url.endsWith('/rpc/consume_rate_limit')) return ok(0);
       if (url.endsWith('/rpc/check_freight_invoice_service')) {
         return ok({ failures: [], validation: 'validated' });
@@ -80,6 +81,18 @@ Deno.test('with the manual provider the admin uploads the CFDI issued elsewhere'
   assert.equal(record.p_direction, 'fulmis_to_client');
   assert.equal(record.p_provider, 'manual');
   assert.equal(record.p_receiver_rfc, 'ADN150301KQ2');
+});
+
+Deno.test('an admin without the second factor (aal1) cannot upload it (R5)', async () => {
+  for (const answer of [false, null]) {
+    const { deps, urls } = setup({}, answer);
+    const response = await handleIssueClientCfdi(upload(true), deps);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'not_found' });
+    assert.ok(urls.includes('http://supabase.test/rest/v1/rpc/is_admin'));
+    assert.ok(!urls.some((url) => url.includes('/rpc/consume_rate_limit')));
+    assert.ok(!urls.some((url) => url.includes('/storage/')));
+  }
 });
 
 Deno.test('the client downloads Fulmis invoice: its PDF is required', async () => {

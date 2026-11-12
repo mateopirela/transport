@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(38);
+select plan(39);
 
 -- ---------------------------------------------------------------------------
 -- Table privileges
@@ -320,6 +320,14 @@ select set_eq(
   ],
   'service-role-only security definer functions are the reviewed triggers and Edge Function RPCs'
 );
+-- R5 (D46): Supabase Auth runs exactly the two lock hooks (66_auth_hardening);
+-- no API role does (they are not in the lists above).
+select set_eq(
+  $$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prosecdef and has_function_privilege('supabase_auth_admin', p.oid, 'execute') $$,
+  array['hook_password_verification_attempt', 'hook_mfa_verification_attempt'],
+  'Supabase Auth executes only the reviewed hooks (the account lock, R5)'
+);
 
 -- ---------------------------------------------------------------------------
 -- Rate limits: rate_limit_counters (no client access) and the RPCs
@@ -385,7 +393,7 @@ end;
 $$;
 
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub": "a2400000-0000-4000-8000-000000000001", "role": "authenticated"}', true);
+select set_config('request.jwt.claims', '{"sub": "a2400000-0000-4000-8000-000000000001", "role": "authenticated", "aal": "aal2"}', true);
 
 select is(
   (select count(*) filter (where r = 0) from (select public.consume_rate_limit('recommendations') r
@@ -398,7 +406,7 @@ select ok(
   'the 31st call is refused with the seconds until the window resets'
 );
 
-select set_config('request.jwt.claims', '{"sub": "a2400000-0000-4000-8000-000000000002", "role": "authenticated"}', true);
+select set_config('request.jwt.claims', '{"sub": "a2400000-0000-4000-8000-000000000002", "role": "authenticated", "aal": "aal2"}', true);
 select is(public.consume_rate_limit('recommendations'), 0, 'each user has their own counter');
 select throws_ok(
   $$ select public.consume_rate_limit('dispatch-notifications') $$,

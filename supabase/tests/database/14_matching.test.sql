@@ -24,7 +24,7 @@ create function tests.login(p_id uuid)
 returns void
 language sql
 as $$
-  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
+  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 $$;
 
 create function tests.place(p_city text)
@@ -182,7 +182,7 @@ select throws_ok(
   $$ select * from public.match_candidates('e8000000-0000-4000-8000-0000000000a1') $$,
   '42501', 'vehicle not found', 'a shipper cannot match a unit'
 );
-select set_config('request.jwt.claims', '{"role": "authenticated"}', true);
+select set_config('request.jwt.claims', '{"role": "authenticated", "aal": "aal2"}', true);
 select throws_ok(
   $$ select * from public.match_candidates('e8000000-0000-4000-8000-0000000000a1') $$,
   '42501', 'not authenticated', 'an anonymous call fails'

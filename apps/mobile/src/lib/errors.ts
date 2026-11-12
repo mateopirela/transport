@@ -1,4 +1,4 @@
-import type { MobileErrorKey } from '@transport/shared';
+import { isAccountLockedError, type MobileErrorKey } from '@transport/shared';
 
 /** The fields we read from Supabase Auth and PostgREST errors. */
 export interface ErrorLike {
@@ -54,6 +54,8 @@ export function toErrorKey(error: unknown): MobileErrorKey {
     if (code && code in EDGE_FUNCTION_CODES) return EDGE_FUNCTION_CODES[code] ?? 'unknown';
     return status === null || status === undefined ? 'network' : 'unknown';
   }
+  // R5 (D46): the lock hook answers `invalid_credentials` with its own message.
+  if (isAccountLockedError({ code, message })) return 'accountLocked';
   if (code && code in AUTH_CODES) return AUTH_CODES[code] ?? 'unknown';
   // HTTP 429, or the rate limit of our RPCs (SQLSTATE PT429, F12).
   if (status === 429 || code === 'PT429') return 'rateLimited';

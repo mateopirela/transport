@@ -40,6 +40,34 @@ export interface Database {
         };
         Relationships: [];
       };
+      auth_attempt_lockouts: {
+        Row: {
+          failed_count: number;
+          kind: string;
+          locked_until: string | null;
+          updated_at: string;
+          user_id: string;
+          window_started_at: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          failed_count?: number;
+          kind: string;
+          locked_until?: string | null;
+          updated_at?: string;
+          user_id: string;
+          window_started_at?: string | null;
+        };
+        Update: {
+          failed_count?: number;
+          kind?: string;
+          locked_until?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          window_started_at?: string | null;
+        };
+        Relationships: [];
+      };
       billing_events: {
         Row: {
           company_id: string | null;
@@ -4244,6 +4272,10 @@ export interface Database {
         Args: { p_operator_id: string; p_trip_id: string; p_vehicle_id: string };
         Returns: undefined;
       };
+      auth_attempt_decision: {
+        Args: { p_kind: string; p_now?: string; p_user: string; p_valid: boolean };
+        Returns: Json;
+      };
       auth_business_unit_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       auth_carrier_company_id: { Args: Record<PropertyKey, never>; Returns: string };
       auth_company_id: { Args: Record<PropertyKey, never>; Returns: string };
@@ -4694,6 +4726,8 @@ export interface Database {
         }[];
       };
       has_location_consent: { Args: Record<PropertyKey, never>; Returns: boolean };
+      hook_mfa_verification_attempt: { Args: { event: Json }; Returns: Json };
+      hook_password_verification_attempt: { Args: { event: Json }; Returns: Json };
       internal_chat_inbox: {
         Args: { p_trip_ids?: string[] };
         Returns: {

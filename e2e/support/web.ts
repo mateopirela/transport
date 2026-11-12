@@ -1,13 +1,30 @@
 import { expect, type Page } from '@playwright/test';
-import { authCopy, legalCopy, offersCopy } from '@transport/shared';
+import { authCopy, legalCopy, offersCopy, secondFactorCopy } from '@transport/shared';
 
 import { DEMO_PASSWORD, users, type DemoUser } from './demo';
+import { DEMO_ADMIN_TOTP_KEY, unusedCode } from './totp';
 
 const f = authCopy.fields;
 
 /**
+ * On /segundo-factor (R5, D46): types a code of `key` (the demo admin's by
+ * default) not used yet and waits to leave the page.
+ */
+export async function passSecondFactorOnWeb(
+  page: Page,
+  key: string = DEMO_ADMIN_TOTP_KEY,
+  submit: string = secondFactorCopy.challenge.submit,
+): Promise<void> {
+  await expect(page).toHaveURL(/\/segundo-factor/u);
+  await page.getByLabel(secondFactorCopy.codeLabel).fill(await unusedCode(key));
+  await page.getByRole('button', { name: submit }).click();
+  await expect(page).not.toHaveURL(/\/segundo-factor/u);
+}
+
+/**
  * Signs in on the web app ("Correo o teléfono") and waits to leave the
- * sign-in page; with `next`, it lands there instead of the role's home.
+ * sign-in page; with `next`, it lands there instead of the role's home. The
+ * demo admin also passes the second factor (R5) with the seed's test key.
  */
 export async function signInOnWeb(
   page: Page,
@@ -23,6 +40,7 @@ export async function signInOnWeb(
   await page.getByLabel(f.password, { exact: true }).fill(password);
   await page.getByRole('button', { name: authCopy.signIn.submit }).click();
   await expect(page).not.toHaveURL(/\/login/u);
+  if (user === 'admin') await passSecondFactorOnWeb(page);
 }
 
 /**

@@ -174,6 +174,9 @@ from public.vehicles v where v.id = tests.val('vehicle');
 insert into tests.vals values ('release_task', 'e2400000-0000-4000-8000-000000000002');
 insert into public.rate_limit_counters (bucket, subject, window_start, hits)
 values ('recommendations', '5eed0001-0000-4000-8000-000000000005', now(), 1);
+-- R5: a locked account (the failures of a seed user, as the hook leaves them).
+insert into public.auth_attempt_lockouts (user_id, kind, failed_count, locked_until)
+values ('5eed0001-0000-4000-8000-000000000005', 'password', 0, now() + interval '15 minutes');
 insert into public.product_events (name, user_id, user_role, company_id, properties)
 values ('recommendations_viewed', '5eed0001-0000-4000-8000-000000000005', 'manager', tests.val('carrier_company'),
         '{"recommendations": 3}');
@@ -231,6 +234,8 @@ insert into tests.ownership values
   ('public.document_expiry_notices', 'false'),
   ('public.route_distance_cache', 'false'),
   ('public.rate_limit_counters', 'false'),
+  -- R5: failed sign-in attempts, written only by the Auth hooks.
+  ('public.auth_attempt_lockouts', 'false'),
   ('public.operator_provisioning_tickets', 'false'),
   ('public.product_events', 'false'),
   -- Stripe events applied by the webhook (H3): admins only.
@@ -461,7 +466,7 @@ as $$
 begin
   perform set_config('request.jwt.claims',
     case when p_uid is null then '{"role": "anon"}'
-         else json_build_object('sub', p_uid, 'role', 'authenticated')::text end, true);
+         else json_build_object('sub', p_uid, 'role', 'authenticated', 'aal', 'aal2')::text end, true);
   execute case when p_uid is null then 'set local role anon' else 'set local role authenticated' end;
 end;
 $$;

@@ -93,6 +93,41 @@ Se implementan con una ventana fija en Postgres (`rate_limit_counters`, sin acce
 
 Supabase Auth ya limita registro, inicio de sesión y correos (`[auth.rate_limit]` en `supabase/config.toml`).
 
+## Seguridad del acceso (R5, D46)
+
+Tres piezas: segundo factor para los administradores, bloqueo temporal por cuenta y fin de las sesiones. Migración `20261112200000_auth_hardening.sql`; suites 66 y 67, la 18 (inventario) y la matriz; Vitest en `packages/shared/src/auth-security.test.ts`, `apps/web/src/lib/session-limits.test.ts`, `routing.test.ts` y el helper TOTP de `e2e/support/totp.test.ts`; Playwright en `e2e/tests/admin-second-factor.spec.ts`.
+
+### Segundo factor de los administradores
+
+- **Qué es:** la app autenticadora (TOTP de Supabase Auth). Una sesión que solo escribió la contraseña es `aal1`; al confirmar el código pasa a `aal2` (claim `aal` del JWT).
+- **Postgres:** `is_admin()` ("Same as B01, except …") exige además `auth.jwt() ->> 'aal' = 'aal2'`. Así todas las políticas y RPC de admin lo piden sin tocarlas una por una: un admin en `aal1` es, para la base de datos, una cuenta sin empresa (lee su propio perfil y nada más).
+- **Revisión de los usos de `is_admin()`** (172 en 44 migraciones, el 2026-11-12): en las políticas (`using`/`with check`) solo **agrega** filas al admin; en las funciones aparece como `if not public.is_admin() then raise …` (niega), como `is_admin() or <dueño>` (permite al admin además del dueño) o en los disparadores que dejan al admin cambiar datos verificados de una empresa (`companies_guard_verified_fields` y el de `registration`) y abrir conversaciones (`open_conversation`). En ningún caso un `false` abre algo: con `aal1` todo queda igual o más cerrado. Las políticas restrictivas de I3 e I6 (`freight.*`, cargas intermediadas) ocultan filas a quien **no** es admin, así que con `aal1` el admin tampoco las ve.
+- **Fuera de `is_admin()`:** `notify_admins` y `freight_invoice_uploader_allowed` leen `profiles.role = 'admin'`. El primero solo elige a quién avisar. El segundo lo usa la Edge Function `issue-client-cfdi` (el CFDI de Fulmis al cliente, solo admin), que ahora llama además `is_admin()` con el JWT del usuario antes de leer el cuerpo: sin `aal2` responde `404 not_found`, lo mismo que a quien no ve el viaje. Las demás Edge Functions no dan nada especial al admin (`redeem-invitation` usa la API de administración de Auth con la service role, no el rol del usuario).
+- **Web:** `resolveRoute` (y con ella `proxy.ts` y `requireAccess`) manda a un admin en `aal1` a `/segundo-factor?next=…` desde cualquier pantalla con sesión; las públicas (legales, enlaces compartidos, invitaciones, `/auth`) siguen abiertas. El nivel sale del JWT verificado (`getClaims`), no de la cookie. `/segundo-factor` está abierta en `aal1` **solo** para admins: si no tienen factor, lo inscriben ahí (QR y clave, y el primer código lo confirma), así que el primer ingreso de Mateo en producción no lo deja fuera; si ya tienen uno, escriben el código. La página no se guarda en caché (`Cache-Control: private, no-store`) y la clave solo vive en la memoria de la pantalla.
+- **App:** el admin ya va a "Solo web" (`/unsupported`); con `aal1` sus llamadas de admin fallan por `is_admin()`.
+- **Respaldo:** Supabase no da códigos de respaldo con esta configuración. Al inscribirse, el admin puede escanear el mismo QR en dos apps (su teléfono y su gestor de contraseñas) o guardar la clave que muestra la pantalla en un lugar seguro: las dos generan los mismos códigos. Si pierde el acceso, Mateo borra su factor desde el panel de Supabase: en Authentication → Users, el usuario y su factor, o, si el panel no lo ofrece, con `delete from auth.mfa_factors where user_id = '<id del usuario>';` en el editor SQL del proyecto. En su siguiente ingreso el admin lo vuelve a inscribir. Mateo puede hacerlo también para sí mismo, porque el panel de Supabase no depende del factor de la plataforma.
+
+### Bloqueo temporal por cuenta
+
+- **Dónde:** los *hooks* de Supabase Auth *Password Verification Attempt* (`public.hook_password_verification_attempt`) y *MFA Verification Attempt* (`public.hook_mfa_verification_attempt`). Son la única forma autoritativa: Auth los llama en cada intento con `{ user_id, valid }`.
+- **Regla:** tras **5 fallos seguidos** de una cuenta en una ventana de **15 minutos**, se rechaza durante **15 minutos**, aunque la contraseña (o el código) sea correcta. Un acierto antes del quinto fallo reinicia la cuenta. Los intentos durante el bloqueo no lo alargan, y el bloqueo no cierra las sesiones abiertas (`should_logout_user = false`): quien bloquee una cuenta ajena a propósito solo retrasa su siguiente ingreso unos minutos. Contraseña y código tienen contadores separados. Los valores viven en `LOGIN_LOCKOUT` (`packages/shared/src/auth-security.ts`) y en la función.
+- **Datos:** `auth_attempt_lockouts` (una fila por usuario y tipo, con RLS y sin políticas: ningún rol de la API la lee ni la escribe). Los *hooks* son `security definer` de `postgres` y solo los ejecuta `supabase_auth_admin` (suite 18); la lógica (`auth_attempt_decision`) no la ejecuta nadie más. Una fila se bloquea con `for update`, así que intentos simultáneos cuentan todos (suite 67). **No hay RPC anónima** para contar fallos: permitiría bloquear cuentas ajenas sin conocer la contraseña y averiguar qué correos existen.
+- **Mensaje:** la web y la app reconocen el rechazo (`invalid_credentials` con el texto del *hook*, o `mfa_verification_rejected`) y dicen "Por seguridad bloqueamos el acceso a esta cuenta durante 15 minutos…". Ese mensaje revela que la cuenta existe; se acepta porque el registro ya lo dice ("Ya existe una cuenta con ese correo") y porque solo aparece tras 5 intentos.
+- **Sin el *hook*** (producción mientras el plan no lo permita): quedan los límites por IP de Supabase (`[auth.rate_limit]`) y, para los admins, el segundo factor.
+
+### Fin de las sesiones
+
+- **Valores** (`SESSION_LIMITS`, con test): el admin, **8 horas** desde que entró o **30 minutos** sin actividad; los demás perfiles, **30 días** desde que entraron, sin límite de inactividad (un transportista en carretera no se queda fuera a mitad del viaje).
+- **Cómo:** `proxy.ts` revisa cada petición: la hora de inicio sale del claim `amr` del JWT verificado (la primera autenticación de la sesión) y la última actividad del admin, de la cookie `transport-activity` (`httpOnly`, `SameSite=Lax`, `Secure` en HTTPS, ligada al `session_id`; sin ella cuenta la última autenticación). Al vencer, cierra la sesión en Supabase (`signOut({ scope: 'local' })`, que revoca su *refresh token*) y manda a `/login?sesion=inactiva|expirada`, que lo explica. `requireAccess` repite la revisión. Un admin sin `amr` legible se trata como vencido.
+- **Límite:** es una regla de la web. La cookie de actividad la puede reescribir quien ya tiene la sesión, y la app no la usa. Lo autoritativo para todas las superficies es `timebox` e `inactivity_timeout` de Supabase Auth (plan Pro o superior), paso para Mateo.
+
+### Pasos para Mateo (panel de Supabase de producción)
+
+1. **Antes de que R5 llegue a producción:** confirmar en Authentication → Multi-Factor que "Authenticator app (TOTP)" está activo (inscribir y verificar). Supabase lo trae activo por defecto. Al desplegar, su sesión de admin pasa a pedir el código: en su siguiente visita a `/admin` la web lo lleva a `/segundo-factor` para inscribir su app.
+2. **Bloqueo por cuenta** (plan Team o Enterprise): Authentication → Hooks → *Password Verification Attempt* → Postgres → `public.hook_password_verification_attempt`; y *MFA Verification Attempt* → `public.hook_mfa_verification_attempt`. Las funciones y sus permisos ya los crea la migración.
+3. **Duración de la sesión** (plan Pro o superior): Authentication → Sessions → *Time-box user sessions* `720h` (30 días) e *Inactivity timeout* `168h` (7 días: corta solo cuentas abandonadas; los 30 minutos del admin los aplica la web).
+4. **CAPTCHA** (opcional, necesita cuenta en hCaptcha o Turnstile): no se activó.
+
 ## Dependencias
 
 `pnpm audit` corre en CI (job `audit`) y falla con cualquier aviso alto o crítico que no esté en la lista revisada (`auditConfig.ignoreGhsas` en `pnpm-workspace.yaml`).

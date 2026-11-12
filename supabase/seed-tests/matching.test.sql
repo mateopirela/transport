@@ -15,7 +15,7 @@ set local role authenticated;
 -- Jorge Villarreal, carrier of Transportes Regios del Norte.
 select set_config(
   'request.jwt.claims',
-  '{"sub": "5eed0001-0000-4000-8000-000000000005", "role": "authenticated"}',
+  '{"sub": "5eed0001-0000-4000-8000-000000000005", "role": "authenticated", "aal": "aal2"}',
   true
 );
 
@@ -46,7 +46,7 @@ select is_empty(
 -- Fletes Tapatíos: its flatbed has a document in review, so it is not matched.
 select set_config(
   'request.jwt.claims',
-  '{"sub": "5eed0001-0000-4000-8000-000000000006", "role": "authenticated"}',
+  '{"sub": "5eed0001-0000-4000-8000-000000000006", "role": "authenticated", "aal": "aal2"}',
   true
 );
 select is_empty(

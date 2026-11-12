@@ -52,7 +52,7 @@ as $$
   select extensions.dblink_exec(p_conn, 'set local role authenticated');
   select extensions.dblink_exec(
     p_conn,
-    format('set local request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated')::text)
+    format('set local request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated', 'aal', 'aal2')::text)
   );
 $$;
 
@@ -82,7 +82,7 @@ declare
   v text;
 begin
   perform extensions.dblink_exec('setup', format(
-    'set request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated')::text
+    'set request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated', 'aal', 'aal2')::text
   ));
   select r into v from extensions.dblink('setup', p_sql) as t(r text);
   perform extensions.dblink_exec('setup', 'reset request.jwt.claims');

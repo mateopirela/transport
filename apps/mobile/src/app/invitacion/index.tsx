@@ -13,8 +13,8 @@ import { useSession } from '../../providers/session';
 
 /**
  * /invitacion without a token (G1b, G2): a coordinator or operator account
- * that does not belong to a company yet, or a visitor who tapped "Tengo un
- * enlace de invitación". A token saved at sign-up opens its screen at once;
+ * that does not belong to a company yet, or a visitor who tapped "Únete con
+ * tu invitación" (D43, on the sign-in and the sign-up). A token saved at sign-up opens its screen at once;
  * otherwise the link can be pasted, with "Abrir invitación" fixed at the bottom.
  */
 export default function InvitationIndex() {

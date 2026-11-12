@@ -11,6 +11,8 @@
 //     the first one is revoked),
 //   - I4: the Gerente's CFDI to Fulmis of the seed's held trip (the document
 //     picker is out of Maestro's reach),
+//   - R2: the confirmation email of the hombre-camión who signs up in the
+//     app (Mailpit), followed to the deep link the app opens,
 //   - the API goes down and up again around the offline flow (the iOS
 //     simulator shares the Mac's network, so the app is cut off from the
 //     server by stopping the local API gateway, the Kong container).
@@ -26,6 +28,7 @@
 //   APP_ID           bundle id (default mx.transport.app)
 //   E2E_MOBILE_OUTPUT  output folder (default e2e/mobile-results)
 //   MAESTRO_BIN      Maestro CLI (default `maestro`)
+//   E2E_MAILPIT_URL  Mailpit of the stack (default http://127.0.0.1:54324; scripts/local-ports.sh sets it)
 //   SUPABASE_PROJECT_ID and the SUPABASE_*_PORT variables of scripts/local-ports.sh, as for `supabase start`.
 import { spawnSync } from 'node:child_process';
 import {
@@ -69,6 +72,8 @@ const PEDRO = '5eed0003-0000-4000-8000-000000000001';
 // so 23-quick-pay can ask for its quick pay.
 const QUICK_PAY_MANAGER = 'jorge.villarreal@demo.test';
 const HELD_TRIP = '5eed0008-0000-4000-8000-000000000008';
+// R2: the hombre-camión who signs up in 24-carrier-sign-up-steps.
+const NEW_OWNER_OPERATOR = 'rosa.elizondo@demo.test';
 // The admin of the seed sets Fulmis' RFC (synthetic), which the CFDI is checked against.
 const ADMIN = 'admin@demo.test';
 const FULMIS_RFC = 'FUL201015AB1';
@@ -464,6 +469,39 @@ async function carrierCfdiForHeldTrip(status) {
   console.log(`${QUICK_PAY_MANAGER} uploaded his CFDI of trip ${HELD_TRIP}.`);
 }
 
+/**
+ * R2: the confirmation email of 24-carrier-sign-up-steps (Mailpit), followed
+ * to the app: its token goes to Supabase's verify endpoint with the app's
+ * callback, which answers with the deep link and the PKCE code
+ * (transport://auth/callback?code=…) for 25 to open. (The email's own link
+ * goes to the web, which would register the company by itself.)
+ */
+let confirmLink = null;
+async function confirmCarrierSignUp(status) {
+  const mailpit = process.env.E2E_MAILPIT_URL || 'http://127.0.0.1:54324';
+  const query = encodeURIComponent(`to:"${NEW_OWNER_OPERATOR}"`);
+  let html = null;
+  for (let attempt = 0; attempt < 30 && html === null; attempt += 1) {
+    const search = await fetch(`${mailpit}/api/v1/search?query=${query}`).then((r) => r.json());
+    const id = search.messages?.[0]?.ID;
+    if (id) html = (await fetch(`${mailpit}/api/v1/message/${id}`).then((r) => r.json())).HTML;
+    else await new Promise((r) => setTimeout(r, 1000));
+  }
+  if (!html) throw new Error(`no confirmation email to ${NEW_OWNER_OPERATOR}`);
+  const tokenHash = /token_hash=([^&"]+)/u.exec(html)?.[1];
+  if (!tokenHash) throw new Error('the confirmation email has no token');
+  const verify = new URL(`${status.apiUrl}/auth/v1/verify`);
+  verify.searchParams.set('token', tokenHash);
+  verify.searchParams.set('type', 'signup');
+  verify.searchParams.set('redirect_to', 'transport://auth/callback');
+  const response = await fetch(verify, { redirect: 'manual' });
+  const location = response.headers.get('location') ?? '';
+  if (!location.startsWith('transport://auth/callback?code='))
+    throw new Error(`the confirmation went to ${location || response.status}`);
+  confirmLink = { CONFIRM_LINK: location };
+  console.log(`${NEW_OWNER_OPERATOR} confirmed her email.`);
+}
+
 function apiDown() {
   run('docker', ['stop', gatewayContainer()]);
   console.log('API gateway stopped: the app is offline.');
@@ -596,6 +634,14 @@ const steps = [
   // I4: the CFDI of the seed's held trip (Edge Function), then its quick pay.
   { name: 'cfdi-for-held-trip', run: (status) => carrierCfdiForHeldTrip(status) },
   { name: '23-quick-pay', needs: 'cfdi-for-held-trip', run: () => flow('23-quick-pay') },
+  // R2: a hombre-camión signs up in steps; the confirmation registers her company.
+  { name: '24-carrier-sign-up-steps', run: () => flow('24-carrier-sign-up-steps') },
+  { name: 'confirm-carrier-sign-up', run: (status) => confirmCarrierSignUp(status) },
+  {
+    name: '25-carrier-sign-up-confirm',
+    needs: '24-carrier-sign-up-steps',
+    run: () => flow('25-carrier-sign-up-confirm', confirmLink ?? {}),
+  },
 ];
 
 let start = from ? steps.findIndex((s) => s.name === from) : 0;

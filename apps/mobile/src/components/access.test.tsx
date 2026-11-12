@@ -117,7 +117,8 @@ describe.each<Theme>(['light', 'dark'])('sign-in (%s)', (theme) => {
         mobileAuthCopy.passwordLabel,
         mobileAuthCopy.signInAction,
         mobileAuthCopy.goToSignUp,
-        mobileAuthCopy.goToInvite,
+        mobileAuthCopy.invitationQuestion,
+        mobileAuthCopy.invitationLink,
       ]),
     );
     const inputs = byType(root, 'TextInput');

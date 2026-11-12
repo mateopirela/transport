@@ -1,0 +1,26 @@
+# Step 2 after the email (D42, R2): Rosa opens the confirmation link of
+# 24-carrier-sign-up-steps on the same phone. The company she typed at
+# sign-up travels in her account and is registered by itself: she lands on
+# her area with the company "en revisión", without filling anything again.
+# Before (scripts/e2e-mobile.mjs, step confirm-carrier-sign-up): the link of
+# the confirmation email (Mailpit), followed to the app's deep link
+# (transport://auth/callback?code=…), is CONFIRM_LINK. It continues 24: the
+# code is exchanged with the verifier the sign-up left on this phone, so the
+# app keeps its state.
+appId: ${APP_ID}
+name: Hombre-camión · confirmación y empresa registrada
+tags: [carrier, sign-up]
+---
+- openLink: ${CONFIRM_LINK}
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Tu cuenta está en revisión'
+    timeout: 30000
+- assertNotVisible: 'Datos de tu empresa'
+- takeScreenshot: 25-1-company-in-review

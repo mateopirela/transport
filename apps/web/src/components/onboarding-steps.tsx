@@ -9,10 +9,12 @@ import {
   type OnboardingProfile,
   type OnboardingStep,
   type StepWork,
+  verificationSummary,
 } from '@transport/shared';
 import Link from 'next/link';
 
 import { StatusBadge } from '@/components/verification';
+import { Notice } from '@/components/ui/notice';
 import { Steps } from '@/components/ui/steps';
 import { buttonVariants, groupRow } from '@/components/ui/variants';
 import { cn } from '@/lib/utils';
@@ -117,6 +119,11 @@ export interface StatusGroup {
   title: string;
   step: OnboardingStep;
   progress: Progress;
+  /**
+   * Where a document of the group is (re)sent when it is not a step of this
+   * screen (the Coordinador's units and operators): the owner's page.
+   */
+  href?: string;
 }
 
 /**
@@ -156,10 +163,10 @@ export function DocumentStatusList({
                     {documentNextAction(item)}{' '}
                     {!readOnly && needsUpload(item) && (
                       <Link
-                        href={onboardingStepHref(base, group.step)}
+                        href={group.href ?? onboardingStepHref(base, group.step)}
                         className="text-accent-text underline-offset-4 hover:underline"
                       >
-                        {c.stepLink(signUpStepNumber(group.step))}
+                        {group.href ? c.coordinator.open : c.stepLink(signUpStepNumber(group.step))}
                       </Link>
                     )}
                   </p>
@@ -175,37 +182,54 @@ export function DocumentStatusList({
 }
 
 /**
- * Step 4 of a Coordinador who just joined by invitation (D43): the steps
- * (account, their profile, verification), what the step asks and the way to
- * their operators. Shown over the units of their business units, whose
- * readiness column is the state of each unit's documents.
+ * Steps 4 and 5 of a Coordinador who joined by invitation (D43), over the
+ * units of their business units: the steps (account, their profile,
+ * verification), what the viewed step asks and "Regresar"/"Siguiente". Step 4
+ * points to their operators; step 5 lists the state of every document of the
+ * trucks and operators they run (`groups`), each with a link to the page
+ * where it is uploaded.
  */
-export function CoordinatorWelcome({ operatorsHref }: { operatorsHref: string }) {
+export function CoordinatorOnboarding({
+  base,
+  step,
+  operatorsHref,
+  groups,
+}: {
+  base: string;
+  step: OnboardingStep;
+  operatorsHref: string;
+  groups: readonly StatusGroup[];
+}) {
+  const items = groups.flatMap((group) => group.progress);
+  const work: StepWork = { documents: [], profile: items };
+  const summary = verificationSummary(items);
+  const verification = step === 'verification';
   return (
     <section aria-label={c.label} className="mb-8 space-y-4 border bg-cell p-5">
-      <Steps
-        orientation="horizontal"
-        label={c.label}
-        steps={onboardingStepStates('coordinator', 'profile', { documents: [], profile: [] }).map(
-          ({ step, state }) => ({
-            label:
-              state === 'current' ? (
-                authCopy.signUp.steps[step]
-              ) : (
-                <span className="sr-only sm:not-sr-only">{authCopy.signUp.steps[step]}</span>
-              ),
-            // Verification is what comes next, never "done" from here.
-            state: step === 'verification' ? 'upcoming' : state,
-          }),
-        )}
-      />
+      <OnboardingProgress base={base} profile="coordinator" viewed={step} work={work} />
       <div className="space-y-1">
-        <h2 className="text-title3 text-text">{c.titles.profile}</h2>
-        <p className="text-subhead text-text-dim">{c.descriptions.profile.coordinator}</p>
+        <h2 className="text-title3 text-text">
+          {c.titles[verification ? 'verification' : 'profile']}
+        </h2>
+        <p className="text-subhead text-text-dim">
+          {verification ? c.coordinator.verification : c.descriptions.profile.coordinator}
+        </p>
       </div>
-      <Link href={operatorsHref} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
-        {c.coordinator.operators}
-      </Link>
+      {verification ? (
+        groups.length === 0 ? (
+          <Notice tone="info">{c.coordinator.empty}</Notice>
+        ) : (
+          <>
+            <Notice tone={summary.todo > 0 ? 'attention' : 'info'}>{summary.message}</Notice>
+            <DocumentStatusList base={base} groups={groups} />
+          </>
+        )
+      ) : (
+        <Link href={operatorsHref} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+          {c.coordinator.operators}
+        </Link>
+      )}
+      <OnboardingStepNav base={base} profile="coordinator" step={step} />
     </section>
   );
 }

@@ -54,6 +54,14 @@ export const onboardingStepsCopy = {
   coordinator: {
     units: 'Ver camiones',
     operators: 'Ver operadores e invitarlos',
+    /** Step 5 of the Coordinador: the documents of the trucks and operators they run. */
+    verification:
+      'Aquí ves el estado de los documentos de los camiones y operadores de tus unidades de negocio y qué hacer con cada uno.',
+    unit: (label: string) => `Camión ${label}`,
+    operator: (name: string) => `Operador: ${name}`,
+    /** Next to a document to (re)send: the unit or operator page, where it is uploaded. */
+    open: 'Abrir para subirlo',
+    empty: 'Aún no hay camiones ni operadores en tus unidades de negocio.',
   },
   operator: {
     open: 'Mis documentos',

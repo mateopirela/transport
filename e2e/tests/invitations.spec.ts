@@ -86,6 +86,19 @@ test('a coordinator joins Transportes Regios from a link', async ({ page }) => {
     ).toBeVisible();
   });
 
+  await test.step('step 5: the documents of the trucks and operators of the unit', async () => {
+    const steps = onboardingStepsCopy.coordinator;
+    await page.getByRole('link', { name: onboardingStepsCopy.next }).click();
+    await expect(page).toHaveURL(/\/transportista\/flota\/unidades\?paso=5$/u);
+    await expect(page.getByText(steps.verification)).toBeVisible();
+    // Iván Garza drives for Regional Monterrey (seed): his documents are approved.
+    const ivan = page.getByRole('region', { name: steps.operator('Iván Garza') });
+    await expect(ivan).toBeVisible();
+    await expect(ivan.getByText(onboardingStepsCopy.nextAction.approved).first()).toBeVisible();
+    await page.getByRole('link', { name: onboardingStepsCopy.back }).click();
+    await expect(page).toHaveURL(/\/transportista\/flota\/unidades\?paso=4$/u);
+  });
+
   await test.step('the link cannot be used twice', async () => {
     await page.goto(link);
     await expect(page.getByText(c.errors.invalid)).toBeVisible();

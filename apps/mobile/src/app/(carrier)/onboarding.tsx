@@ -26,6 +26,7 @@ import {
   Skeleton,
 } from '../../components/ui';
 import { carrierOnboarding } from '../../lib/onboarding';
+import { useOnboardingStep } from '../../lib/use-onboarding-step';
 import { loadOwnerDocuments } from '../../lib/owner-documents-api';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
 import { useSession } from '../../providers/session';
@@ -52,7 +53,6 @@ export default function OnboardingScreen() {
     [userId],
   );
   const { carrier, state, reload } = useCarrierData(load);
-  const [chosen, setChosen] = useState<OnboardingStep | null>(null);
   const [barHeight, setBarHeight] = useState(0);
   const scroll = useRef<ScrollView>(null);
   const readOnly = !carrier?.isManager;
@@ -62,11 +62,14 @@ export default function OnboardingScreen() {
 
   const ready = state.status === 'ready' && carrier;
   const steps = ready ? carrierOnboarding(state.data, ownerOperator) : null;
-  const viewed =
-    chosen ?? (steps ? currentOnboardingStep(onboardingProfile, steps.work) : 'documents');
+  // The step in course when the data loads, kept while uploads reload it.
+  const [viewed, setViewed] = useOnboardingStep(
+    steps ? currentOnboardingStep(onboardingProfile, steps.work) : null,
+    'documents',
+  );
   const { previous, next } = adjacentOnboardingSteps(onboardingProfile, viewed);
   function open(step: OnboardingStep) {
-    setChosen(step);
+    setViewed(step);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
 

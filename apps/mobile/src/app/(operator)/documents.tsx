@@ -16,6 +16,7 @@ import { operatorOnboarding } from '../../lib/onboarding';
 import { loadOperatorDocuments } from '../../lib/operator-documents-api';
 import { supabase } from '../../lib/supabase';
 import { useLoader } from '../../lib/use-loader';
+import { useOnboardingStep } from '../../lib/use-onboarding-step';
 import { useSession } from '../../providers/session';
 
 /**
@@ -37,7 +38,6 @@ export default function OperatorDocuments() {
     [userId, companyId],
   );
   const { state, reload } = useLoader(load);
-  const [chosen, setChosen] = useState<OnboardingStep | null>(null);
   const [barHeight, setBarHeight] = useState(0);
   const scroll = useRef<ScrollView>(null);
 
@@ -45,10 +45,14 @@ export default function OperatorDocuments() {
     state.status === 'ready' && state.data.operatorId
       ? operatorOnboarding(state.data.context, state.data.operatorId)
       : null;
-  const viewed = chosen ?? (steps ? currentOnboardingStep('operator', steps.work) : 'profile');
+  // The step in course when the data loads, kept while uploads reload it.
+  const [viewed, setViewed] = useOnboardingStep(
+    steps ? currentOnboardingStep('operator', steps.work) : null,
+    'profile',
+  );
   const { previous, next } = adjacentOnboardingSteps('operator', viewed);
   function open(step: OnboardingStep) {
-    setChosen(step);
+    setViewed(step);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
 

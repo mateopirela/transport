@@ -195,6 +195,30 @@ async function signIn(status, email) {
 }
 
 /**
+ * The seed's admin, past the second factor (R5: admin RPCs ask for aal2):
+ * signs in with the password, then answers a TOTP challenge with a code of
+ * the seed's test key.
+ */
+async function adminSignIn(status) {
+  const password = await signIn(status, ADMIN);
+  const user = await api(status, '/auth/v1/user', { token: password });
+  const factor = (user.factors ?? []).find(
+    (f) => f.factor_type === 'totp' && f.status === 'verified',
+  );
+  if (!factor) throw new Error(`${ADMIN} has no verified TOTP factor in the seed`);
+  const { DEMO_ADMIN_TOTP_KEY, unusedCode } = await import('../e2e/support/totp.ts');
+  const challenge = await api(status, `/auth/v1/factors/${factor.id}/challenge`, {
+    token: password,
+    body: {},
+  });
+  const session = await api(status, `/auth/v1/factors/${factor.id}/verify`, {
+    token: password,
+    body: { challenge_id: challenge.id, code: await unusedCode(DEMO_ADMIN_TOTP_KEY) },
+  });
+  return session.access_token;
+}
+
+/**
  * G5: Sofía publishes a MTY → Apodaca torton load, Héctor offers TT-01, she
  * accepts, he assigns Raúl, Raúl sets off and Sofía cancels the trip: TT-01
  * waits for Héctor to release it (10-coordinator-release.yaml).
@@ -414,7 +438,7 @@ async function tripLinksForPedro(status) {
 async function carrierCfdiForHeldTrip(status) {
   // Since I4 a quick pay needs the CFDI validated against Fulmis' RFC, which
   // the seed leaves unset: the admin sets it first, as on /admin/ajustes.
-  const admin = await signIn(status, ADMIN);
+  const admin = await adminSignIn(status);
   await api(status, '/rest/v1/rpc/admin_set_platform_setting', {
     token: admin,
     body: { p_key: 'fulmis.rfc', p_value: FULMIS_RFC },

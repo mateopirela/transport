@@ -772,7 +772,10 @@ insert into tests.self_scoped values
   ('accept_terms'),
   -- I4: the current quick pay fee, the same for every carrier staff (no
   -- row); the shipper and the operator get 42501 (59_quick_pay).
-  ('carrier_quick_pay_fee_bps');
+  ('carrier_quick_pay_fee_bps'),
+  -- R4: what blocks the hombre-camión's units, of the caller's own company
+  -- only (no argument); others get 42501 (68_trip_document_gate).
+  ('carrier_owner_operator_gate');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,

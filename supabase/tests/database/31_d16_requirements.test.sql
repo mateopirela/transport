@@ -7,6 +7,10 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(39);
 
+-- R3: the operator's selfie takes no part in this test (69_onboarding_documents
+-- covers it); the license checks below stay about the license.
+update public.document_requirements set is_required = false where code = 'operator_selfie';
+
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)
 -- ---------------------------------------------------------------------------
@@ -150,10 +154,10 @@ select results_eq(
 select results_eq(
   $$ select code, owner_type::text from public.document_requirements where archived_at is null order by sort_order, code $$,
   $$ values ('tax_status_certificate', 'company'), ('legal_representative_id', 'company'),
-            ('cargo_insurance_policy', 'company'),
+            ('power_of_attorney', 'company'), ('cargo_insurance_policy', 'company'),
             ('vehicle_registration_card', 'vehicle'), ('vehicle_permit', 'vehicle'), ('vehicle_insurance_policy', 'vehicle'),
-            ('operator_official_id', 'operator'), ('federal_driver_license', 'operator') $$,
-  'the active catalog is exactly the D16 list, plus the shipper''s cargo insurance (I1)'
+            ('operator_official_id', 'operator'), ('federal_driver_license', 'operator'), ('operator_selfie', 'operator') $$,
+  'the active catalog is exactly the D16 list, plus the shipper''s cargo insurance (I1) and the power of attorney and the selfie (R3)'
 );
 select results_eq(
   $$ select code, name from public.document_requirements
@@ -170,8 +174,8 @@ select results_eq(
 );
 select is(
   (select optional_for from public.document_requirements where code = 'legal_representative_id'),
-  '{shipper}'::public.company_type[],
-  'the id of the legal representative is optional for shippers ("cuando se requiera")'
+  '{}'::public.company_type[],
+  'since R3 (D16-E3) the INE of the holder or the legal representative is required for shippers too'
 );
 select throws_ok(
   $$ insert into public.document_requirements (code, owner_type, company_type, name, optional_for)
@@ -184,12 +188,12 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 select results_eq(
   $$ select code from public.company_missing_requirements('c2900000-0000-4000-8000-000000000001') $$,
-  $$ values ('tax_status_certificate') $$,
-  'a shipper (persona moral) only needs the constancia: the acta is archived and the id is optional'
+  $$ values ('tax_status_certificate'), ('legal_representative_id') $$,
+  'a shipper (persona moral) needs the constancia and the INE (D16-E3): the acta is archived'
 );
 select results_eq(
   $$ select code from public.company_missing_requirements('c2900000-0000-4000-8000-000000000002') $$,
-  $$ values ('tax_status_certificate') $$,
+  $$ values ('tax_status_certificate'), ('legal_representative_id') $$,
   'a shipper (persona física) needs the same'
 );
 select results_eq(
@@ -202,7 +206,7 @@ set local role authenticated;
 select tests.login('a2900000-0000-4000-8000-000000000001');
 select lives_ok(
   $$ select tests.submit('legal_representative_id', now() + interval '2 years') $$,
-  'a shipper may still send the optional id of its legal representative'
+  'a shipper sends the INE of its legal representative'
 );
 select throws_ok(
   $$ select tests.submit('proof_of_address') $$,
@@ -213,23 +217,23 @@ select lives_ok($$ select tests.submit('tax_status_certificate') $$, 'the shippe
 select is(
   (select count(*)::int from public.document_requirements where archived_at is null and owner_type = 'company'
      and (company_type is null or company_type = 'shipper')),
-  3, 'the registration lists exactly the D16 company documents and the cargo insurance (two of them optional)'
+  4, 'the registration lists exactly the D16 company documents, the cargo insurance and the power of attorney (two of them optional)'
 );
 
 select tests.login('a2900000-0000-4000-8000-000000000004');
 select public.review_document(id, 'approve')
 from public.documents
 where company_id = 'c2900000-0000-4000-8000-000000000001' and status = 'pending_review'
-  and requirement_id = tests.requirement('tax_status_certificate');
+  and requirement_id in (tests.requirement('tax_status_certificate'), tests.requirement('legal_representative_id'));
 select is(
   public.review_company('c2900000-0000-4000-8000-000000000001', 'approve'),
   'approved'::public.verification_status,
-  'a shipper with the constancia approved is approved without the optional id'
+  'a shipper with the constancia and the INE approved is approved without the optional cargo insurance'
 );
 select throws_ok(
   $$ select public.review_company('c2900000-0000-4000-8000-000000000002', 'approve') $$,
-  '55000', 'company is missing required documents: tax_status_certificate',
-  'a shipper without its constancia is still refused, and only for that document'
+  '55000', 'company is missing required documents: tax_status_certificate, legal_representative_id',
+  'a shipper without its constancia and INE is still refused, and only for those documents'
 );
 reset role;
 
@@ -256,8 +260,8 @@ select is(
 select results_eq(
   $$ select code from public.document_requirements
      where archived_at is null and owner_type = 'operator' order by sort_order $$,
-  $$ values ('operator_official_id'), ('federal_driver_license') $$,
-  'an operator sends an official id and a driver''s license'
+  $$ values ('operator_official_id'), ('federal_driver_license'), ('operator_selfie') $$,
+  'an operator sends an official id, a driver''s license and, since R3 (D44), a selfie'
 );
 
 -- ---------------------------------------------------------------------------

@@ -13,8 +13,14 @@ import {
   operatorStepActionLabels,
   type OperatorTripEvent,
   type TripEventType,
+  toMexicoCityDate,
   type TripStatus,
 } from '@transport/shared';
+
+/** The calendar day (YYYY-MM-DD) of an instant in Mexico City. */
+function dayOf(at: number): string {
+  return toMexicoCityDate(new Date(at).toISOString());
+}
 
 /** An end of the trip: the pickup (origin) or the delivery (destination). */
 export type TripStop = 'origin' | 'destination';
@@ -111,7 +117,7 @@ export function stepDetails(
   events: readonly { type: TripEventType; occurredAt: string }[],
   now: number = Date.now(),
 ): (string | undefined)[] {
-  const today = formatDayMonth(now);
+  const today = dayOf(now);
   return STEP_ENDS.map((end, index) => {
     if (index === progress) return copy.now;
     if (index > progress) return undefined;
@@ -122,7 +128,7 @@ export function stepDetails(
       .filter((at) => Number.isFinite(at))
       .reduce((last, at) => Math.max(last, at), Number.NEGATIVE_INFINITY);
     if (!Number.isFinite(latest)) return undefined;
-    const day = formatDayMonth(latest);
-    return day === today ? formatTime(latest) : day;
+    // The whole day (year included) decides; the short date is only what it shows.
+    return dayOf(latest) === today ? formatTime(latest) : formatDayMonth(latest);
   });
 }

@@ -129,5 +129,7 @@ describe('stepDetails', () => {
     expect(stepDetails(1, lastNight, now)[0]).toBe('10 nov');
     // The same moment, read that night, is still a time.
     expect(stepDetails(1, lastNight, Date.parse('2026-11-11T05:00:00Z'))[0]).toBe('22:10');
+    // A year later, on the same day and month, it is a date again.
+    expect(stepDetails(1, lastNight, Date.parse('2027-11-11T05:00:00Z'))[0]).toBe('10 nov');
   });
 });

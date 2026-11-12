@@ -74,10 +74,12 @@ export default async function CarrierRoutesPage() {
                 <TableRow key={route.id}>
                   <TableCell primary>
                     <span className="block">
-                      {fleetCopy.routes.item(route.origin_city, route.destination_city)}
-                    </span>
-                    <span className="block text-footnote font-normal text-text-dim">
-                      {route.origin_state} → {route.destination_state}
+                      <span className="block">
+                        {fleetCopy.routes.item(route.origin_city, route.destination_city)}
+                      </span>
+                      <span className="block text-footnote font-normal text-text-dim">
+                        {route.origin_state} → {route.destination_state}
+                      </span>
                     </span>
                   </TableCell>
                   <TableCell label={c.routes.columns.unitTypes} className="text-text-dim">

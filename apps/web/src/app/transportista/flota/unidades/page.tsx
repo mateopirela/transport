@@ -74,8 +74,10 @@ export default async function CarrierUnitsPage({
           {vehicles.map((vehicle) => (
             <TableRow key={vehicle.id}>
               <TableCell primary>
-                <span className="block">{unitLabel(vehicle)}</span>
-                <span className="block text-meta font-normal text-text-dim">{vehicle.plate}</span>
+                <span className="block">
+                  <span className="block">{unitLabel(vehicle)}</span>
+                  <span className="block text-meta font-normal text-text-dim">{vehicle.plate}</span>
+                </span>
               </TableCell>
               <TableCell label={c.units.columns.kind}>
                 {vehicleKindLabels[vehicle.kind]}

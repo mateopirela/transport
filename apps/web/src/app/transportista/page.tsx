@@ -79,7 +79,7 @@ function tripRoute(trip: CarrierTripRow): string {
 function Supervision({ rows }: { rows: UnitSupervision[] }) {
   return (
     <DashboardSection title={s.title} description={s.description}>
-      <ul className="border bg-cell">
+      <ul className="divide-y divide-separator border bg-cell">
         {rows.map(({ unit, active, toAssign }) => (
           <li key={unit.id}>
             <Cell

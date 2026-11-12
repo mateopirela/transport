@@ -130,40 +130,46 @@ export default async function CollectionsPage() {
                 className="[&_td]:align-top [&_td]:py-3"
               >
                 <TableCell primary className="min-w-64 font-normal">
-                  <Link href={carrierTripPath(row.trip_id)} className={`font-semibold ${textLink}`}>
-                    {freightCopy.route(row.origin_city, row.destination_city)}
-                  </Link>
-                  {row.payments.length > 0 && (
-                    <ul className="mt-1 space-y-0.5 text-footnote font-normal text-text-dim">
-                      {row.payments.map((payment) => (
-                        <li key={payment.speiReference}>
-                          {c.paymentLine(
-                            formatMoney(payment.amountCents),
-                            formatCalendarDate(payment.paidOn),
-                            payment.speiReference,
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="mt-3 space-y-3 border-t pt-3 text-subhead font-normal">
-                    <InvoiceSummary
-                      invoice={invoices.get(row.trip_id)}
-                      area="carrier"
-                      fallback={
-                        <div className="space-y-1">
-                          <p className="text-footnote text-text-dim">
-                            {freightInvoicesCopy.carrier.missing}
-                          </p>
-                          <InvoiceUpload
-                            tripId={row.trip_id}
-                            direction="carrier_to_fulmis"
-                            compact
-                          />
-                        </div>
-                      }
-                    />
-                    <QuickPaySection row={row} feeBps={quickPayFeeBps} />
+                  {/* One block: on a phone each cell of the card is a row. */}
+                  <div className="w-full min-w-0">
+                    <Link
+                      href={carrierTripPath(row.trip_id)}
+                      className={`font-semibold ${textLink}`}
+                    >
+                      {freightCopy.route(row.origin_city, row.destination_city)}
+                    </Link>
+                    {row.payments.length > 0 && (
+                      <ul className="mt-1 space-y-0.5 text-footnote font-normal text-text-dim">
+                        {row.payments.map((payment) => (
+                          <li key={payment.speiReference}>
+                            {c.paymentLine(
+                              formatMoney(payment.amountCents),
+                              formatCalendarDate(payment.paidOn),
+                              payment.speiReference,
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="mt-3 space-y-3 border-t pt-3 text-subhead font-normal">
+                      <InvoiceSummary
+                        invoice={invoices.get(row.trip_id)}
+                        area="carrier"
+                        fallback={
+                          <div className="space-y-1">
+                            <p className="text-footnote text-text-dim">
+                              {freightInvoicesCopy.carrier.missing}
+                            </p>
+                            <InvoiceUpload
+                              tripId={row.trip_id}
+                              direction="carrier_to_fulmis"
+                              compact
+                            />
+                          </div>
+                        }
+                      />
+                      <QuickPaySection row={row} feeBps={quickPayFeeBps} />
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell label={c.freight} numeric className="font-normal">

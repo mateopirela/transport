@@ -175,13 +175,15 @@ export default async function CarrierCompanyPage({
                   <TableRow key={coordinator.id}>
                     <TableCell primary>
                       <span className="block">
-                        {coordinator.fullName ?? c.invitations.invitee(null)}
-                      </span>
-                      {coordinator.phone && (
-                        <span className="block text-meta font-normal text-text-dim">
-                          {coordinator.phone}
+                        <span className="block">
+                          {coordinator.fullName ?? c.invitations.invitee(null)}
                         </span>
-                      )}
+                        {coordinator.phone && (
+                          <span className="block text-meta font-normal text-text-dim">
+                            {coordinator.phone}
+                          </span>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell label={c.columns.units} className="text-text-dim">
                       {names.length > 0 ? names.join(' · ') : c.coordinators.noUnits}

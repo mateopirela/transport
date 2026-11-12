@@ -29,7 +29,7 @@ import {
 } from '@/lib/admin/dashboard';
 import { formatRoute } from '@/lib/admin/filters';
 import { listAdminIncidents, loadPilotSummary } from '@/lib/admin/queries';
-import { loadAdminBrokered } from '@/lib/brokered/queries';
+import { loadAdminBrokeredAttention } from '@/lib/brokered/queries';
 import { loadAdminFreight } from '@/lib/freight/queries';
 import { serverRoadFactor } from '@/lib/loads/queries';
 import { adminBrokeredPath, adminCompanyPath, paths } from '@/lib/routing';
@@ -77,7 +77,7 @@ export default async function AdminHomePage() {
         optional(loadPendingDocuments(supabase, 1)),
         optional(loadAdminFreight(supabase)),
         optional(listAdminIncidents(supabase, { status: 'open', page: 1 })),
-        optional(loadAdminBrokered(supabase)),
+        optional(loadAdminBrokeredAttention(supabase)),
         optional(loadPilotSummary(supabase)),
       ])
     : [null, null, null, null, null, null, null];

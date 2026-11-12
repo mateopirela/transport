@@ -245,7 +245,8 @@ export function ChatPanel({
               <div
                 className={cn(
                   'max-w-[85%] space-y-1 rounded-2xl px-3.5 py-2 text-callout text-text',
-                  mine ? 'rounded-br-sm bg-accent-soft' : 'rounded-bl-sm bg-surface-high',
+                  // Never `surface-high`: the links are `accent-text`, not AA on it (§1.1).
+                  mine ? 'rounded-br-sm bg-bg' : 'rounded-bl-sm border bg-cell',
                 )}
               >
                 <p className="text-caption text-text-dim">

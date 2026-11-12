@@ -98,6 +98,23 @@ const OLD_PALETTE: HygieneRule = {
   ),
 };
 
+/**
+ * The colour keys Fulmis retired (§1.1; their aliases lived until V9): as a
+ * key of the palette, as a CSS variable and as a Tailwind colour class.
+ */
+const RETIRED_KEYS: HygieneRule = {
+  id: 'retired-token',
+  hint: 'a key of §1.1: textDim, surfaceHigh, bg, cell, separator; "done" is the ink (no green)',
+  pattern: new RegExp(
+    [
+      String.raw`\b(?:textFaint|accentSoft|okText|glassLine)\b`,
+      String.raw`\bcolors\.(?:ok|highlight|glass)\b`,
+      String.raw`(?<![\w-])(?:--(?:color-)?|(?:text|bg|border|ring|outline|fill|stroke|divide|decoration)-)(?:text-faint|accent-soft|ok-text|glass-line|ok|highlight|glass)(?![\w-])`,
+    ].join('|'),
+    'gu',
+  ),
+};
+
 const SHADOW_HINT =
   'a hairline (`separator`) instead: nothing casts a shadow (§1.3), the kits included';
 
@@ -188,8 +205,8 @@ const WEB: readonly HygieneRule[] = [
 /** The rules of each platform outside its kit: the common ones and its own. */
 export const hygieneRules: Readonly<Record<HygienePlatform, readonly HygieneRule[]>> =
   Object.freeze({
-    mobile: [...COMMON, OLD_FONT, ...MOBILE],
-    web: [...COMMON, OLD_FONT, ...WEB],
+    mobile: [...COMMON, OLD_FONT, RETIRED_KEYS, ...MOBILE],
+    web: [...COMMON, OLD_FONT, RETIRED_KEYS, ...WEB],
   });
 
 /**
@@ -199,8 +216,8 @@ export const hygieneRules: Readonly<Record<HygienePlatform, readonly HygieneRule
  */
 export const strictHygieneRules: Readonly<Record<HygienePlatform, readonly HygieneRule[]>> =
   Object.freeze({
-    mobile: [OLD_FONT, OLD_PALETTE, STYLE_SHADOW],
-    web: [OLD_FONT, OLD_PALETTE, STYLE_SHADOW, CLASS_SHADOW, CSS_SHADOW],
+    mobile: [OLD_FONT, OLD_PALETTE, RETIRED_KEYS, STYLE_SHADOW],
+    web: [OLD_FONT, OLD_PALETTE, RETIRED_KEYS, STYLE_SHADOW, CLASS_SHADOW, CSS_SHADOW],
   });
 
 /**
@@ -270,7 +287,8 @@ export function findHygieneViolations(
 
 /**
  * What a file's text breaks of the rules with no exception (shadows, the
- * previous family, the previous palette): for every file, the kits included.
+ * previous family, the previous palette, the retired keys): for every file,
+ * the kits included.
  */
 export function findStrictHygieneViolations(
   source: string,

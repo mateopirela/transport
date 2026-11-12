@@ -64,9 +64,9 @@ describe('the six tones (§1.1)', () => {
     }
   });
 
-  it('never write the accent or a retired tone as the ink', () => {
+  it('never write the accent as the ink', () => {
     for (const tone of STATE_TONES) {
-      expect(['accent', 'accentText', 'ok', 'okText']).not.toContain(STATE_TONE_KEYS[tone].ink);
+      expect(['accent', 'accentText']).not.toContain(STATE_TONE_KEYS[tone].ink);
     }
     // No green: done is quiet, on the neutral surface.
     expect(STATE_TONE_KEYS.done.fill).toBe('surfaceHigh');

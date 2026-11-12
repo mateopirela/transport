@@ -75,7 +75,7 @@ export async function NotificationsInbox({
                   className={cn(
                     groupRow,
                     'flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-3.5',
-                    unread && 'bg-accent-soft/40',
+                    unread && 'bg-surface-high',
                   )}
                 >
                   <div className="min-w-0 flex-1 space-y-1">
@@ -84,7 +84,7 @@ export async function NotificationsInbox({
                       {unread && <Pill tone="attention">{c.unread}</Pill>}
                     </p>
                     <p className="text-subhead text-text-dim">{content.body}</p>
-                    <p className="text-footnote text-text-faint tabular-nums">
+                    <p className="text-meta text-text-dim tabular-nums">
                       {formatDateTime(notification.created_at)}
                     </p>
                   </div>

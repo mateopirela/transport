@@ -12,9 +12,7 @@ export type Theme = (typeof THEMES)[number];
 /**
  * The colours of one theme (§1.1): Paper is the light one, Night the dark one.
  * The `brand*` colours are Night in both, for the surfaces that never change
- * with the theme. The keys under "Temporary aliases" belong to the previous
- * system: screens still read them, V2 and V6 move those screens to the keys
- * above them and V9 deletes the aliases.
+ * with the theme. There is no green: "done" is a quiet state (§1.1).
  */
 export interface Palette {
   /** The page. */
@@ -61,20 +59,6 @@ export interface Palette {
   readonly brandSelected: string;
   /** Its text, and the fill of the button of a brand surface. */
   readonly brandAccent: string;
-
-  // Temporary aliases (V9 deletes them).
-  /** Alias of `textDim`. */
-  readonly textFaint: string;
-  /** A ground on which `accentText` is AA: the page on Paper, `surfaceHigh` on Night. */
-  readonly accentSoft: string;
-  /** Aliases of `text`: Fulmis has no green, "done" is a quiet state. */
-  readonly ok: string;
-  readonly okText: string;
-  /** Alias of `cell`. */
-  readonly highlight: string;
-  /** Aliases of `cell` and `separator`: bars are solid, nothing is glass. */
-  readonly glass: string;
-  readonly glassLine: string;
 }
 
 /** Night, for the surfaces of the brand: the same in both themes. */
@@ -110,13 +94,6 @@ export const palette: Readonly<Record<Theme, Palette>> = Object.freeze({
     redInk: '#F4EFE6',
     redText: '#61150D',
     ...brand,
-    textFaint: '#5C544B',
-    accentSoft: '#E7D5BA',
-    ok: '#121415',
-    okText: '#121415',
-    highlight: '#F0E8DA',
-    glass: '#F0E8DA',
-    glassLine: '#CDB894',
   }),
   // Night.
   dark: Object.freeze({
@@ -141,46 +118,8 @@ export const palette: Readonly<Record<Theme, Palette>> = Object.freeze({
     // Not a Fulmis colour: derived, so that an error reads as text on Night.
     redText: '#F2917F',
     ...brand,
-    textFaint: '#A29A90',
-    accentSoft: '#261D18',
-    ok: '#F4EFE6',
-    okText: '#F4EFE6',
-    highlight: '#1C1E20',
-    glass: '#1C1E20',
-    glassLine: '#2C2F32',
   }),
 });
-
-/**
- * The status tones of a pill as the screens still ask for them: the base tone
- * at 14 % under its `*Text` tone. V2 and V6 replace them with the six filled
- * tones of §1.1; `ok` is one of the temporary aliases.
- */
-export const STATUS_TONES = ['accent', 'ok', 'amber', 'red'] as const;
-export type StatusTone = (typeof STATUS_TONES)[number];
-
-const STATUS_TONE_TEXT: Record<StatusTone, keyof Palette> = {
-  accent: 'accentText',
-  ok: 'okText',
-  amber: 'amberText',
-  red: 'redText',
-};
-
-/** How much of the base tone a pill's ground has over `cell`. */
-export const SOFT_ALPHA = 0.14;
-
-/**
- * The ground and the text of a pill of `tone`. The accent one sits on the
- * `accentSoft` token and never on a 14 % mix of the accent: on Night the
- * orange on its own mix is 4.1:1.
- */
-export function toneColors(theme: Theme, tone: StatusTone): { bg: string; fg: string } {
-  const colors = palette[theme];
-  return {
-    bg: tone === 'accent' ? colors.accentSoft : mixColors(colors[tone], colors.cell, SOFT_ALPHA),
-    fg: colors[STATUS_TONE_TEXT[tone]],
-  };
-}
 
 /** Font weights of Geist (§1.2). Geist Mono is used in 500 and 700 only. */
 export type FontWeight = 400 | 500 | 600 | 700 | 800 | 900;

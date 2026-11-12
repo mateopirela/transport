@@ -277,21 +277,6 @@ describe('Pill', () => {
     expect(ink(root)).toBe(palette.light.textDim);
   });
 
-  it('reads the names the screens used before as the tone each one became', async () => {
-    const renamed = [
-      ['accent', 'attention'],
-      ['ok', 'done'],
-      ['amber', 'pending'],
-      ['red', 'problem'],
-      ['neutral', 'inactive'],
-    ] as const;
-    for (const [before, tone] of renamed) {
-      const root = await render(<Pill label="Estado" tone={before} />);
-      expect(ground(root)).toBe(stateToneColors('light', tone).fill);
-      expect(ink(root)).toBe(stateToneColors('light', tone).ink);
-    }
-  });
-
   it('follows the dark theme', async () => {
     setSavedForTest('dark');
     const root = await render(
@@ -314,7 +299,7 @@ describe('Notice', () => {
       ['info', 'progress', 'info'],
       ['warning', 'pending', 'warning'],
       ['danger', 'problem', 'alert'],
-      ['highlight', 'done', 'check'],
+      ['done', 'done', 'check'],
     ] as const;
     for (const [tone, status, glyph] of marks) {
       const root = await render(
@@ -332,7 +317,7 @@ describe('Notice', () => {
   it('is read out as an alert only when something failed', async () => {
     const failed = await render(<Notice tone="danger" title="Rechazado" />);
     expect(byRole(failed, 'alert')).toHaveLength(1);
-    for (const tone of ['attention', 'info', 'warning', 'highlight'] as const) {
+    for (const tone of ['attention', 'info', 'warning', 'done'] as const) {
       expect(byRole(await render(<Notice tone={tone} title="Aviso" />), 'alert')).toHaveLength(0);
     }
   });

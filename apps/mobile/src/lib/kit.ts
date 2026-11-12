@@ -3,31 +3,6 @@
  * for each step, how tiles fall into rows, what a tab's counter reads. No
  * React Native here, so it is tested on its own.
  */
-import type { StateTone } from '@transport/shared';
-
-/**
- * The names the screens of the app gave a pill before Fulmis, and the tone
- * (docs/plan-fulmis.md §1.1) each one is now. They keep working until every
- * screen asks for a tone by its own name (V7, V8; V9 deletes the old names).
- */
-export const LEGACY_TONES = Object.freeze({
-  accent: 'attention',
-  ok: 'done',
-  amber: 'pending',
-  red: 'problem',
-  neutral: 'inactive',
-} as const satisfies Record<string, StateTone>);
-
-export type LegacyTone = keyof typeof LEGACY_TONES;
-
-function isLegacyTone(tone: string): tone is LegacyTone {
-  return Object.hasOwn(LEGACY_TONES, tone);
-}
-
-/** A tone by its name, or by the name it had before Fulmis. */
-export function toTone(tone: StateTone | LegacyTone): StateTone {
-  return isLegacyTone(tone) ? LEGACY_TONES[tone] : tone;
-}
 
 export type StepState = 'done' | 'current' | 'pending';
 

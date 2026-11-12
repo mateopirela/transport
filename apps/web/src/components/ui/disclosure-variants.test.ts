@@ -1,3 +1,4 @@
+import { findStrictHygieneViolations } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -65,7 +66,8 @@ describe('disclosureSummaryVariants', () => {
     }
   });
 
-  it('never writes a colour or a size by hand, a retired token or a shadow', () => {
+  // The retired keys are the strict hygiene's (src/hygiene.test.ts walks the kit).
+  it('never writes a colour or a size by hand, nor a shadow', () => {
     for (const look of LOOKS) {
       for (const tone of TONES) {
         const value = [
@@ -74,7 +76,7 @@ describe('disclosureSummaryVariants', () => {
           disclosureBodyVariants({ look }),
         ].join(' ');
         expect(value).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(|text-(xs|sm|base|lg|xl)\b|shadow/iu);
-        expect(value).not.toMatch(/text-faint|accent-soft|\bok\b|highlight|glass/u);
+        expect(findStrictHygieneViolations(value, 'web')).toEqual([]);
       }
     }
   });

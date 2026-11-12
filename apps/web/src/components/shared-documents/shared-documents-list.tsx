@@ -106,7 +106,7 @@ export function SharedDocumentsList({
                           <span
                             className={cn(
                               'text-footnote',
-                              row.active ? 'text-ok-text' : 'text-text-dim',
+                              row.active ? 'text-text' : 'text-text-dim',
                             )}
                           >
                             {row.active

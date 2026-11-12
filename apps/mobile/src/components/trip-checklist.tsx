@@ -49,7 +49,7 @@ export function TripChecklist({
   const pending = tripChecklistPending(rows);
   return (
     <>
-      <Pill label={copy.pendingCount(pending)} tone={pending === 0 ? 'ok' : 'amber'} />
+      <Pill label={copy.pendingCount(pending)} tone={pending === 0 ? 'done' : 'pending'} />
       {groups.map((group) => (
         <Fragment key={group.stage}>
           <GroupLabel>{stageLabel(group.stage)}</GroupLabel>

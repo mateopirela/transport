@@ -189,7 +189,7 @@ function TripBody({
             )}
           />
         )}
-        {trip.status === 'delivered' ? <Notice tone="highlight">{copy.delivered}</Notice> : null}
+        {trip.status === 'delivered' ? <Notice tone="done">{copy.delivered}</Notice> : null}
 
         {onRoad ? (
           <Group>

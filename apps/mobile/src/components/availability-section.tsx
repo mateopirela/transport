@@ -80,7 +80,7 @@ export function useAvailability({
         </TextCell>
       </Group>
       {message ? (
-        <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+        <Notice tone={message.tone === 'info' ? 'done' : 'danger'}>{message.text}</Notice>
       ) : null}
       {blocked ? (
         <Notice tone="danger">{copy.blocked}</Notice>

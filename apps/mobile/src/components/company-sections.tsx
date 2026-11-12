@@ -63,7 +63,7 @@ function useWrite(onChanged: () => Promise<void>) {
     }
   }
   const notice = message ? (
-    <Notice tone={message.tone === 'info' ? 'highlight' : 'danger'}>{message.text}</Notice>
+    <Notice tone={message.tone === 'info' ? 'done' : 'danger'}>{message.text}</Notice>
   ) : null;
   return { busy, run, notice };
 }

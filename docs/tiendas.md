@@ -92,12 +92,12 @@ Respuestas para _App Privacy_ (Apple) y _Seguridad de los datos_ (Google). Deben
 
 iPhone 6.9" y 6.5", y teléfono Android: cargas recomendadas, detalle de carga con mapa, negociación con chat, viaje del operador con los botones de estado y la pantalla de consentimiento de ubicación.
 
-Capturas de trabajo con el sistema visual "Transport · Nativo" (D26), del simulador iPhone 18 Pro Max (6.9") con los datos demo, en la rama `assets/U9-screenshots`. Las definitivas se toman con el nombre y el icono finales (pendientes) y sin el botón flotante del cliente de desarrollo.
+Capturas de trabajo con el sistema visual "Fulmis" (D26-E2), del simulador iPhone 18 Pro Max (6.9") con los datos demo, en la rama `assets/V9-screenshots`. Las definitivas se toman con el nombre y el icono finales (pendientes) y sin el botón flotante del cliente de desarrollo.
 
 | Pantalla | Claro | Oscuro |
 | -------- | ----- | ------ |
-| Cargas recomendadas | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/light/01-1-carrier-home-return-trip.png) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/dark/01-1-carrier-home-return-trip.png) |
-| Detalle de carga con la ruta | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/light/01-2-carrier-load-detail.png) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/dark/01-2-carrier-load-detail.png) |
-| Negociación (contraoferta) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/light/04-2-carrier-counteroffer.png) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/dark/04-2-carrier-counteroffer.png) |
-| Viaje del operador con el paso siguiente | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/light/05-4-operator-in-transit.png) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/dark/05-4-operator-in-transit.png) |
-| Consentimiento de ubicación | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/light/05-2-operator-location-consent.png) | [ver](https://github.com/mateopirela/transport/blob/assets/U9-screenshots/U9/mobile/dark/05-2-operator-location-consent.png) |
+| Cargas recomendadas | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/light/01-1-carrier-home-return-trip.png) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/dark/01-1-carrier-home-return-trip.png) |
+| Detalle de carga con la ruta | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/light/01-2-carrier-load-detail.png) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/dark/01-2-carrier-load-detail.png) |
+| Negociación (contraoferta) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/light/04-2-carrier-counteroffer.png) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/dark/04-2-carrier-counteroffer.png) |
+| Viaje del operador con el paso siguiente | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/light/05-4-operator-in-transit.png) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/dark/05-4-operator-in-transit.png) |
+| Consentimiento de ubicación | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/light/05-2-operator-location-consent.png) | [ver](https://github.com/mateopirela/transport/blob/assets/V9-screenshots/V9/mobile/dark/05-2-operator-location-consent.png) |

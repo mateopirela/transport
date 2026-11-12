@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { authCopy, carrierWebCopy, invitationUrl, legalCopy } from '@transport/shared';
+import {
+  authCopy,
+  carrierWebCopy,
+  invitationUrl,
+  legalCopy,
+  onboardingStepsCopy,
+} from '@transport/shared';
 
 import { signInAs } from '../support/actors';
 import { baseURL } from '../support/env';
@@ -71,8 +77,13 @@ test('a coordinator joins Transportes Regios from a link', async ({ page }) => {
 
   await test.step('join the company', async () => {
     await page.getByRole('button', { name: c.coordinator.join }).click();
-    await expect(page).toHaveURL(/\/transportista/u);
+    // R3 (D43): the invitation ends in step 4 of the Coordinador, the units
+    // of their business units with their documents.
+    await expect(page).toHaveURL(/\/transportista\/flota\/unidades\?paso=4$/u);
     await expect(page.getByText(carrierWebCopy.nav.home).first()).toBeVisible();
+    await expect(
+      page.getByText(onboardingStepsCopy.descriptions.profile.coordinator),
+    ).toBeVisible();
   });
 
   await test.step('the link cannot be used twice', async () => {

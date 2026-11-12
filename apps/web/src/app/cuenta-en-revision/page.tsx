@@ -21,6 +21,7 @@ import {
   type StepWork,
 } from '@transport/shared';
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 import { AppShell } from '@/components/app-shell';
 import { CreateBusinessUnitForm } from '@/components/carrier/company-forms';
@@ -29,6 +30,7 @@ import { VehicleForm } from '@/components/carrier/vehicle-form';
 import { DocumentUpload } from '@/components/document-upload';
 import {
   DocumentStatusList,
+  onboardingStepHref,
   OnboardingProgress,
   OnboardingStepNav,
   type StatusGroup,
@@ -147,8 +149,10 @@ export default async function AccountInReviewPage({
       : own,
     profileExtras: ownerOperator ? (vehicles.length === 0 ? 1 : 0) + (operatorOwner ? 0 : 1) : 0,
   };
-  const current = currentOnboardingStep(profile, work);
-  const viewed: OnboardingStep = parseOnboardingStep(params.paso, profile) ?? current;
+  const viewed: OnboardingStep | null = parseOnboardingStep(params.paso, profile);
+  // Without a valid `?paso=`, the step in course, in the URL: an upload
+  // revalidates this same URL, so the step on screen never jumps away.
+  if (!viewed) redirect(onboardingStepHref(paths.review, currentOnboardingStep(profile, work)));
   const summary = verificationSummary([...work.documents, ...work.profile]);
   const base = paths.review;
   const description =

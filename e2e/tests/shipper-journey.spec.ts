@@ -7,6 +7,7 @@ import {
   loadsCopy,
   offersCopy,
   onboardingCopy,
+  onboardingStepsCopy,
   shellCopy,
   tripEventTypeLabels,
   tripStatusLabels,
@@ -122,9 +123,20 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     ).toBeVisible();
   });
 
-  await test.step('upload the company documents', async () => {
+  await test.step('upload the common documents (step 3) and see them in review (step 5)', async () => {
+    // R3 (D42): the review page opens on the step in course, the documents.
+    await expect(
+      page.getByRole('heading', { name: onboardingStepsCopy.titles.documents }),
+    ).toBeVisible();
     await uploadMissingDocuments(page);
-    await expect(page.getByText(onboardingCopy.documents.allSent)).toBeVisible();
+    await page.getByRole('link', { name: onboardingStepsCopy.next }).click();
+    // Step 4 of a shipper: the optional annual cargo insurance (D35-E1), which
+    // this journey sends so its trip departs without a policy of its own, and
+    // the note on its loads (D47).
+    await expect(page.getByText(onboardingStepsCopy.shipperLoadsNote)).toBeVisible();
+    await uploadMissingDocuments(page);
+    await page.getByRole('link', { name: onboardingStepsCopy.next }).click();
+    await expect(page.getByText(onboardingStepsCopy.summary.inReview).first()).toBeVisible();
   });
 
   await test.step('the admin approves the documents and the company', async () => {

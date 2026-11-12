@@ -302,3 +302,15 @@ Formato: objetivo, alcance, fuera de alcance, tests, aceptación, E2E que probab
 3. **Verde de éxito:** el plan no lo agrega (§1.1). Decir si se quiere.
 4. **El cliente en la app:** hoy es solo web (D06-E1). Llevarlo a la app es un cambio de producto, fuera de esta ola.
 5. **Textos legales:** las páginas se rediseñan en V5, pero siguen con datos por definir.
+
+## 5. Estado final (V9, 2026-11-12)
+
+La ola V quedó completa en `main` con V1–V9 (#104–#111 y el PR de V9).
+
+- **Sistema:** los tokens son los de §1.1 y nada más; los alias de V1 se borraron de `tokens.ts` y de `globals.css`, junto con las píldoras teñidas al 14 % y los nombres de tono anteriores de la app. La prueba de tokens comprueba que la paleta no tiene otras claves.
+- **Higiene sin excepciones heredadas:** a lo prohibido en todas partes (kits y temas incluidos) se suman las claves retiradas, como clave, variable o clase (`retired-token`), y en la web los radios de tarjeta escritos a mano (`rounded-xl` y mayores). Los únicos lugares del código que nombran lo retirado son esa regla y su prueba.
+- **Paquetes:** sin Hanken Grotesk ni `expo-blur`.
+- **Kit web:** `Panel`, `AttentionList` y `ConfirmSubmit` viven en `components/ui/` y los usan los tres tableros y los formularios del admin; `KpiTile` recibe importes (`cents`) en `numeral`; el foco de `BackLink` y `textLink` es el contorno de §1.3.
+- **Kit app:** `BrandBlock` acepta varias líneas y una línea `meta`; `Notice` y `Pill` solo conocen los seis tonos; el avance del viaje muestra la fecha de un paso de otro día.
+- **Marca:** icono, icono adaptativo y splash en Night con el cuadro señal (§1.4); se ven en la siguiente compilación nativa.
+- **Pendiente de Mateo:** §4 (nombre, logotipo, verde, cliente en la app, textos legales) y el "Seguimiento" del PR de V9.

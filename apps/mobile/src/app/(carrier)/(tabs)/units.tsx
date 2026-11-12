@@ -1,4 +1,5 @@
 import {
+  documentsBlockUnit,
   fleetCopy,
   formatDateTime,
   unitTypeLabels,
@@ -27,6 +28,7 @@ const copy = fleetCopy.units;
 const READINESS_TONES: Record<VehicleReadiness, PillTone> = {
   pending_release: 'problem',
   expired_documents: 'problem',
+  missing_documents: 'problem',
   unset: 'inactive',
   scheduled: 'progress',
   available: 'done',
@@ -46,7 +48,7 @@ function describe(vehicle: VehicleSummary): string {
 
 /** Where and from when a unit is free, when it can take loads. */
 function whereFree(vehicle: VehicleSummary): string | null {
-  if (!vehicle.availability || vehicle.readiness === 'expired_documents') return null;
+  if (!vehicle.availability || documentsBlockUnit(vehicle.readiness)) return null;
   return fleetCopy.availability.current(
     vehicle.availability.city,
     vehicle.availability.state,
@@ -89,7 +91,8 @@ export default function UnitsTab() {
               key={vehicle.id}
               strong
               title={vehicle.plate}
-              lines={[describe(vehicle), whereFree(vehicle)]}
+              // R4 (D45): what keeps it from travelling, by name.
+              lines={[describe(vehicle), vehicle.documentIssue ?? whereFree(vehicle)]}
               pill={{
                 label: vehicleReadinessLabels[vehicle.readiness],
                 tone: READINESS_TONES[vehicle.readiness],

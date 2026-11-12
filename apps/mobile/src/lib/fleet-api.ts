@@ -1,10 +1,14 @@
 import {
   applicableRequirements,
   cityPreset,
-  expiredRequirementIds,
+  documentGate,
+  documentGateText,
   requirementProgress,
   toEwktPoint,
+  parseOwnerOperatorGate,
+  unitTravelGate,
   vehicleReadiness,
+  type OwnerOperatorGate,
   type CarrierRouteFormValues,
   type DocumentOwnerType,
   type OperatorDraftValues,
@@ -92,6 +96,20 @@ export async function loadCompanyContext(
   };
 }
 
+/**
+ * Why the documents keep a unit (no `operatorName`) or an operator from
+ * travelling (R4, D45), or null when every required one is approved and
+ * current. The same rule as assign_trip.
+ */
+export function ownerDocumentIssue(
+  context: CompanyContext,
+  owner: { type: 'vehicle' | 'operator'; id: string },
+  operatorName: string | null = null,
+): string | null {
+  const requirements = applicableRequirements(context.requirements, owner.type, context.company);
+  return documentGateText(documentGate(requirements, context.documents, owner), operatorName);
+}
+
 /** Requirements of one owner with the state of each (see requirementProgress). */
 export function ownerProgress(
   context: CompanyContext,
@@ -105,6 +123,17 @@ export function ownerProgress(
 // Vehicles and availability
 // ---------------------------------------------------------------------------
 
+/**
+ * R4 (D13): what blocks the hombre-camión's units from his own documents.
+ * carrier_owner_operator_gate answers it, since a Coordinador cannot read
+ * his operator row by RLS (a hidden row must not look missing).
+ */
+export async function loadOwnerOperatorGate(client: Supabase): Promise<OwnerOperatorGate> {
+  const { data, error } = await client.rpc('carrier_owner_operator_gate');
+  if (error) throw error;
+  return parseOwnerOperatorGate(data);
+}
+
 export type Availability = Pick<
   Tables<'vehicle_availability'>,
   'vehicle_id' | 'available_from' | 'city' | 'state'
@@ -113,6 +142,15 @@ export type Availability = Pick<
 export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'business_unit_id'> {
   availability: Availability | null;
   readiness: VehicleReadiness;
+  /**
+   * R4: why it cannot travel (its documents and, for a hombre-camión, his
+   * own), or null. What availability and recommendations check.
+   */
+  documentIssue: string | null;
+  /** R4: why its own documents block it, or null: what assign_trip checks of the unit. */
+  unitDocumentIssue: string | null;
+  /** R4: whether one of its own documents expired (the assignment's flag, apart from the owner's). */
+  unitDocumentsExpired: boolean;
   /** Name of the business unit that runs it (G1a.2). */
   businessUnitName: string | null;
   businessUnitId: string;
@@ -125,7 +163,7 @@ export async function listVehicles(
   client: Supabase,
   context: CompanyContext,
 ): Promise<VehicleSummary[]> {
-  const [vehicles, availability, pending] = await Promise.all([
+  const [vehicles, availability, pending, owner] = await Promise.all([
     client
       .from('vehicles')
       .select(VEHICLE_COLUMNS)
@@ -143,20 +181,35 @@ export async function listVehicles(
       .select('vehicle_id')
       .eq('company_id', context.company.id)
       .eq('status', 'pending'),
+    loadOwnerOperatorGate(client),
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const pendingRelease = new Set(check(pending).map((t) => t.vehicle_id));
+  const vehicleRequirements = applicableRequirements(
+    context.requirements,
+    'vehicle',
+    context.company,
+  );
   return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
-    const owner = { type: 'vehicle', id: vehicle.id } as const;
-    const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
+    // R4: the unit's documents and, for a hombre-camión, his own (D13).
+    const gate = unitTravelGate({
+      vehicleRequirements,
+      documents: context.documents,
+      vehicleId: vehicle.id,
+      owner,
+    });
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
       businessUnitId: vehicle.business_unit_id,
       availability: current,
+      documentIssue: gate.text,
+      unitDocumentIssue: gate.unitText,
+      unitDocumentsExpired: gate.unitExpired,
       readiness: vehicleReadiness({
-        expiredDocuments: expiredRequirementIds(requirements, context.documents, owner).length > 0,
+        expiredDocuments: gate.expired,
+        missingDocuments: gate.notApproved,
         availableFrom: current?.available_from ?? null,
         pendingRelease: pendingRelease.has(vehicle.id),
       }),

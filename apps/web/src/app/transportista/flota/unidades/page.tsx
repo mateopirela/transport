@@ -1,5 +1,6 @@
 import {
   carrierWebCopy,
+  documentsBlockUnit,
   formatDateTime,
   unitLabel,
   unitTypeLabels,
@@ -28,8 +29,9 @@ const c = carrierWebCopy.fleet;
 export const metadata: Metadata = { title: c.units.title };
 
 /**
- * The units of the selected business units with their readiness and
- * availability (G10b; B18 on the app), as a table. Adding one is the
+ * The units of the selected business units with their readiness, what
+ * their documents block (R4) and availability (G10b; B18 on the app), as a
+ * table. Adding one is the
  * Gerente's primary.
  */
 export default async function CarrierUnitsPage({
@@ -92,9 +94,15 @@ export default async function CarrierUnitsPage({
               </TableCell>
               <TableCell label={c.units.columns.readiness}>
                 <ReadinessPill readiness={vehicle.readiness} />
+                {/* R4 (D45): what keeps it from travelling, by name. */}
+                {vehicle.documentIssue && (
+                  <span className="mt-1 block text-footnote text-text-dim">
+                    {vehicle.documentIssue}
+                  </span>
+                )}
               </TableCell>
               <TableCell label={c.units.columns.availability} className="text-text-dim">
-                {vehicle.availability && vehicle.readiness !== 'expired_documents'
+                {vehicle.availability && !documentsBlockUnit(vehicle.readiness)
                   ? c.units.availableAt(
                       vehicle.availability.city,
                       formatDateTime(vehicle.availability.available_from),

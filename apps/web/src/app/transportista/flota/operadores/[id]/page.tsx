@@ -135,6 +135,12 @@ export default async function CarrierOperatorPage({
           title={fleetCopy.operators.documentsTitle}
           description={c.documents.description}
         >
+          {/* R4 (D45): what keeps the operator from travelling, by name. */}
+          {operator.documentIssue && (
+            <Notice tone="attention" className="mb-4">
+              {operator.documentIssue}
+            </Notice>
+          )}
           <FleetDocuments
             companyId={companyId}
             owner={{ type: 'operator', id: operator.id }}

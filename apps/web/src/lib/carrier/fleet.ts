@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { uuidField, type Tables } from '@transport/shared';
+import { parseOwnerOperatorGate, uuidField, type Tables } from '@transport/shared';
 
 import { selectAll } from '../verification/paging';
 import type { Supabase } from '../viewer';
@@ -46,13 +46,19 @@ const REQUIREMENT_COLUMNS =
 const DOCUMENT_COLUMNS =
   'id, requirement_id, owner_type, owner_id, status, review_notes, expires_at, created_at, archived_at, file_name';
 
-/** Loads what the readiness and the document list of every unit and operator need. */
+/**
+ * Loads what the readiness and the document list of every unit and operator
+ * need, and (R4, D13) what blocks the hombre-camión's units from his own
+ * documents: carrier_owner_operator_gate answers it, since a Coordinador
+ * cannot read his operator row by RLS.
+ */
 export async function loadFleetContext(
   supabase: Supabase,
   companyId: string,
 ): Promise<FleetContext> {
-  const [company, requirements, documents] = await Promise.all([
+  const [company, ownerOperator, requirements, documents] = await Promise.all([
     supabase.from('companies').select('id, type, rfc, legal_name').eq('id', companyId).single(),
+    supabase.rpc('carrier_owner_operator_gate'),
     supabase.from('document_requirements').select(REQUIREMENT_COLUMNS).is('archived_at', null),
     selectAll((from, to) =>
       supabase
@@ -64,7 +70,13 @@ export async function loadFleetContext(
         .range(from, to),
     ),
   ]);
-  return { company: check(company), requirements: check(requirements), documents };
+  if (ownerOperator.error) throw new Error(ownerOperator.error.message);
+  return {
+    company: check(company),
+    requirements: check(requirements),
+    documents,
+    ownerOperator: parseOwnerOperatorGate(ownerOperator.data),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -171,14 +183,15 @@ const OPERATOR_COLUMNS =
 
 /**
  * Active operators of the given business units, oldest first, with their
- * pending invitation. Paged past the 1,000-row cap of PostgREST.
+ * pending invitation and what their documents block (R4). Paged past the 1,000-row cap of PostgREST.
  */
 export async function listCarrierOperators(
   supabase: Supabase,
-  companyId: string,
+  context: FleetContext,
   businessUnitIds: readonly string[],
 ): Promise<OperatorSummary[]> {
   if (businessUnitIds.length === 0) return [];
+  const companyId = context.company.id;
   const now = new Date().toISOString();
   const [operators, invitations] = await Promise.all([
     selectAll<OperatorRead>((from, to) =>
@@ -204,7 +217,7 @@ export async function listCarrierOperators(
         .range(from, to),
     ),
   ]);
-  return summarizeOperators(operators, invitations);
+  return summarizeOperators(context, operators, invitations);
 }
 
 /** One active operator of the company with its documents, or null. */
@@ -232,7 +245,7 @@ export async function getCarrierOperator(
   ]);
   if (operator.error) throw new Error(`Operator query failed: ${operator.error.message}`);
   if (!operator.data) return null;
-  const [summary] = summarizeOperators([operator.data], check(invitations));
+  const [summary] = summarizeOperators(context, [operator.data], check(invitations));
   if (!summary) return null;
   return { ...summary, progress: ownerProgress(context, { type: 'operator', id: summary.id }) };
 }

@@ -3,10 +3,12 @@ import {
   carrierTripsCopy,
   carrierWebCopy,
   clientTripsCopy,
+  documentGateCopy,
   fleetCopy,
   tripCancelCopy,
   tripDocumentKindLabels,
   tripStatusLabels,
+  vehicleReadinessLabels,
 } from '@transport/shared';
 
 import { acceptOffer, findTrip, makeOffer, pendingCarrierOffer, signInAs } from '../support/actors';
@@ -19,8 +21,9 @@ import { SAMPLE_PDF, signInOnWeb } from '../support/web';
 // Coordinadora, assigns CS53-01 and Pedro López on the web and uploads the
 // Carta Porte; her fleet shows only her business unit; Héctor, Coordinador
 // of "Regional Monterrey", cannot open that trip; Jorge, the Gerente,
-// registers a unit in "Regional Monterrey" that only Héctor sees and then
-// archives it; finally Andrea cancels the trip, so CS53-01 is free again for
+// registers a unit in "Regional Monterrey" that only Héctor sees, finds it
+// cannot travel nor take the trip until its documents are approved (R4, D45)
+// and then archives it; finally Andrea cancels the trip, so CS53-01 is free again for
 // return-trip.spec.ts. Demo data: supabase/seed.sql (docs/demo-local.md).
 
 const LEON_ROUTE = 'León, Guanajuato → Apodaca, Nuevo León';
@@ -110,6 +113,13 @@ test('the carrier staff assign, document and cancel trips and run the fleet on t
     await expect(andrea.getByRole('link', { name: f.units.add })).toHaveCount(0);
     await andrea.goto('/transportista/flota/operadores');
     await expect(andrea.getByText('Pedro López').first()).toBeVisible();
+    // R4: the seed's operators have their documents approved.
+    await expect(
+      andrea
+        .getByRole('row')
+        .filter({ hasText: 'Pedro López' })
+        .getByText(documentGateCopy.fleet.canTravel),
+    ).toBeVisible();
     await expect(andrea.getByText('Raúl Méndez')).toHaveCount(0);
     await expect(andrea.getByRole('link', { name: f.operators.add })).toHaveCount(0);
   });
@@ -156,6 +166,22 @@ test('the carrier staff assign, document and cancel trips and run the fleet on t
     await expect(jorge.getByText(f.units.saved)).toBeVisible();
     await expect(form.getByLabel(fleetCopy.units.plateLabel)).toHaveValue(TEST_PLATE);
     await expect(form.getByLabel(fleetCopy.units.fleetNumberLabel)).toHaveValue('PRB-01');
+  });
+
+  await test.step('the new unit cannot travel nor take the trip without its documents (R4)', async () => {
+    // Catalog order: card, permits, insurance (D16).
+    const gate = documentGateCopy.unit.notApproved(
+      'Tarjeta de circulación, Permisos correspondientes y Seguro vigente',
+    );
+    await jorge.goto(unitUrl);
+    await expect(jorge.getByText(vehicleReadinessLabels.missing_documents).first()).toBeVisible();
+    await expect(jorge.getByText(gate)).toBeVisible();
+    await expect(jorge.getByText(fleetCopy.availability.blocked)).toBeVisible();
+
+    await jorge.goto(`/transportista/viajes/${tripId}`);
+    await selectByText(jorge.getByLabel(c.assign.unit), 'PRB-01');
+    await expect(jorge.getByText(gate)).toBeVisible();
+    await expect(jorge.getByRole('button', { name: c.assign.resubmit })).toBeDisabled();
   });
 
   await test.step('only Héctor sees the new unit', async () => {

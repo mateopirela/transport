@@ -1,4 +1,5 @@
 import {
+  documentsBlockUnit,
   fleetCopy,
   vehicleReleaseCopy,
   type BusinessUnitRef,
@@ -192,7 +193,7 @@ function VehicleDetail({
     client: carrier.client,
     vehicleId: vehicle.id,
     current: vehicle.availability,
-    blocked: vehicle.readiness === 'expired_documents',
+    blocked: documentsBlockUnit(vehicle.readiness),
     onChanged: reload,
   });
   const releaseForm = useRelease({
@@ -260,6 +261,8 @@ function VehicleDetail({
         availability.section
       )}
       <SectionHeader title={copy.documentsTitle} />
+      {/* R4 (D45): what keeps the unit from travelling, by name. */}
+      {vehicle.documentIssue ? <Notice tone="attention">{vehicle.documentIssue}</Notice> : null}
       <DocumentList
         client={carrier.client}
         context={context}

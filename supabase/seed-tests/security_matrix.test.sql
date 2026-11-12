@@ -21,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(36);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -772,7 +772,10 @@ insert into tests.self_scoped values
   ('accept_terms'),
   -- I4: the current quick pay fee, the same for every carrier staff (no
   -- row); the shipper and the operator get 42501 (59_quick_pay).
-  ('carrier_quick_pay_fee_bps');
+  ('carrier_quick_pay_fee_bps'),
+  -- R4: what blocks the hombre-camión's units, of the caller's own company
+  -- only (no argument); others get 42501 (68_trip_document_gate).
+  ('carrier_owner_operator_gate');
 
 select set_eq(
   $$ select fn from tests.rpc_calls union select fn from tests.self_scoped $$,
@@ -942,6 +945,36 @@ select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000002', (select call from tests.rpc_calls where fn = 'set_provider_status')),
   'harness: the shipper of the pair can revoke the provider approval'
 );
+
+-- R4 (D10-E1): nobody but review_document writes where a review came from.
+-- Every persona of the seed is `authenticated`: none may write the column,
+-- and each one's direct update is refused.
+select ok(
+  not has_column_privilege('authenticated', 'public.documents', 'review_source', 'insert, update')
+  and not has_column_privilege('anon', 'public.documents', 'review_source', 'select, insert, update'),
+  'no client writes documents.review_source (only review_document sets it); anon does not even read it'
+);
+create function tests.review_source_writers()
+returns setof text
+language plpgsql
+as $$
+declare
+  p record;
+begin
+  for p in select uid, label from tests.personas order by uid loop
+    begin
+      perform tests.act_as(p.uid);
+      update public.documents set review_source = 'automatic';
+      reset role;
+      return next p.label;
+    exception when insufficient_privilege then
+      reset role;
+    end;
+  end loop;
+end;
+$$;
+select is_empty($$ select * from tests.review_source_writers() $$,
+  'every persona''s update of review_source is refused');
 
 select * from finish();
 rollback;

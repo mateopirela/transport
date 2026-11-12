@@ -6,7 +6,33 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(116);
+select plan(117);
+
+-- R4 (D45): the units and operators this test creates come with every
+-- required document approved and current, so the trip document gate lets
+-- them through (68_trip_document_gate tests the gate itself). Rolled back
+-- with the transaction.
+create schema r4_fixture;
+create function r4_fixture.approve_documents()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+  select new.company_id, r.id, r.owner_type, new.id,
+         new.company_id || '/' || r.owner_type || '/' || new.id || '/' || gen_random_uuid() || '.pdf',
+         'approved', now() + interval '1 year'
+  from public.document_requirements r
+  where r.owner_type = tg_argv[0]::public.document_owner_type and r.is_required and r.archived_at is null;
+  return null;
+end;
+$$;
+create trigger r4_fixture_documents after insert on public.vehicles
+for each row execute function r4_fixture.approve_documents('vehicle');
+create trigger r4_fixture_documents after insert on public.operators
+for each row execute function r4_fixture.approve_documents('operator');
 
 -- I1: the cargo insurance (51_cargo_insurance) takes no part in this test.
 update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
@@ -541,8 +567,12 @@ select is(
 );
 -- Plus one chat_message per conversation the carrier wrote in (negotiation A
 -- and the trip): grouped, the two messages of A give a single notification.
-select is((select count(*) from public.notifications), 7::bigint,
-  'the shipper has its offer, acceptance, trip and chat notifications');
+-- And documents_shared (G6): the assigned unit and operator have their
+-- documents approved since the trip document gate (R4).
+select is((select count(*) from public.notifications), 8::bigint,
+  'the shipper has its offer, acceptance, trip, shared documents and chat notifications');
+select is((select count(*)::int from public.notifications where type = 'documents_shared'), 1,
+  'one of them says the carrier''s documents were shared');
 select throws_ok($$ update public.notifications set read_at = now() $$, '42501', null,
   'clients cannot update notifications directly');
 select throws_ok($$ delete from public.notifications $$, '42501', null,
@@ -551,7 +581,7 @@ insert into tests.vals
 select 'notif1', id from public.notifications
 where type = 'offer_received' and data ->> 'offerId' = tests.val('offerA')::text;
 select is(public.mark_notifications_read(array[tests.val('notif1')]), 1, 'marks the given notifications as read');
-select is(public.mark_notifications_read(), 6, 'or all of them');
+select is(public.mark_notifications_read(), 7, 'or all of them');
 select is(public.mark_notifications_read(), 0, 'already read ones are not counted again');
 select tests.login('a7000000-0000-4000-8000-000000000002');
 select is(public.mark_notifications_read(array[tests.val('notif1')]), 0,

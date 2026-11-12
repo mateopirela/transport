@@ -7,6 +7,7 @@ import { notificationEmail, notificationWebPath } from './copy/notification-emai
 import { notificationContent } from './copy/notifications';
 import { validationMessages as m } from './copy/validation';
 import { tripCancellationReasonLabels, vehicleReleaseCopy } from './copy/vehicle-release';
+import { documentGateErrorText } from './document-gate';
 import { TRIP_CANCELLATION_REASONS } from './enums';
 import { fleetErrorText } from './fleet';
 import {
@@ -133,9 +134,11 @@ describe('errors of a unit pending release', () => {
     expect(releaseErrorText('release task is not pending')).toBe(
       vehicleReleaseCopy.errors.alreadyReleased,
     );
+    // R4: the gate names what blocks the unit (document-gate.test.ts).
     expect(releaseErrorText('vehicle has expired documents: vehicle_permit')).toBe(
-      fleetErrorCopy.expiredDocuments,
+      documentGateErrorText('vehicle has expired documents: vehicle_permit', 'availability'),
     );
+    expect(releaseErrorText('vehicle has expired documents')).toBe(fleetErrorCopy.expiredDocuments);
     expect(releaseErrorText('city and state are required')).toBe(
       vehicleReleaseCopy.errors.invalidPlace,
     );

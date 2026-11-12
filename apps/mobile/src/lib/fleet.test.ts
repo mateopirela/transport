@@ -1,4 +1,9 @@
-import { fleetErrorCopy, mobileErrorCopy, vehicleFormSchema } from '@transport/shared';
+import {
+  documentGateCopy,
+  fleetErrorCopy,
+  mobileErrorCopy,
+  vehicleFormSchema,
+} from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import { fleetErrorMessage } from './fleet-errors';
@@ -129,9 +134,17 @@ describe('fleetErrorMessage', () => {
         message: 'duplicate key value violates unique constraint "vehicles_company_plate_key"',
       }),
     ).toBe(fleetErrorCopy.plateTaken);
+    // R4 (D45): the gate names what blocks the unit.
     expect(
       fleetErrorMessage({ message: 'vehicle has expired documents: vehicle_insurance_policy' }),
-    ).toBe(fleetErrorCopy.expiredDocuments);
+    ).toBe(`Venció: Seguro vigente. ${documentGateCopy.errors.availability}`);
+    expect(
+      fleetErrorMessage({
+        message: 'operator has missing documents: operator_official_id: José Sánchez Medina',
+      }),
+    ).toBe(
+      `Falta aprobar: Identificación oficial de José Sánchez Medina. ${documentGateCopy.errors.availability}`,
+    );
     expect(fleetErrorMessage({ message: 'operator already has an account' })).toBe(
       fleetErrorCopy.operatorHasAccount,
     );

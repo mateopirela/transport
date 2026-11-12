@@ -5,6 +5,7 @@
 import { billingCopy } from './copy/billing';
 import { fleetErrorCopy } from './copy/fleet';
 import { vehicleReleaseCopy } from './copy/vehicle-release';
+import { documentGateErrorText } from './document-gate';
 import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verification';
 
 /**
@@ -12,23 +13,42 @@ import type { DocumentOwnerType, Requirement, SubmittedDocument } from './verifi
  * - `pending_release`: its trip was cancelled after it set off; not available
  *   until its coordinator or the manager releases it (G5, D20).
  * - `expired_documents`: a required document expired; not available (B18).
+ * - `missing_documents`: a required document was never approved (missing,
+ *   in review or rejected); it cannot travel nor be made available (R4, D45).
  * - `unset`: no active availability.
  * - `scheduled`: free from a future date.
  * - `available`: free now.
  */
 export type VehicleReadiness =
-  'pending_release' | 'expired_documents' | 'unset' | 'scheduled' | 'available';
+  | 'pending_release'
+  | 'expired_documents'
+  | 'missing_documents'
+  | 'unset'
+  | 'scheduled'
+  | 'available';
 
 export function vehicleReadiness(
-  input: { expiredDocuments: boolean; availableFrom: string | null; pendingRelease?: boolean },
+  input: {
+    expiredDocuments: boolean;
+    /** R4: a required document without a current approval that did not expire (documentGate). */
+    missingDocuments?: boolean;
+    availableFrom: string | null;
+    pendingRelease?: boolean;
+  },
   now: Date = new Date(),
 ): VehicleReadiness {
   // First: it is what the staff must do next (and the database refuses any
   // availability or commitment until then).
   if (input.pendingRelease) return 'pending_release';
   if (input.expiredDocuments) return 'expired_documents';
+  if (input.missingDocuments) return 'missing_documents';
   if (!input.availableFrom) return 'unset';
   return Date.parse(input.availableFrom) > now.getTime() ? 'scheduled' : 'available';
+}
+
+/** Whether the unit's documents keep it from travelling and from being made available (D45). */
+export function documentsBlockUnit(readiness: VehicleReadiness): boolean {
+  return readiness === 'expired_documents' || readiness === 'missing_documents';
 }
 
 /**
@@ -164,6 +184,9 @@ const FLEET_ERRORS: readonly (readonly [RegExp, string])[] = [
 
 /** Spanish text for a known error message of a fleet write, or null when unknown. */
 export function fleetErrorText(message: string): string | null {
+  // R4: the gate's errors carry the codes of what blocks the unit.
+  const gate = documentGateErrorText(message, 'availability');
+  if (gate) return gate;
   for (const [pattern, text] of FLEET_ERRORS) if (pattern.test(message)) return text;
   return null;
 }

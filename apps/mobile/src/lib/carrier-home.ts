@@ -93,7 +93,9 @@ export interface Attention {
  * "Requiere tu atención", most urgent first: the units to release (they
  * cannot work), the client's counteroffers, the trips to assign and the
  * documents about to expire. At most `perKind` rows of each kind but the
- * releases, which are few and block a unit.
+ * releases, which are few and block a unit. The counteroffers and the trips
+ * left out are a tap away in Cargas and Viajes; the documents have no list of
+ * their own in the app, so `allExpiring` shows every one of them here.
  */
 export function attentionItems(
   {
@@ -107,11 +109,14 @@ export function attentionItems(
     toAssign: readonly TripToAssign[];
     expiring: readonly ExpiringDocument[];
   },
-  perKind: number = ATTENTION_PER_KIND,
+  {
+    perKind = ATTENTION_PER_KIND,
+    allExpiring = false,
+  }: { perKind?: number; allExpiring?: boolean } = {},
 ): Attention {
   const answer = firstOf(toAnswer, perKind);
   const assign = firstOf(toAssign, perKind);
-  const documents = firstOf(expiring, perKind);
+  const documents = firstOf(expiring, allExpiring ? expiring.length : perKind);
   const items: AttentionItem[] = [
     ...releases.map((p) => ({
       key: `release-${p.taskId}`,

@@ -17,7 +17,8 @@ import {
   toMexicoCityDate,
 } from '@transport/shared';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { BillingBanner } from '../../../components/billing-banner';
 import { CarrierTripRow } from '../../../components/carrier-trip-row';
@@ -26,6 +27,7 @@ import type { IconName } from '../../../components/icons';
 import { RecommendationCell } from '../../../components/load-card';
 import { StatusRow } from '../../../components/status-row';
 import {
+  Button,
   Cell,
   Empty,
   Footnote,
@@ -66,6 +68,7 @@ import { listPendingReleases } from '../../../lib/release-api';
 import { track } from '../../../lib/track';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { useSession } from '../../../providers/session';
+import { spacing } from '../../../theme';
 
 const copy = fleetCopy.onboarding;
 const feedCopy = carrierLoadsCopy.home;
@@ -224,7 +227,8 @@ export default function HomeTab() {
  */
 function DashboardSections({ data, messages }: { data: Dashboard; messages: ReactNode }) {
   const router = useRouter();
-  const attention = attentionItems(data);
+  const [allExpiring, setAllExpiring] = useState(false);
+  const attention = attentionItems(data, { allExpiring });
   const { totals } = data;
   return (
     <>
@@ -266,14 +270,25 @@ function DashboardSections({ data, messages }: { data: Dashboard; messages: Reac
               <AttentionRow key={item.key} item={item} />
             ))}
           </Group>
+          {/* What was left out: the counteroffers wait in Cargas and the trips in Viajes;
+              the documents unfold here, the only place the app lists them all. */}
           {attention.more.respond > 0 ? (
-            <Footnote>{d.attention.moreRespond(attention.more.respond)}</Footnote>
+            <MoreButton
+              label={d.attention.moreRespond(attention.more.respond)}
+              onPress={() => router.push('/loads')}
+            />
           ) : null}
           {attention.more.assign > 0 ? (
-            <Footnote>{d.attention.moreAssign(attention.more.assign)}</Footnote>
+            <MoreButton
+              label={d.attention.moreAssign(attention.more.assign)}
+              onPress={() => router.push('/trips')}
+            />
           ) : null}
           {attention.more.expiring > 0 ? (
-            <Footnote>{carrierAppCopy.home.moreExpiring(attention.more.expiring)}</Footnote>
+            <MoreButton
+              label={carrierAppCopy.home.moreExpiring(attention.more.expiring)}
+              onPress={() => setAllExpiring(true)}
+            />
           ) : null}
         </>
       )}
@@ -306,6 +321,17 @@ function DashboardSections({ data, messages }: { data: Dashboard; messages: Reac
     </>
   );
 }
+
+/** A link under "Requiere tu atención" to what it left out. */
+function MoreButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <View style={styles.more}>
+      <Button label={label} variant="plain" size="small" onPress={onPress} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({ more: { alignItems: 'flex-start', marginTop: -spacing.sm } });
 
 /** One thing to do: what it is and its detail, its kind on a pill, and the screen where it is done. */
 function AttentionRow({ item }: { item: AttentionItem }) {

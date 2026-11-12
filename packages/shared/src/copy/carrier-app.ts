@@ -6,9 +6,9 @@
 
 export const carrierAppCopy = {
   home: {
-    /** Under "Requiere tu atención": the rows of a kind left out. */
+    /** Under "Requiere tu atención": shows the documents left out. */
     moreExpiring: (count: number) =>
-      count === 1 ? 'Y 1 documento más por vencer.' : `Y ${count} documentos más por vencer.`,
+      count === 1 ? 'Ver 1 documento más por vencer' : `Ver ${count} documentos más por vencer`,
     /** An expiring document's row: the document and whose it is. */
     expiringItem: (document: string, owner: string) => `${document} · ${owner}`,
     /** The indicator while Cobranza cannot be read. */

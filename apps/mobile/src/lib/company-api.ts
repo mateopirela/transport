@@ -5,6 +5,7 @@ import {
   type Tables,
 } from '@transport/shared';
 
+import { selectAll } from './paging';
 import type { Supabase } from './supabase';
 
 // Data access of "Mi empresa" (G4) and of the invitation links of the fleet
@@ -72,25 +73,6 @@ export interface ManagerCompany {
 
 const INVITATION_COLUMNS =
   'id, kind, business_unit_ids, operator_id, invitee_name, expires_at, accepted_at, revoked_at';
-
-/** PostgREST caps each response (1,000 rows by default); long lists are paged. */
-const PAGE_SIZE = 1000;
-
-/** Every row of a query ordered by a unique key, page by page until a short page. */
-async function selectAll<T>(
-  page: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await page(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(error.message);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 /** Everything "Mi empresa" lists, for the Gerente (RLS gives them the whole company). */
 export async function loadManagerCompany(

@@ -146,11 +146,26 @@ describe('attentionItems', () => {
   it('shows a few rows of each kind and counts the rest', () => {
     const { items, total, more } = attentionItems(
       { releases: [], toAnswer, toAssign: [], expiring: [] },
-      3,
+      { perKind: 3 },
     );
     expect(items).toHaveLength(3);
     expect(total).toBe(4);
     expect(more.respond).toBe(1);
+  });
+
+  it('unfolds every expiring document when asked to', () => {
+    const expiring = ['a', 'b', 'c', 'e', 'f'].map((id, i) => ({
+      documentId: id,
+      requirementName: 'Póliza de seguro',
+      owner: { type: 'vehicle' as const, id: `v-${id}`, label: `CS53-0${i}` },
+      expiresAt: '2026-11-20T06:00:00Z',
+      daysLeft: 8,
+    }));
+    const input = { releases: [], toAnswer: [], toAssign: [], expiring };
+    expect(attentionItems(input).more.expiring).toBe(2);
+    const all = attentionItems(input, { allExpiring: true });
+    expect(all.items).toHaveLength(5);
+    expect(all.more.expiring).toBe(0);
   });
 
   it('is empty when nothing waits', () => {

@@ -3,18 +3,17 @@ import {
   internalChatCopy as copy,
   mobileNavCopy,
   tripStatusLabels,
+  tripStatusTone,
 } from '@transport/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
 import { ChatPanel } from '../../../components/chat-panel';
-import { tripStatusTone } from '../../../components/trip-position';
-import { Button, LoadError, Loading, Notice, Pill, Screen } from '../../../components/ui';
+import { TripHeading } from '../../../components/operator-trip';
+import { Button, LoadError, Loading, Notice, Screen } from '../../../components/ui';
 import { loadOperatorChat, type OperatorChat } from '../../../lib/internal-chat-api';
 import { supabase } from '../../../lib/supabase';
 import { useLoader, type LoaderState } from '../../../lib/use-loader';
-import { spacing, useTheme } from '../../../theme';
 
 /** The chat of one trip, or why there is none. */
 interface Loaded {
@@ -73,6 +72,7 @@ export default function OperatorChatScreen() {
       label={mobileNavCopy.assignedTrip}
       variant="plain"
       size="small"
+      icon="chevronBack"
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/trip'))}
     />
   );
@@ -99,9 +99,23 @@ export default function OperatorChatScreen() {
       </Screen>
     );
   }
+  const trip = chat.trip;
   return (
-    <Screen title={copy.title} right={back}>
-      {chat.trip ? <TripHeader trip={chat.trip} /> : null}
+    <Screen title={trip ? undefined : copy.title} right={trip ? undefined : back}>
+      {trip ? (
+        <>
+          <TripHeading
+            eyebrow={carrierTripsCopy.list.route(trip.originCity, trip.destinationCity)}
+            title={copy.title}
+            pill={{ label: tripStatusLabels[trip.status], tone: tripStatusTone(trip.status) }}
+            right={back}
+          />
+          {trip.status === 'cancelled' ? <Notice tone="info">{copy.cancelledTrip}</Notice> : null}
+          {trip.status === 'closed' || trip.status === 'delivered' ? (
+            <Notice tone="info">{copy.closedTrip}</Notice>
+          ) : null}
+        </>
+      ) : null}
       {/* One panel per conversation: another trip's chat never inherits its messages or draft. */}
       <ChatPanel
         key={chat.conversationId}
@@ -114,23 +128,3 @@ export default function OperatorChatScreen() {
     </Screen>
   );
 }
-
-function TripHeader({ trip }: { trip: NonNullable<OperatorChat['trip']> }) {
-  const { type } = useTheme();
-  return (
-    <>
-      <View style={styles.head}>
-        <Text style={type.headline}>
-          {carrierTripsCopy.list.route(trip.originCity, trip.destinationCity)}
-        </Text>
-        <Pill label={tripStatusLabels[trip.status]} tone={tripStatusTone(trip.status)} />
-      </View>
-      {trip.status === 'cancelled' ? <Notice tone="info">{copy.cancelledTrip}</Notice> : null}
-      {trip.status === 'closed' || trip.status === 'delivered' ? (
-        <Notice tone="info">{copy.closedTrip}</Notice>
-      ) : null}
-    </>
-  );
-}
-
-const styles = StyleSheet.create({ head: { gap: spacing.sm, alignItems: 'flex-start' } });

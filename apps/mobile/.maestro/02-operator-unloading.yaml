@@ -14,7 +14,7 @@ tags: [operator, star]
     env:
       EMAIL: pedro.lopez@demo.test
 - extendedWaitUntil:
-    visible: 'Avance del viaje'
+    visible: 'Tu siguiente paso'
     timeout: 30000
 - runFlow:
     file: subflows/location-consent.yaml
@@ -28,12 +28,14 @@ tags: [operator, star]
 # changes: its value is short, so tapping the input puts the cursor at its end
 # and eraseText clears it (the date fills its input: a tap lands mid-text).
 - runScript: scripts/unload-estimate.js
-# The form's button in the middle of the screen keeps its fields clear of the
-# bottom bar (the next step, "Terminar descarga").
+# The form's button in the middle of the screen keeps its fields in view. The
+# times under the trip's steps look like the field's value too: tap the input
+# under its label.
 - scrollUntilVisible:
     element: 'Guardar fin estimado'
     centerElement: true
-- tapOn: '\d{2}:\d{2}'
+- tapOn:
+    below: 'Hora \(HH:MM\)'
 - eraseText: 10
 - inputText: ${output.estimate.input}
 - tapOn: 'Fin estimado de descarga'

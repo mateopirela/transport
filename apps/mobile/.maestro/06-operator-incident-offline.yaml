@@ -8,39 +8,40 @@ appId: ${APP_ID}
 name: Operador · incidencia con foto sin conexión
 tags: [operator, offline]
 ---
-- scrollUntilVisible:
-    element: 'Reportar incidencia'
-    centerElement: true
-- tapOn: 'Retraso'
-- runFlow:
-    file: subflows/fill-field.yaml
-    env:
-      LABEL: 'Qué pasó'
-      TEXT: 'Tráfico detenido en la autopista por obras.'
-# A tap on the section's title closes the keyboard; with "Reportar al
-# coordinador" above (H1) it may have scrolled out of view.
+# "Reportar incidencia" is always in the "Tu siguiente paso" block (V7): it
+# opens the report in a sheet.
 - scrollUntilVisible:
     element: 'Reportar incidencia'
     direction: UP
 - tapOn: 'Reportar incidencia'
-- scrollUntilVisible:
-    element: 'Enviar incidencia'
-    centerElement: true
+- extendedWaitUntil:
+    visible: 'Enviar incidencia'
+    timeout: 15000
+- waitForAnimationToEnd
+- tapOn: 'Retraso'
+# Typed in place (subflows/fill-field.yaml scrolls, and a swipe would move
+# the sheet): the input is right under its label.
+- tapOn:
+    below: 'Qué pasó'
+- inputText: 'Tráfico detenido en la autopista por obras.'
+# The sheet rests over the keyboard: its button is in reach.
 - tapOn: 'Enviar incidencia'
+# The sheet closes and the trip shows the incident in its list.
 - scrollUntilVisible:
     element: 'Incidencia guardada en el teléfono.*'
-    direction: UP
+    direction: DOWN
     timeout: 15000
 # The incident is listed with its pending badge and already takes photos.
 - assertVisible: 'Tráfico detenido en la autopista por obras.'
+# The confirmation shows over the list, above the incident's button.
 - runFlow:
     file: subflows/take-photo.yaml
     env:
       BUTTON: 'Agregar foto'
-      NOTICE: DOWN
+      NOTICE: UP
 - scrollUntilVisible:
     element: '1 foto'
-    direction: UP
+    direction: DOWN
     centerElement: true
 - takeScreenshot: 06-1-operator-incident-offline
 # Both wait on the phone: the report and its photo.

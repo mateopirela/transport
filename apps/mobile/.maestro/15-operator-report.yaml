@@ -19,7 +19,7 @@ tags: [operator]
     env:
       EMAIL: pedro.lopez@demo.test
 - extendedWaitUntil:
-    visible: 'Avance del viaje'
+    visible: 'Tu siguiente paso'
     timeout: 30000
 # His trip: the report to the coordinator on top, no chat with the shipper.
 - assertVisible: 'Reportar al coordinador.*'

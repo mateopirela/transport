@@ -34,5 +34,5 @@ appId: ${APP_ID}
           commands:
             - tapOn: 'Change to Always Allow'
       - extendedWaitUntil:
-          visible: 'Avance del viaje'
+          visible: 'Tu siguiente paso'
           timeout: 15000

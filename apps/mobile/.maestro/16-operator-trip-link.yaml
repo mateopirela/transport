@@ -76,7 +76,7 @@ tags: [operator]
     optional: true
 # Back from the sign-in, the link opens his trip.
 - extendedWaitUntil:
-    visible: 'Avance del viaje'
+    visible: 'Tu siguiente paso'
     timeout: 30000
 - assertVisible: 'Reportar al coordinador.*'
 - takeScreenshot: 16-2-trip-link-operator-trip

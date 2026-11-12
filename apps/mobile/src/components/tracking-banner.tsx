@@ -43,7 +43,7 @@ export function TrackingBanner({ tracking }: { tracking: TripTracking }) {
         accessibilityRole="summary"
         accessibilityLabel={`${copy.sharingTitle}. ${copy.sharingBody}`}
       >
-        <Icon name="locate" size={iconSize.cell} color={colors.ok} />
+        <Icon name="locate" size={iconSize.cell} color={colors.info} />
         <View style={styles.text}>
           <Text style={styles.title}>{copy.sharingTitle}</Text>
           <Text style={styles.body}>{copy.sharingBody}</Text>
@@ -65,7 +65,7 @@ function makeStyles({ colors, type }: Look) {
       paddingVertical: spacing.sm + spacing.xs,
     },
     text: { flex: 1, gap: spacing.xs / 2 },
-    title: { ...type.headline, color: colors.okText },
+    title: type.headline,
     body: { ...type.subhead, color: colors.textDim },
     action: { marginTop: spacing.xs, alignItems: 'flex-start' },
   });

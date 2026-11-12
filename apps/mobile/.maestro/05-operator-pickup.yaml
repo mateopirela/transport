@@ -16,17 +16,18 @@ tags: [operator]
     env:
       EMAIL: miguel.hernandez@demo.test
 - extendedWaitUntil:
-    visible: 'Avance del viaje'
+    visible: 'Tu siguiente paso'
     timeout: 30000
 - takeScreenshot: 05-1-operator-assigned-trip
 - runFlow:
     file: subflows/status-step.yaml
     env:
       STEP: 'Salir a recolección'
-# Once the trip is active, tracking asks for the consent first (B22).
+# Once the trip is active, tracking asks for the consent first (B22), right
+# under the "Tu siguiente paso" block.
 - scrollUntilVisible:
     element: 'Revisar y aceptar'
-    direction: UP
+    direction: DOWN
     timeout: 15000
 - runFlow:
     file: subflows/location-consent.yaml

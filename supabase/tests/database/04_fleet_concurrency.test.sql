@@ -38,7 +38,7 @@ as $$
     p_conn,
     format(
       'set local request.jwt.claims = %L',
-      jsonb_build_object('sub', p_user, 'role', 'authenticated')::text
+      jsonb_build_object('sub', p_user, 'role', 'authenticated', 'aal', 'aal2')::text
     )
   );
 $$;

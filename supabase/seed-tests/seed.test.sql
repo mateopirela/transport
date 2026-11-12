@@ -9,7 +9,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(49);
 
 create schema tests;
 grant usage on schema tests to authenticated;
@@ -18,7 +18,7 @@ create function tests.login(p_id uuid)
 returns void
 language sql
 as $$
-  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
+  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 $$;
 grant execute on function tests.login(uuid) to authenticated;
 
@@ -27,7 +27,7 @@ grant execute on function tests.login(uuid) to authenticated;
 -- ---------------------------------------------------------------------------
 select is(
   (select count(*)::int from public.profiles where id::text like '5eed0001-%' and role = 'admin' and company_id is null),
-  1, 'one admin without a company'
+  2, 'two admins without a company (R5: one of them still without a second factor)'
 );
 select is(
   (select count(*)::int from public.companies where id::text like '5eed0002-%' and type = 'shipper' and status = 'approved'),
@@ -129,11 +129,18 @@ select is(
      and email like '%@demo.test'
      and email_confirmed_at is not null
      and encrypted_password = extensions.crypt('Demo1234', encrypted_password)),
-  12, 'twelve confirmed demo users with the documented password'
+  13, 'thirteen confirmed demo users with the documented password'
 );
 select is(
   (select count(*)::int from auth.identities where user_id::text like '5eed0001-%' and provider = 'email'),
-  13, 'every demo user has an email identity (needed to sign in; Iván''s is the synthetic one of his phone)'
+  14, 'every demo user has an email identity (needed to sign in; Iván''s is the synthetic one of his phone)'
+);
+select is(
+  (select string_agg(u.email || ':' || f.factor_type || ':' || f.status, ',')
+   from auth.mfa_factors f join auth.users u on u.id = f.user_id
+   where u.id::text like '5eed0001-%'),
+  'admin@demo.test:totp:verified',
+  'only the demo admin has a second factor (R5): the other admin enrolls one on the first sign-in'
 );
 
 -- ---------------------------------------------------------------------------

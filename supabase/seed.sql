@@ -5,8 +5,9 @@
 -- documented in docs/demo-local.md.
 --
 -- What it creates (docs/plan-v1.md, B10):
---   * 1 admin, 3 shipper companies and 3 carrier companies (the third one is a
---     "hombre-camión": a persona física that is also its own operator, D13).
+--   * 2 admins (one with a second factor, R5), 3 shipper companies and 3
+--     carrier companies (the third one is a "hombre-camión": a persona
+--     física that is also its own operator, D13).
 --   * 8 units of several kinds and types, and 7 operators (5 with an account,
 --     one of them a phone-only operator provisioned by an invitation link, G2).
 --   * Business units (G1a.2): Transportes Regios del Norte has two, each with
@@ -140,9 +141,21 @@ select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000012', 'hector.ibarra@
 -- synthetic Auth email of that phone) and the demo password.
 select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000013', '528110000013@tel.transport.invalid', 'operator', 'Iván Garza', '+52 81 1000 0013', '{"provider": "email", "providers": ["email"], "provisioned_by": "redeem-invitation"}');
 
+-- A second admin without a second factor yet (R5): enrolls an authenticator
+-- app on the first sign-in (e2e/tests/admin-second-factor.spec.ts).
+select pg_temp.seed_user('5eed0001-0000-4000-8000-000000000014', 'admin.nuevo@demo.test', 'shipper', 'Administración Nueva', '+52 81 1000 0016');
+
 -- Admins cannot sign up (handle_new_user): they are promoted by the database
 -- owner, as with the service role in staging and production.
-update public.profiles set role = 'admin' where id = '5eed0001-0000-4000-8000-000000000001';
+update public.profiles set role = 'admin'
+where id in ('5eed0001-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000014');
+
+-- R5 (D46): admin@demo.test confirms each session with an authenticator app
+-- (TOTP, aal2). LOCAL TEST KEY, published in docs/demo-local.md: the e2e
+-- suite computes its codes (e2e/support/totp.ts). Never a real account's key.
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at, secret)
+values ('5eed00f1-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000001', 'Demo', 'totp',
+        'verified', now(), now(), 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP');
 
 -- ---------------------------------------------------------------------------
 -- Companies, all approved by the admin, with their fiscal data (D16, G2)

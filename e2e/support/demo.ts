@@ -5,6 +5,8 @@ export const DEMO_PASSWORD = 'Demo1234';
 
 export const users = {
   admin: 'admin@demo.test',
+  /** An admin without a second factor yet (R5): enrolls one on the first sign-in. */
+  adminNew: 'admin.nuevo@demo.test',
   /** Shipper of Aceros del Norte: its MTY -> GDL trip is unloading in Guadalajara. */
   ana: 'ana.garza@demo.test',
   /** Shipper of Alimentos de Occidente: owns the GDL -> MTY return load. */

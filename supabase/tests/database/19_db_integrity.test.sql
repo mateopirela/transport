@@ -31,7 +31,7 @@ create function tests.login(p_id uuid)
 returns void
 language sql
 as $$
-  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
+  select set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 $$;
 
 create function tests.payload(p_reverse boolean, p_days integer default 1)

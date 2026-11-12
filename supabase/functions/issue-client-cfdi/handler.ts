@@ -1,6 +1,7 @@
 // Edge Function `issue-client-cfdi` (I5, D37): Fulmis' CFDI to the client, for
-// 100 % of the freight. Only admins (record_freight_invoice_service checks
-// it, by the JWT's user).
+// 100 % of the freight. Only admins with the second factor: is_admin() with
+// the user's JWT (aal2, R5) and record_freight_invoice_service (by the JWT's
+// user).
 //
 //   POST application/json { tripId }
 //     → asks the provider to issue it. With the `manual` provider (no PAC,
@@ -47,5 +48,6 @@ export async function handleIssueClientCfdi(
     direction: 'fulmis_to_client',
     provider: provider.name,
     pdfRequired: true,
+    adminOnly: true,
   });
 }

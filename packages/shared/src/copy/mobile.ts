@@ -1,5 +1,7 @@
 // Spanish copy of the carrier/operator app shell (B17): authentication,
 // invitations, navigation and connectivity.
+import { LOGIN_LOCKOUT } from '../auth-security';
+import { accessSecurityCopy } from './auth-security';
 
 export const mobileAuthCopy = {
   appName: 'Transport',
@@ -202,6 +204,8 @@ export const mobileSystemCopy = {
 /** Errors shown to the user; keys are produced by the app's error mapping. */
 export const mobileErrorCopy = {
   invalidCredentials: 'Correo o contraseña incorrectos.',
+  /** R5 (D46): the account is locked for a while after failed attempts. */
+  accountLocked: accessSecurityCopy.accountLocked(LOGIN_LOCKOUT.lockMinutes),
   emailNotConfirmed: 'Confirma tu correo antes de iniciar sesión.',
   userAlreadyExists: 'Ya existe una cuenta con este correo. Inicia sesión.',
   weakPassword: 'La contraseña es muy débil. Usa al menos 8 caracteres con letras y números.',

@@ -31,7 +31,7 @@ language sql
 as $$
   select set_config(
     'request.jwt.claims',
-    jsonb_build_object('sub', p_id, 'role', 'authenticated')::text,
+    jsonb_build_object('sub', p_id, 'role', 'authenticated', 'aal', 'aal2')::text,
     true
   );
 $$;

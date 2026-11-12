@@ -11,9 +11,11 @@ import {
   chatAttachmentHref,
   homeFor,
   invitationPath,
+  needsSecondFactor,
   paths,
   resolveRoute,
   safeNextPath,
+  secondFactorPath,
   sharedPath,
   tripFileHref,
   type Viewer,
@@ -21,7 +23,10 @@ import {
 
 type SignedIn = NonNullable<Viewer>;
 
-const admin: SignedIn = { role: 'admin', company: null };
+/** An admin whose session passed the second factor (D46). */
+const admin: SignedIn = { role: 'admin', company: null, aal: 'aal2' };
+/** An admin who only typed the password. */
+const adminAal1: SignedIn = { role: 'admin', company: null, aal: 'aal1' };
 const approvedShipper: SignedIn = { role: 'shipper', company: { status: 'approved' } };
 const pendingShipper: SignedIn = { role: 'shipper', company: { status: 'pending_review' } };
 const newShipper: SignedIn = { role: 'shipper', company: null };
@@ -81,9 +86,87 @@ describe('the current terms (I1)', () => {
   });
 });
 
+describe('the second factor of admins (R5, D46)', () => {
+  const others = [
+    approvedShipper,
+    pendingShipper,
+    newShipper,
+    manager,
+    coordinator,
+    pendingManager,
+    newManager,
+    operator,
+  ];
+
+  it('is needed only by an admin without aal2 (a missing level counts as aal1)', () => {
+    expect(needsSecondFactor(adminAal1)).toBe(true);
+    expect(needsSecondFactor({ role: 'admin', company: null })).toBe(true);
+    expect(needsSecondFactor(admin)).toBe(false);
+    for (const viewer of others) {
+      expect(needsSecondFactor(viewer)).toBe(false);
+      expect(needsSecondFactor({ ...viewer, aal: 'aal1' })).toBe(false);
+    }
+  });
+
+  it('sends an admin in aal1 to /segundo-factor from the panel, remembering the page', () => {
+    expect(homeFor(adminAal1)).toBe(paths.secondFactor);
+    expect(resolveRoute(paths.home, adminAal1)).toBe(paths.secondFactor);
+    expect(resolveRoute(paths.admin, adminAal1)).toBe('/segundo-factor?next=%2Fadmin');
+    expect(resolveRoute(paths.adminFreight, adminAal1)).toBe(
+      '/segundo-factor?next=%2Fadmin%2Fflete',
+    );
+    expect(resolveRoute('/admin/empresas/x', { role: 'admin', company: null })).toBe(
+      '/segundo-factor?next=%2Fadmin%2Fempresas%2Fx',
+    );
+  });
+
+  it('keeps an admin in aal1 out of every other signed-in screen', () => {
+    for (const path of [paths.shipper, paths.carrier, paths.review, paths.resetPassword]) {
+      expect(resolveRoute(path, adminAal1)).toBe(secondFactorPath(path));
+    }
+    // The sign-in and sign-up screens send them on to the second factor.
+    expect(resolveRoute(paths.signIn, adminAal1)).toBe(paths.secondFactor);
+    expect(resolveRoute(paths.signUp, adminAal1)).toBe(paths.secondFactor);
+  });
+
+  it('leaves the public pages open to an admin in aal1', () => {
+    for (const path of [
+      paths.terms,
+      paths.privacy,
+      '/auth/confirm',
+      invitationPath('a'.repeat(43)),
+    ]) {
+      expect(resolveRoute(path, adminAal1)).toBeNull();
+    }
+  });
+
+  it('opens /segundo-factor only to an admin in aal1', () => {
+    expect(resolveRoute(paths.secondFactor, adminAal1)).toBeNull();
+    expect(resolveRoute(paths.secondFactor, admin)).toBe(paths.admin);
+    expect(resolveRoute(paths.secondFactor, null)).toBe('/login?next=%2Fsegundo-factor');
+    for (const viewer of others) {
+      expect(resolveRoute(paths.secondFactor, viewer)).toBe(homeFor(viewer));
+    }
+  });
+
+  it('builds the link back to the page the admin asked for', () => {
+    expect(secondFactorPath()).toBe(paths.secondFactor);
+    expect(secondFactorPath(paths.home)).toBe(paths.secondFactor);
+    expect(secondFactorPath('/admin/flete')).toBe('/segundo-factor?next=%2Fadmin%2Fflete');
+  });
+
+  it('changes nothing for the other profiles', () => {
+    for (const viewer of others) {
+      expect(resolveRoute(paths.home, viewer)).toBe(homeFor(viewer));
+      expect(resolveRoute(paths.admin, viewer)).toBe(homeFor(viewer));
+    }
+  });
+});
+
 describe('homeFor', () => {
   it.each([
     [admin, paths.admin],
+    [adminAal1, paths.secondFactor],
     [approvedShipper, paths.shipper],
     [pendingShipper, paths.review],
     [{ role: 'shipper', company: { status: 'suspended' } } as SignedIn, paths.review],

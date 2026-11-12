@@ -45,7 +45,7 @@ as $$
   select extensions.dblink_exec(p_conn, 'set local role authenticated');
   select extensions.dblink_exec(
     p_conn,
-    format('set local request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated')::text)
+    format('set local request.jwt.claims = %L', jsonb_build_object('sub', p_user, 'role', 'authenticated', 'aal', 'aal2')::text)
   );
 $$;
 
@@ -441,7 +441,7 @@ select * from extensions.dblink('s2', format(
 select extensions.dblink_exec('s2', 'set local role authenticated');
 select extensions.dblink_exec('s2', format(
   'set local request.jwt.claims = %L',
-  jsonb_build_object('sub', 'a2f00000-0000-4000-8000-000000000003', 'role', 'authenticated')::text
+  jsonb_build_object('sub', 'a2f00000-0000-4000-8000-000000000003', 'role', 'authenticated', 'aal', 'aal2')::text
 ));
 select extensions.dblink_exec('s1', 'begin');
 select extensions.dblink_exec('s1', 'set local lock_timeout = ''15s''');

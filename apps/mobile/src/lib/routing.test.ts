@@ -85,6 +85,29 @@ describe('resolveArea', () => {
   });
 });
 
+describe('each profile in its place (R5, D46)', () => {
+  it('sends an admin to "solo web" whatever their company or terms', () => {
+    for (const overrides of [
+      {},
+      { termsAccepted: false },
+      { companyId: 'c1', companyStatus: 'approved' as const },
+    ]) {
+      expect(resolveArea(signedIn(profile({ role: 'admin', ...overrides })))).toBe('unsupported');
+    }
+    expect(redirectFor('unsupported', ['(carrier)', 'home'])).toBe('/unsupported');
+    expect(redirectFor('unsupported', ['(operator)', 'trip'])).toBe('/unsupported');
+  });
+
+  it('keeps the carrier staff and the operators in their own areas', () => {
+    const approved = { companyId: 'c1', companyStatus: 'approved' as const };
+    expect(resolveArea(signedIn(profile({ role: 'manager', ...approved })))).toBe('carrier');
+    expect(resolveArea(signedIn(profile({ role: 'coordinator', ...approved })))).toBe('carrier');
+    expect(resolveArea(signedIn(profile({ role: 'operator', ...approved })))).toBe('operator');
+    expect(redirectFor('operator', ['(carrier)', 'home'])).toBe('/trip');
+    expect(redirectFor('carrier', ['(operator)', 'trip'])).toBe('/home');
+  });
+});
+
 describe('redirectFor', () => {
   it('never redirects while loading', () => {
     expect(redirectFor('loading', ['(carrier)', 'home'])).toBeNull();

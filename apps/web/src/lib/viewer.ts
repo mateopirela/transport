@@ -1,6 +1,8 @@
 import type { createServerClient } from '@supabase/ssr';
 import {
+  sessionAuthTimes,
   TERMS_VERSION,
+  type SessionAuthTimes,
   type Database,
   type UserRole,
   type VerificationStatus,
@@ -24,6 +26,12 @@ export interface ViewerDetails {
   } | null;
   /** Whether the account accepted the current version of the terms (I1). */
   termsAccepted: boolean;
+  /** `aal2` once the session confirmed the second factor (R5, D46). */
+  aal: 'aal1' | 'aal2';
+  /** The Auth session (the JWT's `session_id`), or null when the claim is missing. */
+  sessionId: string | null;
+  /** When the session was authenticated (the JWT's `amr`), for its limits (D46). */
+  authTimes: SessionAuthTimes | null;
 }
 
 /**
@@ -32,8 +40,9 @@ export interface ViewerDetails {
  */
 export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | null> {
   const { data, error } = await supabase.auth.getClaims();
-  const userId = data?.claims.sub;
-  if (error || !userId) return null;
+  const claims = data?.claims;
+  const userId = claims?.sub;
+  if (error || !claims || !userId) return null;
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -59,5 +68,8 @@ export async function loadViewer(supabase: Supabase): Promise<ViewerDetails | nu
       isOwnerOperator: company.is_owner_operator,
     },
     termsAccepted: profile.terms_acceptances.length > 0,
+    aal: claims.aal === 'aal2' ? 'aal2' : 'aal1',
+    sessionId: typeof claims.session_id === 'string' ? claims.session_id : null,
+    authTimes: sessionAuthTimes(claims.amr),
   };
 }

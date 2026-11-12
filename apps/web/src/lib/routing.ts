@@ -21,6 +21,8 @@ export const paths = {
   completeCompany: '/completar-registro',
   /** A signed-in account accepts the current version of the terms (I1). */
   acceptTerms: '/aceptar-terminos',
+  /** The admin's second factor (R5, D46): enroll an authenticator app or type its code. */
+  secondFactor: '/segundo-factor',
   /** Invitation links (G1b, G2): /invitacion/<token>, open with or without a session. */
   invitation: '/invitacion',
   review: '/cuenta-en-revision',
@@ -157,6 +159,12 @@ export type Viewer = {
    * first. Admins are never asked.
    */
   termsAccepted?: boolean;
+  /**
+   * Authenticator assurance level of the session (the verified JWT's `aal`):
+   * `aal2` once the second factor was confirmed (R5, D46). An admin needs it
+   * for everything but /segundo-factor; a missing value counts as `aal1`.
+   */
+  aal?: 'aal1' | 'aal2';
 } | null;
 
 /** Query parameter of /solo-app with the token of a team link (G7). */
@@ -196,11 +204,24 @@ function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+/** Whether the viewer is an admin who has not confirmed the second factor yet (D46). */
+export function needsSecondFactor(viewer: NonNullable<Viewer>): boolean {
+  return viewer.role === 'admin' && viewer.aal !== 'aal2';
+}
+
+/** /segundo-factor, back to `next` (a path the admin asked for) afterwards. */
+export function secondFactorPath(next?: string | null): string {
+  return next && next !== paths.home
+    ? `${paths.secondFactor}?next=${encodeURIComponent(next)}`
+    : paths.secondFactor;
+}
+
 /** Where a signed-in user lands. */
 export function homeFor(viewer: NonNullable<Viewer>): string {
   switch (viewer.role) {
     case 'admin':
-      return paths.admin;
+      // D46: the panel only with the second factor; until then, its screen.
+      return needsSecondFactor(viewer) ? paths.secondFactor : paths.admin;
     case 'shipper':
       if (!viewer.company) return paths.completeCompany;
       return viewer.company.status === 'approved' ? paths.shipper : paths.review;
@@ -233,6 +254,14 @@ export function resolveRoute(pathname: string, viewer: Viewer): string | null {
     const next = pathname === paths.home ? '' : `?next=${encodeURIComponent(pathname)}`;
     return `${paths.signIn}${next}`;
   }
+
+  // D46: an admin confirms the second factor before anything else. The
+  // screen is open to them in aal1, so an admin without a factor (Mateo on
+  // his first sign-in) enrolls one there instead of being locked out.
+  if (isUnder(pathname, paths.secondFactor)) {
+    return needsSecondFactor(viewer) ? null : homeFor(viewer);
+  }
+  if (needsSecondFactor(viewer)) return secondFactorPath(pathname);
 
   // I1: the current terms come before anything else (admins excepted).
   const mustAcceptTerms = viewer.termsAccepted === false && viewer.role !== 'admin';

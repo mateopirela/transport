@@ -4,6 +4,7 @@ export * from './admin-ops';
 export * from './admin-panel';
 export * from './appearance';
 export * from './auth';
+export * from './auth-security';
 export * from './backhaul';
 export * from './billing';
 export * from './brokered';

@@ -1,4 +1,9 @@
-import { authErrors } from '@transport/shared';
+import {
+  accessSecurityCopy,
+  authErrors,
+  isAccountLockedError,
+  LOGIN_LOCKOUT,
+} from '@transport/shared';
 
 export type AuthErrorKey = keyof typeof authErrors;
 
@@ -44,6 +49,11 @@ export function authErrorKey(
 export function authErrorMessage(
   error: { code?: string | null; message?: string | null } | null | undefined,
 ): string {
+  // The lock of the account after failed attempts (R5, D46) comes as
+  // `invalid_credentials` with the hook's own message.
+  if (isAccountLockedError(error)) {
+    return accessSecurityCopy.accountLocked(LOGIN_LOCKOUT.lockMinutes);
+  }
   return authErrors[authErrorKey(error)];
 }
 

@@ -13,9 +13,13 @@ tags: [carrier, coordinator]
     file: subflows/sign-in.yaml
     env:
       EMAIL: hector.ibarra@demo.test
+# The unit waits in "Requiere tu atención", first of the list (V8).
 - extendedWaitUntil:
-    visible: 'Unidades por liberar \(1\)'
+    visible: 'Requiere tu atención'
     timeout: 30000
+- scrollUntilVisible:
+    element: 'TT-01 · viaje Monterrey → Apodaca.*'
+    centerElement: true
 - takeScreenshot: 10-1-coordinator-home-release
 - tapOn: 'TT-01 · viaje Monterrey → Apodaca.*'
 - extendedWaitUntil:

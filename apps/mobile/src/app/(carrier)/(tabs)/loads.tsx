@@ -1,9 +1,10 @@
 import {
+  carrierAppCopy,
   carrierLoadsCopy,
   carrierNegotiationState,
   cityPreset,
   CITY_PRESETS,
-  formatMxn,
+  formatMoney,
   sortOffers,
   toOptions,
   UNIT_TYPES,
@@ -11,12 +12,14 @@ import {
   type UnitType,
 } from '@transport/shared';
 import { useCallback, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { LoadCell } from '../../../components/load-card';
 import { OptionSheet, type SheetHandle } from '../../../components/sheet';
 import {
   Button,
   Cell,
+  Chip,
   Group,
   GroupLabel,
   LoadError,
@@ -27,6 +30,7 @@ import {
 } from '../../../components/ui';
 import { listNegotiations, searchLoads } from '../../../lib/loads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
+import { spacing } from '../../../theme';
 
 const copy = carrierLoadsCopy.search;
 const CITY_OPTIONS = CITY_PRESETS.map((c) => ({ value: c.id, label: c.city }));
@@ -43,16 +47,24 @@ const NO_FILTERS: Filters = { originId: undefined, destinationId: undefined, uni
 /** Choosing the selected option again clears that filter. */
 const toggle = <T,>(current: T | undefined, value: T) => (current === value ? undefined : value);
 
-/** The label of the chosen option, or "Cualquiera". */
-const chosen = <T extends string>(
+/** A filter's chip: its name alone, or "Origen: Monterrey" once chosen. */
+const chipLabel = <T extends string>(
+  filter: string,
   options: readonly { value: T; label: string }[],
   value: T | undefined,
-) => options.find((o) => o.value === value)?.label ?? copy.any;
+) => {
+  const label = options.find((o) => o.value === value)?.label;
+  return label ? carrierAppCopy.loads.chosen(filter, label) : filter;
+};
 
 const loadNegotiations = ({ client, companyId }: CarrierContext) =>
   listNegotiations(client, companyId);
 
-/** Open loads with filters, and the carrier's negotiations (B19). */
+/**
+ * Open loads with filters, and the carrier's negotiations (B19). The filters
+ * are chips that open their choices in a sheet; each load reads its route
+ * with its freight beside it, and each negotiation whose turn it is.
+ */
 export default function LoadsTab() {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const originSheet = useRef<SheetHandle>(null);
@@ -73,28 +85,33 @@ export default function LoadsTab() {
   return (
     <>
       <Screen title={copy.title} subtitle={copy.subtitle}>
-        <Group>
-          <Cell
-            role="link"
-            title={copy.origin}
-            value={chosen(CITY_OPTIONS, filters.originId)}
+        <GroupLabel>{carrierAppCopy.loads.filters}</GroupLabel>
+        <View style={styles.chips}>
+          <Chip
+            label={chipLabel(copy.origin, CITY_OPTIONS, filters.originId)}
+            selected={filters.originId !== undefined}
             onPress={() => originSheet.current?.open()}
           />
-          <Cell
-            role="link"
-            title={copy.destination}
-            value={chosen(CITY_OPTIONS, filters.destinationId)}
+          <Chip
+            label={chipLabel(copy.destination, CITY_OPTIONS, filters.destinationId)}
+            selected={filters.destinationId !== undefined}
             onPress={() => destinationSheet.current?.open()}
           />
-          <Cell
-            role="link"
-            title={copy.unitType}
-            value={chosen(UNIT_TYPE_OPTIONS, filters.unitType)}
+          <Chip
+            label={chipLabel(copy.unitType, UNIT_TYPE_OPTIONS, filters.unitType)}
+            selected={filters.unitType !== undefined}
             onPress={() => unitTypeSheet.current?.open()}
           />
-        </Group>
+        </View>
         {Object.values(filters).some(Boolean) ? (
-          <Button label={copy.clear} variant="plain" onPress={() => setFilters(NO_FILTERS)} />
+          <View style={styles.clear}>
+            <Button
+              label={copy.clear}
+              variant="plain"
+              size="small"
+              onPress={() => setFilters(NO_FILTERS)}
+            />
+          </View>
         ) : null}
 
         {results.state.status === 'loading' ? (
@@ -130,14 +147,16 @@ export default function LoadsTab() {
             {negotiations.state.data.map((n) => {
               // Hidden load: contracted with another carrier (loads_select).
               const state = carrierNegotiationState(n.offers, n.load?.status ?? 'contracted');
-              const footer = carrierLoadsCopy.negotiation.states[state];
-              if (n.load) return <LoadCell key={n.negotiationId} load={n.load} footer={footer} />;
+              if (n.load) return <LoadCell key={n.negotiationId} load={n.load} state={state} />;
               const latest = sortOffers(n.offers).at(-1);
               return (
                 <Cell
                   key={n.negotiationId}
                   title={copy.unavailableLoad}
-                  subtitle={[latest ? copy.lastOffer(formatMxn(latest.amount_cents)) : null, footer]
+                  subtitle={[
+                    latest ? copy.lastOffer(formatMoney(latest.amount_cents)) : null,
+                    carrierLoadsCopy.negotiation.states[state],
+                  ]
                     .filter(Boolean)
                     .join('\n')}
                 />
@@ -171,3 +190,8 @@ export default function LoadsTab() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  clear: { alignItems: 'flex-start', marginTop: -spacing.sm },
+});

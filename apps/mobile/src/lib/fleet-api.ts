@@ -17,6 +17,7 @@ import {
 } from '@transport/shared';
 
 import { vehicleColumns, type VehicleRow } from './fleet-forms';
+import { selectAll } from './paging';
 import type { Supabase } from './supabase';
 
 // Data access of the carrier's fleet screens (B18). Everything goes through
@@ -62,7 +63,11 @@ export interface CompanyContext {
 const DOCUMENT_COLUMNS =
   'id, requirement_id, owner_type, owner_id, status, review_notes, expires_at, created_at, archived_at, file_name';
 
-/** The carrier's company, the requirement catalog and its active documents. */
+/**
+ * The carrier's company, the requirement catalog and its active documents:
+ * all of them, page by page past the 1,000-row cap of PostgREST, so what the
+ * home counts as "por vencer" is never a prefix.
+ */
 export async function loadCompanyContext(
   client: Supabase,
   companyId: string,
@@ -70,16 +75,20 @@ export async function loadCompanyContext(
   const [company, requirements, documents] = await Promise.all([
     client.from('companies').select('id, type, rfc, legal_name').eq('id', companyId).single(),
     client.from('document_requirements').select('*').is('archived_at', null),
-    client
-      .from('documents')
-      .select(DOCUMENT_COLUMNS)
-      .eq('company_id', companyId)
-      .is('archived_at', null),
+    selectAll<SubmittedDocument>((from, to) =>
+      client
+        .from('documents')
+        .select(DOCUMENT_COLUMNS)
+        .eq('company_id', companyId)
+        .is('archived_at', null)
+        .order('id')
+        .range(from, to),
+    ),
   ]);
   return {
     company: check(company),
     requirements: check(requirements),
-    documents: check(documents),
+    documents,
   };
 }
 

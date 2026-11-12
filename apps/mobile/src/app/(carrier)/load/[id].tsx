@@ -4,7 +4,6 @@ import {
   carrierLoadsCopy,
   defaultAxleCount,
   formatDateTime,
-  formatMxn,
   roadsCopy,
   specialRequirementLabels,
   suggestLoadRoad,
@@ -16,7 +15,7 @@ import {
 } from '@transport/shared';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
@@ -28,6 +27,7 @@ import { SuggestedRoute } from '../../../components/suggested-route';
 import {
   Group,
   LoadError,
+  Money,
   Notice,
   Pill,
   Screen,
@@ -49,13 +49,14 @@ import {
 import { loadPickupDwell } from '../../../lib/dwell-api';
 import { loadRoadContext } from '../../../lib/roads-api';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
-import { useTheme } from '../../../theme';
+import { spacing, useTheme } from '../../../theme';
 
 const copy = carrierLoadsCopy.detail;
 
 /**
- * Load detail for the carrier (B19): the negotiation with its next step in
- * the bottom bar, the route with the empty km of its nearest compatible unit,
+ * Load detail for the carrier (B19): the route and its freight first, the
+ * negotiation with its next step ("Aceptar el precio propuesto", the offer)
+ * fixed in the bottom bar, the route with the empty km of its nearest compatible unit,
  * the load's data and the chat.
  */
 export default function LoadDetail() {
@@ -171,15 +172,22 @@ function LoadBody({
   return (
     <>
       <Screen belowHeader bottom={bar ? barHeight : 0}>
-        <Text accessibilityRole="header" style={type.title2}>
-          {route}
-        </Text>
-        {/* I6: all a carrier learns about a brokered load; its price is the rate. */}
-        {l.brokered ? (
-          <View style={{ flexDirection: 'row' }}>
-            <Pill label={brokeredCopy.badge} tone="accent" />
-          </View>
-        ) : null}
+        <View style={styles.head}>
+          <Text accessibilityRole="header" style={type.title2}>
+            {route}
+          </Text>
+          <Text style={type.footnote}>
+            {`${unitTypeLabels[l.unit_type]} · ${copy.window(
+              formatDateTime(l.pickup_window_start),
+              formatDateTime(l.pickup_window_end),
+            )}`}
+          </Text>
+        </View>
+        {/* The freight is the figure that decides; on a brokered load (I6) it is the rate. */}
+        <View style={styles.price}>
+          <Money cents={l.proposed_price_cents} size="numeral" label={copy.proposedPrice} />
+          {l.brokered ? <Pill label={brokeredCopy.badge} tone="inactive" /> : null}
+        </View>
 
         {section}
 
@@ -200,7 +208,6 @@ function LoadBody({
           emptyLeg={best ? { km: best.emptyKm, start: best.start } : null}
         />
         <Group>
-          <ValueRow label={copy.proposedPrice} value={formatMxn(l.proposed_price_cents)} strong />
           <DetailRow
             label={copy.pickupWindow}
             value={copy.window(
@@ -251,3 +258,8 @@ function LoadBody({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  head: { gap: spacing.xs },
+  price: { gap: spacing.sm, alignItems: 'flex-start' },
+});

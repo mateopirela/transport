@@ -1,9 +1,14 @@
-import { carrierLoadsCopy, carrierWebCopy, formatDateTime, sortOffers } from '@transport/shared';
+import {
+  carrierLoadsCopy,
+  carrierNegotiationTone,
+  carrierWebCopy,
+  formatDateTime,
+  sortOffers,
+} from '@transport/shared';
 import { Handshake } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { carrierNegotiationTone } from '@/lib/carrier/dashboard-summary';
 import { loadRoute } from '@/components/carrier/load-details';
 import { textLink } from '@/components/page-section';
 import { Pager } from '@/components/pager';

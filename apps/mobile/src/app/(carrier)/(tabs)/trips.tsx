@@ -1,24 +1,21 @@
 import {
   CARRIER_TRIP_GROUPS,
   carrierTripsCopy,
-  formatDateTime,
   groupCarrierTrips,
-  tripStatusLabels,
   type CarrierTripGroup,
 } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { StatusRow } from '../../../components/status-row';
+import { CarrierTripRow } from '../../../components/carrier-trip-row';
 import { TripMap } from '../../../components/trip-map';
-import { PositionLine, tripStatusTone } from '../../../components/trip-position';
 import {
   Button,
   Footnote,
   Group,
+  GroupLabel,
   LoadError,
   Screen,
-  SectionHeader,
   Skeleton,
   TextCell,
 } from '../../../components/ui';
@@ -32,7 +29,11 @@ import { usePolling } from '../../../lib/use-polling';
 
 const copy = carrierTripsCopy.list;
 
-/** Won trips of the carrier (B20): to assign, on the road (with the map), upcoming and history. */
+/**
+ * Won trips of the carrier (B20): to assign, on the road (with the map),
+ * upcoming and history, each group with its count. It follows the trips on
+ * its own (polling) and refreshes when pulled down.
+ */
 export default function TripsTab() {
   const router = useRouter();
   // Every unfinished trip is listed; the history grows page by page.
@@ -42,7 +43,12 @@ export default function TripsTab() {
     [historyLimit],
   );
   const { state, reload } = useCarrierData(loadTrips);
+  const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(() => void reload(), [reload]);
+  const pull = useCallback(() => {
+    setRefreshing(true);
+    void reload().finally(() => setRefreshing(false));
+  }, [reload]);
   usePolling(refresh);
 
   const open = (trip: CarrierTripSummary) =>
@@ -76,9 +82,8 @@ export default function TripsTab() {
   }
 
   return (
-    <Screen title={copy.title} subtitle={copy.subtitle}>
+    <Screen title={copy.title} subtitle={copy.subtitle} onRefresh={pull} refreshing={refreshing}>
       {content}
-      <Button label={copy.refresh} variant="secondary" icon="refresh" onPress={refresh} />
     </Screen>
   );
 }
@@ -97,7 +102,10 @@ function TripGroup({
   const active = group === 'active' && trips.length > 0;
   return (
     <>
-      <SectionHeader title={copy.groups[group]} />
+      {/* The history comes page by page: its count would be the page's. */}
+      <GroupLabel>
+        {group === 'history' ? copy.groups[group] : `${copy.groups[group]} · ${trips.length}`}
+      </GroupLabel>
       {trips.length === 0 ? (
         <Group>
           <TextCell tone="dim">{copy.empty[group]}</TextCell>
@@ -115,7 +123,7 @@ function TripGroup({
             />
           ) : null}
           {trips.map((trip, index) => (
-            <TripCell
+            <CarrierTripRow
               key={trip.id}
               trip={trip}
               index={group === 'active' ? index + 1 : null}
@@ -126,33 +134,5 @@ function TripGroup({
       )}
       {active ? <Footnote>{carrierTripsCopy.monitor.help}</Footnote> : null}
     </>
-  );
-}
-
-function TripCell({
-  trip,
-  index,
-  onPress,
-}: {
-  trip: CarrierTripSummary;
-  index: number | null;
-  onPress: () => void;
-}) {
-  const route = copy.route(trip.load.origin_city, trip.load.destination_city);
-  return (
-    <StatusRow
-      strong
-      title={index === null ? route : carrierTripsCopy.monitor.legend(index, route)}
-      lines={[
-        copy.pickup(formatDateTime(trip.pickupAt)),
-        trip.unitName && trip.operatorName
-          ? copy.assignedTo(trip.unitName, trip.operatorName)
-          : copy.unassigned,
-      ]}
-      pill={{ label: tripStatusLabels[trip.status], tone: tripStatusTone(trip.status) }}
-      onPress={onPress}
-    >
-      {index !== null ? <PositionLine trip={trip} /> : null}
-    </StatusRow>
   );
 }

@@ -2,7 +2,7 @@ import {
   billingCopy,
   formatDate,
   subscriptionStatusLabels,
-  subscriptionStatusTone,
+  subscriptionTone,
 } from '@transport/shared';
 import { Stack } from 'expo-router';
 
@@ -46,7 +46,7 @@ export default function Subscription() {
             title={billingCopy.status}
             pill={{
               label: subscriptionStatusLabels[s.effective_status],
-              tone: subscriptionStatusTone(s.effective_status),
+              tone: subscriptionTone(s.effective_status),
             }}
           />
           {s.plan_name ? <ValueRow label={billingCopy.plan} value={s.plan_name} /> : null}
@@ -67,7 +67,7 @@ export default function Subscription() {
           ) : null}
         </Group>
         {pilot ? (
-          <Notice tone="highlight" title={billingCopy.pilotTitle}>
+          <Notice tone="info" title={billingCopy.pilotTitle}>
             {billingCopy.pilotBody}
           </Notice>
         ) : null}

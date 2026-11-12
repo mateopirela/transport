@@ -10,6 +10,7 @@ import { Text } from 'react-native';
 
 import { DocumentList } from '../../components/document-list';
 import {
+  Caps,
   Cell,
   Footnote,
   Group,
@@ -61,7 +62,7 @@ export default function MyDocuments() {
               ] as const
             ).map(([label, value]) => (
               <Cell key={label}>
-                <Text style={type.label}>{label}</Text>
+                <Caps style={type.label}>{label}</Caps>
                 <Text style={type.body}>{value}</Text>
               </Cell>
             ))}

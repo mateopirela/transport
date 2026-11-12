@@ -1,5 +1,6 @@
 import {
   billingCopy,
+  carrierAppCopy,
   fleetCopy,
   freightCopy,
   managerCompanyCopy,
@@ -9,7 +10,7 @@ import { useRouter, type Href } from 'expo-router';
 
 import { AccountScreen } from '../../../components/account-screen';
 import type { IconName } from '../../../components/icons';
-import { Cell, Group, groupInset } from '../../../components/ui';
+import { Cell, Group, GroupLabel, groupInset } from '../../../components/ui';
 import { useCarrier } from '../../../lib/use-carrier';
 import { useSession } from '../../../providers/session';
 
@@ -30,33 +31,19 @@ const COLLECTIONS: [string, Href, IconName] = [
   '/collections',
   'wallet',
 ];
-const LINKS: [string, Href, IconName][] = [
+const FLEET: [string, Href, IconName][] = [
   [fleetCopy.onboarding.operators, '/operators', 'people'],
   [fleetCopy.onboarding.routes, '/routes', 'route'],
 ];
+const MY_COMPANY: [string, Href, IconName] = [managerCompanyCopy.title, '/my-company', 'company'];
+const SUBSCRIPTION: [string, Href, IconName] = [billingCopy.title, '/subscription', 'money'];
 
-/**
- * "Más": "Mi empresa" and "Suscripción" (H3, information only) for the Gerente
- * (G4), "Cobranza" (I3) for the Gerente and the Coordinador, company
- * documents ("Mis documentos" for a hombre-camión, I2), operators and
- * usual routes (B18) as one group of rows, then "Ayuda" and the account.
- */
-export default function MoreTab() {
+/** One group of "Más": its short label over its rows, each opening its screen. */
+function LinkGroup({ label, links }: { label: string; links: [string, Href, IconName][] }) {
   const router = useRouter();
-  const carrier = useCarrier();
-  const ownerOperator = useSession().profile?.isOwnerOperator === true;
-  const documents = ownerOperator ? MY_DOCUMENTS : COMPANY_DOCUMENTS;
-  const links: [string, Href, IconName][] = carrier?.isManager
-    ? [
-        [managerCompanyCopy.title, '/my-company', 'company'],
-        [billingCopy.title, '/subscription', 'money'],
-        COLLECTIONS,
-        documents,
-        ...LINKS,
-      ]
-    : [COLLECTIONS, documents, ...LINKS];
   return (
-    <AccountScreen>
+    <>
+      <GroupLabel>{label}</GroupLabel>
       <Group inset={groupInset.icon}>
         {links.map(([title, href, icon]) => (
           <Cell
@@ -68,6 +55,33 @@ export default function MoreTab() {
           />
         ))}
       </Group>
+    </>
+  );
+}
+
+/**
+ * "Más", in groups (V8): "Empresa" ("Mi empresa" for the Gerente, G4; the
+ * company documents, or "Mis documentos" for a hombre-camión, I2; operators
+ * and usual routes, B18) and "Dinero" ("Cobranza", I3, for the Gerente and the
+ * Coordinador; "Suscripción", H3, information only, for the Gerente), then
+ * "Ayuda" and the account.
+ */
+export default function MoreTab() {
+  const carrier = useCarrier();
+  const ownerOperator = useSession().profile?.isOwnerOperator === true;
+  const documents = ownerOperator ? MY_DOCUMENTS : COMPANY_DOCUMENTS;
+  const manager = carrier?.isManager === true;
+  const groups = carrierAppCopy.more.groups;
+  return (
+    <AccountScreen>
+      <LinkGroup
+        label={groups.company}
+        links={manager ? [MY_COMPANY, documents, ...FLEET] : [documents, ...FLEET]}
+      />
+      <LinkGroup
+        label={groups.money}
+        links={manager ? [COLLECTIONS, SUBSCRIPTION] : [COLLECTIONS]}
+      />
     </AccountScreen>
   );
 }

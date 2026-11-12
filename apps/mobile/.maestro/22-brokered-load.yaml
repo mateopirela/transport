@@ -28,6 +28,7 @@ tags: [carrier, owner-operator]
     visible: 'Detalle de la carga'
     timeout: 15000
 - assertVisible: 'Publicada por Transport'
-- assertVisible: '\$10,800.00'
+# The freight is the screen's figure, without ".00" (docs/plan-fulmis.md §1.5).
+- assertVisible: '\$10,800'
 - assertNotVisible: '.*\$12,000.00.*'
 - takeScreenshot: 22-2-brokered-load-detail

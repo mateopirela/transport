@@ -3,12 +3,15 @@ import {
   carrierTripsCopy,
   carrierWebCopy,
   collectionsTotals,
+  EXPIRY_WINDOW_DAYS,
+  firstOf,
   formatDate,
   formatMoney,
   managerCompanyCopy,
   toMexicoCityDate,
   unitLabel,
   vehicleReleaseCopy,
+  type ExpiringDocument,
 } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -34,11 +37,6 @@ import { textLink } from '@/components/page-section';
 import { loadSupervision, type UnitSupervision } from '@/lib/carrier/company';
 import { carrierContext } from '@/lib/carrier/context';
 import { fleetExpiringDocuments, negotiationsToAnswer } from '@/lib/carrier/dashboard';
-import {
-  EXPIRY_WINDOW_DAYS,
-  firstOf,
-  type ExpiringDocument,
-} from '@/lib/carrier/dashboard-summary';
 import { carrierFeed, listCarrierUnits } from '@/lib/carrier/loads';
 import { listPendingReleases } from '@/lib/carrier/release';
 import { TRIP_FILTER_PARAMS, TRIP_VIEW_PARAMS } from '@/lib/carrier/trip-filters';

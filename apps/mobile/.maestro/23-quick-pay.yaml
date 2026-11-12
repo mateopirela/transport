@@ -24,17 +24,18 @@ tags: [carrier, manager]
 - scrollUntilVisible:
     element: 'Pedir pago rápido.*'
     centerElement: true
-- assertVisible: '.*Recibes: \$37,830.00.*'
+# Whole pesos read without ".00" (docs/plan-fulmis.md §1.5).
+- assertVisible: '.*Recibes: \$37,830 .*'
 - takeScreenshot: 23-1-quick-pay-offer
 - tapOn: 'Pedir pago rápido.*'
 - extendedWaitUntil:
     visible: '¿Pedir pago rápido\?'
     timeout: 10000
-- assertVisible: '.*\$970.00.*\$37,830.00.*'
+- assertVisible: '.*\$970.*\$37,830.*'
 - takeScreenshot: 23-2-quick-pay-confirm
 - tapOn: 'Confirmar pago rápido'
 - extendedWaitUntil:
-    visible: 'Pago rápido solicitado: recibirás \$37,830.00.*'
+    visible: 'Pago rápido solicitado: recibirás \$37,830.*'
     timeout: 15000
 - assertNotVisible: 'Pedir pago rápido.*'
 - takeScreenshot: 23-3-quick-pay-requested

@@ -23,12 +23,13 @@ import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 
 const copy = fleetCopy.units;
 
+/** As on the web (ReadinessPill): a problem when the unit cannot work, done when it is free. */
 const READINESS_TONES: Record<VehicleReadiness, PillTone> = {
-  pending_release: 'amber',
-  expired_documents: 'red',
-  unset: 'neutral',
-  scheduled: 'accent',
-  available: 'ok',
+  pending_release: 'problem',
+  expired_documents: 'problem',
+  unset: 'inactive',
+  scheduled: 'progress',
+  available: 'done',
 };
 
 async function loadVehicles({ client, companyId }: CarrierContext) {

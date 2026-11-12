@@ -1,4 +1,3 @@
-import type { Requirement, SubmittedDocument } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,7 +6,8 @@ import {
   expiringDocuments,
   firstOf,
   type FleetOwner,
-} from './dashboard-summary';
+} from './carrier-dashboard';
+import type { Requirement, SubmittedDocument } from './verification';
 
 // 12:00 in Mexico City.
 const NOW = new Date('2026-11-11T18:00:00Z');

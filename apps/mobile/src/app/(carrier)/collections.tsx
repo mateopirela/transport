@@ -3,9 +3,9 @@ import {
   formatBasisPoints,
   formatCalendarDate,
   formatInvoiceIssuedDate,
-  formatMxn,
+  formatMoney,
   freightCarrierStatusLabels,
-  freightCarrierStatusTone,
+  freightCarrierTone,
   freightCopy,
   freightInvoiceFailureLabels,
   freightInvoicesCopy,
@@ -21,6 +21,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { Stack } from 'expo-router';
 import { useRef, useState, type RefObject } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
 import {
@@ -29,6 +30,7 @@ import {
   Footnote,
   Group,
   LoadError,
+  Money,
   Screen,
   SectionHeader,
   Skeleton,
@@ -48,6 +50,7 @@ import {
 } from '../../lib/freight-api';
 import type { Supabase } from '../../lib/supabase';
 import { useCarrierData, type CarrierContext } from '../../lib/use-carrier';
+import { spacing } from '../../theme';
 
 const c = freightCopy.collections;
 const f = freightInvoicesCopy;
@@ -108,7 +111,7 @@ function CfdiCell({
         )}
         pill={{
           label: freightInvoiceValidationLabels[invoice.validation],
-          tone: invoice.validation === 'validated' ? 'ok' : 'amber',
+          tone: invoice.validation === 'validated' ? 'done' : 'pending',
         }}
       />
     );
@@ -186,7 +189,7 @@ function QuickPayCells({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const state = quickPayState(row);
-  const quickNet = row.quick_pay_net_cents === null ? null : formatMxn(row.quick_pay_net_cents);
+  const quickNet = row.quick_pay_net_cents === null ? null : formatMoney(row.quick_pay_net_cents);
   let status: string | null = null;
   if (state.kind === 'requested' && quickNet) status = q.requested(quickNet);
   else if (state.kind === 'approved' && quickNet) status = q.approved(quickNet);
@@ -198,9 +201,9 @@ function QuickPayCells({
     confirmSheet.current?.ask({
       title: q.confirmTitle,
       body: q.confirmBody(
-        formatMxn(split.netCents),
-        formatMxn(split.feeCents),
-        formatMxn(split.quickNetCents),
+        formatMoney(split.netCents),
+        formatMoney(split.feeCents),
+        formatMoney(split.quickNetCents),
       ),
       confirmLabel: q.confirm,
       cancelLabel: q.cancel,
@@ -235,7 +238,7 @@ function QuickPayCells({
         <Cell
           icon="wallet"
           title={busy ? q.submitting : q.request}
-          subtitle={`${q.receive}: ${formatMxn(quickPaySplit(row.net_cents, feeBps).quickNetCents)} · ${q.fee(formatBasisPoints(feeBps))}`}
+          subtitle={`${q.receive}: ${formatMoney(quickPaySplit(row.net_cents, feeBps).quickNetCents)} · ${q.fee(formatBasisPoints(feeBps))}`}
           disabled={busy}
           onPress={() => ask(feeBps)}
         />
@@ -275,21 +278,21 @@ function TripGroup({
         strong
         pill={{
           label: freightCarrierStatusLabels[row.status],
-          tone: freightCarrierStatusTone(row.status),
+          tone: freightCarrierTone(row.status),
         }}
       />
-      <ValueRow label={c.freight} value={formatMxn(row.freight_cents)} />
+      <ValueRow label={c.freight} value={formatMoney(row.freight_cents)} />
       <ValueRow
         label={c.commission(formatBasisPoints(row.commission_bps))}
-        value={formatMxn(row.commission_cents)}
+        value={formatMoney(row.commission_cents)}
       />
-      <ValueRow label={c.net} value={formatMxn(row.net_cents)} strong />
+      <ValueRow label={c.net} value={formatMoney(row.net_cents)} strong />
       <ValueRow label={c.dueOn} value={dueLabel(row)} />
-      <ValueRow label={c.paid} value={formatMxn(row.paid_cents)} />
+      <ValueRow label={c.paid} value={formatMoney(row.paid_cents)} />
       {row.payments.map((payment) => (
         <TextCell key={payment.speiReference} tone="dim">
           {c.paymentLine(
-            formatMxn(payment.amountCents),
+            formatMoney(payment.amountCents),
             formatCalendarDate(payment.paidOn),
             payment.speiReference,
           )}
@@ -335,7 +338,8 @@ function FulmisGroup({ fulmis }: { fulmis: FulmisFiscalData }) {
 /**
  * "Más → Cobranza" (I3, D34-E1): what Fulmis pays the carrier for each trip,
  * for the Gerente (the whole company) and the Coordinador (their business
- * units). The totals first ("Por cobrar", "Retenido", "Pagado este mes"),
+ * units). "Por cobrar" first as the screen's figure, then what is held and
+ * what was paid this month,
  * then each trip with its CFDI to Fulmis (I5: "Subir CFDI" when it is
  * missing) and its quick pay (I4: "Pedir pago rápido"). Payments are recorded
  * by the admin.
@@ -361,10 +365,12 @@ export default function Collections() {
     );
     content = (
       <>
+        <View style={styles.figure}>
+          <Money cents={totals.receivableCents} size="numeral" label={c.receivable} />
+        </View>
         <Group>
-          <ValueRow label={c.receivable} value={formatMxn(totals.receivableCents)} strong />
-          <ValueRow label={c.onHold} value={formatMxn(totals.onHoldCents)} />
-          <ValueRow label={c.paidThisMonth} value={formatMxn(totals.paidThisMonthCents)} />
+          <ValueRow label={c.onHold} value={formatMoney(totals.onHoldCents)} />
+          <ValueRow label={c.paidThisMonth} value={formatMoney(totals.paidThisMonthCents)} />
         </Group>
         {totals.onHoldCents > 0 ? <Footnote>{c.onHoldHelp}</Footnote> : null}
         <Footnote>{c.description}</Footnote>
@@ -401,3 +407,5 @@ export default function Collections() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({ figure: { paddingTop: spacing.xs } });

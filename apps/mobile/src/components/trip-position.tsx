@@ -11,17 +11,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { CarrierTripSummary } from '../lib/carrier-trips-api';
 import { lookOf, spacing, useTheme, type Look } from '../theme';
-import type { PillTone } from './ui';
 
 const copy = carrierTripsCopy.monitor;
-
-/** Pill tone of a trip status in the carrier's screens. */
-export function tripStatusTone(status: TripStatus): PillTone {
-  if (status === 'pending_assignment') return 'amber';
-  if (status === 'cancelled') return 'red';
-  if (status === 'delivered' || status === 'closed') return 'ok';
-  return 'accent';
-}
 
 /** Statuses after loading: the progress counts the loaded leg. */
 const LOADED: readonly TripStatus[] = ['in_transit', 'at_delivery', 'unloading'];
@@ -70,7 +61,7 @@ function makeStyles({ colors, type }: Look) {
   return StyleSheet.create({
     box: { gap: spacing.xs },
     text: type.footnote,
-    warning: { color: colors.amberText, fontFamily: type.label.fontFamily },
+    warning: { color: colors.amberText, fontFamily: type.headline.fontFamily },
   });
 }
 

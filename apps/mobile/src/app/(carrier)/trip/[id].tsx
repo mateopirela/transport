@@ -6,20 +6,21 @@ import {
   carrierTripsCopy,
   dwellCopy,
   formatDateTime,
-  formatMxn,
   hidesInternalChat,
   internalChatCopy,
   isTripActive,
   mapPointUrl,
+  supportCopy,
   tripChatTab,
+  tripFolio,
   tripStatusLabels,
+  tripStatusTone,
   type TripChatTab,
   type TripEndEstimate,
 } from '@transport/shared';
 import * as Linking from 'expo-linking';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
 import { KeyboardBottomBar } from '../../../components/keyboard-bar';
 import { ChatPanel } from '../../../components/chat-panel';
@@ -32,36 +33,37 @@ import { useTripAssignment } from '../../../components/trip-assign-form';
 import { TripCancelSection } from '../../../components/trip-cancel-section';
 import { TripDocumentsSection } from '../../../components/trip-documents-section';
 import { TripLinkSection } from '../../../components/trip-link-section';
+import { TripHeading, TripSteps } from '../../../components/operator-trip';
 import { TripMap } from '../../../components/trip-map';
-import { PositionLine, tripStatusTone } from '../../../components/trip-position';
+import { PositionLine } from '../../../components/trip-position';
 import { IncidentList, TimelineSection } from '../../../components/trip-sections';
 import {
   Cell,
   Footnote,
   Group,
   LoadError,
+  Money,
   Notice,
-  Pill,
   Screen,
   SectionHeader,
   Segmented,
   Skeleton,
   TextCell,
-  ValueRow,
 } from '../../../components/ui';
 import { tripBackhaul, type TripBackhaul } from '../../../lib/backhaul-api';
 import { loadCarrierTrip, type CarrierTripDetail } from '../../../lib/carrier-trips-api';
 import { tripEndEstimate } from '../../../lib/dwell-api';
+import { nextStep, stepDetails } from '../../../lib/next-step';
 import { useCarrierData, type CarrierContext } from '../../../lib/use-carrier';
 import { usePolling } from '../../../lib/use-polling';
 import { useSession } from '../../../providers/session';
-import { spacing, useTheme } from '../../../theme';
 
 const copy = carrierTripsCopy.detail;
 
 /**
- * A won trip for the carrier (B20): status, route and the map while it is on
- * the road, "Asignar operador" in the bottom bar until the operator departs,
+ * A won trip for the carrier (B20): its folio, status and route over the four
+ * steps of the trip (the operator's, V7) and the agreed price, the map while
+ * it is on the road, "Asignar operador" in the bottom bar until the operator departs,
  * the documents, what is shared with the shipper and its provider status
  * (G6), the timeline, incidents, evidence, the trip chat ("Cliente" and the
  * internal one with the operator, "Interno": H1; `?chat=interno` opens it)
@@ -129,7 +131,6 @@ function TripBody({
   reload: () => Promise<void>;
   initialChat: TripChatTab;
 }) {
-  const { type } = useTheme();
   const isOwnerOperator = useSession().profile?.isOwnerOperator === true;
   const internalHidden =
     detail.internalConversationId === null ||
@@ -159,23 +160,36 @@ function TripBody({
   });
   const action = cancelled ? null : assignment.action;
   const position = trip.lastPosition;
+  const folio = tripFolio(trip.id);
+  const progress = nextStep(trip.status).progress;
+  const route = carrierTripsCopy.list.route(
+    `${l.origin_city}, ${l.origin_state}`,
+    `${l.destination_city}, ${l.destination_state}`,
+  );
 
   return (
     <>
       <Screen belowHeader bottom={action ? barHeight : 0}>
-        <View style={styles.head}>
-          <Text accessibilityRole="header" style={type.title2}>
-            {carrierTripsCopy.list.route(
-              `${l.origin_city}, ${l.origin_state}`,
-              `${l.destination_city}, ${l.destination_state}`,
-            )}
-          </Text>
-          <Pill label={tripStatusLabels[trip.status]} tone={tripStatusTone(trip.status)} />
-        </View>
+        <TripHeading
+          eyebrow={folio ? supportCopy.folio(folio) : copy.title}
+          title={route}
+          pill={{ label: tripStatusLabels[trip.status], tone: tripStatusTone(trip.status) }}
+        />
+        {l.agreed_price_cents !== null ? (
+          <Money cents={l.agreed_price_cents} size="title" label={copy.agreedPrice} />
+        ) : null}
         {cancelled ? (
           <Notice tone="danger">{copy.cancelled(detail.cancellationReason)}</Notice>
-        ) : null}
-        {trip.status === 'delivered' ? <Notice tone="info">{copy.delivered}</Notice> : null}
+        ) : (
+          <TripSteps
+            progress={progress}
+            details={stepDetails(
+              progress,
+              detail.events.map((e) => ({ type: e.event_type, occurredAt: e.occurred_at })),
+            )}
+          />
+        )}
+        {trip.status === 'delivered' ? <Notice tone="highlight">{copy.delivered}</Notice> : null}
 
         {onRoad ? (
           <Group>
@@ -227,9 +241,6 @@ function TripBody({
             label={copy.cargo}
             value={`${cargoTypeLabels[l.cargo_type]} · ${l.description}`}
           />
-          {l.agreed_price_cents !== null ? (
-            <ValueRow label={copy.agreedPrice} value={formatMxn(l.agreed_price_cents)} strong />
-          ) : null}
           <TripEndRow estimate={detail.endEstimate} />
         </Group>
 
@@ -249,10 +260,7 @@ function TripBody({
             client={carrier.client}
             tripId={trip.id}
             operatorName={trip.operatorName}
-            route={carrierTripsCopy.list.route(
-              `${l.origin_city}, ${l.origin_state}`,
-              `${l.destination_city}, ${l.destination_state}`,
-            )}
+            route={route}
           />
         ) : null}
 
@@ -341,8 +349,6 @@ function TripBody({
     </>
   );
 }
-
-const styles = StyleSheet.create({ head: { gap: spacing.sm, alignItems: 'flex-start' } });
 
 /** "Para el regreso" (I7): the best return loads of the unit near the destination. */
 function BackhaulSection({ backhaul, city }: { backhaul: TripBackhaul; city: string }) {

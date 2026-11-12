@@ -17,7 +17,7 @@ import {
   toMexicoCityDate,
 } from '@transport/shared';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 
 import { BillingBanner } from '../../../components/billing-banner';
 import { CarrierTripRow } from '../../../components/carrier-trip-row';
@@ -195,10 +195,12 @@ export default function HomeTab() {
       ) : state.status === 'error' ? (
         <LoadError onRetry={() => void reload()} />
       ) : approved ? (
-        <DashboardSections data={state.data} />
+        <DashboardSections
+          data={state.data}
+          // Only unread messages of others: never for a hombre-camión working alone (D13-E1).
+          messages={<OperatorMessages />}
+        />
       ) : null}
-      {/* Only unread messages of others: never for a hombre-camión working alone (D13-E1). */}
-      {approved ? <OperatorMessages /> : null}
       {approved ? (
         <Feed />
       ) : (
@@ -216,8 +218,11 @@ export default function HomeTab() {
   );
 }
 
-/** The indicators, "Requiere tu atención" and the trips on the road. */
-function DashboardSections({ data }: { data: Dashboard }) {
+/**
+ * The indicators, "Requiere tu atención", the operators' unread messages
+ * (`messages`, also something to answer) and the trips on the road.
+ */
+function DashboardSections({ data, messages }: { data: Dashboard; messages: ReactNode }) {
   const router = useRouter();
   const attention = attentionItems(data);
   const { totals } = data;
@@ -272,6 +277,8 @@ function DashboardSections({ data }: { data: Dashboard }) {
           ) : null}
         </>
       )}
+
+      {messages}
 
       <SectionHeader
         title={d.activeTrips.title}

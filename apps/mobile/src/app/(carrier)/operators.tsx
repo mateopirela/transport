@@ -74,7 +74,6 @@ export default function Operators() {
       <BottomBar
         action={{
           label: managerCompanyCopy.operators.invite,
-          icon: 'link',
           onPress: () => router.push('/invite-operator'),
         }}
         secondary={{ label: copy.add, onPress: () => router.push('/operator/new') }}

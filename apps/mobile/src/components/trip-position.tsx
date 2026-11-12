@@ -61,7 +61,7 @@ function makeStyles({ colors, type }: Look) {
   return StyleSheet.create({
     box: { gap: spacing.xs },
     text: type.footnote,
-    warning: { color: colors.amberText, fontFamily: type.label.fontFamily },
+    warning: { color: colors.amberText, fontFamily: type.headline.fontFamily },
   });
 }
 

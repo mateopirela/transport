@@ -180,7 +180,7 @@ function makeStyles({ type }: Look) {
     top: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
     route: { ...type.headline, flex: 1 },
     line: type.footnote,
-    body: { ...type.subhead, marginTop: spacing.xs },
+    body: { ...type.footnote, color: type.body.color, marginTop: spacing.xs },
     pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   });
 }

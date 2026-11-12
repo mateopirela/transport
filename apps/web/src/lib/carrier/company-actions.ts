@@ -60,8 +60,10 @@ async function rpcState(
   if (!supabase) return notConfigured;
   const { error } = await call(supabase);
   if (error) return { error: companyError(error) };
-  // Lists, pickers and the fleet screens all change.
+  // Lists, pickers and the fleet screens all change, and step 4 of a company
+  // in review (R3) lists its business units too.
   revalidatePath(paths.carrier, 'layout');
+  revalidatePath(paths.review);
   return { message: success };
 }
 

@@ -26,7 +26,8 @@ export interface PickedFile {
   size: number;
 }
 
-export type PickSource = 'camera' | 'library' | 'pdf';
+/** `selfie` is the camera too, opened on the front lens (D44). */
+export type PickSource = 'camera' | 'selfie' | 'library' | 'pdf';
 
 export type PickOutcome =
   | { status: 'picked'; file: PickedFile }
@@ -51,16 +52,23 @@ export async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promis
   };
 }
 
-async function pickPhoto(source: 'camera' | 'library', check: FileCheck): Promise<PickOutcome> {
-  if (source === 'camera') {
+async function pickPhoto(
+  source: 'camera' | 'selfie' | 'library',
+  check: FileCheck,
+): Promise<PickOutcome> {
+  const camera = source !== 'library';
+  if (camera) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return { status: 'denied' };
   }
-  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
-  const result =
-    source === 'camera'
-      ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+  const options: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ['images'],
+    quality: 1,
+    ...(source === 'selfie' ? { cameraType: ImagePicker.CameraType.front } : {}),
+  };
+  const result = camera
+    ? await ImagePicker.launchCameraAsync(options)
+    : await ImagePicker.launchImageLibraryAsync(options);
   const asset = result.canceled ? undefined : result.assets[0];
   if (!asset) return { status: 'cancelled' };
   return checked(await compressPhoto(asset), check);

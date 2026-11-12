@@ -13,6 +13,7 @@ import {
   internalChatCopy,
   internalMessagePreview,
   mobileNavCopy,
+  onboardingStepsCopy,
   progressSummary,
   toMexicoCityDate,
 } from '@transport/shared';
@@ -192,6 +193,7 @@ export default function HomeTab() {
       subtitle={approved ? d.description : undefined}
     >
       {profile ? <CompanyStatus profile={profile} /> : null}
+      {profile && !approved ? <ContinueOnboarding /> : null}
       <BillingBanner />
       {state.status === 'loading' ? (
         <Skeleton rows={4} />
@@ -448,6 +450,22 @@ function OperatorMessages() {
 }
 
 /** The onboarding steps (B18): each opens its screen and says how far it is. */
+/** While the company is in review: the way back to steps 3–5 of the sign-up (R3). */
+function ContinueOnboarding() {
+  const router = useRouter();
+  return (
+    <Group inset={groupInset.icon}>
+      <Cell
+        role="link"
+        icon="documents"
+        title={onboardingStepsCopy.app.continue}
+        subtitle={onboardingStepsCopy.titles.documents}
+        onPress={() => router.push('/onboarding')}
+      />
+    </Group>
+  );
+}
+
 function Onboarding({ title, data }: { title: string; data: Dashboard['onboarding'] }) {
   const router = useRouter();
   const steps: [IconName, string, string, Href][] = [

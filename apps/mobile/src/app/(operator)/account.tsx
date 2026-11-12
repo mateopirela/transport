@@ -1,10 +1,10 @@
-import { formatDate, trackingCopy as copy } from '@transport/shared';
+import { formatDate, onboardingStepsCopy, trackingCopy as copy } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 
 import { AccountScreen } from '../../components/account-screen';
 import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
-import { Cell, Group, Notice, SectionHeader, TextCell } from '../../components/ui';
+import { Cell, Group, groupInset, Notice, SectionHeader, TextCell } from '../../components/ui';
 import { revokeLocationConsent, useLocationConsent } from '../../lib/location-consent';
 import { supabase } from '../../lib/supabase';
 import { useSession } from '../../providers/session';
@@ -12,8 +12,24 @@ import { useSession } from '../../providers/session';
 export default function OperatorAccountTab() {
   return (
     <AccountScreen>
+      <DocumentsSection />
       <LocationConsentSection />
     </AccountScreen>
+  );
+}
+
+/** "Mis documentos" (R3): the operator's own INE, license and selfie. */
+function DocumentsSection() {
+  const router = useRouter();
+  return (
+    <Group inset={groupInset.icon}>
+      <Cell
+        role="link"
+        icon="document"
+        title={onboardingStepsCopy.operator.open}
+        onPress={() => router.push('/documents')}
+      />
+    </Group>
   );
 }
 

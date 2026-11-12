@@ -38,6 +38,7 @@ import {
   type EvidenceItem,
 } from '../../components/evidence-section';
 import { HelpCell } from '../../components/help-cell';
+import { OperatorDocumentsNotice } from '../../components/operator-documents-notice';
 import { OperatorDocumentsSection } from '../../components/operator-documents-section';
 import {
   IncidentSheet,
@@ -346,6 +347,7 @@ export default function AssignedTripTab() {
     typeof viaje === 'string' && viaje !== current?.id ? <NextTrip tripId={viaje} /> : null;
   const notices = (
     <>
+      <OperatorDocumentsNotice />
       {rejectedNotice}
       {rejectedPhotosNotice}
       {linked}

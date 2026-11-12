@@ -20,6 +20,8 @@ export default function OperatorTabs() {
         <Tabs.Screen name="location-consent" options={{ href: null }} />
         {/* "Reportar al coordinador" (H1): from the trip or a notification; not a tab. */}
         <Tabs.Screen name="chat/[tripId]" options={{ href: null }} />
+        {/* "Mis documentos" (R3): steps 4 and 5 of the operator; from the account and the invitation. */}
+        <Tabs.Screen name="documents" options={{ href: null }} />
       </Tabs>
     </TabScreens>
   );

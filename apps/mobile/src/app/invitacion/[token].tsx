@@ -160,8 +160,9 @@ function JoinCompany({ token }: { token: string }) {
       if (result.ok) {
         await refreshProfile();
         // Invitation routes are open to any session (lib/routing.ts), so the
-        // guard does not move the new Coordinador: go to their area.
-        router.replace('/');
+        // guard does not move the new Coordinador: go to their step 4 (R3,
+        // D43), the units of their business units with their documents.
+        router.replace('/units');
       } else setError(mobileErrorCopy[result.error]);
     } finally {
       setSubmitting(false);
@@ -347,8 +348,9 @@ function OperatorRedeem({ token }: { token: string }) {
     if (!result.ok) setFormError(mobileErrorCopy[result.error]);
     else if (result.value === 'redeemed') setRedeemed(true);
     // Signed in: invitation routes are open to any session (lib/routing.ts),
-    // so go to the operator's area explicitly.
-    else router.replace('/');
+    // so go to the operator's area explicitly, on their step 4 (R3, D43):
+    // their INE, license and selfie.
+    else router.replace('/documents');
   }
 
   if (redeemed) {

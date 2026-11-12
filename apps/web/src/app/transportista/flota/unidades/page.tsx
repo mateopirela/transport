@@ -12,6 +12,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { FleetNav } from '@/components/carrier/fleet-nav';
+import { CoordinatorWelcome } from '@/components/onboarding-steps';
 import { ReadinessPill } from '@/components/carrier/readiness-pill';
 import { textLink } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
@@ -38,7 +39,10 @@ export default async function CarrierUnitsPage({
   searchParams,
 }: PageProps<'/transportista/flota/unidades'>) {
   const { supabase, companyId, isManager, units } = await carrierContext(paths.carrierUnits);
-  const flash = parseFleetFlash((await searchParams).aviso);
+  const params = await searchParams;
+  const flash = parseFleetFlash(params.aviso);
+  // R3 (D43): a Coordinador who just joined lands here, on their step 4.
+  const welcome = !isManager && params.paso === '4';
   const context = await loadFleetContext(supabase, companyId);
   const vehicles = await listCarrierVehicles(supabase, context, units.ids);
   const add = isManager && (
@@ -50,6 +54,7 @@ export default async function CarrierUnitsPage({
   return (
     <>
       <PageHeader title={c.title} description={c.units.description} action={add} />
+      {welcome && <CoordinatorWelcome operatorsHref={paths.carrierOperators} />}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <FleetNav current="units" />
         {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}

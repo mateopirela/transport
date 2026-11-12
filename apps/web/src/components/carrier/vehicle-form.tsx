@@ -43,6 +43,7 @@ export function VehicleForm({
   businessUnits,
   defaultBusinessUnitId,
   primary = true,
+  returnTo,
 }: {
   /** Null to register a new unit. */
   vehicleId: string | null;
@@ -54,6 +55,8 @@ export function VehicleForm({
   defaultBusinessUnitId: string | null;
   /** Whether "Guardar" is the screen's primary (not while a release waits on the same screen). */
   primary?: boolean;
+  /** Where a new unit goes after saving: its own page, or back to step 4 of the review (R3). */
+  returnTo?: 'review';
 }) {
   const id = useId();
   const [state, action, pending] = useActionState<FormState, FormData>(saveCarrierVehicle, {
@@ -75,6 +78,7 @@ export function VehicleForm({
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       {vehicleId && <input type="hidden" name="vehicleId" value={vehicleId} />}
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       <div className="grid gap-4 sm:grid-cols-2">
         {vehicleId ? (
           <div className="space-y-1.5">

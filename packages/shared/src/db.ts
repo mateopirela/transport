@@ -676,6 +676,7 @@ export interface Database {
       document_requirements: {
         Row: {
           archived_at: string | null;
+          auto_review_eligible: boolean;
           code: string;
           company_type: Database['public']['Enums']['company_type'] | null;
           created_at: string;
@@ -694,6 +695,7 @@ export interface Database {
         ComputedFields: never;
         Insert: {
           archived_at?: string | null;
+          auto_review_eligible?: boolean;
           code: string;
           company_type?: Database['public']['Enums']['company_type'] | null;
           created_at?: string;
@@ -711,6 +713,7 @@ export interface Database {
         };
         Update: {
           archived_at?: string | null;
+          auto_review_eligible?: boolean;
           code?: string;
           company_type?: Database['public']['Enums']['company_type'] | null;
           created_at?: string;
@@ -874,6 +877,7 @@ export interface Database {
           owner_type: Database['public']['Enums']['document_owner_type'];
           requirement_id: string;
           review_notes: string | null;
+          review_source: Database['public']['Enums']['document_review_source'];
           reviewed_at: string | null;
           reviewed_by: string | null;
           size_bytes: number | null;
@@ -895,6 +899,7 @@ export interface Database {
           owner_type: Database['public']['Enums']['document_owner_type'];
           requirement_id: string;
           review_notes?: string | null;
+          review_source?: Database['public']['Enums']['document_review_source'];
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           size_bytes?: number | null;
@@ -915,6 +920,7 @@ export interface Database {
           owner_type?: Database['public']['Enums']['document_owner_type'];
           requirement_id?: string;
           review_notes?: string | null;
+          review_source?: Database['public']['Enums']['document_review_source'];
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           size_bytes?: number | null;
@@ -4238,6 +4244,7 @@ export interface Database {
         Returns: undefined;
       };
       assert_coordinates: { Args: { p_lat: number; p_lng: number }; Returns: undefined };
+      assert_operator_documents_ready: { Args: { p_operator_id: string }; Returns: undefined };
       assert_pickup_open: { Args: { p_load_id: string }; Returns: undefined };
       assert_road_source: {
         Args: { p_date: string; p_date_field: string; p_source: string; p_source_url: string };
@@ -4264,6 +4271,8 @@ export interface Database {
         };
         Returns: undefined;
       };
+      assert_vehicle_can_travel: { Args: { p_vehicle_id: string }; Returns: undefined };
+      assert_vehicle_documents_ready: { Args: { p_vehicle_id: string }; Returns: undefined };
       assert_vehicle_in_unit: {
         Args: { p_business_unit_id: string; p_vehicle_id: string };
         Returns: undefined;
@@ -4514,6 +4523,7 @@ export interface Database {
         Args: { p_company_id: string };
         Returns: {
           archived_at: string | null;
+          auto_review_eligible: boolean;
           code: string;
           company_type: Database['public']['Enums']['company_type'] | null;
           created_at: string;
@@ -4951,7 +4961,62 @@ export interface Database {
       };
       open_internal_share: { Args: { p_token: string }; Returns: Json };
       open_trip_operator_link: { Args: { p_token: string }; Returns: Json };
+      operator_expired_requirements: {
+        Args: { p_operator_id: string };
+        Returns: {
+          archived_at: string | null;
+          auto_review_eligible: boolean;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          shareable_with_shipper: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'document_requirements';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       operator_license_current: { Args: { p_operator_id: string }; Returns: boolean };
+      operator_missing_requirements: {
+        Args: { p_operator_id: string };
+        Returns: {
+          archived_at: string | null;
+          auto_review_eligible: boolean;
+          code: string;
+          company_type: Database['public']['Enums']['company_type'] | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_required: boolean;
+          name: string;
+          optional_for: Database['public']['Enums']['company_type'][];
+          owner_type: Database['public']['Enums']['document_owner_type'];
+          requires_expiry: boolean;
+          shareable_with_shipper: boolean;
+          sort_order: number;
+          taxpayer_type: Database['public']['Enums']['taxpayer_type'] | null;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'document_requirements';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      owner_operator_id: { Args: { p_company_id: string }; Returns: string };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       process_freight_due: { Args: Record<PropertyKey, never>; Returns: number };
       product_event_properties_valid: {
@@ -5432,6 +5497,7 @@ export interface Database {
         Args: { p_vehicle_id: string };
         Returns: {
           archived_at: string | null;
+          auto_review_eligible: boolean;
           code: string;
           company_type: Database['public']['Enums']['company_type'] | null;
           created_at: string;
@@ -5459,6 +5525,7 @@ export interface Database {
         Args: { p_vehicle_id: string };
         Returns: {
           archived_at: string | null;
+          auto_review_eligible: boolean;
           code: string;
           company_type: Database['public']['Enums']['company_type'] | null;
           created_at: string;
@@ -5530,6 +5597,7 @@ export interface Database {
       company_type: 'shipper' | 'carrier';
       conversation_kind: 'negotiation' | 'trip' | 'trip_internal';
       document_owner_type: 'company' | 'vehicle' | 'operator';
+      document_review_source: 'manual' | 'automatic';
       document_share_reason: 'offer_accepted' | 'trip_assigned';
       document_share_revoke_reason:
         'trip_closed' | 'trip_cancelled' | 'reassigned' | 'document_replaced' | 'manager_revoked';
@@ -5827,6 +5895,7 @@ export const Constants = {
       company_type: ['shipper', 'carrier'],
       conversation_kind: ['negotiation', 'trip', 'trip_internal'],
       document_owner_type: ['company', 'vehicle', 'operator'],
+      document_review_source: ['manual', 'automatic'],
       document_share_reason: ['offer_accepted', 'trip_assigned'],
       document_share_revoke_reason: [
         'trip_closed',

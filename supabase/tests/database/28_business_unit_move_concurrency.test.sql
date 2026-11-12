@@ -177,6 +177,18 @@ select extensions.dblink_exec('setup', $sql$
   values ('f2a00000-0000-4000-8000-000000000001', 'f2900000-0000-4000-8000-000000000001',
           'f2800000-0000-4000-8000-000000000001', 'c2800000-0000-4000-8000-000000000001',
           'c2800000-0000-4000-8000-000000000002', 'carrier', 2900000);
+  -- R4 (D45): the units and operators have every required document approved
+  -- and current (66_trip_document_gate tests the gate itself).
+  insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+  select o.company_id, r.id, r.owner_type, o.id,
+         o.company_id || '/' || r.owner_type || '/' || o.id || '/' || gen_random_uuid() || '.pdf',
+         'approved', now() + interval '1 year'
+  from (select company_id, 'vehicle'::public.document_owner_type as kind, id from public.vehicles
+        union all select company_id, 'operator', id from public.operators) o
+  join public.document_requirements r on r.owner_type = o.kind and r.is_required and r.archived_at is null
+  where o.company_id = 'c2800000-0000-4000-8000-000000000002'
+    and not exists (select 1 from public.documents d where d.owner_id = o.id and d.requirement_id = r.id
+                    and d.status = 'approved' and d.archived_at is null);
 $sql$);
 
 -- The shipper accepts: a trip pending assignment, in unit A (its negotiation).

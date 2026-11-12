@@ -390,7 +390,8 @@ insert into public.business_unit_coordinators (business_unit_id, company_id, pro
 values ('b2900000-0000-4000-8000-000000000002', 'c2900000-0000-4000-8000-000000000003', 'a2900000-0000-4000-8000-000000000009');
 -- Elena's license (unit "Principal") expires in 3 days; the company's constancia has no date.
 update public.documents set expires_at = now() + interval '3 days'
-where owner_id = 'd2900000-0000-4000-8000-000000000006' and status = 'approved';
+where owner_id = 'd2900000-0000-4000-8000-000000000006' and status = 'approved'
+  and requirement_id = tests.requirement('federal_driver_license');
 select set_config('request.jwt.claims', '', true);
 select is(public.process_document_expiry(), 1, 'one document is about to expire');
 select results_eq(

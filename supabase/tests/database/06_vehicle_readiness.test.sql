@@ -154,9 +154,13 @@ select is(
   3,
   'a unit without documents misses every required vehicle document (card, permit and insurance, D16)'
 );
-select lives_ok(
+-- R4 (D45): since the trip document gate, missing documents block it too
+-- (66_trip_document_gate covers every case).
+select throws_ok(
   $$ select public.set_vehicle_availability('e1000000-0000-4000-8000-0000000000b1', now(), 20.67, -103.35, 'Guadalajara', 'Jalisco') $$,
-  'missing (not expired) documents do not block availability'
+  '55000',
+  'vehicle has missing documents: vehicle_registration_card, vehicle_permit, vehicle_insurance_policy',
+  'missing (not expired) documents block availability too (R4)'
 );
 
 -- The shipper sees nothing.

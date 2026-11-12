@@ -494,8 +494,14 @@ select is(
 set local role authenticated;
 select tests.login('a3400000-0000-4000-8000-000000000002');
 select public.set_vehicle_availability(v.id, now(), 25.70, -100.30, 'Monterrey', 'Nuevo León')
-from (values ('e3400000-0000-4000-8000-000000000002'::uuid), ('e3400000-0000-4000-8000-000000000003'),
-             ('e3400000-0000-4000-8000-000000000004')) as v(id);
+from (values ('e3400000-0000-4000-8000-000000000002'::uuid), ('e3400000-0000-4000-8000-000000000003')) as v(id);
+-- R4 (D45): V4, without documents, can no longer be made available through
+-- the RPC; written directly, matching must still leave it out.
+reset role;
+insert into public.vehicle_availability (company_id, vehicle_id, available_from, location, city, state, source)
+values ('c3400000-0000-4000-8000-000000000002', 'e3400000-0000-4000-8000-000000000004', now(),
+        'SRID=4326;POINT(-100.30 25.70)', 'Monterrey', 'Nuevo León', 'manual');
+set local role authenticated;
 select tests.login('a3400000-0000-4000-8000-000000000001');
 insert into tests.vals select 'load3', public.create_load(tests.payload(2));
 select public.publish_load(tests.val('load3'));

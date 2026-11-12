@@ -140,6 +140,14 @@ from public.vehicles v
 cross join public.document_requirements r
 where v.id::text like 'e8000000-%' and v.id <> 'e8000000-0000-4000-8000-0000000000a3'
   and r.owner_type = 'vehicle' and r.is_required and r.archived_at is null;
+-- R4 (D45): and the operator's, so assign_trip takes him.
+insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
+select o.company_id, r.id, 'operator', o.id, o.company_id || '/operator/' || o.id || '/' || gen_random_uuid() || '.pdf',
+       'approved', now() + interval '1 year'
+from public.operators o
+cross join public.document_requirements r
+where o.id = 'd8000000-0000-4000-8000-000000000005'
+  and r.owner_type = 'operator' and r.is_required and r.archived_at is null;
 
 insert into public.vehicle_availability (company_id, vehicle_id, available_from, location, city, state) values
   ('c8000000-0000-4000-8000-000000000002', 'e8000000-0000-4000-8000-0000000000a1', now() + interval '1 hour',

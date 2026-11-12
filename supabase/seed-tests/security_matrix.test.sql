@@ -21,7 +21,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(36);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -942,6 +942,36 @@ select ok(
   tests.changes_data('5eed0001-0000-4000-8000-000000000002', (select call from tests.rpc_calls where fn = 'set_provider_status')),
   'harness: the shipper of the pair can revoke the provider approval'
 );
+
+-- R4 (D10-E1): nobody but review_document writes where a review came from.
+-- Every persona of the seed is `authenticated`: none may write the column,
+-- and each one's direct update is refused.
+select ok(
+  not has_column_privilege('authenticated', 'public.documents', 'review_source', 'insert, update')
+  and not has_column_privilege('anon', 'public.documents', 'review_source', 'select, insert, update'),
+  'no client writes documents.review_source (only review_document sets it); anon does not even read it'
+);
+create function tests.review_source_writers()
+returns setof text
+language plpgsql
+as $$
+declare
+  p record;
+begin
+  for p in select uid, label from tests.personas order by uid loop
+    begin
+      perform tests.act_as(p.uid);
+      update public.documents set review_source = 'automatic';
+      reset role;
+      return next p.label;
+    exception when insufficient_privilege then
+      reset role;
+    end;
+  end loop;
+end;
+$$;
+select is_empty($$ select * from tests.review_source_writers() $$,
+  'every persona''s update of review_source is refused');
 
 select * from finish();
 rollback;

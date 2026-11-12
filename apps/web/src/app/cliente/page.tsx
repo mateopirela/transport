@@ -141,13 +141,9 @@ export default async function ShipperHomePage() {
               <div className="space-y-5 px-5 py-4">
                 <div className="space-y-2">
                   <TripStatusBadge status={currentTrip.status} />
-                  <p className="text-title3 text-text">
-                    {currentTrip.load
-                      ? `${currentTrip.load.origin_city} → ${currentTrip.load.destination_city}`
-                      : ''}
-                  </p>
-                  {currentTrip.parties && (
-                    <p className="text-footnote text-text-dim">{currentTrip.parties.carrierName}</p>
+                  <p className="text-title3 text-text">{currentTrip.route}</p>
+                  {currentTrip.carrierName && (
+                    <p className="text-footnote text-text-dim">{currentTrip.carrierName}</p>
                   )}
                 </div>
                 <Steps label={tripProgressCopy.label} steps={tripProgress(currentTrip.status)} />

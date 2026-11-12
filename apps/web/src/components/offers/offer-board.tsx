@@ -101,6 +101,11 @@ export function OfferBoard({
               <div className="text-subhead">
                 <UnitSummary vehicle={row.vehicle} />
               </div>
+              {row.latest.conditions && (
+                <p className="text-footnote text-text-dim">
+                  {offersCopy.negotiation.conditions}: {row.latest.conditions}
+                </p>
+              )}
             </div>
             <div className="shrink-0 space-y-0.5 sm:text-right">
               <Money cents={row.latest.amount_cents} size="title" className="block" />
@@ -135,6 +140,7 @@ export function OfferBoard({
                   offerId={row.latest.id}
                   amount={formatMoney(row.latest.amount_cents)}
                   carrier={row.carrierName}
+                  conditions={row.latest.conditions}
                   primary={row.negotiationId === first}
                 />
               )}

@@ -25,6 +25,7 @@ export function OfferResponse({
   offerId,
   amount,
   carrier,
+  conditions = null,
   primary = true,
   stacked = false,
 }: {
@@ -32,6 +33,8 @@ export function OfferResponse({
   /** Formatted amount of the offer, for the dialogs. */
   amount: string;
   carrier: string;
+  /** The offer's conditions, shown in the acceptance dialog. */
+  conditions?: string | null;
   /** Accept is the screen's filled primary. */
   primary?: boolean;
   /** One button under another, the whole width (the rail of a detail). */
@@ -61,6 +64,13 @@ export function OfferResponse({
         error={accepted.error}
       >
         {offer}
+        {/* What the client contracts: the offer's terms, before confirming. */}
+        {conditions && (
+          <div className="space-y-1 border bg-bg px-4 py-3">
+            <p className="text-label text-text-dim">{offersCopy.negotiation.conditions}</p>
+            <p className="text-subhead text-text">{conditions}</p>
+          </div>
+        )}
       </ConfirmDialog>
 
       <ConfirmDialog

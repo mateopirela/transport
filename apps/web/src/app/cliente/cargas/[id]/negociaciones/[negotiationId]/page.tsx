@@ -100,6 +100,7 @@ export default async function NegotiationPage({
                   offerId={row.latest.id}
                   amount={formatMoney(row.latest.amount_cents)}
                   carrier={row.carrierName}
+                  conditions={row.latest.conditions}
                   stacked
                 />
               </RailSection>

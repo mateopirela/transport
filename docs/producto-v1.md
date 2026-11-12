@@ -36,6 +36,7 @@
 - **Unidad de negocio** (grupo): conjunto de camiones y operadores de una empresa transportista, con uno o varios coordinadores asignados (D19). Toda empresa transportista tiene al menos una ("Principal"). Un camión y un operador pertenecen a una sola; un coordinador puede tener varias.
 - Cada empresa (cliente o transportista) pasa por **verificación** antes de operar. Mientras está "en revisión" puede completar su perfil, pero no publicar cargas ni ofertar.
 - **Cómo entra cada quien:** Cliente, Gerente, Coordinador y hombre-camión, con correo y contraseña. El Operador, con **teléfono y contraseña** (D15-E1). La web y la app tienen un solo campo "Correo o teléfono".
+- **Alta por pasos y acceso (2026-11-12):** el registro pasa a cinco pasos con progreso, se entra por invitación desde el login y el registro, el operador suma una selfie, ningún camión ni operador viaja sin sus documentos obligatorios aprobados y vigentes, y los admins entran con segundo factor (D42–D47, D10-E1, D15-E2, D16-E3). Se construye con [plan-registro.md](plan-registro.md); lo demás de esta especificación describe lo que ya está en `main`.
 
 ## 3. Funcionalidades V1 por perfil
 

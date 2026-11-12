@@ -71,9 +71,9 @@ tags: [operator, location]
     text: 'Not Now'
     optional: true
 - extendedWaitUntil:
-    visible: 'Avance del viaje'
+    visible: 'Tu siguiente paso'
     timeout: 30000
-- assertVisible: 'Destino: Saltillo, Coahuila'
+- assertVisible: 'Monterrey → Saltillo'
 - assertVisible: 'Ubicación precisa y "Siempre"'
 - assertVisible: 'Activa la ubicación precisa y "Siempre" para que tu coordinador y el cliente vean tu avance.'
 - assertVisible: 'Abrir ajustes'

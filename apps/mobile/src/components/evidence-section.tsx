@@ -53,7 +53,10 @@ export function EvidenceSection({
   return (
     <View style={styles.section}>
       <SectionHeader title={copy.title[stage]} />
-      <Pill label={copy.progress(items.length, minimum)} tone={missing > 0 ? 'amber' : 'ok'} />
+      <Pill
+        label={copy.progress(items.length, minimum)}
+        tone={missing > 0 ? 'attention' : 'done'}
+      />
       <Group>
         <TextCell tone="dim">{copy.help[stage]}</TextCell>
         {items.length > 0 ? (
@@ -74,13 +77,13 @@ export function EvidenceSection({
                           accessibilityLabel={copy.takenAt(formatDateTime(item.capturedAt))}
                           style={[styles.thumb, styles.thumbEmpty, { height: tile }]}
                         >
-                          <Icon name="image" size={iconSize.regular} color={colors.textFaint} />
+                          <Icon name="image" size={iconSize.regular} color={colors.textDim} />
                         </View>
                       )}
                       <Text style={styles.caption} numberOfLines={1}>
                         {formatDateTime(item.capturedAt)}
                       </Text>
-                      {item.pending ? <Pill label={copy.pendingTag} tone="amber" /> : null}
+                      {item.pending ? <Pill label={copy.pendingTag} tone="pending" /> : null}
                     </View>
                   ))
                 : null}

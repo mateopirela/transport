@@ -144,3 +144,39 @@ export const operatorEvidenceCopy = {
   receiverName: 'Nombre de quien recibe',
   receivedBy: (name: string) => `Recibió: ${name}`,
 } as const;
+
+/**
+ * "Tu siguiente paso" of the operator's trip (V7, docs/plan-fulmis.md §1.5):
+ * the Night block on top of the trip with the step to take, the four steps of
+ * the trip under it and the card of the load. A title says what to do; its
+ * button keeps the operator's own words (operatorStepActionLabels).
+ */
+export const operatorNextStepCopy = {
+  label: 'Tu siguiente paso',
+  titles: {
+    departed: 'Sal hacia la recolección',
+    arrived_at_pickup: 'Llega a la recolección',
+    loading_started: 'Empieza a cargar',
+    loading_finished: 'Termina de cargar',
+    arrived_at_delivery: 'Llega al destino',
+    unloading_started: 'Empieza a descargar',
+    unloading_finished: 'Termina de descargar',
+  } satisfies Record<OperatorTripEvent, string>,
+  /** Delivered: nothing left to record until the shipper confirms. */
+  doneTitle: 'Carga entregada',
+  /** A trip the operator has nothing to record on (closed, cancelled). */
+  waitingTitle: 'Sin pasos por ahora',
+  /** Where the step happens: "Guadalajara, Jal. · Av. 8 de Julio 2500". */
+  place: (city: string, state: string, address: string) => `${city}, ${state} · ${address}`,
+  directions: 'Cómo llegar',
+  report: 'Reportar incidencia',
+  /** The four steps of a trip, under "Avance del viaje". */
+  steps: ['Recolección', 'Carga', 'En ruta', 'Entrega'],
+  /** Under the step in course. */
+  now: 'Ahora',
+  route: 'Ruta',
+  weightLabel: 'Peso',
+  kilograms: (kg: string) => `${kg} kg`,
+  unitLabel: 'Unidad',
+  requirementsLabel: 'Requisitos',
+} as const;

@@ -141,15 +141,18 @@ export function UnloadEstimateForm({
 const KIND_OPTIONS = toOptions(INCIDENT_KINDS, incidentKindLabels);
 
 /**
- * Kind and description of an incident (report_incident), in one group. Its
- * button is secondary: the screen's one primary is the next trip step.
+ * Kind and description of an incident (report_incident), in one group, with
+ * "Enviar incidencia" under it. On the trip it lives in a sheet (`inSheet`),
+ * where sending it is the one thing to do: there its button is the primary.
  */
 export function IncidentForm({
   busy,
   onSubmit,
+  inSheet = false,
 }: {
   busy: boolean;
   onSubmit: (values: IncidentFormValues) => Promise<boolean>;
+  inSheet?: boolean;
 }) {
   const [kind, setKind] = useState<IncidentKind | undefined>(undefined);
   const [description, setDescription] = useState('');
@@ -191,11 +194,12 @@ export function IncidentForm({
           error={errors.description}
           multiline
           maxLength={2000}
+          inSheet={inSheet}
         />
       </Group>
       <Button
         label={copy.incidentSubmit}
-        variant="secondary"
+        variant={inSheet ? 'primary' : 'secondary'}
         onPress={() => void submit()}
         loading={busy}
         disabled={busy}

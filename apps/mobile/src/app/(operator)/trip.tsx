@@ -4,20 +4,22 @@ import {
   missingPhotos,
   operatorEvidenceCopy as evidenceCopy,
   mobileNavCopy,
-  nextOperatorEvent,
   suggestedHandlingMinutes,
   OPERATOR_TRIP_STEPS,
-  operatorStepActionLabels,
   operatorStepConfirmLabels,
   operatorTripCopy as copy,
+  carrierTripsCopy,
   dwellCopy,
   formatDateTime,
   internalChatCopy,
   missingTripDocumentsFromError,
+  supportCopy,
   tripDocumentKindLabels,
   tripEventTypeLabels,
+  tripFolio,
   tripLinkCopy,
   tripStatusLabels,
+  tripStatusTone,
   unloadEstimateProblem,
   type EvidenceStage,
   type GatedEvidenceStage,
@@ -37,20 +39,23 @@ import {
 } from '../../components/evidence-section';
 import { HelpCell } from '../../components/help-cell';
 import { OperatorDocumentsSection } from '../../components/operator-documents-section';
-import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
-import { TabBottomBar } from '../../components/tab-bottom-bar';
 import {
-  IncidentForm,
+  IncidentSheet,
+  LoadSection,
+  NextStepBlock,
+  TripHeading,
+  TripSteps,
+  type IncidentSheetHandle,
+} from '../../components/operator-trip';
+import { ConfirmSheet, type ConfirmSheetHandle } from '../../components/sheet';
+import {
   UnloadEstimateFields,
   UnloadEstimateForm,
   type FormHandle,
 } from '../../components/trip-forms';
 import {
   IncidentList,
-  InstructionsSection,
   type IncidentPhotoTarget,
-  ProgressSection,
-  RouteSection,
   TimelineSection,
   type TimelineEntry,
 } from '../../components/trip-sections';
@@ -65,10 +70,10 @@ import {
   Loading,
   LoadError,
   Notice,
-  Pill,
   Screen,
   SectionHeader,
 } from '../../components/ui';
+import { nextStep, stepDetails } from '../../lib/next-step';
 import { capturePhoto, photoUri } from '../../lib/evidence-api';
 import {
   incidentPhotoCount,
@@ -135,6 +140,18 @@ function NoticeAction({ label, onPress }: { label: string; onPress: () => void }
   );
 }
 
+/** What became of an action, in its tone; "Abrir configuración" when a permission is missing. */
+function MessageNotice({ message }: { message: Message }) {
+  return (
+    <Notice tone={message.tone}>
+      <NoticeText>{message.text}</NoticeText>
+      {message.settings ? (
+        <NoticeAction label={copy.openSettings} onPress={() => void Linking.openSettings()} />
+      ) : null}
+    </Notice>
+  );
+}
+
 /**
  * "Reportar al coordinador" (H1, D28): the operator's channel to their
  * coordinator, with the unread messages. Only in the operator's area: the
@@ -168,7 +185,9 @@ function ReportToCoordinator({ tripId }: { tripId: string }) {
         title={internalChatCopy.report}
         subtitle={unread > 0 ? internalChatCopy.reportUnread(unread) : internalChatCopy.description}
         pill={
-          unread > 0 ? { label: internalChatCopy.unreadBadge(unread), tone: 'accent' } : undefined
+          unread > 0
+            ? { label: internalChatCopy.unreadBadge(unread), tone: 'attention' }
+            : undefined
         }
         role="link"
         strong
@@ -220,7 +239,7 @@ function NextTrip({ tripId }: { tripId: string }) {
             formatDateTime(next.pickupStart),
             formatDateTime(next.pickupEnd),
           )}
-          pill={{ label: tripStatusLabels[next.status], tone: 'neutral' }}
+          pill={{ label: tripStatusLabels[next.status], tone: tripStatusTone(next.status) }}
         />
       </Group>
       <Footnote>{tripLinkCopy.app.nextTripHelp}</Footnote>
@@ -337,17 +356,14 @@ export default function AssignedTripTab() {
     return (
       <Screen title={mobileNavCopy.assignedTrip}>
         {notices}
-        <Notice tone="danger">
-          <NoticeText>{copy.loadFailed}</NoticeText>
-          <NoticeAction label={copy.refresh} onPress={() => void reload()} />
-        </Notice>
+        <LoadError message={copy.loadFailed} onRetry={() => void reload()} />
       </Screen>
     );
   }
   const trip = state.data;
   if (!trip) {
     return (
-      <Screen title={mobileNavCopy.assignedTrip}>
+      <Screen title={mobileNavCopy.assignedTrip} onRefresh={() => void reload()}>
         {notices}
         <Empty
           title={copy.noTripTitle}
@@ -372,6 +388,7 @@ export default function AssignedTripTab() {
       photos={photos}
       notice={notices}
       tracking={tracking}
+      onReload={() => void reload()}
     />
   );
 }
@@ -382,25 +399,29 @@ function TripView({
   photos,
   notice,
   tracking,
+  onReload,
 }: {
   trip: OperatorTrip;
   stored: StoredQueue;
   photos: StoredPhotos;
   notice: ReactNode;
   tracking: TripTracking;
+  onReload: () => void;
 }) {
   const [busy, setBusy] = useState<'step' | 'estimate' | 'incident' | 'photo' | null>(null);
   const operatorArea = useSession().area === 'operator';
   const [message, setMessage] = useState<Message | null>(null);
   const [incidentMessage, setIncidentMessage] = useState<Message | null>(null);
+  const [photoMessage, setPhotoMessage] = useState<Message | null>(null);
   const { type } = useTheme();
-  const [barHeight, setBarHeight] = useState(0);
   const confirmSheet = useRef<ConfirmSheetHandle>(null);
-  // The fields of the step whose button is in the bottom bar (estimate or receiver).
+  const incidentSheet = useRef<IncidentSheetHandle>(null);
+  // The fields the step's button asks for (the estimate or who receives).
   const stepFields = useRef<FormHandle<string>>(null);
-  // Where those fields start in the page, to scroll to their errors.
+  // Where those fields and the incidents start in the page, to scroll to them.
   const scrollRef = useRef<ScrollView>(null);
   const stepFieldsY = useRef(0);
+  const incidentsY = useRef(0);
 
   // Actions this copy of the trip does not show yet: sent ones still missing
   // from its timeline, then the ones waiting on the phone.
@@ -413,7 +434,8 @@ function TripView({
   const pendingCount = stored.pending.filter((a) => a.tripId === trip.id).length;
   const status = effectiveStatus(trip.status, queue, trip.id);
   const estimate = effectiveUnloadEstimate(trip.estimatedUnloadEndAt, queue, trip.id);
-  const next = nextOperatorEvent(status);
+  const step = nextStep(status);
+  const next = step.event;
   const unloadMinutes = suggestedHandlingMinutes(trip.unloadDwell);
 
   // Photos (B23): the server's plus the ones still on the phone, per stage.
@@ -509,7 +531,7 @@ function TripView({
 
   /** Camera only; the photo is queued on the phone and uploaded when possible. */
   async function takePhoto(stage: EvidenceStage, incident: IncidentPhotoTarget | null) {
-    const show = incident ? setIncidentMessage : setMessage;
+    const show = incident ? setIncidentMessage : setPhotoMessage;
     setBusy('photo');
     show(null);
     try {
@@ -551,26 +573,26 @@ function TripView({
       body: operatorStepConfirmLabels[event],
       confirmLabel: copy.confirm,
       cancelLabel: copy.cancel,
-      // The sheet closes at once: the step shows its progress on the bar's button.
+      // The sheet closes at once: the step shows its progress on the block's button.
       onConfirm: () => {
         void recordStep(event, estimatedUnloadEndAt, receivedByName);
       },
     });
   }
 
-  /** The bar's button: the step, with what its fields ask for (the estimate, who receives). */
-  function onStep(step: OperatorTripEvent) {
-    if (step === 'unloading_started' || step === 'unloading_finished') {
+  /** The block's button: the step, with what its fields ask for (the estimate, who receives). */
+  function onStep(event: OperatorTripEvent) {
+    if (event === 'unloading_started' || event === 'unloading_finished') {
       const value = stepFields.current?.submit();
       if (!value) {
         // The errors sit by the fields: bring them into view.
         scrollRef.current?.scrollTo({ y: Math.max(stepFieldsY.current - spacing.md, 0) });
         return;
       }
-      if (step === 'unloading_started') askStep(step, value);
-      else askStep(step, null, value);
+      if (event === 'unloading_started') askStep(event, value);
+      else askStep(event, null, value);
     } else {
-      askStep(step, null);
+      askStep(event, null);
     }
   }
 
@@ -681,20 +703,68 @@ function TripView({
     }
   }
 
+  const folio = tripFolio(trip.id);
+  const pendingNotice =
+    pendingCount > 0 || pendingPhotoCount > 0 ? (
+      <Notice tone="warning" title={copy.pendingTitle}>
+        {pendingCount > 0 ? <NoticeText>{copy.pendingBody(pendingCount)}</NoticeText> : null}
+        {pendingPhotoCount > 0 ? (
+          <NoticeText>{evidenceCopy.pendingUploads(pendingPhotoCount)}</NoticeText>
+        ) : null}
+        <View style={styles.noticeActions}>
+          {pendingCount > 0 ? (
+            <Button
+              label={copy.syncNow}
+              variant="secondary"
+              size="small"
+              onPress={() => {
+                if (supabase) void flushTripQueue(supabase);
+              }}
+            />
+          ) : null}
+          {pendingPhotoCount > 0 ? (
+            <Button
+              label={evidenceCopy.uploadNow}
+              variant="secondary"
+              size="small"
+              onPress={() => {
+                if (supabase) void flushEvidenceQueue(supabase, { force: true });
+              }}
+            />
+          ) : null}
+        </View>
+      </Notice>
+    ) : null;
+
   return (
     <>
-      <Screen
-        title={mobileNavCopy.assignedTrip}
-        bottom={next ? barHeight : 0}
-        scrollRef={scrollRef}
-      >
-        <View style={styles.status}>
-          <Pill label={tripStatusLabels[status]} tone={status === 'delivered' ? 'ok' : 'accent'} />
-        </View>
+      <Screen scrollRef={scrollRef}>
+        <TripHeading
+          eyebrow={folio ? supportCopy.folio(folio) : mobileNavCopy.assignedTrip}
+          title={carrierTripsCopy.list.route(trip.load.origin_city, trip.load.destination_city)}
+          pill={{ label: tripStatusLabels[status], tone: tripStatusTone(status) }}
+        />
+
+        {/* "Tu siguiente paso": the screen's one primary, on its first screen. */}
+        <NextStepBlock
+          load={trip.load}
+          step={step}
+          busy={busy === 'step'}
+          disabled={busy !== null || missing > 0}
+          note={gate && missing > 0 ? evidenceCopy.missing(gate, missing) : undefined}
+          body={status === 'delivered' ? copy.delivered : undefined}
+          lines={receivedBy ? [evidenceCopy.receivedBy(receivedBy)] : []}
+          onStep={() => {
+            if (next) onStep(next);
+          }}
+          fallback={{ label: copy.refresh, onPress: onReload }}
+          onReport={() => incidentSheet.current?.open()}
+        />
+
+        {message ? <MessageNotice message={message} /> : null}
 
         {notice}
-
-        {operatorArea ? <ReportToCoordinator tripId={trip.id} /> : null}
+        {pendingNotice}
 
         <TrackingBanner tracking={tracking} />
         {/* D17; the tracking banner already asks for the consent or "Always". */}
@@ -702,57 +772,11 @@ function TripView({
           hidden={tracking.decision === 'needs_consent' || tracking.decision === 'needs_permission'}
         />
 
-        {pendingCount > 0 || pendingPhotoCount > 0 ? (
-          <Notice tone="warning" title={copy.pendingTitle}>
-            {pendingCount > 0 ? <NoticeText>{copy.pendingBody(pendingCount)}</NoticeText> : null}
-            {pendingPhotoCount > 0 ? (
-              <NoticeText>{evidenceCopy.pendingUploads(pendingPhotoCount)}</NoticeText>
-            ) : null}
-            <View style={styles.noticeActions}>
-              {pendingCount > 0 ? (
-                <Button
-                  label={copy.syncNow}
-                  variant="secondary"
-                  size="small"
-                  onPress={() => {
-                    if (supabase) void flushTripQueue(supabase);
-                  }}
-                />
-              ) : null}
-              {pendingPhotoCount > 0 ? (
-                <Button
-                  label={evidenceCopy.uploadNow}
-                  variant="secondary"
-                  size="small"
-                  onPress={() => {
-                    if (supabase) void flushEvidenceQueue(supabase, { force: true });
-                  }}
-                />
-              ) : null}
-            </View>
-          </Notice>
-        ) : null}
+        {operatorArea ? <ReportToCoordinator tripId={trip.id} /> : null}
 
-        {status === 'delivered' ? (
-          <Notice tone="highlight">
-            <NoticeText>{copy.delivered}</NoticeText>
-            {receivedBy ? <NoticeText>{evidenceCopy.receivedBy(receivedBy)}</NoticeText> : null}
-          </Notice>
-        ) : null}
+        <TripSteps progress={step.progress} details={stepDetails(step.progress, timeline)} />
 
-        <RouteSection load={trip.load} status={status} />
-
-        <ProgressSection status={status} />
-
-        {message ? (
-          <Notice tone={message.tone}>
-            <NoticeText>{message.text}</NoticeText>
-            {message.settings ? (
-              <NoticeAction label={copy.openSettings} onPress={() => void Linking.openSettings()} />
-            ) : null}
-          </Notice>
-        ) : null}
-
+        {/* What the step asks for before its button: the photos, the estimate, who receives. */}
         {captureStage ? (
           <EvidenceSection
             stage={captureStage}
@@ -763,6 +787,8 @@ function TripView({
             onCapture={() => void takePhoto(captureStage, null)}
           />
         ) : null}
+        {/* What became of the last photo, under the camera button that took it. */}
+        {captureStage && photoMessage ? <MessageNotice message={photoMessage} /> : null}
 
         {status === 'unloading' ? (
           <View style={styles.section}>
@@ -804,12 +830,14 @@ function TripView({
           </View>
         ) : null}
 
-        <InstructionsSection trip={trip} />
-
-        <OperatorDocumentsSection documents={trip.documents} />
-
-        <View style={styles.section}>
+        <View
+          style={styles.section}
+          onLayout={(e) => (incidentsY.current = e.nativeEvent.layout.y)}
+        >
           <SectionHeader title={copy.incidents} />
+          {incidentMessage ? (
+            <Notice tone={incidentMessage.tone}>{incidentMessage.text}</Notice>
+          ) : null}
           <IncidentList
             incidents={trip.incidents}
             queued={incidentsOnPhone}
@@ -817,15 +845,11 @@ function TripView({
             onAddPhoto={(target) => void takePhoto('incident', target)}
             busy={busy !== null}
           />
-          {incidentMessage ? (
-            <Notice tone={incidentMessage.tone}>{incidentMessage.text}</Notice>
-          ) : null}
         </View>
 
-        <View style={styles.section}>
-          <SectionHeader title={copy.reportIncident} />
-          <IncidentForm busy={busy === 'incident'} onSubmit={submitIncident} />
-        </View>
+        <LoadSection trip={trip} />
+
+        <OperatorDocumentsSection documents={trip.documents} />
 
         <TimelineSection entries={timeline} />
 
@@ -833,26 +857,21 @@ function TripView({
         <HelpCell tripId={trip.id} />
       </Screen>
 
-      {/* The next step is the screen's one primary, always at hand. */}
-      {next ? (
-        <TabBottomBar
-          action={{
-            label: operatorStepActionLabels[next],
-            onPress: () => onStep(next),
-            loading: busy === 'step',
-            disabled: busy !== null || missing > 0,
-          }}
-          note={gate && missing > 0 ? evidenceCopy.missing(gate, missing) : undefined}
-          onHeight={setBarHeight}
-        />
-      ) : null}
+      <IncidentSheet
+        ref={incidentSheet}
+        busy={busy === 'incident'}
+        onSubmit={submitIncident}
+        onSent={() =>
+          // The report is listed with the photos it can take: show it there.
+          scrollRef.current?.scrollTo({ y: Math.max(incidentsY.current - spacing.md, 0) })
+        }
+      />
       <ConfirmSheet ref={confirmSheet} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  status: { marginTop: -spacing.sm, flexDirection: 'row' },
   section: { gap: spacing.sm + spacing.xs },
   noticeAction: { marginTop: spacing.xs, alignItems: 'flex-start' },
   noticeActions: {

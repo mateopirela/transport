@@ -4408,6 +4408,7 @@ export interface Database {
           trip_status: Database['public']['Enums']['trip_status'];
         }[];
       };
+      carrier_owner_operator_gate: { Args: Record<PropertyKey, never>; Returns: Json };
       carrier_quick_pay_fee_bps: { Args: Record<PropertyKey, never>; Returns: number };
       check_backhaul: { Args: { p_source: string; p_trip_id: string }; Returns: undefined };
       check_freight_invoice_service: {
@@ -5017,6 +5018,7 @@ export interface Database {
         };
       };
       owner_operator_id: { Args: { p_company_id: string }; Returns: string };
+      owner_operator_ready: { Args: { p_company_id: string }; Returns: boolean };
       process_document_expiry: { Args: { p_thresholds?: number[] }; Returns: number };
       process_freight_due: { Args: Record<PropertyKey, never>; Returns: number };
       product_event_properties_valid: {

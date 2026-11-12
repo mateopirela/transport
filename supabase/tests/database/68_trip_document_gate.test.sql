@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(56);
+select plan(63);
 
 -- I1: the cargo insurance (51_cargo_insurance) takes no part in this test.
 update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
@@ -579,12 +579,65 @@ select is(
    where vehicle_id = 'e6600000-0000-4000-8000-000000000009'),
   0, 'nor is his unit recommended while he has no active operator row'
 );
+set local role authenticated;
+select tests.login('a6600000-0000-4000-8000-000000000010');
+select is(
+  public.carrier_owner_operator_gate(),
+  '{"isOwnerOperator": true, "operatorName": null, "expired": [], "notApproved": []}'::jsonb,
+  'the fleet screens learn that his operator row is missing, so they block his unit too'
+);
+reset role;
 update public.operators set archived_at = null where id = 'd6600000-0000-4000-8000-000000000010';
 select is(
   (select count(*)::int from public.match_pairs(null, tests.val('load3'), 150)
    where vehicle_id = 'e6600000-0000-4000-8000-000000000009'),
   1, 'with his row active and its documents approved, it is recommended (control)'
 );
+
+-- carrier_owner_operator_gate: what the fleet screens show of the
+-- hombre-camión's own documents, which a Coordinador cannot read by RLS.
+-- User 11: Celia, Coordinadora of José's company with no business unit.
+select tests.new_user('a6600000-0000-4000-8000-000000000011', 'coordinator');
+update public.profiles set company_id = 'c6600000-0000-4000-8000-000000000004'
+where id = 'a6600000-0000-4000-8000-000000000011';
+update public.documents set status = 'rejected', review_notes = 'Ilegible'
+where owner_type = 'operator' and owner_id = 'd6600000-0000-4000-8000-000000000009'
+  and requirement_id = tests.requirement('federal_driver_license');
+select ok(
+  has_function_privilege('authenticated', 'public.carrier_owner_operator_gate()', 'execute')
+  and not has_function_privilege('anon', 'public.carrier_owner_operator_gate()', 'execute'),
+  'the gate RPC is for signed-in users only'
+);
+set local role authenticated;
+select tests.login('a6600000-0000-4000-8000-000000000011');
+select is(
+  (select count(*)::int from public.operators where id = 'd6600000-0000-4000-8000-000000000009'),
+  0, 'the Coordinadora cannot read the hombre-camión''s operator row (RLS by business unit)'
+);
+select is(
+  (select g ->> 'operatorName' || ': ' || (g -> 'notApproved' -> 0 ->> 'code') || ' / ' || jsonb_array_length(g -> 'expired')
+   from public.carrier_owner_operator_gate() g),
+  'José Sánchez Medina: federal_driver_license / 0',
+  'yet the gate tells her what blocks his units, so a hidden row never looks missing'
+);
+select tests.login('a6600000-0000-4000-8000-000000000002');
+select is(
+  public.carrier_owner_operator_gate() ->> 'isOwnerOperator', 'false',
+  'a fleet is not gated by an owner operator'
+);
+select tests.login('a6600000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$ select public.carrier_owner_operator_gate() $$,
+  '42501', 'only the carrier staff read the owner operator gate',
+  'a shipper is refused'
+);
+select tests.login('a6600000-0000-4000-8000-000000000005');
+select throws_ok(
+  $$ select public.carrier_owner_operator_gate() $$,
+  '42501', 'only the carrier staff read the owner operator gate',
+  'and so is an operator'
+);
+reset role;
 
 select * from finish();
 rollback;

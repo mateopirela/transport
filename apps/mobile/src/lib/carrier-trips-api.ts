@@ -378,7 +378,7 @@ async function assignmentOptions(
         name: unitLabel(v),
         kind: v.kind,
         unitType: v.unit_type,
-        expiredDocuments: v.readiness === 'expired_documents',
+        expiredDocuments: v.unitDocumentsExpired,
         // assign_trip checks the unit and the chosen operator apart (R4).
         documentIssue: v.unitDocumentIssue,
         currentOperatorId: usualOperator.get(v.id) ?? null,

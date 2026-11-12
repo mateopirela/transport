@@ -8,8 +8,10 @@ import {
   documentGateOpen,
   documentGateText,
   joinNames,
+  parseOwnerOperatorGate,
   requirementNameForCode,
   unitTravelGate,
+  type OwnerOperatorGate,
 } from './document-gate';
 import { fleetErrorText, vehicleReadiness } from './fleet';
 import { releaseErrorText } from './vehicle-release';
@@ -209,54 +211,58 @@ describe('documentGateErrorText', () => {
 });
 
 describe('unitTravelGate (assert_vehicle_can_travel, owner_operator_ready)', () => {
-  const base = {
-    vehicleRequirements: [card, insurance],
-    operatorRequirements: [officialId, license],
-    vehicleId: 'v1',
-  };
+  const base = { vehicleRequirements: [card, insurance], vehicleId: 'v1' };
   const unitDocs = [doc('r-card'), doc('r-ins')];
-  const ownerDocs = (status: 'approved' | 'pending_review') => [
-    doc('r-id', { owner_type: 'operator', owner_id: 'o1', status }),
-    doc('r-lic', { owner_type: 'operator', owner_id: 'o1' }),
-  ];
-  const jose = { id: 'o1', full_name: 'José Sánchez Medina' };
+  const jose = (over: Partial<OwnerOperatorGate> = {}): OwnerOperatorGate => ({
+    isOwnerOperator: true,
+    operatorName: 'José Sánchez Medina',
+    expired: [],
+    notApproved: [],
+    ...over,
+  });
 
   it('only reads the unit for a fleet', () => {
-    const gate = unitTravelGate(
-      { ...base, documents: unitDocs, isOwnerOperator: false, ownerOperator: null },
-      now,
-    );
-    expect(gate).toEqual({ expired: false, notApproved: false, unitText: null, text: null });
+    const fleet = { ...jose(), isOwnerOperator: false };
+    for (const owner of [null, fleet]) {
+      expect(unitTravelGate({ ...base, documents: unitDocs, owner }, now)).toEqual({
+        expired: false,
+        notApproved: false,
+        unitExpired: false,
+        unitText: null,
+        text: null,
+      });
+    }
   });
 
   it('adds the hombre-camión own documents, apart from what assign_trip checks of the unit', () => {
     const gate = unitTravelGate(
       {
         ...base,
-        documents: [...unitDocs, ...ownerDocs('pending_review')],
-        isOwnerOperator: true,
-        ownerOperator: jose,
+        documents: unitDocs,
+        owner: jose({ expired: [{ code: license.code, name: license.name }] }),
       },
       now,
     );
-    expect(gate.notApproved).toBe(true);
-    expect(gate.unitText).toBeNull();
-    expect(gate.text).toBe(copy.operator.notApproved('Identificación oficial', jose.full_name));
-    const ready = unitTravelGate(
+    expect(gate).toMatchObject({ expired: true, unitExpired: false, unitText: null });
+    expect(gate.text).toBe(copy.operator.licenseExpired('José Sánchez Medina'));
+    const pending = unitTravelGate(
       {
         ...base,
-        documents: [...unitDocs, ...ownerDocs('approved')],
-        isOwnerOperator: true,
-        ownerOperator: jose,
+        documents: unitDocs,
+        owner: jose({ notApproved: [{ code: officialId.code, name: officialId.name }] }),
       },
       now,
     );
-    expect(ready.text).toBeNull();
+    expect(pending.notApproved).toBe(true);
+    expect(pending.text).toBe(
+      copy.operator.notApproved('Identificación oficial', 'José Sánchez Medina'),
+    );
+    expect(unitTravelGate({ ...base, documents: unitDocs, owner: jose() }, now).text).toBeNull();
   });
 
   it('blocks a hombre-camión without an active operator row (archived or never created)', () => {
     const gate = unitTravelGate(
-      { ...base, documents: [doc('r-card')], isOwnerOperator: true, ownerOperator: null },
+      { ...base, documents: [doc('r-card')], owner: jose({ operatorName: null }) },
       now,
     );
     expect(gate.notApproved).toBe(true);
@@ -264,6 +270,24 @@ describe('unitTravelGate (assert_vehicle_can_travel, owner_operator_ready)', () 
     expect(gate.text).toBe(
       `${copy.unit.notApproved('Seguro vigente')} ${copy.ownerOperator.missing}`,
     );
+  });
+
+  it('reads the gate RPC answer defensively', () => {
+    expect(
+      parseOwnerOperatorGate({
+        isOwnerOperator: true,
+        operatorName: 'José',
+        expired: [{ code: 'federal_driver_license', name: 'Licencia' }, { code: 1 }],
+        notApproved: 'nope',
+      }),
+    ).toEqual({
+      isOwnerOperator: true,
+      operatorName: 'José',
+      expired: [{ code: 'federal_driver_license', name: 'Licencia' }],
+      notApproved: [],
+    });
+    expect(parseOwnerOperatorGate(null).isOwnerOperator).toBe(false);
+    expect(parseOwnerOperatorGate([]).isOwnerOperator).toBe(false);
   });
 
   it('translates the server error of a missing owner row', () => {

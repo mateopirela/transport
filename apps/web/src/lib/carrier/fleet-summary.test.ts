@@ -295,13 +295,18 @@ describe('summarizeVehicles', () => {
   });
 
   it('blocks a hombre-camión unit on his own documents, and without his operator row (R4)', () => {
-    const license = requirement({ id: 'licencia', owner_type: 'operator' });
-    const owner = (operatorRow: { id: string; full_name: string } | null): FleetContext => ({
+    // What carrier_owner_operator_gate answers (the license in review, or no row).
+    const owner = (operatorName: string | null): FleetContext => ({
       ...context(
-        [insurance, license],
+        [insurance],
         [document({ id: 'd1', requirement_id: 'seguro', expires_at: '2027-01-01T00:00:00Z' })],
       ),
-      ownerOperator: { isOwnerOperator: true, operator: operatorRow },
+      ownerOperator: {
+        isOwnerOperator: true,
+        operatorName,
+        expired: [],
+        notApproved: operatorName ? [{ code: 'federal_driver_license', name: 'licencia' }] : [],
+      },
     });
     const availability = [
       {
@@ -312,7 +317,7 @@ describe('summarizeVehicles', () => {
       },
     ];
     const [withRow] = summarizeVehicles(
-      owner({ id: 'o1', full_name: 'José Sánchez' }),
+      owner('José Sánchez'),
       [vehicle('v1')],
       availability,
       new Set(),
@@ -321,6 +326,7 @@ describe('summarizeVehicles', () => {
     expect(withRow).toMatchObject({
       readiness: 'missing_documents',
       unitDocumentIssue: null,
+      unitDocumentsExpired: false,
       documentIssue: 'Falta aprobar: licencia de José Sánchez.',
     });
     const [withoutRow] = summarizeVehicles(

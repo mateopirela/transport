@@ -41,6 +41,9 @@
 --     documents; now also a hombre-camión's units while his own operator is
 --     not ready. matching, load_match, match_candidates, notify_matches_* and
 --     the return-load suggestions all read it.
+--   * carrier_owner_operator_gate (RPC, carrier staff only): what the fleet
+--     screens show of the hombre-camión's own documents, which a Coordinador
+--     cannot read by RLS.
 --   * documents.review_source (D10-E1): 'manual' by default and on every row
 --     so far; review_document sets it. No RPC writes 'automatic' yet.
 --     document_requirements.auto_review_eligible marks what an automatic
@@ -378,6 +381,63 @@ end;
 $$;
 
 revoke all on function public.assert_vehicle_can_travel(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- What the fleet screens show of the hombre-camión's own documents
+-- ---------------------------------------------------------------------------
+
+-- The hombre-camión's own readiness (D13) for the carrier staff of his
+-- company: whether the company is an owner-operator one, the name of his
+-- active operator row (null when archived or missing) and the catalog codes
+-- and names of his required documents that expired or are not approved. A
+-- Coordinador may not read that row or its documents (RLS by business unit),
+-- and a row hidden by RLS must not look missing: this answers with what
+-- assert_vehicle_can_travel and owner_operator_ready see, and nothing else
+-- (no ids, no files). 42501 for anyone but the carrier staff (Gerente or
+-- Coordinador) of an active carrier.
+create function public.carrier_owner_operator_gate()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_company_id uuid := public.auth_carrier_company_id();
+  v_operator_id uuid;
+  v_name text;
+  v_expired jsonb;
+  v_not_approved jsonb;
+begin
+  if v_company_id is null then
+    raise exception 'only the carrier staff read the owner operator gate' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.companies c where c.id = v_company_id and c.is_owner_operator) then
+    return jsonb_build_object('isOwnerOperator', false, 'operatorName', null,
+                              'expired', '[]'::jsonb, 'notApproved', '[]'::jsonb);
+  end if;
+  v_operator_id := public.owner_operator_id(v_company_id);
+  if v_operator_id is null then
+    return jsonb_build_object('isOwnerOperator', true, 'operatorName', null,
+                              'expired', '[]'::jsonb, 'notApproved', '[]'::jsonb);
+  end if;
+  select o.full_name into v_name from public.operators o where o.id = v_operator_id;
+  select coalesce(jsonb_agg(jsonb_build_object('code', e.code, 'name', e.name) order by e.sort_order, e.code),
+                  '[]'::jsonb)
+    into v_expired
+  from public.operator_expired_requirements(v_operator_id) e;
+  select coalesce(jsonb_agg(jsonb_build_object('code', m.code, 'name', m.name) order by m.sort_order, m.code),
+                  '[]'::jsonb)
+    into v_not_approved
+  from public.operator_missing_requirements(v_operator_id) m
+  where not exists (select 1 from public.operator_expired_requirements(v_operator_id) e where e.id = m.id);
+  return jsonb_build_object('isOwnerOperator', true, 'operatorName', v_name,
+                            'expired', v_expired, 'notApproved', v_not_approved);
+end;
+$$;
+
+revoke all on function public.carrier_owner_operator_gate() from public, anon;
+grant execute on function public.carrier_owner_operator_gate() to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- assign_trip

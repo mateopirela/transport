@@ -5,9 +5,10 @@ import {
   documentGateText,
   requirementProgress,
   toEwktPoint,
+  parseOwnerOperatorGate,
   unitTravelGate,
   vehicleReadiness,
-  type OwnerOperatorRef,
+  type OwnerOperatorGate,
   type CarrierRouteFormValues,
   type DocumentOwnerType,
   type OperatorDraftValues,
@@ -122,45 +123,15 @@ export function ownerProgress(
 // Vehicles and availability
 // ---------------------------------------------------------------------------
 
-/** Whether the company is a hombre-camión's and, if so, his own active operator row. */
-export interface OwnerOperatorState {
-  isOwnerOperator: boolean;
-  operator: OwnerOperatorRef | null;
-}
-
 /**
- * R4 (D13): the hombre-camión's own operator row, as owner_operator_id finds
- * it (the oldest active row linked to a manager of the company). Null when
- * it is archived or missing: then his units cannot travel. A fleet needs no
- * more reads.
+ * R4 (D13): what blocks the hombre-camión's units from his own documents.
+ * carrier_owner_operator_gate answers it, since a Coordinador cannot read
+ * his operator row by RLS (a hidden row must not look missing).
  */
-export async function loadOwnerOperator(
-  client: Supabase,
-  companyId: string,
-): Promise<OwnerOperatorState> {
-  const company = check(
-    await client.from('companies').select('is_owner_operator').eq('id', companyId).single(),
-  );
-  if (!company.is_owner_operator) return { isOwnerOperator: false, operator: null };
-  const managers = check(
-    await client.from('profiles').select('id').eq('company_id', companyId).eq('role', 'manager'),
-  );
-  if (managers.length === 0) return { isOwnerOperator: true, operator: null };
-  const rows = check(
-    await client
-      .from('operators')
-      .select('id, full_name')
-      .eq('company_id', companyId)
-      .in(
-        'profile_id',
-        managers.map((m) => m.id),
-      )
-      .is('archived_at', null)
-      .order('created_at')
-      .order('id')
-      .limit(1),
-  );
-  return { isOwnerOperator: true, operator: rows[0] ?? null };
+export async function loadOwnerOperatorGate(client: Supabase): Promise<OwnerOperatorGate> {
+  const { data, error } = await client.rpc('carrier_owner_operator_gate');
+  if (error) throw error;
+  return parseOwnerOperatorGate(data);
 }
 
 export type Availability = Pick<
@@ -178,6 +149,8 @@ export interface VehicleSummary extends VehicleRow, Pick<Tables<'vehicles'>, 'bu
   documentIssue: string | null;
   /** R4: why its own documents block it, or null: what assign_trip checks of the unit. */
   unitDocumentIssue: string | null;
+  /** R4: whether one of its own documents expired (the assignment's flag, apart from the owner's). */
+  unitDocumentsExpired: boolean;
   /** Name of the business unit that runs it (G1a.2). */
   businessUnitName: string | null;
   businessUnitId: string;
@@ -208,7 +181,7 @@ export async function listVehicles(
       .select('vehicle_id')
       .eq('company_id', context.company.id)
       .eq('status', 'pending'),
-    loadOwnerOperator(client, context.company.id),
+    loadOwnerOperatorGate(client),
   ]);
   const byVehicle = new Map(check(availability).map((a) => [a.vehicle_id, a]));
   const pendingRelease = new Set(check(pending).map((t) => t.vehicle_id));
@@ -217,21 +190,14 @@ export async function listVehicles(
     'vehicle',
     context.company,
   );
-  const operatorRequirements = applicableRequirements(
-    context.requirements,
-    'operator',
-    context.company,
-  );
   return check(vehicles).map(({ business_units: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     // R4: the unit's documents and, for a hombre-camión, his own (D13).
     const gate = unitTravelGate({
       vehicleRequirements,
-      operatorRequirements,
       documents: context.documents,
       vehicleId: vehicle.id,
-      isOwnerOperator: owner.isOwnerOperator,
-      ownerOperator: owner.operator,
+      owner,
     });
     return {
       ...vehicle,
@@ -240,6 +206,7 @@ export async function listVehicles(
       availability: current,
       documentIssue: gate.text,
       unitDocumentIssue: gate.unitText,
+      unitDocumentsExpired: gate.unitExpired,
       readiness: vehicleReadiness({
         expiredDocuments: gate.expired,
         missingDocuments: gate.notApproved,

@@ -263,7 +263,10 @@ select set_eq(
     -- Quick pay (I4): the carrier staff read the fee and request it; the
     -- admin reads the exposure and approves or rejects, audited (59_quick_pay).
     'carrier_quick_pay_fee_bps', 'request_quick_pay', 'admin_quick_pay_exposure', 'admin_approve_quick_pay',
-    'admin_reject_quick_pay'
+    'admin_reject_quick_pay',
+    -- Trip document gate (R4): the carrier staff read what blocks the
+    -- hombre-camión's units, codes and names only (68_trip_document_gate).
+    'carrier_owner_operator_gate'
   ],
   'every client-callable security definer function is on the reviewed list'
 );

@@ -60,10 +60,40 @@ export function documentGate<R extends GateRequirement>(
   return gate;
 }
 
-/** The hombre-camión's own operator row (D13), as the fleet reads it. */
-export interface OwnerOperatorRef {
-  id: string;
-  full_name: string;
+/**
+ * The hombre-camión's own readiness (D13), as carrier_owner_operator_gate
+ * answers it to the carrier staff: a Coordinador cannot read his operator
+ * row by RLS, so the fleet never derives it from what it can read.
+ */
+export interface OwnerOperatorGate {
+  isOwnerOperator: boolean;
+  /** His active operator row's name; null when it is archived or missing. */
+  operatorName: string | null;
+  expired: { code: string; name: string }[];
+  notApproved: { code: string; name: string }[];
+}
+
+function namedCodes(value: unknown): { code: string; name: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item: unknown) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const { code, name } = item as { code?: unknown; name?: unknown };
+    return typeof code === 'string' && typeof name === 'string' ? [{ code, name }] : [];
+  });
+}
+
+/** The JSON of carrier_owner_operator_gate, checked; anything else reads as a fleet. */
+export function parseOwnerOperatorGate(value: unknown): OwnerOperatorGate {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return { isOwnerOperator: false, operatorName: null, expired: [], notApproved: [] };
+  }
+  const row = value as Record<string, unknown>;
+  return {
+    isOwnerOperator: row.isOwnerOperator === true,
+    operatorName: typeof row.operatorName === 'string' ? row.operatorName : null,
+    expired: namedCodes(row.expired),
+    notApproved: namedCodes(row.notApproved),
+  };
 }
 
 /** What keeps a unit from being made available or recommended. */
@@ -72,6 +102,8 @@ export interface UnitTravelGate {
   expired: boolean;
   /** Some document is missing, in review or rejected, or the hombre-camión has no operator row. */
   notApproved: boolean;
+  /** Whether one of the unit's own documents expired (what assign_trip checks of the unit). */
+  unitExpired: boolean;
   /** Why the unit's own documents block it, or null (what assign_trip checks of the unit). */
   unitText: string | null;
   /** Why it cannot travel at all, the hombre-camión's own documents included, or null. */
@@ -82,17 +114,15 @@ export interface UnitTravelGate {
  * The unit's own documents and, for an owner-operator company, the
  * hombre-camión's (he is its only driver): what set_vehicle_availability,
  * release_vehicle and match_pairs check (assert_vehicle_can_travel,
- * owner_operator_ready). Without an active own operator row
- * (`ownerOperator` null) the unit is blocked too.
+ * owner_operator_ready). Without an active own operator row the unit is
+ * blocked too. `owner` null: a fleet, or not known.
  */
 export function unitTravelGate<R extends GateRequirement>(
   input: {
     vehicleRequirements: readonly R[];
-    operatorRequirements: readonly R[];
     documents: readonly GateDocument[];
     vehicleId: string;
-    isOwnerOperator: boolean;
-    ownerOperator: OwnerOperatorRef | null;
+    owner: OwnerOperatorGate | null;
   },
   now: Date = new Date(),
 ): UnitTravelGate {
@@ -106,24 +136,20 @@ export function unitTravelGate<R extends GateRequirement>(
   const result: UnitTravelGate = {
     expired: unit.expired.length > 0,
     notApproved: unit.notApproved.length > 0,
+    unitExpired: unit.expired.length > 0,
     unitText,
     text: unitText,
   };
-  if (!input.isOwnerOperator) return result;
+  const owner = input.owner;
+  if (!owner?.isOwnerOperator) return result;
   let ownerText: string | null;
-  if (input.ownerOperator === null) {
+  if (owner.operatorName === null) {
     result.notApproved = true;
     ownerText = copy.ownerOperator.missing;
   } else {
-    const owner = documentGate(
-      input.operatorRequirements,
-      input.documents,
-      { type: 'operator', id: input.ownerOperator.id },
-      now,
-    );
     result.expired ||= owner.expired.length > 0;
     result.notApproved ||= owner.notApproved.length > 0;
-    ownerText = documentGateText(owner, input.ownerOperator.full_name);
+    ownerText = documentGateText(owner, owner.operatorName);
   }
   result.text = [unitText, ownerText].filter((t) => t !== null).join(' ') || null;
   return result;

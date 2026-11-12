@@ -5,7 +5,7 @@ import {
   requirementProgress,
   unitTravelGate,
   vehicleReadiness,
-  type OwnerOperatorRef,
+  type OwnerOperatorGate,
   type Requirement,
   type RequirementProgress,
   type SubmittedDocument,
@@ -24,11 +24,11 @@ export interface FleetContext {
   requirements: Requirement[];
   documents: SubmittedDocument[];
   /**
-   * R4 (D13): for an owner-operator company, the hombre-camión's own active
-   * operator row (null when archived or missing), whose documents gate his
-   * units too. Absent or `isOwnerOperator: false` for a fleet.
+   * R4 (D13): what blocks the hombre-camión's units from his own documents,
+   * as carrier_owner_operator_gate answers it (a Coordinador cannot read his
+   * operator row). Absent or `isOwnerOperator: false` for a fleet.
    */
-  ownerOperator?: { isOwnerOperator: boolean; operator: OwnerOperatorRef | null };
+  ownerOperator?: OwnerOperatorGate;
 }
 
 /**
@@ -91,6 +91,8 @@ export interface VehicleSummary extends VehicleRow {
   documentIssue: string | null;
   /** R4: why its own documents block it, or null: what assign_trip checks of the unit. */
   unitDocumentIssue: string | null;
+  /** R4: whether one of its own documents expired (the assignment's flag, apart from the owner's). */
+  unitDocumentsExpired: boolean;
   /** Name of the business unit that runs it (G1a). */
   businessUnitName: string | null;
 }
@@ -111,21 +113,14 @@ export function summarizeVehicles(
     'vehicle',
     context.company,
   );
-  const operatorRequirements = applicableRequirements(
-    context.requirements,
-    'operator',
-    context.company,
-  );
   return vehicles.map(({ business_unit: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
     const gate = unitTravelGate(
       {
         vehicleRequirements,
-        operatorRequirements,
         documents: context.documents,
         vehicleId: vehicle.id,
-        isOwnerOperator: context.ownerOperator?.isOwnerOperator === true,
-        ownerOperator: context.ownerOperator?.operator ?? null,
+        owner: context.ownerOperator ?? null,
       },
       now,
     );
@@ -135,6 +130,7 @@ export function summarizeVehicles(
       availability: current,
       documentIssue: gate.text,
       unitDocumentIssue: gate.unitText,
+      unitDocumentsExpired: gate.unitExpired,
       readiness: vehicleReadiness(
         {
           expiredDocuments: gate.expired,

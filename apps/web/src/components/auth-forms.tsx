@@ -3,30 +3,47 @@
 import {
   authCopy,
   COMPANY_REGISTRATION_KINDS,
+  firstSignUpStepWithError,
+  fiscalFieldsFor,
   legalCopy,
   MX_STATES,
+  registrationAccountStepSchema,
+  signUpStepStates,
   type CompanyRegistrationKind,
+  type PersonType,
+  type SignUpFormStep,
 } from '@transport/shared';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
-import { useActionState } from 'react';
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from 'react';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ErrorText, Field as FieldFrame, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
+import { Steps } from '@/components/ui/steps';
 import {
   acceptTerms,
   completeCompany,
   joinCompany,
+  openInvitation,
   requestPasswordReset,
   signIn,
   signUp,
   signUpCoordinator,
   updatePassword,
 } from '@/lib/auth/actions';
-import type { FormState } from '@/lib/forms';
+import { formEntries, invalidForm, type FormState } from '@/lib/forms';
 import { paths } from '@/lib/routing';
+import { cn } from '@/lib/utils';
 
 const f = authCopy.fields;
 const kinds = authCopy.registrationKinds;
@@ -90,17 +107,63 @@ export function Field({
 }) {
   const error = state.fieldErrors?.[name];
   const id = `field-${name}`;
+  const control = {
+    id,
+    name,
+    'aria-invalid': error ? true : undefined,
+    'aria-describedby': error || hint ? fieldHelpId(id) : undefined,
+  } as const;
   return (
     <FieldFrame label={label} htmlFor={id} error={error} hint={hint} className={className}>
-      <Input
-        id={id}
-        name={name}
-        defaultValue={input.type === 'password' ? undefined : state.values?.[name]}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error || hint ? fieldHelpId(id) : undefined}
-        {...input}
-      />
+      {input.type === 'password' ? (
+        // Passwords are never refilled: they live only in the field (D42).
+        <PasswordInput {...control} {...input} />
+      ) : (
+        <Input {...control} defaultValue={state.values?.[name]} {...input} />
+      )}
     </FieldFrame>
+  );
+}
+
+/**
+ * A password field with the button that shows or hides it (D42). The button
+ * sits next to the input, outside its `<label>`, so the field keeps its name
+ * ("Contraseña"); `aria-pressed` tells whether the password is visible. The
+ * password is hidden again when its form is sent.
+ */
+function PasswordInput({ className, ...props }: React.ComponentProps<'input'>) {
+  const [shown, setShown] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const form = ref.current?.form;
+    if (!form) return;
+    const hide = () => setShown(false);
+    form.addEventListener('submit', hide);
+    return () => form.removeEventListener('submit', hide);
+  }, []);
+  return (
+    <div className="relative">
+      <Input
+        ref={ref}
+        {...props}
+        type={shown ? 'text' : 'password'}
+        className={cn('pr-control', className)}
+      />
+      <button
+        type="button"
+        aria-label={f.showPassword}
+        aria-pressed={shown}
+        aria-controls={props.id}
+        onClick={() => setShown((value) => !value)}
+        className={buttonVariants({
+          variant: 'plain',
+          size: 'icon',
+          className: 'absolute top-0 right-0 rounded-sm',
+        })}
+      >
+        {shown ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+      </button>
+    </div>
   );
 }
 
@@ -115,12 +178,14 @@ function RadioCards({
   options,
   state,
   defaultValue,
+  onValueChange,
 }: {
   name: string;
   label: string;
   options: { value: string; label: string; hint?: string }[];
   state: FormState;
   defaultValue: string;
+  onValueChange?: (value: string) => void;
 }) {
   const error = state.fieldErrors?.[name];
   const current = state.values?.[name] ?? defaultValue;
@@ -135,6 +200,7 @@ function RadioCards({
               name={name}
               value={option.value}
               defaultChecked={current === option.value}
+              onChange={(event) => onValueChange?.(event.currentTarget.value)}
               className="mt-1 size-4 shrink-0 accent-accent"
             />
             <span>
@@ -189,9 +255,16 @@ export function TermsCheckbox({ state }: { state: FormState }) {
   );
 }
 
-function PersonTypeField({ state }: { state: FormState }) {
+function PersonTypeField({
+  state,
+  value: current,
+  onChange,
+}: {
+  state: FormState;
+  value: PersonType;
+  onChange: (value: PersonType) => void;
+}) {
   const error = state.fieldErrors?.personType;
-  const current = state.values?.personType ?? 'moral';
   return (
     <fieldset className="space-y-1.5 sm:col-span-2">
       <legend className="mb-1.5 text-label text-text-dim">{f.personType}</legend>
@@ -203,6 +276,7 @@ function PersonTypeField({ state }: { state: FormState }) {
               name="personType"
               value={value}
               defaultChecked={current === value}
+              onChange={() => onChange(value)}
               className="size-4 shrink-0 accent-accent"
             />
             <span className="text-callout text-text">
@@ -239,32 +313,54 @@ function StateField({ state }: { state: FormState }) {
   );
 }
 
-/** The fiscal data of a company (D16): razón social, RFC, domicilio fiscal and representante. */
+/**
+ * The fiscal data of a company (D16): razón social, RFC, domicilio fiscal and
+ * representante. A persona física reads "Nombre fiscal" and has no
+ * representante (D42): the field is hidden and disabled, so its value is not
+ * sent but comes back if the person switches to moral again.
+ */
 export function CompanyFiscalFields({
   state,
   withRfc = true,
+  personType: fixedPersonType = 'moral',
 }: {
   state: FormState;
   /** The RFC cannot change once the company exists (/cuenta-en-revision). */
   withRfc?: boolean;
+  /** Without the RFC, the person type the stored RFC tells. */
+  personType?: PersonType;
 }) {
+  const [chosen, setChosen] = useState<PersonType>(
+    state.values?.personType === 'fisica' ? 'fisica' : 'moral',
+  );
+  const personType = withRfc ? chosen : fixedPersonType;
+  const { legalNameLabel, withLegalRepresentative } = fiscalFieldsFor(personType);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {withRfc && <PersonTypeField state={state} />}
+      {withRfc && <PersonTypeField state={state} value={chosen} onChange={setChosen} />}
       <Field
         name="legalName"
         autoComplete="organization"
-        label={f.legalName}
+        label={legalNameLabel}
         state={state}
         className="sm:col-span-2"
       />
-      {withRfc && <Field name="rfc" label={f.rfc} state={state} maxLength={20} />}
+      {withRfc && (
+        <Field
+          name="rfc"
+          label={f.rfc}
+          state={state}
+          maxLength={20}
+          className={withLegalRepresentative ? undefined : 'sm:col-span-2'}
+        />
+      )}
       <Field
         name="legalRepresentativeName"
         label={f.legalRepresentativeName}
         hint={f.legalRepresentativeHint}
         state={state}
-        className={withRfc ? undefined : 'sm:col-span-2'}
+        disabled={!withLegalRepresentative}
+        className={cn(!withRfc && 'sm:col-span-2', !withLegalRepresentative && 'hidden')}
       />
       <h4 className="pt-3 text-headline text-text sm:col-span-2">{f.fiscalAddress}</h4>
       <Field
@@ -327,17 +423,25 @@ const KIND_OPTIONS: { value: CompanyRegistrationKind; label: string; hint: strin
 /** A step of a long form: its title and a line under it, then its fields (§1.7). */
 function FormSection({
   title,
+  stepLabel,
   description,
   children,
 }: {
   title: string;
+  /** "Paso 1 de 5" over the title, in a form in steps (D42). */
+  stepLabel?: string;
   description?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="space-y-4 border-t pt-6">
       <div className="space-y-1">
-        <h3 className="text-title3 text-text">{title}</h3>
+        {/* Under 640 px the indicator only names the current step: this says which. */}
+        {stepLabel && <p className="text-label text-text-dim sm:hidden">{stepLabel}</p>}
+        {/* Focusable from code: the form moves the focus here when a step opens. */}
+        <h3 tabIndex={-1} className="text-title3 text-text">
+          {title}
+        </h3>
         {description && <p className="text-subhead text-text-dim">{description}</p>}
       </div>
       {children}
@@ -378,28 +482,190 @@ function AccountFields({ state }: { state: FormState }) {
   );
 }
 
-/** /registro (G2): the kind, the person and the company's fiscal data. */
+/** Nothing to listen to: whether the page is hydrated never changes afterwards. */
+const noSubscription = () => () => undefined;
+
+/** False while the page is only server HTML, true once React runs it. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * "¿Tu empresa ya utiliza Transport? Únete con tu invitación" (D43): under
+ * the kinds of the sign-up and under "¿Olvidaste tu contraseña?".
+ */
+export function InvitationEntry({ className }: { className?: string }) {
+  const c = authCopy.invitationEntry;
+  return (
+    <p className={className}>
+      {c.question}{' '}
+      <Link href={paths.invitation} className="font-semibold text-accent-text hover:underline">
+        {c.link}
+      </Link>
+    </p>
+  );
+}
+
+/**
+ * /registro (G2, D42): the sign-up in two steps of the five, (1) the kind and
+ * the account, (2) the fiscal data, the address and the terms. Both steps are
+ * one form and stay mounted (the hidden one too), so going back loses
+ * nothing, the final send carries every field (the same payload as before)
+ * and the browser sees the email and the new password together and offers
+ * to save it. What is typed lives only in the fields: nothing goes to any
+ * storage. Step 1 is checked here with the shared schema before step 2; an
+ * error the server returns for a field of step 1 brings the person back there.
+ */
 export function SignUpForm() {
   const c = authCopy.signUp;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [step, setStep] = useState<SignUpFormStep>('account');
+  const [state, setState] = useState<FormState>({});
+  const [kind, setKind] = useState('shipper');
+  const [pending, startTransition] = useTransition();
+  const hydrated = useHydrated();
+  // What gets the focus after the next render: the first field with an
+  // error, or the title of the step just opened.
+  const focusNext = useRef<'error' | 'step' | null>(null);
+
+  useEffect(() => {
+    const target = focusNext.current;
+    focusNext.current = null;
+    const section = formRef.current?.querySelector<HTMLElement>(`[data-step="${step}"]`);
+    if (!target || !section) return;
+    const element =
+      (target === 'error' ? section.querySelector<HTMLElement>('[aria-invalid="true"]') : null) ??
+      section.querySelector<HTMLElement>('h3');
+    element?.focus();
+  }, [step, state]);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    const formData = new FormData(event.currentTarget);
+    if (step === 'account') {
+      const entries = formEntries(formData);
+      const parsed = registrationAccountStepSchema.safeParse(entries);
+      focusNext.current = parsed.success ? 'step' : 'error';
+      if (!parsed.success) {
+        const { error, fieldErrors } = invalidForm(parsed.error, entries);
+        setState({ error, fieldErrors });
+        return;
+      }
+      setState({});
+      setStep('fiscal');
+      return;
+    }
+    startTransition(async () => {
+      // On success the action redirects and nothing comes back.
+      const result = await signUp({}, formData);
+      if (!result) return;
+      focusNext.current = 'error';
+      setState(result);
+      setStep(firstSignUpStepWithError(result.fieldErrors) ?? 'fiscal');
+    });
+  }
+
+  function back() {
+    focusNext.current = 'step';
+    setStep('account');
+  }
+
   return (
-    <ActionForm action={signUp} submit={c.submit} pending={c.pending}>
-      {(state) => (
-        <>
+    // `post` and the buttons off until the page is interactive: a send before
+    // that would be the browser's own, and a GET would put the password in the URL.
+    <form ref={formRef} method="post" onSubmit={submit} className="space-y-5" noValidate>
+      <Steps
+        orientation="horizontal"
+        label={c.stepsLabel}
+        // On a phone the five names do not fit side by side: only the
+        // current one shows, the others stay for screen readers.
+        steps={signUpStepStates(step).map(({ step: name, state: stepState }) => ({
+          label:
+            stepState === 'current' ? (
+              c.steps[name]
+            ) : (
+              <span className="sr-only sm:not-sr-only">{c.steps[name]}</span>
+            ),
+          state: stepState,
+        }))}
+      />
+      {state.error && <Notice tone="error">{state.error}</Notice>}
+      <div data-step="account" hidden={step !== 'account'} className="space-y-5">
+        <div className="space-y-2">
           <RadioCards
             name="kind"
             label={kinds.label}
             options={KIND_OPTIONS}
             state={state}
             defaultValue="shipper"
+            onValueChange={setKind}
           />
-          <FormSection title={c.accountSection}>
-            <AccountFields state={state} />
-          </FormSection>
-          <FormSection title={c.companySection} description={c.companyHint}>
-            <CompanyFiscalFields state={state} />
-          </FormSection>
-          <TermsCheckbox state={state} />
-        </>
+          <p aria-live="polite" className="text-footnote text-text-dim empty:hidden">
+            {kind === 'carrier' ? kinds.managerNote : ''}
+          </p>
+          <InvitationEntry className="text-subhead text-text-dim" />
+        </div>
+        <FormSection title={c.accountSection} stepLabel={c.stepOf(1, 5)}>
+          <AccountFields state={state} />
+        </FormSection>
+      </div>
+      <div data-step="fiscal" hidden={step !== 'fiscal'} className="space-y-5">
+        <FormSection
+          title={c.companySection}
+          stepLabel={c.stepOf(2, 5)}
+          description={c.companyHint}
+        >
+          <CompanyFiscalFields state={state} />
+        </FormSection>
+        <TermsCheckbox state={state} />
+      </div>
+      {/* The actions stay at the bottom of the window while the step scrolls,
+          so the primary is always in view (plan-fulmis.md §0.4). */}
+      <div className="sticky bottom-0 z-10 border-t bg-bg py-4">
+        {step === 'account' ? (
+          <Button type="submit" className="w-full" disabled={!hydrated}>
+            {c.next}
+          </Button>
+        ) : (
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <Button type="button" variant="secondary" onClick={back} disabled={pending}>
+              {c.back}
+            </Button>
+            <Button type="submit" className="sm:flex-1" disabled={!hydrated} loading={pending}>
+              {pending ? c.pending : c.submit}
+            </Button>
+          </div>
+        )}
+      </div>
+    </form>
+  );
+}
+
+/**
+ * /invitacion (D43, R1): the person pastes the link they got and goes to its
+ * page, /invitacion/[token]; a text that is not an invitation link is said
+ * on the field.
+ */
+export function JoinInvitationForm() {
+  const c = authCopy.joinInvitation;
+  return (
+    <ActionForm action={openInvitation} submit={c.submit} pending={c.pending}>
+      {(state) => (
+        <Field
+          name="link"
+          type="text"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          label={c.field}
+          hint={c.hint}
+          state={state}
+        />
       )}
     </ActionForm>
   );

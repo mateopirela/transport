@@ -20,12 +20,13 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { isIP } from 'node:net';
 
-import { authErrorMessage } from '../auth-errors';
+import { authErrorMessage, authFailureState } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
 import {
   homeFor,
   invitationPath,
+  invitationPathFromLink,
   needsSecondFactor,
   paths,
   safeNextPath,
@@ -112,7 +113,9 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
       },
     },
   });
-  if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
+  // A taken email or a weak password goes on its field (D42), so the
+  // stepped form can bring the person back to the step that has it.
+  if (error) return authFailureState(error, entries);
 
   // Without email confirmation (not the default) there is a session already.
   if (data.session) {
@@ -150,7 +153,7 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
   if (!supabase) return notConfigured;
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return { error: authErrorMessage(error) };
+  if (error) return authFailureState(error, entries);
   return redirectHome(supabase);
 }
 
@@ -200,9 +203,26 @@ export async function signUpCoordinator(_prev: FormState, formData: FormData): P
       },
     },
   });
-  if (error) return { error: authErrorMessage(error), values: refillValues(entries) };
+  if (error) return authFailureState(error, entries);
   if (data.session) redirect(invitationPath(token.data));
   return { message: authCopy.invitation.coordinator.checkEmail };
+}
+
+/**
+ * /invitacion (D43, R1): opens the page of a pasted invitation link. Only
+ * the shape is checked here; /invitacion/[token] asks the database whether
+ * the link is still valid, as when the link is opened directly.
+ */
+export async function openInvitation(_prev: FormState, formData: FormData): Promise<FormState> {
+  const entries = formEntries(formData);
+  const path = invitationPathFromLink(entries.link);
+  if (!path) {
+    return {
+      fieldErrors: { link: authCopy.joinInvitation.invalid },
+      values: refillValues(entries),
+    };
+  }
+  redirect(path);
 }
 
 /** "Unirme": a signed-in Coordinador without a company accepts the link. */

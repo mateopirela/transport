@@ -1,6 +1,6 @@
 'use client';
 
-import { adminCopy, adminPanelCopy, onboardingCopy } from '@transport/shared';
+import { adminCopy, adminPanelCopy, onboardingCopy, type PersonType } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
 import { ConfirmSubmit } from '@/components/ui/confirm-submit';
@@ -18,7 +18,14 @@ import {
 } from '@/lib/verification/actions';
 
 /** Shipper or Gerente: company name, fiscal data (G2) and contact, editable while in review. */
-export function CompanyContactForm({ values }: { values: Record<string, string> }) {
+export function CompanyContactForm({
+  values,
+  personType,
+}: {
+  values: Record<string, string>;
+  /** From the RFC, which cannot change here: a persona física has no representative (D42). */
+  personType: PersonType;
+}) {
   const c = onboardingCopy.company;
   return (
     <ActionForm
@@ -31,7 +38,7 @@ export function CompanyContactForm({ values }: { values: Record<string, string> 
     >
       {(state) => (
         <>
-          <CompanyFiscalFields state={state} withRfc={false} />
+          <CompanyFiscalFields state={state} withRfc={false} personType={personType} />
           <div className="grid gap-4 sm:grid-cols-2">
             <Field name="contactName" label={c.contactName} autoComplete="name" state={state} />
             <Field

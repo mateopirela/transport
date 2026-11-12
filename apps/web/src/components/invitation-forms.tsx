@@ -72,7 +72,8 @@ export function RedeemForm({ token, kind }: { token: string; kind: RedeemableKin
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="space-y-5" noValidate>
+    // `post`: a send before the page is interactive never puts the password in the URL.
+    <form method="post" onSubmit={(event) => void submit(event)} className="space-y-5" noValidate>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {kind === 'operator' && (
         <div className="grid gap-4 sm:grid-cols-2">

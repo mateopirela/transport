@@ -13,10 +13,16 @@ tags: [operator, offline]
 - scrollUntilVisible:
     element: 'Reportar incidencia'
     direction: UP
-- tapOn: 'Reportar incidencia'
-- extendedWaitUntil:
-    visible: 'Enviar incidencia'
-    timeout: 15000
+# A tap while the scroll still glides only stops it: wait, and tap again
+# until the sheet is up.
+- retry:
+    maxRetries: 2
+    commands:
+      - waitForAnimationToEnd
+      - tapOn: 'Reportar incidencia'
+      - extendedWaitUntil:
+          visible: 'Enviar incidencia'
+          timeout: 8000
 - waitForAnimationToEnd
 - tapOn: 'Retraso'
 # Typed in place (subflows/fill-field.yaml scrolls, and a swipe would move

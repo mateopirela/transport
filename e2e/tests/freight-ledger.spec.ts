@@ -53,11 +53,12 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     await expect(ana).toHaveURL(/\/cliente\/cartera/u);
     const row = ana.getByTestId(`portfolio-row-${trip}`);
     await expect(row).toContainText('General Escobedo → Saltillo');
-    await expect(row).toContainText('$10,000.00');
+    // The client's web writes whole pesos without `.00` (Fulmis, §1.5).
+    await expect(row).toContainText('$10,000');
     await expect(row).toContainText(clientLabels.pending);
     await expect(ana.getByText(freightCopy.portfolio.termsNote('30 días'))).toBeVisible();
-    await expect(ana.getByText('$9,700.00')).toHaveCount(0);
-    await expect(ana.getByText('$300.00')).toHaveCount(0);
+    await expect(ana.getByText('$9,700')).toHaveCount(0);
+    await expect(ana.getByText('$300')).toHaveCount(0);
   });
 
   const jorge = await browser.newPage();

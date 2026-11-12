@@ -1,6 +1,6 @@
 import {
   formatCalendarDate,
-  formatMxn,
+  formatMoney,
   freightCopy,
   freightInvoicesCopy,
   portfolioTotals,
@@ -8,17 +8,14 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import {
-  ClientStatusPill,
-  dueLabel,
-  FreightTotals,
-  InvoiceSummary,
-} from '@/components/freight/freight-ui';
-import { textLink } from '@/components/page-section';
+import { rowLink } from '@/components/client/panel';
+import { ClientStatusPill, dueLabel, InvoiceSummary } from '@/components/freight/freight-ui';
 import { Empty } from '@/components/ui/empty';
+import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';
+import { Money } from '@/components/ui/money';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { loadFreightInvoices } from '@/lib/freight/invoices';
 import { loadShipperFreight } from '@/lib/freight/queries';
 import { shipperContext } from '@/lib/loads/queries';
@@ -30,11 +27,12 @@ export const metadata: Metadata = { title: c.title };
 
 /**
  * Cartera (I3, D34-E1): what the client owes Fulmis for each trip. The total
- * balance, what is overdue and what is not yet due and, per trip, the invoice
- * (once Fulmis issues it, I5), the due date, what was paid and what is
- * pending. Only the client's side (shipper_freight_ledger): never the
- * commission nor the carrier's net. The invoice (I5) is Fulmis' CFDI, read
- * through RLS (only the client's direction) and downloaded signed.
+ * balance, what is overdue and what is not yet due as the indicators (V3) and,
+ * per trip, the invoice (once Fulmis issues it, I5), the due date, what was
+ * paid and what is pending, in a table. Only the client's side
+ * (shipper_freight_ledger): never the commission nor the carrier's net. The
+ * invoice (I5) is Fulmis' CFDI, read through RLS (only the client's
+ * direction) and downloaded signed.
  */
 export default async function PortfolioPage() {
   const { supabase, companyId } = await shipperContext(paths.shipperPortfolio);
@@ -52,37 +50,58 @@ export default async function PortfolioPage() {
   return (
     <>
       <PageHeader title={c.title} description={c.description} />
-      <FreightTotals
-        items={[
-          { label: c.balance, cents: totals.balanceCents, testId: 'portfolio-balance' },
-          {
-            label: c.overdue,
-            cents: totals.overdueCents,
-            testId: 'portfolio-overdue',
-            tone: 'red',
-          },
-          { label: c.upcoming, cents: totals.upcomingCents, testId: 'portfolio-upcoming' },
-        ]}
-      />
-      <Notice tone="info" className="mb-6">
+      <KpiGrid className="mb-6">
+        <KpiTile
+          label={c.balance}
+          value={<span data-testid="portfolio-balance">{formatMoney(totals.balanceCents)}</span>}
+        />
+        <KpiTile
+          label={c.overdue}
+          attention={totals.overdueCents > 0}
+          value={
+            <span
+              data-testid="portfolio-overdue"
+              className={totals.overdueCents > 0 ? 'text-red-text' : undefined}
+            >
+              {formatMoney(totals.overdueCents)}
+            </span>
+          }
+        />
+        <KpiTile
+          label={c.upcoming}
+          value={<span data-testid="portfolio-upcoming">{formatMoney(totals.upcomingCents)}</span>}
+        />
+      </KpiGrid>
+      <Notice tone="info" className="mb-8">
         {terms ? c.termsNote(freightCopy.termsDays(terms)) : c.termsMissing}
       </Notice>
       {rows.length === 0 ? (
         <Empty title={c.empty} description={c.emptyHelp} />
       ) : (
-        <Table headers={[c.trip, c.invoice, c.amount, c.dueOn, c.paid, c.pending, c.status]}>
+        <Table
+          cards
+          headers={[
+            c.trip,
+            c.invoice,
+            { label: c.amount, align: 'right' },
+            c.dueOn,
+            { label: c.paid, align: 'right' },
+            { label: c.pending, align: 'right' },
+            c.status,
+          ]}
+        >
           {rows.map((row) => (
-            <tr key={row.ledger_id} data-testid={`portfolio-row-${row.trip_id}`}>
-              <td>
-                <Link href={tripPath(row.trip_id)} className={textLink}>
+            <TableRow key={row.ledger_id} data-testid={`portfolio-row-${row.trip_id}`}>
+              <TableCell primary>
+                <Link href={tripPath(row.trip_id)} className={rowLink}>
                   {freightCopy.route(row.origin_city, row.destination_city)}
                 </Link>
                 {row.payments.length > 0 && (
-                  <ul className="mt-1 space-y-0.5 text-footnote text-text-dim">
+                  <ul className="mt-1 space-y-0.5 text-footnote font-normal text-text-dim">
                     {row.payments.map((payment) => (
                       <li key={payment.speiReference}>
                         {freightCopy.collections.paymentLine(
-                          formatMxn(payment.amountCents),
+                          formatMoney(payment.amountCents),
                           formatCalendarDate(payment.paidOn),
                           payment.speiReference,
                         )}
@@ -90,8 +109,8 @@ export default async function PortfolioPage() {
                     ))}
                   </ul>
                 )}
-              </td>
-              <td className="min-w-40">
+              </TableCell>
+              <TableCell label={c.invoice} className="min-w-40">
                 <InvoiceSummary
                   invoice={invoices.get(row.trip_id)}
                   area="shipper"
@@ -100,22 +119,28 @@ export default async function PortfolioPage() {
                     <span className="text-text-dim">{freightInvoicesCopy.client.none}</span>
                   }
                 />
-              </td>
-              <td className="tabular-nums">{formatMxn(row.amount_cents)}</td>
-              <td className="whitespace-nowrap text-text-dim">
+              </TableCell>
+              <TableCell label={c.amount} numeric>
+                <Money cents={row.amount_cents} />
+              </TableCell>
+              <TableCell label={c.dueOn} className="whitespace-nowrap text-text-dim">
                 {dueLabel(
                   row.due_on,
                   row.terms_days === null
                     ? freightCopy.termsToBeDefined
                     : freightCopy.dueOnAfterDelivery,
                 )}
-              </td>
-              <td className="tabular-nums">{formatMxn(row.paid_cents)}</td>
-              <td className="font-semibold tabular-nums">{formatMxn(row.pending_cents)}</td>
-              <td>
+              </TableCell>
+              <TableCell label={c.paid} numeric>
+                <Money cents={row.paid_cents} />
+              </TableCell>
+              <TableCell label={c.pending} numeric>
+                <Money cents={row.pending_cents} className="font-bold" />
+              </TableCell>
+              <TableCell label={c.status}>
                 <ClientStatusPill status={row.status} />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
         </Table>
       )}

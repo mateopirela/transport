@@ -4,8 +4,8 @@ import { loadsCopy } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { cancelLoad, publishLoad } from '@/lib/loads/actions';
@@ -26,33 +26,39 @@ export function PublishLoadButton({ loadId }: { loadId: string }) {
   );
 }
 
-/** Cancels a load after an explicit confirmation, with an optional reason. */
+/**
+ * Cancels a load (§1.5: what cannot be undone asks first): the button opens a
+ * dialog that says what happens to the offers, with an optional reason.
+ */
 export function CancelLoadForm({ loadId }: { loadId: string }) {
   const [state, action, pending] = useActionState(cancelLoad, {});
   const reasonError = state.fieldErrors?.reason;
   return (
-    <Disclosure look="cell" summary={c.cancel} tone="red">
-      <form action={action} className="space-y-4" noValidate>
-        <div className="space-y-1">
-          <p className="text-headline text-text">{c.cancelTitle}</p>
-          <p className="text-subhead text-text-dim">{c.cancelHelp}</p>
-        </div>
-        {state.error && <Notice tone="error">{state.error}</Notice>}
-        <input type="hidden" name="loadId" value={loadId} />
-        <Field label={c.cancelReason} htmlFor="cancel-reason" error={reasonError}>
-          <Textarea
-            id="cancel-reason"
-            name="reason"
-            rows={2}
-            maxLength={1000}
-            aria-invalid={reasonError ? true : undefined}
-            aria-describedby={reasonError ? fieldHelpId('cancel-reason') : undefined}
-          />
-        </Field>
-        <Button type="submit" variant="destructive" disabled={pending} loading={pending}>
-          {pending ? c.cancelling : c.cancelConfirm}
+    <ConfirmDialog
+      trigger={
+        <Button variant="destructive" className="w-full">
+          {c.cancel}
         </Button>
-      </form>
-    </Disclosure>
+      }
+      title={c.cancelTitle}
+      description={c.cancelHelp}
+      confirmLabel={pending ? c.cancelling : c.cancelConfirm}
+      destructive
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
+      <input type="hidden" name="loadId" value={loadId} />
+      <Field label={c.cancelReason} htmlFor="cancel-reason" error={reasonError}>
+        <Textarea
+          id="cancel-reason"
+          name="reason"
+          rows={2}
+          maxLength={1000}
+          aria-invalid={reasonError ? true : undefined}
+          aria-describedby={reasonError ? fieldHelpId('cancel-reason') : undefined}
+        />
+      </Field>
+    </ConfirmDialog>
   );
 }

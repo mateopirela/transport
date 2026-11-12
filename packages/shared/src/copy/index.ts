@@ -13,6 +13,7 @@ export * from './carrier-web';
 export * from './catalogs';
 export * from './dwell';
 export * from './client-trips';
+export * from './client-web';
 export * from './errors';
 export * from './fleet';
 export * from './freight';

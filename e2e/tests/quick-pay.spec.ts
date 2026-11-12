@@ -106,10 +106,11 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
     await signInOnWeb(ana, 'ana');
     await ana.goto('/cliente/cartera');
     const portfolio = ana.getByTestId(`portfolio-row-${trip}`);
-    await expect(portfolio).toContainText('$40,000.00');
+    // The client's web writes whole pesos without `.00` (Fulmis, §1.5).
+    await expect(portfolio).toContainText('$40,000');
     await expect(portfolio).toContainText(clientLabels.overdue);
-    await expect(ana.getByText('$37,830.00')).toHaveCount(0);
-    await expect(ana.getByText('$970.00')).toHaveCount(0);
+    await expect(ana.getByText('$37,830')).toHaveCount(0);
+    await expect(ana.getByText('$970')).toHaveCount(0);
     await expect(ana.getByText(q.title)).toHaveCount(0);
   });
 
@@ -160,7 +161,7 @@ test('the carrier asks for the quick pay, the admin approves and pays it, the cl
   await test.step('Ana still owes the $40,000 at her terms', async () => {
     await ana.reload();
     const portfolio = ana.getByTestId(`portfolio-row-${trip}`);
-    await expect(portfolio).toContainText('$40,000.00');
+    await expect(portfolio).toContainText('$40,000');
     await expect(portfolio).toContainText(clientLabels.overdue);
     await expect(portfolio).not.toContainText('MBAN0100E2E00000000004');
   });

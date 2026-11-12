@@ -2,9 +2,10 @@ import {
   brokeredClientStage,
   brokeredCopy,
   cargoTypeLabels,
+  clientListsCopy,
   clientTripsCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   loadsCopy,
   offersCopy,
   specialRequirementLabels,
@@ -21,12 +22,16 @@ import { CancelLoadForm, PublishLoadButton } from '@/components/loads/load-actio
 import { LoadStatusBadge } from '@/components/loads/load-status-badge';
 import { RouteMap } from '@/components/loads/route-map';
 import { OfferBoard } from '@/components/offers/offer-board';
+import { PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { ShareDialog } from '@/components/share/share-dialog';
 import { SiteDwellGroup } from '@/components/trips/site-dwell';
 import { buttonVariants } from '@/components/ui/button';
 import { ValueRow } from '@/components/ui/cell';
+import { DetailLayout, DetailRail, RailActions, RailSection } from '@/components/ui/detail-layout';
+import { Empty } from '@/components/ui/empty';
 import { Group } from '@/components/ui/group';
+import { Money } from '@/components/ui/money';
 import { PageHeader } from '@/components/ui/page-header';
 import { ownSiteDwells } from '@/lib/dwell';
 import { getCompanyLoad, serverRoadFactor, shipperContext } from '@/lib/loads/queries';
@@ -44,6 +49,13 @@ const number = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
 
 export const metadata: Metadata = { title: loadsCopy.list.title };
 
+/**
+ * One load of the shipper (V3, §1.5): the offers first, as cards with their
+ * buttons, then the details, the route and the times at the shipper's sites;
+ * on the right a rail with the price, the windows and the cancellation. The
+ * one primary (follow the trip, publish the draft, approve the quoted price,
+ * or accept the best offer) is always in the first screen.
+ */
 export default async function LoadDetailPage({
   params,
   searchParams,
@@ -85,10 +97,9 @@ export default async function LoadDetailPage({
 
   const optional = (value: string | null, format: (v: string) => string) =>
     value === null ? null : format(value);
-  // Label and value; rows without a value are left out.
+  // Label and value; rows without a value are left out. The price and the
+  // windows live in the rail.
   const rows: [string, string | null][] = [
-    [c.pickup, range(load.pickup_window_start, load.pickup_window_end)],
-    [c.delivery, range(load.delivery_window_start, load.delivery_window_end)],
     [c.cargoType, cargoTypeLabels[load.cargo_type]],
     [c.cargo, load.description],
     [c.weight, c.weightValue(number.format(load.weight_kg))],
@@ -103,21 +114,11 @@ export default async function LoadDetailPage({
     ...(load.brokered
       ? ([
           [
-            b.priceLabel,
-            load.proposed_price_cents === null ? b.toQuote : formatMxn(load.proposed_price_cents),
-          ],
-          [
             b.targetLabel,
-            load.target_price_cents === null ? null : formatMxn(load.target_price_cents),
+            load.target_price_cents === null ? null : formatMoney(load.target_price_cents),
           ],
         ] satisfies [string, string | null][])
-      : ([
-          [
-            c.price,
-            load.proposed_price_cents === null ? null : formatMxn(load.proposed_price_cents),
-          ],
-        ] satisfies [string, string | null][])),
-    [c.agreedPrice, load.agreed_price_cents === null ? null : formatMxn(load.agreed_price_cents)],
+      : []),
     [c.notes, load.notes],
     [c.created, formatDateTime(load.created_at)],
     [c.published, optional(load.published_at, formatDateTime)],
@@ -126,6 +127,12 @@ export default async function LoadDetailPage({
     [c.cancellationReason, trip?.cancellation ?? load.cancellation_reason],
   ];
   const details = rows.filter((row): row is [string, string] => row[1] !== null);
+
+  // The amount of the rail: the agreed price once contracted, else the client's price.
+  const price =
+    load.agreed_price_cents !== null
+      ? { label: c.agreedPrice, cents: load.agreed_price_cents }
+      : { label: load.brokered ? b.priceLabel : c.price, cents: load.proposed_price_cents };
 
   const o = offersCopy.board;
   return (
@@ -143,7 +150,8 @@ export default async function LoadDetailPage({
         status={<LoadStatusBadge status={load.status} quoteStatus={load.brokered_status} />}
         description={`${load.origin_address} → ${load.destination_address}`}
         action={
-          // The one primary: follow the trip once contracted, publish a draft.
+          // The one primary: follow the trip once contracted, publish a draft,
+          // approve the quoted price. While offers wait, it is on the best one.
           <>
             {(shareable || shareLinks.length > 0) && (
               <ShareDialog
@@ -174,58 +182,65 @@ export default async function LoadDetailPage({
         }
       />
 
-      {load.status === 'draft' && !load.brokered && (
-        <div className="mb-8 space-y-3">
-          {aviso === 'no-publicada' && <Notice tone="error">{c.publishFailed}</Notice>}
-          <Notice tone="info">{c.draftNotice}</Notice>
-        </div>
-      )}
+      <DetailLayout
+        rail={
+          <DetailRail>
+            <RailSection label={price.label}>
+              {price.cents === null ? (
+                <p className="text-title3 text-text-dim">{b.toQuote}</p>
+              ) : (
+                <Money cents={price.cents} size="numeral" className="block" />
+              )}
+            </RailSection>
+            <RailSection label={c.pickup}>
+              <p className="text-subhead text-text">
+                {range(load.pickup_window_start, load.pickup_window_end)}
+              </p>
+            </RailSection>
+            <RailSection label={c.delivery}>
+              <p className="text-subhead text-text">
+                {range(load.delivery_window_start, load.delivery_window_end)}
+              </p>
+            </RailSection>
+            {actions.cancel && (
+              <RailSection>
+                <RailActions>
+                  <CancelLoadForm loadId={load.id} />
+                </RailActions>
+              </RailSection>
+            )}
+          </DetailRail>
+        }
+      >
+        {load.status === 'draft' && !load.brokered && (
+          <div className="space-y-3">
+            {aviso === 'no-publicada' && <Notice tone="error">{c.publishFailed}</Notice>}
+            <Notice tone="info">{c.draftNotice}</Notice>
+          </div>
+        )}
 
-      <div className="grid gap-x-8 gap-y-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-10">
-          <section className="space-y-3">
-            <h2 className="px-1 text-title2 text-text">{c.route}</h2>
-            <RouteMap
-              origin={{ lat: load.origin_lat, lng: load.origin_lng, label: load.origin_city }}
-              destination={{
-                lat: load.destination_lat,
-                lng: load.destination_lng,
-                label: load.destination_city,
-              }}
-              roadFactor={serverRoadFactor()}
-            />
-          </section>
-
-          {load.brokered ? (
-            <section className="space-y-3" data-testid="brokered-load">
-              <h2 className="px-1 text-title2 text-text">{b.title}</h2>
+        {load.brokered ? (
+          <PageSection title={b.title}>
+            <div data-testid="brokered-load">
               {stage ? (
                 <Notice tone="info">
                   {b.stageHelp[stage]}
                   {stage === 'quoted' && ` ${b.cancelHint}`}
                 </Notice>
               ) : null}
-            </section>
-          ) : (
-            <section className="space-y-3">
-              <div className="space-y-1 px-1">
-                <h2 className="text-title2 text-text">{o.title}</h2>
-                <p className="text-subhead text-text-dim">
-                  {o.description} {o.live}
-                </p>
-              </div>
-              {offers.length > 0 ? (
-                <OfferBoard loadId={load.id} rows={offers} providerStates={providerStates} />
-              ) : (
-                <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
-                  {load.status === 'draft' ? o.emptyDraft : o.empty}
-                </p>
-              )}
-            </section>
-          )}
-        </div>
+            </div>
+          </PageSection>
+        ) : (
+          <PageSection title={o.title} description={`${o.description} ${o.live}`}>
+            {offers.length > 0 ? (
+              <OfferBoard loadId={load.id} rows={offers} providerStates={providerStates} />
+            ) : (
+              <Empty title={load.status === 'draft' ? o.emptyDraft : o.empty} />
+            )}
+          </PageSection>
+        )}
 
-        <aside className="space-y-6">
+        <PageSection title={clientListsCopy.load.details}>
           <Group>
             {details.map(([label, value]) => (
               <ValueRow key={label} label={label}>
@@ -233,10 +248,22 @@ export default async function LoadDetailPage({
               </ValueRow>
             ))}
           </Group>
-          <SiteDwellGroup pickup={siteDwells.pickup} delivery={siteDwells.delivery} />
-          {actions.cancel && <CancelLoadForm loadId={load.id} />}
-        </aside>
-      </div>
+        </PageSection>
+
+        <PageSection title={c.route}>
+          <RouteMap
+            origin={{ lat: load.origin_lat, lng: load.origin_lng, label: load.origin_city }}
+            destination={{
+              lat: load.destination_lat,
+              lng: load.destination_lng,
+              label: load.destination_city,
+            }}
+            roadFactor={serverRoadFactor()}
+          />
+        </PageSection>
+
+        <SiteDwellGroup pickup={siteDwells.pickup} delivery={siteDwells.delivery} />
+      </DetailLayout>
     </>
   );
 }

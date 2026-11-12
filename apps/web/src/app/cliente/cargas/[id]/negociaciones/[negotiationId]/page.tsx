@@ -1,7 +1,8 @@
 import {
   chatCopy,
+  clientListsCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   offersCopy,
   offerStatusLabels,
   offerStatusReasonText,
@@ -15,11 +16,13 @@ import { Notice } from '@/components/auth-forms';
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { negotiationLabel, UnitSummary, VerificationBadge } from '@/components/offers/offer-board';
 import { OfferResponse } from '@/components/offers/offer-response';
+import { PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { ProviderStatusForm } from '@/components/shared-documents/provider-status';
 import { buttonVariants } from '@/components/ui/button';
-import { ValueRow } from '@/components/ui/cell';
+import { DetailLayout, DetailRail, RailSection } from '@/components/ui/detail-layout';
 import { Group } from '@/components/ui/group';
+import { Money } from '@/components/ui/money';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { groupRow } from '@/components/ui/variants';
@@ -29,16 +32,18 @@ import { findNegotiation, getOfferBoard } from '@/lib/offers/queries';
 import { loadPath, negotiationPath } from '@/lib/routing';
 import { getViewer } from '@/lib/session';
 import { getProviderDecisions } from '@/lib/shared-documents/queries';
-import { negotiationTone } from '@/lib/status-tones';
+import { negotiationTone, offerStatusTone } from '@/lib/status-tones';
 import { cn } from '@/lib/utils';
 
 const c = offersCopy.negotiation;
+const n = clientListsCopy.negotiation;
 
 export const metadata: Metadata = { title: offersCopy.board.title };
 
 /**
- * One negotiation of a load: the offers, the shipper's response and the
- * provider status on the left; the chat on the right (one column on a phone).
+ * One negotiation of a load (V3): the chat and the history of offers on the
+ * left; on the right a rail with the latest offer, its state and the buttons
+ * that answer it (accept is the screen's one primary), and the unit.
  */
 export default async function NegotiationPage({
   params,
@@ -76,85 +81,49 @@ export default async function NegotiationPage({
       <PageHeader
         title={c.title(row.carrierName)}
         status={<VerificationBadge status={row.carrierStatus} />}
-        description={`${load.origin_city} → ${load.destination_city} · ${c.proposedPrice(formatMxn(load.proposed_price_cents))}`}
+        description={`${load.origin_city} → ${load.destination_city} · ${c.proposedPrice(formatMoney(load.proposed_price_cents))}`}
       />
 
-      <div className="grid gap-x-8 gap-y-10 lg:grid-cols-2">
-        <div className="space-y-8">
-          <Group>
-            <ValueRow label={offersCopy.board.columns.status}>
+      <DetailLayout
+        rail={
+          <DetailRail>
+            <RailSection label={n.latest}>
               <Pill tone={negotiationTone(row.state)}>{negotiationLabel(row)}</Pill>
-            </ValueRow>
-            <div className={cn(groupRow, 'space-y-1 px-4 py-2.5')}>
-              <p className="text-subhead text-text-dim">{offersCopy.board.columns.unit}</p>
-              <div className="text-body">
+              <Money cents={row.latest.amount_cents} size="numeral" className="block" />
+              <p className="text-footnote text-text-dim">
+                {c.proposedPrice(formatMoney(load.proposed_price_cents))}
+              </p>
+            </RailSection>
+            {row.state === 'respond' && (
+              <RailSection>
+                <OfferResponse
+                  offerId={row.latest.id}
+                  amount={formatMoney(row.latest.amount_cents)}
+                  carrier={row.carrierName}
+                  conditions={row.latest.conditions}
+                  stacked
+                />
+              </RailSection>
+            )}
+            {row.state === 'accepted' && (
+              <RailSection>
+                <Notice tone="success">{c.contracted}</Notice>
+              </RailSection>
+            )}
+            {row.state === 'closed' && (
+              <RailSection>
+                <Notice tone="info">{lostToOther ? c.otherOfferAccepted : c.closed}</Notice>
+              </RailSection>
+            )}
+            <RailSection label={n.unit}>
+              <div className="text-subhead">
                 <UnitSummary vehicle={row.vehicle} />
               </div>
-            </div>
-          </Group>
-
-          {row.state === 'respond' && (
-            <OfferResponse
-              offerId={row.latest.id}
-              amount={formatMxn(row.latest.amount_cents)}
-              carrier={row.carrierName}
-            />
-          )}
-          {row.state === 'accepted' && <Notice tone="success">{c.contracted}</Notice>}
-          {row.state === 'closed' && (
-            <Notice tone="info">{lostToOther ? c.otherOfferAccepted : c.closed}</Notice>
-          )}
-
-          <section className="space-y-3">
-            <h2 className="px-1 text-title2 text-text">{c.history}</h2>
-            <Group>
-              <ol>
-                {row.offers.map((offer) => (
-                  <li key={offer.id} className={cn(groupRow, 'space-y-1 px-4 py-3')}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                      <p className="text-body text-text">
-                        {c.side[offer.side]} ·{' '}
-                        <span className="font-semibold tabular-nums">
-                          {formatMxn(offer.amount_cents)}
-                        </span>
-                      </p>
-                      <span
-                        className={cn(
-                          'text-footnote tabular-nums',
-                          offer.status === 'accepted' ? 'text-ok-text' : 'text-text-dim',
-                        )}
-                      >
-                        {offerStatusLabels[offer.status]} · {formatDateTime(offer.created_at)}
-                      </span>
-                    </div>
-                    {offer.conditions && (
-                      <p className="text-subhead text-text-dim">
-                        {c.conditions}: {offer.conditions}
-                      </p>
-                    )}
-                    {offerStatusReasonText(offer.status_reason) && (
-                      <p className="text-subhead text-text-dim">
-                        {c.reason}: {offerStatusReasonText(offer.status_reason)}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </Group>
-          </section>
-
-          <ProviderStatusForm
-            carrierCompanyId={row.carrierCompanyId}
-            status={decision?.status ?? null}
-            decidedAt={decision?.decidedAt ?? null}
-          />
-        </div>
-
-        <section className="space-y-3 lg:sticky lg:top-32 lg:self-start">
-          <div className="space-y-1 px-1">
-            <h2 className="text-title2 text-text">{chatCopy.title}</h2>
-            <p className="text-subhead text-text-dim">{chatCopy.description}</p>
-          </div>
+            </RailSection>
+          </DetailRail>
+        }
+      >
+        <PageSection title={chatCopy.title} description={chatCopy.description}>
           {chat && row.conversationId && (
             <ChatPanel
               conversationId={row.conversationId}
@@ -164,8 +133,48 @@ export default async function NegotiationPage({
               initialReads={chat.reads}
             />
           )}
-        </section>
-      </div>
+        </PageSection>
+
+        <PageSection title={c.history}>
+          <Group>
+            <ol>
+              {row.offers.map((offer) => (
+                <li key={offer.id} className={cn(groupRow, 'space-y-1 px-4 py-3')}>
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <p className="text-subhead text-text">
+                      {c.side[offer.side]} · <Money cents={offer.amount_cents} />
+                    </p>
+                    <span className="flex items-center gap-2">
+                      <Pill tone={offerStatusTone(offer.status)}>
+                        {offerStatusLabels[offer.status]}
+                      </Pill>
+                      <span className="text-meta text-text-dim">
+                        {formatDateTime(offer.created_at)}
+                      </span>
+                    </span>
+                  </div>
+                  {offer.conditions && (
+                    <p className="text-footnote text-text-dim">
+                      {c.conditions}: {offer.conditions}
+                    </p>
+                  )}
+                  {offerStatusReasonText(offer.status_reason) && (
+                    <p className="text-footnote text-text-dim">
+                      {c.reason}: {offerStatusReasonText(offer.status_reason)}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </Group>
+        </PageSection>
+
+        <ProviderStatusForm
+          carrierCompanyId={row.carrierCompanyId}
+          status={decision?.status ?? null}
+          decidedAt={decision?.decidedAt ?? null}
+        />
+      </DetailLayout>
     </>
   );
 }

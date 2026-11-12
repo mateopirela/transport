@@ -470,12 +470,14 @@ async function carrierCfdiForHeldTrip(status) {
 }
 
 /**
- * R2: the link of the confirmation email of 24-carrier-sign-up-steps
- * (Mailpit), followed to where Supabase sends it: the app's deep link with
- * the PKCE code (transport://auth/callback?code=…), for 25 to open.
+ * R2: the confirmation email of 24-carrier-sign-up-steps (Mailpit), followed
+ * to the app: its token goes to Supabase's verify endpoint with the app's
+ * callback, which answers with the deep link and the PKCE code
+ * (transport://auth/callback?code=…) for 25 to open. (The email's own link
+ * goes to the web, which would register the company by itself.)
  */
 let confirmLink = null;
-async function confirmCarrierSignUp() {
+async function confirmCarrierSignUp(status) {
   const mailpit = process.env.E2E_MAILPIT_URL || 'http://127.0.0.1:54324';
   const query = encodeURIComponent(`to:"${NEW_OWNER_OPERATOR}"`);
   let html = null;
@@ -486,12 +488,16 @@ async function confirmCarrierSignUp() {
     else await new Promise((r) => setTimeout(r, 1000));
   }
   if (!html) throw new Error(`no confirmation email to ${NEW_OWNER_OPERATOR}`);
-  const verify = /href="([^"]*\/auth\/v1\/verify[^"]*)"/u.exec(html)?.[1];
-  if (!verify) throw new Error('the confirmation email has no verify link');
-  const response = await fetch(verify.replaceAll('&amp;', '&'), { redirect: 'manual' });
+  const tokenHash = /token_hash=([^&"]+)/u.exec(html)?.[1];
+  if (!tokenHash) throw new Error('the confirmation email has no token');
+  const verify = new URL(`${status.apiUrl}/auth/v1/verify`);
+  verify.searchParams.set('token', tokenHash);
+  verify.searchParams.set('type', 'signup');
+  verify.searchParams.set('redirect_to', 'transport://auth/callback');
+  const response = await fetch(verify, { redirect: 'manual' });
   const location = response.headers.get('location') ?? '';
   if (!location.startsWith('transport://auth/callback?code='))
-    throw new Error(`the confirmation link went to ${location || response.status}`);
+    throw new Error(`the confirmation went to ${location || response.status}`);
   confirmLink = { CONFIRM_LINK: location };
   console.log(`${NEW_OWNER_OPERATOR} confirmed her email.`);
 }
@@ -630,7 +636,7 @@ const steps = [
   { name: '23-quick-pay', needs: 'cfdi-for-held-trip', run: () => flow('23-quick-pay') },
   // R2: a hombre-camión signs up in steps; the confirmation registers her company.
   { name: '24-carrier-sign-up-steps', run: () => flow('24-carrier-sign-up-steps') },
-  { name: 'confirm-carrier-sign-up', run: () => confirmCarrierSignUp() },
+  { name: 'confirm-carrier-sign-up', run: (status) => confirmCarrierSignUp(status) },
   {
     name: '25-carrier-sign-up-confirm',
     needs: '24-carrier-sign-up-steps',

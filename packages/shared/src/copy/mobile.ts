@@ -34,7 +34,6 @@ export const mobileAuthCopy = {
   signUpOwnerOperatorNote:
     'Manejas tu propio camión: tendrás las pantallas del transportista y las del operador.',
   /** The five steps of the sign-up (D42); the app fills the first two, as the web. */
-  signUpStepsLabel: authCopy.signUp.stepsLabel,
   signUpSteps: authCopy.signUp.steps,
   signUpNext: authCopy.signUp.next,
   signUpBack: authCopy.signUp.back,

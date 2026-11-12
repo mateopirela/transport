@@ -475,8 +475,9 @@ export function SwitchCell({
  * A field as a row of a group: the label small above its box, 48 high with
  * the control line (red on an error). `inSheet` inside a Sheet, so the sheet
  * makes room for the keyboard. A `revealable` password field (D42) has a
- * button at the end of its box that shows or hides what is typed; the button
- * has its own name, so the field keeps its label. `inputRef` reaches the
+ * toggle at the end of its box that shows or hides what is typed: its own
+ * name says what a tap does and its state says whether it is shown (the web's
+ * `aria-pressed`), so the field keeps its label. `inputRef` reaches the
  * input, e.g. to scroll a form to the field with an error.
  */
 export function FieldCell({
@@ -523,8 +524,9 @@ export function FieldCell({
         <View>
           {box}
           <Pressable
-            accessibilityRole="button"
+            accessibilityRole="togglebutton"
             accessibilityLabel={shown ? mobileKitCopy.hidePassword : mobileKitCopy.showPassword}
+            accessibilityState={{ checked: shown }}
             onPress={() => setShown((current) => !current)}
             style={({ pressed }) => [kit.reveal, pressed ? kit.pressed : null]}
           >
@@ -1311,18 +1313,23 @@ export function BrandBlock({
  * optional `detail` (an hour). `current` counts from 0; below 0 nothing has
  * started and at the number of steps all are done. `title` names the row and
  * "Paso 2 de 4" sits beside it. `inset={false}` where its parent already
- * gives it the padding of a cell.
+ * gives it the padding of a cell. `labels={false}` leaves the names out of
+ * sight where there are too many steps for the width (the five of the
+ * sign-up): the title then names the step in course, and a screen reader
+ * still hears it.
  */
 export function Steps({
   steps,
   current,
   title,
   inset = true,
+  labels = true,
 }: {
   steps: readonly { label: string; detail?: string | undefined }[];
   current: number;
   title?: string | undefined;
   inset?: boolean;
+  labels?: boolean;
 }) {
   const kit = useKit();
   const states = stepStates(steps.length, current);
@@ -1357,30 +1364,32 @@ export function Steps({
           />
         ))}
       </View>
-      <View style={kit.stepLabels}>
-        {steps.map((step, i) => (
-          <View key={i} style={kit.stepLabel}>
-            <Text
-              style={[
-                kit.stepText,
-                states[i] === 'done'
-                  ? kit.stepTextDone
-                  : states[i] === 'current'
-                    ? kit.stepTextCurrent
-                    : null,
-              ]}
-              numberOfLines={2}
-            >
-              {step.label}
-            </Text>
-            {step.detail ? (
-              <Text style={kit.meta} numberOfLines={1}>
-                {step.detail}
+      {labels ? (
+        <View style={kit.stepLabels}>
+          {steps.map((step, i) => (
+            <View key={i} style={kit.stepLabel}>
+              <Text
+                style={[
+                  kit.stepText,
+                  states[i] === 'done'
+                    ? kit.stepTextDone
+                    : states[i] === 'current'
+                      ? kit.stepTextCurrent
+                      : null,
+                ]}
+                numberOfLines={2}
+              >
+                {step.label}
               </Text>
-            ) : null}
-          </View>
-        ))}
-      </View>
+              {step.detail ? (
+                <Text style={kit.meta} numberOfLines={1}>
+                  {step.detail}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

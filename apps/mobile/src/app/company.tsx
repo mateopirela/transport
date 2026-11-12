@@ -179,7 +179,8 @@ export default function CompanySetup() {
         <Steps
           steps={STEPS}
           current={signUpStepIndex('fiscal')}
-          title={mobileAuthCopy.signUpStepsLabel}
+          title={mobileAuthCopy.signUpSteps.fiscal}
+          labels={false}
         />
         <Loading label={copy.registering} />
       </Screen>
@@ -199,7 +200,8 @@ export default function CompanySetup() {
         <Steps
           steps={STEPS}
           current={signUpStepIndex('fiscal')}
-          title={mobileAuthCopy.signUpStepsLabel}
+          title={mobileAuthCopy.signUpSteps.fiscal}
+          labels={false}
         />
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
         <View ref={register('kind')}>

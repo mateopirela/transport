@@ -162,7 +162,13 @@ export default function SignUp() {
         bottom={barHeight}
         scrollRef={scrollRef}
       >
-        <Steps steps={STEPS} current={signUpStepIndex(step)} title={copy.signUpStepsLabel} />
+        {/* Five steps are too many names for a phone: the title names this one. */}
+        <Steps
+          steps={STEPS}
+          current={signUpStepIndex(step)}
+          title={copy.signUpSteps[step]}
+          labels={false}
+        />
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
         {/* Step 1 stays mounted under step 2 (see above). */}
         <View style={onAccount ? styles.step : styles.hidden}>

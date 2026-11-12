@@ -141,10 +141,10 @@ describe.each<Theme>(['light', 'dark'])('sign-up step 1 (%s)', (theme) => {
     const progress = byRole(root, 'progressbar')[0] as ReactTestInstance;
     expect(progress.props.accessibilityValue).toMatchObject({ max: 5, now: 0 });
     expect(texts(root)).toEqual(
-      expect.arrayContaining([
-        mobileKitCopy.stepOf(1, 5),
-        ...Object.values(mobileAuthCopy.signUpSteps),
-      ]),
+      expect.arrayContaining([mobileKitCopy.stepOf(1, 5), mobileAuthCopy.signUpSteps.account]),
+    );
+    expect(progress.props.accessibilityValue.text).toBe(
+      `${mobileKitCopy.stepOf(1, 5)}: ${mobileAuthCopy.signUpSteps.account}`,
     );
     const filled = byRole(root, 'button').filter(
       (n) => styleOf(n).backgroundColor === palette[theme].accent,
@@ -193,18 +193,23 @@ describe('sign-up step 1', () => {
     }
   });
 
-  it('shows and hides each password with a button of its own name', async () => {
+  it('shows and hides each password with a toggle of its own name and state', async () => {
     const root = await render(<SignUp />);
-    const shows = byRole(root, 'button').filter(
+    const shows = byRole(root, 'togglebutton').filter(
       (n) => n.props.accessibilityLabel === mobileKitCopy.showPassword,
     );
     expect(shows).toHaveLength(2);
+    expect(shows.map((n) => n.props.accessibilityState)).toEqual([
+      { checked: false },
+      { checked: false },
+    ]);
     await press(shows[0] as ReactTestInstance);
     expect(input(root, mobileAuthCopy.passwordLabel).props.secureTextEntry).toBe(false);
     expect(input(root, mobileAuthCopy.passwordConfirmLabel).props.secureTextEntry).toBe(true);
-    const hide = byRole(root, 'button').find(
+    const hide = byRole(root, 'togglebutton').find(
       (n) => n.props.accessibilityLabel === mobileKitCopy.hidePassword,
     ) as ReactTestInstance;
+    expect(hide.props.accessibilityState).toEqual({ checked: true });
     await press(hide);
     expect(input(root, mobileAuthCopy.passwordLabel).props.secureTextEntry).toBe(true);
   });
@@ -227,6 +232,9 @@ describe('sign-up step 2', () => {
     expect(texts(bar(root))).toEqual([mobileAuthCopy.signUpBack, mobileAuthCopy.signUpAction]);
     const progress = byRole(root, 'progressbar')[0] as ReactTestInstance;
     expect(progress.props.accessibilityValue).toMatchObject({ now: 1 });
+    expect(texts(root)).toEqual(
+      expect.arrayContaining([mobileKitCopy.stepOf(2, 5), mobileAuthCopy.signUpSteps.fiscal]),
+    );
     // Mounted, so the password manager sees the account when it is created.
     expect(hidden(input(root, mobileAuthCopy.passwordLabel))).toBe(true);
     expect(hidden(input(root, mobileCompanyCopy.rfcLabel))).toBe(false);
@@ -342,7 +350,7 @@ describe('sign-in', () => {
   it('can show the password and offers the invitation under the fields (D42, D43)', async () => {
     const root = await render(<SignIn />);
     expect(input(root, mobileAuthCopy.passwordLabel).props.secureTextEntry).toBe(true);
-    const show = byRole(root, 'button').find(
+    const show = byRole(root, 'togglebutton').find(
       (n) => n.props.accessibilityLabel === mobileKitCopy.showPassword,
     ) as ReactTestInstance;
     await press(show);

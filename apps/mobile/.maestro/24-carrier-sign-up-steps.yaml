@@ -4,7 +4,10 @@
 # once), goes to step 2 (Nombre fiscal, without Representante legal for a
 # persona física), goes back and finds everything as it was, and creates the
 # account: "Confirma tu correo". 25-carrier-sign-up-confirm opens the link.
-# Run it on a fresh seed (the email and the RFC are new there).
+# Run it on a fresh seed (the email and the RFC are new there). Each field is
+# left with the return key, which closes the keyboard: while it is open, the
+# bar with the primary sits right above it, where fill-field centres the next
+# field, and the tap would land on the bar.
 appId: ${APP_ID}
 name: Hombre-camión · registro por pasos
 tags: [carrier, sign-up]
@@ -61,27 +64,25 @@ tags: [carrier, sign-up]
     env:
       LABEL: 'Nombre completo'
       TEXT: 'Rosa Elizondo'
-- runFlow:
-    file: subflows/fill-field.yaml
-    env:
-      LABEL: 'Teléfono'
-      TEXT: '8110000077'
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'Correo electrónico'
       TEXT: 'rosa.elizondo@demo.test'
+- pressKey: Enter
 - runFlow:
-    file: subflows/fill-new-password.yaml
+    file: subflows/fill-new-password-sheet.yaml
     env:
       LABEL: 'Contraseña'
       TEXT: 'Demo1234'
+- pressKey: Enter
 - runFlow:
-    file: subflows/fill-new-password.yaml
+    file: subflows/fill-new-password-sheet.yaml
     env:
       LABEL: 'Confirma tu contraseña'
       TEXT: 'Demo1234'
-- tapOn: 'Confirma tu contraseña'
+- pressKey: Enter
 # The password can be shown with the button beside it.
 - scrollUntilVisible:
     element: 'Mostrar contraseña'
@@ -91,6 +92,13 @@ tags: [carrier, sign-up]
     index: 0
 - assertVisible: 'Ocultar contraseña'
 - takeScreenshot: 24-3-password-shown
+# The phone last: its number pad has no return key, and "Siguiente" stays
+# reachable above it.
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Teléfono'
+      TEXT: '8110000077'
 - tapOn: 'Siguiente'
 - extendedWaitUntil:
     visible: 'Paso 2 de 5'
@@ -103,11 +111,13 @@ tags: [carrier, sign-up]
     env:
       LABEL: 'Nombre fiscal'
       TEXT: 'Rosa Elizondo Ríos'
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'RFC'
       TEXT: 'EIRR850312AB1'
+- pressKey: Enter
 - takeScreenshot: 24-4-step-2
 # Regresar keeps everything, and so does Siguiente again.
 - tapOn: 'Regresar'
@@ -128,27 +138,25 @@ tags: [carrier, sign-up]
     env:
       LABEL: 'Calle'
       TEXT: 'Av. Constitución'
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'Número exterior'
       TEXT: '100'
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'Colonia'
       TEXT: 'Centro'
-- runFlow:
-    file: subflows/fill-field.yaml
-    env:
-      LABEL: 'Código postal'
-      TEXT: '64000'
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'Municipio o alcaldía'
       TEXT: 'Monterrey'
-- tapOn: 'Municipio o alcaldía'
+- pressKey: Enter
 - scrollUntilVisible:
     element: 'Estado.*'
     centerElement: true
@@ -161,6 +169,12 @@ tags: [carrier, sign-up]
     element: 'Acepto los términos y condiciones y el aviso de privacidad'
     centerElement: true
 - tapOn: 'Acepto los términos y condiciones y el aviso de privacidad'
+# The postal code last, as the phone in step 1 (a number pad).
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Código postal'
+      TEXT: '64000'
 - takeScreenshot: 24-5-step-2-filled
 - tapOn: 'Crear cuenta'
 - extendedWaitUntil:

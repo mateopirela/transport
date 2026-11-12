@@ -445,6 +445,16 @@ describe('Steps', () => {
     expect(styleOf(current as ReactTestInstance).color).toBe(palette.light.accentText);
   });
 
+  it('can leave the names out of sight, still read to a screen reader', async () => {
+    const root = await render(
+      <Steps title="Datos fiscales" steps={steps} current={1} labels={false} />,
+    );
+    expect(texts(root)).toEqual(['Datos fiscales', mobileKitCopy.stepOf(2, 4)]);
+    expect(at(byRole(root, 'progressbar')).props.accessibilityValue.text).toBe(
+      `${mobileKitCopy.stepOf(2, 4)}: En ruta`,
+    );
+  });
+
   it('has every step done past the last one, and none before the first', async () => {
     const done = await render(<Steps steps={steps} current={4} />);
     expect(bars(done)).toEqual(Array(4).fill(palette.light.text));

@@ -104,12 +104,12 @@ select is(
 );
 
 -- Three more failures, one per session: the fifth in a row locks.
-select extensions.dblink_exec('s1', $sql$
+select from extensions.dblink('s1', $sql$
   select public.auth_attempt_decision('password', 'a6700000-0000-4000-8000-000000000001', false)
-$sql$);
-select extensions.dblink_exec('s2', $sql$
+$sql$) as t(v jsonb);
+select from extensions.dblink('s2', $sql$
   select public.auth_attempt_decision('password', 'a6700000-0000-4000-8000-000000000001', false)
-$sql$);
+$sql$) as t(v jsonb);
 select is(
   (select v from extensions.dblink('setup', $sql$
      select public.auth_attempt_decision('password', 'a6700000-0000-4000-8000-000000000001', false) ->> 'decision'

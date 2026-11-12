@@ -39,9 +39,16 @@ async function adminClient(): Promise<{ supabase: Supabase } | { error: string }
   return { supabase };
 }
 
-/** The QR of Supabase Auth (raw SVG behind the prefix) as a well-formed data URI. */
+/**
+ * The QR of Supabase Auth (raw SVG behind the prefix) as a well-formed data
+ * URI. Its margin is transparent: a white background keeps the quiet zone
+ * light in the dark theme too, so every authenticator app can scan it (a
+ * property of the code, not of the theme: it stays white in both).
+ */
 function svgDataUri(qrCode: string): string {
-  const svg = qrCode.replace(/^data:image\/svg\+xml;[^,]*,/u, '');
+  const svg = qrCode
+    .replace(/^data:image\/svg\+xml;[^,]*,/u, '')
+    .replace(/(<svg\b[^>]*>)/u, '$1<rect width="100%" height="100%" fill="white"/>');
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 

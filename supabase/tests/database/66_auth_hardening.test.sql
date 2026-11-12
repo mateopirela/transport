@@ -5,9 +5,10 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(41);
+select plan(42);
 
 create schema tests;
+grant usage on schema tests to authenticated;
 
 create function tests.new_user(p_id uuid, p_role text)
 returns void
@@ -30,6 +31,8 @@ as $$
     true
   );
 $$;
+
+grant execute on all functions in schema tests to authenticated;
 
 -- Users: ...01 admin, ...02 shipper (with a company), ...03 another admin.
 select tests.new_user('a6600000-0000-4000-8000-000000000001', 'shipper');

@@ -28,12 +28,17 @@ import { Money } from '@/components/ui/money';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
+import { Tag } from '@/components/ui/tag';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { textLink } from '@/components/page-section';
 import { loadSupervision, type UnitSupervision } from '@/lib/carrier/company';
 import { carrierContext } from '@/lib/carrier/context';
 import { fleetExpiringDocuments, negotiationsToAnswer } from '@/lib/carrier/dashboard';
-import { EXPIRY_WINDOW_DAYS, firstOf } from '@/lib/carrier/dashboard-summary';
+import {
+  EXPIRY_WINDOW_DAYS,
+  firstOf,
+  type ExpiringDocument,
+} from '@/lib/carrier/dashboard-summary';
 import { carrierFeed, listCarrierUnits } from '@/lib/carrier/loads';
 import { listPendingReleases } from '@/lib/carrier/release';
 import { TRIP_FILTER_PARAMS, TRIP_VIEW_PARAMS } from '@/lib/carrier/trip-filters';
@@ -53,8 +58,11 @@ const d = carrierWebCopy.dashboard;
 const feedCopy = carrierLoadsCopy.home;
 const s = managerCompanyCopy.supervision;
 
-/** Rows of each kind the attention list shows before "y N más". */
+/** Rows of each kind the attention list shows before linking to the rest. */
 const ATTENTION_PER_KIND = 4;
+
+/** The anchor of the expiring documents, where the indicator and its row lead. */
+const EXPIRING_SECTION_ID = 'por-vencer';
 
 export const metadata: Metadata = { title: c.title };
 
@@ -87,6 +95,57 @@ function Supervision({ rows }: { rows: UnitSupervision[] }) {
           </li>
         ))}
       </ul>
+    </DashboardSection>
+  );
+}
+
+/** Every document about to expire, with the unit or operator whose screen uploads its renewal. */
+function ExpiringDocuments({ documents }: { documents: readonly ExpiringDocument[] }) {
+  const e = d.expiring;
+  return (
+    <DashboardSection
+      id={EXPIRING_SECTION_ID}
+      title={e.title}
+      count={documents.length}
+      description={e.description(EXPIRY_WINDOW_DAYS)}
+    >
+      <Table
+        cards
+        headers={[
+          e.columns.document,
+          e.columns.owner,
+          e.columns.due,
+          { label: d.attention.expiringAction, srOnly: true },
+        ]}
+      >
+        {documents.map((doc) => (
+          <TableRow key={doc.documentId}>
+            <TableCell primary>{doc.requirementName}</TableCell>
+            <TableCell label={e.columns.owner}>
+              {doc.owner.label}
+              <span className="block text-footnote text-text-dim">
+                {doc.owner.type === 'vehicle' ? e.vehicle : e.operator}
+              </span>
+            </TableCell>
+            <TableCell label={e.columns.due}>
+              <Tag tone="pending">{d.attention.expiringDetail(doc.daysLeft)}</Tag>
+              <span className="block text-meta text-text-dim">{formatDate(doc.expiresAt)}</span>
+            </TableCell>
+            <TableCell action>
+              <Link
+                href={
+                  doc.owner.type === 'vehicle'
+                    ? carrierUnitPath(doc.owner.id)
+                    : carrierOperatorPath(doc.owner.id)
+                }
+                className={textLink}
+              >
+                {d.attention.expiringAction}
+              </Link>
+            </TableCell>
+          </TableRow>
+        ))}
+      </Table>
     </DashboardSection>
   );
 }
@@ -195,8 +254,8 @@ export default async function CarrierHomePage() {
 
   const answer = firstOf(toAnswer, ATTENTION_PER_KIND);
   const assign = firstOf(toAssign.rows, ATTENTION_PER_KIND);
-  const documents = firstOf(expiring, ATTENTION_PER_KIND);
-  const more = answer.more + (toAssign.total - assign.shown.length) + documents.more;
+  const assignMore = toAssign.total - assign.shown.length;
+  const [firstDocument] = expiring;
   const attention: AttentionItem[] = [
     ...pendingReleases.map((p) => ({
       key: `release-${p.taskId}`,
@@ -221,19 +280,30 @@ export default async function CarrierHomePage() {
         : undefined,
       action: { href: carrierTripPath(trip.id), label: d.attention.assignAction },
     })),
-    ...documents.shown.map((doc) => ({
-      key: `expiring-${doc.documentId}`,
-      tag: { label: d.attention.tags.expiring, tone: 'pending' as const },
-      title: d.attention.expiringTitle(doc.requirementName, doc.owner.label),
-      detail: d.attention.expiringDetail(doc.daysLeft),
-      action: {
-        href:
-          doc.owner.type === 'vehicle'
-            ? carrierUnitPath(doc.owner.id)
-            : carrierOperatorPath(doc.owner.id),
-        label: d.attention.expiringAction,
-      },
-    })),
+    // The documents are one row; the section below lists every one of them.
+    ...(firstDocument
+      ? [
+          {
+            key: 'expiring',
+            tag: { label: d.attention.tags.expiring, tone: 'pending' as const },
+            title: d.attention.expiringTitle(expiring.length),
+            detail: d.attention.expiringFirst(
+              firstDocument.requirementName,
+              firstDocument.owner.label,
+              d.attention.expiringDetail(firstDocument.daysLeft),
+            ),
+            action: { href: `#${EXPIRING_SECTION_ID}`, label: d.attention.expiringAction },
+          },
+        ]
+      : []),
+  ];
+  const overflow = [
+    ...(answer.more > 0
+      ? [{ href: paths.carrierNegotiations, label: d.attention.moreRespond(answer.more) }]
+      : []),
+    ...(assignMore > 0
+      ? [{ href: tripsView('to_assign'), label: d.attention.moreAssign(assignMore) }]
+      : []),
   ];
 
   return (
@@ -274,21 +344,35 @@ export default async function CarrierHomePage() {
             label={d.kpis.expiring}
             value={expiring.length}
             hint={d.kpis.expiringHint(EXPIRY_WINDOW_DAYS)}
-            href={paths.carrierUnits}
+            href={expiring.length > 0 ? `#${EXPIRING_SECTION_ID}` : paths.carrierUnits}
             attention={expiring.length > 0}
           />
         </KpiGrid>
 
-        <DashboardSection title={d.attention.title} count={attention.length + more}>
+        <DashboardSection
+          title={d.attention.title}
+          count={
+            pendingReleases.length + toAnswer.length + toAssign.total + (firstDocument ? 1 : 0)
+          }
+        >
           {attention.length === 0 ? (
             <Empty title={d.attention.empty} description={d.attention.emptyHelp} />
           ) : (
             <AttentionList
               items={attention}
-              footer={more > 0 ? d.attention.more(more) : undefined}
+              footer={
+                overflow.length > 0 &&
+                overflow.map((link) => (
+                  <Link key={link.href} href={link.href} className={sectionLink}>
+                    {link.label}
+                  </Link>
+                ))
+              }
             />
           )}
         </DashboardSection>
+
+        {expiring.length > 0 && <ExpiringDocuments documents={expiring} />}
 
         <ActiveTrips rows={activeTrips.rows.slice(0, 5)} total={activeTrips.total} />
 

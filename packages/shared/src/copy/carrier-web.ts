@@ -52,7 +52,10 @@ export const carrierWebCopy = {
       empty: 'Nada pendiente',
       emptyHelp:
         'Aquí aparecen las contraofertas, los viajes por asignar, los camiones por liberar y los documentos por vencer.',
-      more: (count: number) => (count === 1 ? 'y 1 más' : `y ${count} más`),
+      moreRespond: (count: number) =>
+        count === 1 ? 'Ver 1 contraoferta más' : `Ver ${count} contraofertas más`,
+      moreAssign: (count: number) =>
+        count === 1 ? 'Ver 1 viaje más por asignar' : `Ver ${count} viajes más por asignar`,
       tags: {
         release: 'Por liberar',
         respond: 'Contraoferta',
@@ -63,10 +66,21 @@ export const carrierWebCopy = {
       respondAction: 'Responder',
       assignDetail: (date: string) => `Recolección: ${date}`,
       assignAction: 'Asignar',
-      expiringTitle: (document: string, owner: string) => `${document} · ${owner}`,
+      expiringTitle: (count: number) =>
+        count === 1 ? '1 documento por vencer' : `${count} documentos por vencer`,
+      expiringFirst: (document: string, owner: string, due: string) =>
+        `El primero: ${document} de ${owner}, ${due.toLowerCase()}`,
       expiringDetail: (days: number) =>
         days <= 0 ? 'Vence hoy' : days === 1 ? 'Vence mañana' : `Vence en ${days} días`,
       expiringAction: 'Ver documentos',
+    },
+    expiring: {
+      title: 'Documentos por vencer',
+      description: (days: number) =>
+        `Los documentos aprobados de tus camiones y operadores que vencen en los próximos ${days} días. Sube el nuevo antes de que venza.`,
+      columns: { document: 'Documento', owner: 'De', due: 'Vence' },
+      vehicle: 'Camión',
+      operator: 'Operador',
     },
     activeTrips: {
       title: 'Viajes en curso',

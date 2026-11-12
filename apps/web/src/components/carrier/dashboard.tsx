@@ -70,7 +70,8 @@ export function AttentionList({
   footer,
 }: {
   items: readonly AttentionItem[];
-  footer?: string;
+  /** Links to the lists with the rows left out. */
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="border bg-cell">
@@ -101,7 +102,7 @@ export function AttentionList({
           </li>
         ))}
       </ul>
-      {footer && <p className="border-t px-5 py-3 text-footnote text-text-dim">{footer}</p>}
+      {footer && <div className="flex flex-wrap gap-x-6 gap-y-2 border-t px-5 py-3">{footer}</div>}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import 'server-only';
 
-import { carrierNegotiationState, unitLabel } from '@transport/shared';
+import { carrierNegotiationState, unitLabel, type NegotiationOffer } from '@transport/shared';
 
+import { selectAll } from '../verification/paging';
 import type { Supabase } from '../viewer';
 import { expiringDocuments, type ExpiringDocument } from './dashboard-summary';
 import { listCarrierOperators, listCarrierVehicles, loadFleetContext } from './fleet';
@@ -20,11 +21,22 @@ export interface NegotiationToAnswer {
   createdAt: string;
 }
 
+interface PendingShipperOffer extends NegotiationOffer {
+  negotiation_id: string;
+  load_id: string;
+  negotiation: { business_unit_id: string } | null;
+}
+
+/** Ids per `in` filter of the loads read: keeps each request's URL short. */
+const LOAD_BATCH = 200;
+
 /**
  * The negotiations of the given business units whose latest offer is a
  * pending one of the client on a load still open: the carrier's turn
  * ("respond" in carrierNegotiationState). A negotiation holds one pending
  * offer at most (make_offer, counter_offer), so a pending one is its latest.
+ * Filtered by business unit in the query (inner join) and read page by page
+ * past the 1,000-row cap of PostgREST, so the count is never a prefix.
  * Newest first.
  */
 export async function negotiationsToAnswer(
@@ -33,28 +45,39 @@ export async function negotiationsToAnswer(
   businessUnitIds: readonly string[],
 ): Promise<NegotiationToAnswer[]> {
   if (businessUnitIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from('offers')
-    .select(
-      'id, negotiation_id, load_id, side, amount_cents, conditions, vehicle_id, status, status_reason, created_at, negotiation:negotiations!offers_negotiation_fkey(business_unit_id)',
-    )
-    .eq('carrier_company_id', companyId)
-    .eq('side', 'shipper')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(`Pending offers query failed: ${error.message}`);
+  const offers = await selectAll<PendingShipperOffer>((from, to) =>
+    supabase
+      .from('offers')
+      .select(
+        'id, negotiation_id, load_id, side, amount_cents, conditions, vehicle_id, status, status_reason, created_at, negotiation:negotiations!offers_negotiation_fkey!inner(business_unit_id)',
+      )
+      .eq('carrier_company_id', companyId)
+      .eq('side', 'shipper')
+      .eq('status', 'pending')
+      .in('negotiation.business_unit_id', [...businessUnitIds])
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to)
+      .overrideTypes<PendingShipperOffer[], { merge: false }>(),
+  );
   const selected = new Set(businessUnitIds);
-  const offers = data.filter(
+  const mine = offers.filter(
     (offer) => offer.negotiation && selected.has(offer.negotiation.business_unit_id),
   );
-  if (offers.length === 0) return [];
-  const loads = await supabase
-    .from('loads')
-    .select('id, origin_city, destination_city, status')
-    .in('id', [...new Set(offers.map((offer) => offer.load_id))]);
-  if (loads.error) throw new Error(`Loads query failed: ${loads.error.message}`);
-  const loadById = new Map(loads.data.map((load) => [load.id, load]));
-  return offers.flatMap((offer) => {
+  if (mine.length === 0) return [];
+  const loadIds = [...new Set(mine.map((offer) => offer.load_id))];
+  const batches = await Promise.all(
+    Array.from({ length: Math.ceil(loadIds.length / LOAD_BATCH) }, async (_, i) => {
+      const { data, error } = await supabase
+        .from('loads')
+        .select('id, origin_city, destination_city, status')
+        .in('id', loadIds.slice(i * LOAD_BATCH, (i + 1) * LOAD_BATCH));
+      if (error) throw new Error(`Loads query failed: ${error.message}`);
+      return data;
+    }),
+  );
+  const loadById = new Map(batches.flat().map((load) => [load.id, load]));
+  return mine.flatMap((offer) => {
     const load = loadById.get(offer.load_id);
     if (!load || !offer.negotiation) return [];
     if (carrierNegotiationState([offer], load.status) !== 'respond') return [];

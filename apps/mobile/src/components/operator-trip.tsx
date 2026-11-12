@@ -172,8 +172,10 @@ export function NextStepBlock({
         <Button label={fallback.label} size="large" onPress={fallback.onPress} disabled={busy} />
       )}
       {note ? <BlockLine>{note}</BlockLine> : null}
-      {/* One under the other: side by side, "Reportar incidencia" breaks in two lines on a phone. */}
+      {/* One under the other: side by side, "Reportar incidencia" breaks in two lines on a
+          phone. The report goes first, so it stays on the first screen of a short phone too. */}
       <View style={styles.ways}>
+        <Button label={stepCopy.report} variant="secondary" icon="warning" onPress={onReport} />
         {directions ? (
           <Button
             label={stepCopy.directions}
@@ -183,7 +185,6 @@ export function NextStepBlock({
             onPress={() => openDirections(directions.lat, directions.lng)}
           />
         ) : null}
-        <Button label={stepCopy.report} variant="secondary" icon="warning" onPress={onReport} />
       </View>
     </BrandBlock>
   );
@@ -256,8 +257,13 @@ export function LoadSection({ trip }: { trip: OperatorTrip }) {
           {trip.vehiclePlate ? (
             <ValueRow label={stepCopy.unitLabel} value={trip.vehiclePlate} />
           ) : null}
+          {/* A list that can be long: the label over it and every line of it (a value row would clip it). */}
           {requirements.length > 0 ? (
-            <ValueRow label={stepCopy.requirementsLabel} value={requirements.join(', ')} />
+            <Cell
+              title={stepCopy.requirementsLabel}
+              subtitle={requirements.join(', ')}
+              subtitleLines={0}
+            />
           ) : null}
           {load.notes ? <TextCell tone="dim">{copy.notes(load.notes)}</TextCell> : null}
         </Group>

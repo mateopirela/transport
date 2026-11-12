@@ -103,16 +103,16 @@ describe('NextStepBlock', () => {
     }
   });
 
-  it('keeps "Cómo llegar" and "Reportar incidencia" in reach while there is somewhere to go', async () => {
+  it('keeps "Reportar incidencia" right under the step, then "Cómo llegar"', async () => {
     const root = await render(block('in_transit'));
     const labels = buttons(root).map(textOf);
     expect(labels).toEqual([
       operatorStepActionLabels.arrived_at_delivery,
-      operatorNextStepCopy.directions,
       operatorNextStepCopy.report,
+      operatorNextStepCopy.directions,
     ]);
     // "Cómo llegar" says where it goes to a screen reader.
-    expect(buttons(root)[1]?.props.accessibilityLabel).toBe('Cómo llegar a Guadalajara');
+    expect(buttons(root)[2]?.props.accessibilityLabel).toBe('Cómo llegar a Guadalajara');
   });
 
   it('drops "Cómo llegar" once delivered and keeps "Reportar incidencia"', async () => {

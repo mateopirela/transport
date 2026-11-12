@@ -82,6 +82,10 @@ export default async function AdminHomePage() {
       ])
     : [null, null, null, null, null, null, null];
 
+  // A failed read leaves its figure out; the page says so instead of an all-clear.
+  const partial = [counts, companies, documents, ledger, incidents, brokered].some(
+    (read) => read === null,
+  );
   const freight = ledger ? freightAttention(ledger) : null;
   const toBroker = brokered ? brokeredAttention(brokered) : null;
   const pendingDocuments = counts
@@ -138,7 +142,7 @@ export default async function AdminHomePage() {
     add('carrierPayment', {
       key: `carrier-${row.trip_id}`,
       title: h.items.carrierPayment(route(row)),
-      detail: h.items.carrierPaymentDetail(row.carrier_name),
+      detail: h.items.carrierPaymentDetail(row.carrier_name, row.client_status !== 'paid'),
       href: freightFilter('transportista'),
     });
   }
@@ -243,18 +247,25 @@ export default async function AdminHomePage() {
           />
         </KpiGrid>
 
-        <AttentionList
-          title={h.attention}
-          count={h.attentionCount(shown.length + left)}
-          rows={shown}
-          more={left > 0 ? h.attentionMore(left) : undefined}
-          empty={
-            <div className="space-y-1">
-              <p className="text-subhead font-semibold text-text">{h.attentionEmpty}</p>
-              <p className="text-footnote text-text-dim">{h.attentionEmptyBody}</p>
-            </div>
-          }
-        />
+        <div className="space-y-3">
+          {partial && <Notice tone="error">{h.partial}</Notice>}
+          <AttentionList
+            title={h.attention}
+            count={h.attentionCount(shown.length + left)}
+            rows={shown}
+            more={left > 0 ? h.attentionMore(left) : undefined}
+            empty={
+              partial ? (
+                <p className="text-footnote text-text-dim">{h.partial}</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-subhead font-semibold text-text">{h.attentionEmpty}</p>
+                  <p className="text-footnote text-text-dim">{h.attentionEmptyBody}</p>
+                </div>
+              )
+            }
+          />
+        </div>
 
         <PageSection title={k.title} description={k.description}>
           {kpis ? (

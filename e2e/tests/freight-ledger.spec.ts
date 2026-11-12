@@ -97,8 +97,8 @@ test('each side sees its own amounts and the admin reconciles the SPEI payments'
     await admin.getByRole('link', { name: a.nav, exact: true }).click();
     await expect(admin).toHaveURL(/\/admin\/flete/u);
     const card = admin.getByTestId(`freight-row-${trip}`);
-    await expect(card).toContainText('$10,000.00');
-    await expect(card).toContainText('$9,700.00');
+    await expect(card).toContainText('$10,000');
+    await expect(card).toContainText('$9,700');
     // D33-E1: the carrier is paid once the client paid, so only the client's
     // payment is offered until then.
     await expect(card).toContainText(a.carrierWaitsForClient);

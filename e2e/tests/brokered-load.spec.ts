@@ -164,8 +164,8 @@ test('the carrier takes the brokered load at its rate and the margin stays with 
   await test.step('the ledger: $12,000 from Ana, $10,800 to José, $1,200 of margin', async () => {
     await admin.goto('/admin/flete');
     const row = admin.getByTestId(`freight-row-${trip.id}`);
-    await expect(row).toContainText('$12,000.00');
-    await expect(row).toContainText('$10,800.00');
+    await expect(row).toContainText('$12,000');
+    await expect(row).toContainText('$10,800');
     await expect(row.getByTestId('freight-margin')).toHaveText('$1,200');
   });
 

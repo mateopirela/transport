@@ -17,6 +17,9 @@ import type { ButtonVariants } from '@/components/ui/variants';
  *
  * `skip` sends the form at once instead, e.g. when a required field is still
  * empty: the server answers with the field's error, with nothing to confirm.
+ *
+ * Enter in a field does not send the form either: its submit button is this
+ * hidden one, kept disabled until the dialog confirms.
  */
 export function ConfirmSubmit({
   title,
@@ -54,11 +57,20 @@ export function ConfirmSubmit({
   const [open, setOpen] = React.useState(false);
   const [text, setText] = React.useState<React.ReactNode>(null);
 
+  // The hidden submitter stays disabled but for this moment: a disabled
+  // default button stops Enter in a field from sending the form unasked
+  // (implicit submission), so the only way in is the dialog. The form data is
+  // read while the submit event runs, inside requestSubmit.
   const send = () => {
     const form = trigger.current?.form;
-    if (!form) return;
-    if (submitter.current) form.requestSubmit(submitter.current);
-    else form.requestSubmit();
+    const button = submitter.current;
+    if (!form || !button || loading) return;
+    button.disabled = false;
+    try {
+      form.requestSubmit(button);
+    } finally {
+      button.disabled = true;
+    }
   };
 
   const ask = () => {
@@ -89,7 +101,15 @@ export function ConfirmSubmit({
         {children}
       </Button>
       {/* The button that sends the form, with this decision, once confirmed. */}
-      <button ref={submitter} type="submit" name={name} value={value} hidden tabIndex={-1} />
+      <button
+        ref={submitter}
+        type="submit"
+        name={name}
+        value={value}
+        hidden
+        disabled
+        tabIndex={-1}
+      />
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}

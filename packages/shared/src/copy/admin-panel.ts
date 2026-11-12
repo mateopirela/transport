@@ -25,6 +25,9 @@ export const adminPanelCopy = {
     attention: 'Requiere tu atención',
     attentionCount: (n: number) => plural(n, '1 pendiente', `${n} pendientes`),
     attentionEmpty: 'Nada pendiente',
+    /** Some queue could not be read: the list is partial, never an all-clear. */
+    partial:
+      'No pudimos leer todas las colas: lo que ves puede estar incompleto. Recarga la página.',
     attentionEmptyBody: 'Las empresas, los documentos, los pagos y las incidencias están al día.',
     /** More items than the list shows. */
     attentionMore: (n: number) => plural(n, 'y 1 más', `y ${n} más`),
@@ -50,7 +53,8 @@ export const adminPanelCopy = {
       overdue: (route: string) => `Cobro vencido: ${route}`,
       overdueDetail: (shipper: string, due: string) => `${shipper} · venció el ${due}`,
       carrierPayment: (route: string) => `Paga al transportista: ${route}`,
-      carrierPaymentDetail: (carrier: string) => `${carrier} · el cliente ya pagó`,
+      carrierPaymentDetail: (carrier: string, quickPay: boolean) =>
+        `${carrier} · ${quickPay ? 'pago rápido aprobado' : 'el cliente ya pagó'}`,
       incident: (kind: string, route: string) => `${kind} en ${route}`,
       brokered: (route: string) => `Cotiza ${route}`,
       brokeredOffers: (route: string) => `Responde las ofertas de ${route}`,
@@ -271,7 +275,7 @@ export const adminPanelCopy = {
   },
   freight: {
     settingsLink: 'Comisión y pago rápido',
-    carrierPayableHint: 'El cliente ya pagó',
+    carrierPayableHint: 'Cliente pagado o pago rápido aprobado',
     trips: (n: number) => plural(n, '1 viaje', `${n} viajes`),
   },
 } as const;

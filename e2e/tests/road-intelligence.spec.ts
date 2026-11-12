@@ -31,7 +31,7 @@ test('the suggested road shows the catalog tolls, follows the admin and the avoi
     await signInOnWeb(page, 'andrea');
     await openLoad(page);
     await expect(page.getByText(MAIN, { exact: true })).toBeVisible();
-    await expect(page.getByText(`${roadsCopy.tolls}: desde $748.00`)).toBeVisible();
+    await expect(page.getByText(`${roadsCopy.tolls}: desde $748`)).toBeVisible();
     await expect(page.getByText(roadsCopy.tollsMissing)).toBeVisible();
     await expect(page.getByText(/estimado · CAPUFE/u).first()).toBeVisible();
   });
@@ -54,7 +54,7 @@ test('the suggested road shows the catalog tolls, follows the admin and the avoi
 
   await test.step('Andrea sees the corrected total', async () => {
     await openLoad(page);
-    await expect(page.getByText(`${roadsCopy.tolls}: desde $1,448.00`)).toBeVisible();
+    await expect(page.getByText(`${roadsCopy.tolls}: desde $1,448`)).toBeVisible();
   });
 
   const route = page.getByRole('region', {

@@ -7,9 +7,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { ButtonVariants } from '@/components/ui/variants';
 
 /**
- * The submit button of an admin form that asks first (docs/plan-fulmis.md
- * §1.5 and §2 V5: no action with an effect on money or on accounts runs with
- * one click). It sits inside the form like any submit button; pressed, it
+ * The submit button of a form that asks first (docs/plan-fulmis.md §1.5:
+ * what cannot be undone, and every "Registrar" of the admin, asks in a dialog
+ * that says what will happen). It sits inside the form like any submit button; pressed, it
  * opens a dialog that says what will happen, built from what the form holds
  * right then, and only the dialog's own button sends the form, with this
  * button's `name` and `value` (a decision like "approve" or "reject").
@@ -121,5 +121,3 @@ export function ConfirmSubmit({
     </>
   );
 }
-
-export { formAmount, formText } from '@/lib/admin/confirm-text';

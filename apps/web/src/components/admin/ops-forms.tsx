@@ -13,7 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { adminAcceptOffer, adminCreateOffer, resolveIncident } from '@/lib/admin/actions';
 import type { FormState } from '@/lib/forms';
 
-import { ConfirmSubmit, formAmount, formText } from './confirm-submit';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
+import { formAmount, formText } from '@/lib/admin/confirm-text';
 
 const k = adminPanelCopy.confirm;
 

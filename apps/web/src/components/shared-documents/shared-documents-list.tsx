@@ -72,9 +72,7 @@ export function SharedDocumentsList({
         <p className="text-subhead text-text-dim">{copy.description}</p>
       </div>
       {groups.length === 0 ? (
-        <p className="rounded-2xl border bg-cell px-4 py-3.5 text-subhead text-text-dim">
-          {copy.empty}
-        </p>
+        <p className="border bg-cell px-4 py-3.5 text-subhead text-text-dim">{copy.empty}</p>
       ) : (
         <div className="space-y-5">
           {groups.map((group) => (

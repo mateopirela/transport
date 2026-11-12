@@ -10,9 +10,6 @@ import type { ViewerDetails } from '@/lib/viewer';
 
 export type { ShellNavGroup, ShellNavItem };
 
-/** The width of a public page: 1040 px, 16 from the edges on a phone and 24 from a tablet up. */
-export const PAGE_CONTAINER = 'mx-auto w-full max-w-260 px-4 sm:px-6';
-
 /**
  * The width of a page inside the shell (§1.5): up to 1200 px next to the
  * sidebar, so a table of six columns fits at 1440; 16 from the edges on a

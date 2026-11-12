@@ -27,7 +27,7 @@ export function BillingBanner({ state }: { state: BillingState | null }) {
       role="status"
       data-testid="billing-banner"
       className={cn(
-        'mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl px-4 py-3 text-subhead',
+        'mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-subhead',
         state.notice === 'inactive' ? 'bg-red/14 text-red-text' : 'bg-amber/14 text-amber-text',
       )}
     >

@@ -205,11 +205,7 @@ export default async function KitPage({ searchParams }: PageProps<'/dev/kit'>) {
               value={2}
               hint={k.kpis.inTransit.hint}
             />
-            <KpiTile
-              label={k.kpis.toPay.label}
-              value={<Money cents={k.feeCents} />}
-              hint={k.kpis.toPay.hint}
-            />
+            <KpiTile label={k.kpis.toPay.label} cents={k.feeCents} hint={k.kpis.toPay.hint} />
             <KpiTile label={k.kpis.delivered.label} value={14} hint={k.kpis.delivered.hint} />
           </KpiGrid>
         </Section>

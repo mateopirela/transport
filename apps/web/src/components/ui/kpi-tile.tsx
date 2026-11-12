@@ -4,6 +4,8 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { Money } from './money';
+
 const COLUMNS: Record<number, string> = {
   1: '',
   2: 'sm:grid-cols-2',
@@ -13,8 +15,9 @@ const COLUMNS: Record<number, string> = {
 
 /**
  * The row of indicators of a dashboard (§1.5): up to four `KpiTile`s side by
- * side, parted by hairlines (one cell, not four boxes). Two columns on a
- * phone when there are four.
+ * side, parted by hairlines (one cell, not four boxes). On a phone they stack
+ * (a figure in `numeral` does not fit in half of 390 px), two side by side
+ * from `sm` and four from `lg`.
  */
 export function KpiGrid({
   className,
@@ -31,21 +34,26 @@ export function KpiGrid({
 
 /**
  * One indicator (§1.5): its `label`, the figure in `numeral` and a line of
- * context. With `href` the whole tile is a link to the list already filtered;
+ * context. An amount goes in `cents` (drawn by `Money` in `numeral`, with its
+ * weight); `value` takes a count, or a dash when the figure cannot be read.
+ * With `href` the whole tile is a link to the list already filtered;
  * `attention` marks the one that asks the viewer to act with the accent
  * square, next to its words (never the colour alone).
  */
 export function KpiTile({
   label,
   value,
+  cents,
   hint,
   href,
   attention = false,
   className,
 }: {
   label: string;
-  /** The figure: a count, or a `Money` in `numeral`. */
-  value: React.ReactNode;
+  /** The figure: a count, or a dash. */
+  value?: React.ReactNode;
+  /** The figure as an amount, from its cents; `null` shows `value` instead. */
+  cents?: number | bigint | string | null;
   hint?: React.ReactNode;
   href?: string;
   attention?: boolean;
@@ -58,7 +66,9 @@ export function KpiTile({
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {href && <ArrowUpRight aria-hidden className="size-4 shrink-0" />}
       </span>
-      <span className="text-numeral text-text tabular-nums">{value}</span>
+      <span className="text-numeral text-text tabular-nums">
+        {cents === undefined || cents === null ? value : <Money cents={cents} size="numeral" />}
+      </span>
       {hint && <span className="text-footnote text-text-dim">{hint}</span>}
     </>
   );

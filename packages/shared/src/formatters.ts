@@ -67,6 +67,18 @@ export function formatDate(value: Date | string | number): string {
   return date ? dateFormat.format(date).replaceAll('.', '') : formatterCopy.invalidDate;
 }
 
+const dayMonthFormat = new Intl.DateTimeFormat(APP_LOCALE, {
+  timeZone: APP_TIME_ZONE,
+  day: 'numeric',
+  month: 'short',
+});
+
+/** Day and month in Mexico City, without the year, e.g. "14 oct" ("fecha no válida" if it cannot be read). */
+export function formatDayMonth(value: Date | string | number): string {
+  const date = toDate(value);
+  return date ? dayMonthFormat.format(date).replaceAll('.', '') : formatterCopy.invalidDate;
+}
+
 const calendarDateFormat = new Intl.DateTimeFormat(APP_LOCALE, {
   timeZone: 'UTC',
   day: 'numeric',

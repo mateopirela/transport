@@ -1,23 +1,14 @@
 import { clientHomeCopy, formatCalendarDate, formatMoney } from '@transport/shared';
-import Link from 'next/link';
 
-import { buttonVariants } from '@/components/ui/button';
+import { AttentionList, type AttentionRow } from '@/components/ui/attention-list';
 import { Empty } from '@/components/ui/empty';
-import { Pill, type PillTone } from '@/components/ui/pill';
 import type { AttentionItem } from '@/lib/client/attention';
 import { loadPath, negotiationPath, paths, tripPath } from '@/lib/routing';
 
 const c = clientHomeCopy.attention;
 
 /** What one row says and where its action goes. */
-function describe(item: AttentionItem): {
-  tag: string;
-  tone: PillTone;
-  title: string;
-  detail: string;
-  action: string;
-  href: string;
-} {
+function describe(item: AttentionItem): Omit<AttentionRow, 'key'> {
   switch (item.kind) {
     case 'offer':
       return {
@@ -72,12 +63,11 @@ function describe(item: AttentionItem): {
 }
 
 /**
- * "Requiere tu atención" (§1.5): one row per thing that waits for the client,
- * its kind as a pill (words, never the colour alone), what it is and the one
- * action that answers it. The actions are outlined: the filled primary of the
- * page is "Publicar una carga".
+ * "Requiere tu atención" of the client (§1.5), on the list of the kit: one row
+ * per thing that waits for the client. The actions are outlined: the filled
+ * primary of the page is "Publicar una carga".
  */
-export function AttentionList({
+export function ShipperAttention({
   items,
   hidden,
 }: {
@@ -85,36 +75,11 @@ export function AttentionList({
   /** How many more wait beyond those shown. */
   hidden: number;
 }) {
-  if (items.length === 0) {
-    return <Empty variant="plain" title={c.empty} description={c.emptyHelp} className="py-10" />;
-  }
   return (
-    <>
-      <ul className="divide-y divide-separator">
-        {items.map((item) => {
-          const row = describe(item);
-          return (
-            <li key={item.key} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
-              <Pill tone={row.tone} className="justify-center sm:w-32">
-                {row.tag}
-              </Pill>
-              <div className="min-w-0 flex-1 basis-56">
-                <p className="truncate text-subhead font-semibold text-text">{row.title}</p>
-                <p className="text-footnote text-text-dim">{row.detail}</p>
-              </div>
-              <Link
-                href={row.href}
-                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-              >
-                {row.action}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-      {hidden > 0 && (
-        <p className="border-t px-5 py-3 text-footnote text-text-dim">{c.more(hidden)}</p>
-      )}
-    </>
+    <AttentionList
+      rows={items.map((item) => ({ key: item.key, ...describe(item) }))}
+      empty={<Empty variant="plain" title={c.empty} description={c.emptyHelp} className="py-10" />}
+      footer={hidden > 0 ? c.more(hidden) : undefined}
+    />
   );
 }

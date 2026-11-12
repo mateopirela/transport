@@ -13,12 +13,14 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { AttentionList, type AttentionRow } from '@/components/admin/attention-list';
 import { PageSection } from '@/components/page-section';
+import { AttentionList, type AttentionRow } from '@/components/ui/attention-list';
 import { buttonVariants } from '@/components/ui/button';
 import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
+import { Panel } from '@/components/ui/panel';
+import { Pill } from '@/components/ui/pill';
 import {
   ATTENTION_TONES,
   brokeredAttention,
@@ -249,22 +251,31 @@ export default async function AdminHomePage() {
 
         <div className="space-y-3">
           {partial && <Notice tone="error">{h.partial}</Notice>}
-          <AttentionList
+          <Panel
             title={h.attention}
-            count={h.attentionCount(shown.length + left)}
-            rows={shown}
-            more={left > 0 ? h.attentionMore(left) : undefined}
-            empty={
-              partial ? (
-                <p className="text-footnote text-text-dim">{h.partial}</p>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-subhead font-semibold text-text">{h.attentionEmpty}</p>
-                  <p className="text-footnote text-text-dim">{h.attentionEmptyBody}</p>
-                </div>
+            count={
+              shown.length + left > 0 && (
+                <Pill tone="attention">{h.attentionCount(shown.length + left)}</Pill>
               )
             }
-          />
+          >
+            <AttentionList
+              rows={shown}
+              footer={left > 0 ? h.attentionMore(left) : undefined}
+              empty={
+                <div className="space-y-1 px-5 py-6">
+                  {partial ? (
+                    <p className="text-footnote text-text-dim">{h.partial}</p>
+                  ) : (
+                    <>
+                      <p className="text-subhead font-semibold text-text">{h.attentionEmpty}</p>
+                      <p className="text-footnote text-text-dim">{h.attentionEmptyBody}</p>
+                    </>
+                  )}
+                </div>
+              }
+            />
+          </Panel>
         </div>
 
         <PageSection title={k.title} description={k.description}>

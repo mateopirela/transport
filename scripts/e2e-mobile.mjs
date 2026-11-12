@@ -69,6 +69,9 @@ const PEDRO = '5eed0003-0000-4000-8000-000000000001';
 // so 23-quick-pay can ask for its quick pay.
 const QUICK_PAY_MANAGER = 'jorge.villarreal@demo.test';
 const HELD_TRIP = '5eed0008-0000-4000-8000-000000000008';
+// The admin of the seed sets Fulmis' RFC (synthetic), which the CFDI is checked against.
+const ADMIN = 'admin@demo.test';
+const FULMIS_RFC = 'FUL201015AB1';
 
 const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
@@ -409,13 +412,20 @@ async function tripLinksForPedro(status) {
  * and UUID).
  */
 async function carrierCfdiForHeldTrip(status) {
+  // Since I4 a quick pay needs the CFDI validated against Fulmis' RFC, which
+  // the seed leaves unset: the admin sets it first, as on /admin/ajustes.
+  const admin = await signIn(status, ADMIN);
+  await api(status, '/rest/v1/rpc/admin_set_platform_setting', {
+    token: admin,
+    body: { p_key: 'fulmis.rfc', p_value: FULMIS_RFC },
+  });
   const token = await signIn(status, QUICK_PAY_MANAGER);
   const { syntheticCfdi } = await import('../packages/shared/src/freight/cfdi-fixtures.ts');
   const body = new FormData();
   body.append('tripId', HELD_TRIP);
   const xml = syntheticCfdi({
     issuerRfc: 'TRN120210LP5',
-    receiverRfc: 'FUL201015AB1',
+    receiverRfc: FULMIS_RFC,
     total: '38800.00',
     uuid: crypto.randomUUID(),
   });

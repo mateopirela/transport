@@ -26,7 +26,7 @@ import {
 } from '@/lib/admin/road-actions';
 import type { FormState } from '@/lib/forms';
 
-import { ConfirmSubmit } from './confirm-submit';
+import { ConfirmSubmit } from '@/components/ui/confirm-submit';
 
 const c = roadsCopy.admin.form;
 

@@ -137,11 +137,11 @@ export function ShareDialog({
         <section>
           <h3 className="mb-1.5 px-4 text-label text-text-dim">{c.activeLinks}</h3>
           {links.length === 0 ? (
-            <p className="rounded-2xl bg-surface-high px-4 py-3 text-subhead text-text-dim">
+            <p className="bg-surface-high px-4 py-3 text-subhead text-text-dim">
               {c.noActiveLinks}
             </p>
           ) : (
-            <ul className="overflow-hidden rounded-2xl border">
+            <ul className="overflow-hidden border">
               {links.map((link) => (
                 <li
                   key={link.id}

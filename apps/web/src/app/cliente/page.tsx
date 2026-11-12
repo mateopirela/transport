@@ -9,9 +9,9 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { AttentionList } from '@/components/client/attention-list';
+import { ShipperAttention } from '@/components/client/attention-list';
 import { LoadsTable } from '@/components/client/loads-table';
-import { Panel, panelLink } from '@/components/client/panel';
+import { Panel, panelLink } from '@/components/ui/panel';
 import { TripStatusBadge } from '@/components/trips/trip-status-badge';
 import { buttonVariants } from '@/components/ui/button';
 import { ValueRow } from '@/components/ui/cell';
@@ -96,7 +96,7 @@ export default async function ShipperHomePage() {
               data.attention.length > 0 && <Pill tone="attention">{data.attention.length}</Pill>
             }
           >
-            <AttentionList items={attention} hidden={data.attention.length - attention.length} />
+            <ShipperAttention items={attention} hidden={data.attention.length - attention.length} />
           </Panel>
 
           <Panel

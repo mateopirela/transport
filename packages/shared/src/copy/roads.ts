@@ -1,7 +1,7 @@
 // Spanish copy of road intelligence (H4, D31): the suggested route of a load,
 // the tolls and risk warnings, the carrier's preferred and avoided segments,
 // the axles of a unit and the admin catalog.
-import { formatCalendarDate, formatMxn } from '../formatters';
+import { formatCalendarDate, formatMoney } from '../formatters';
 import type {
   RoadDataStatus,
   RoadPreference,
@@ -52,13 +52,13 @@ export function riskWarningText(
   return `Tramo con riesgo ${roadRiskLevelLabels[w.level]} ${hourBandLabel(w.fromHour, w.toHour)}: ${w.segmentName} (${w.description})`;
 }
 
-/** "$1,059.00", "desde $748.00" when some tariff is missing, or "Sin dato". */
+/** "$1,059", "desde $748" when some tariff is missing, or "Sin dato" (no `.00`, §1.5). */
 export function tollsAmount(route: Pick<SuggestedRoute, 'tollsCents' | 'tollsMissing'>): string {
   if (route.tollsMissing && route.tollsCents === 0) return roadsCopy.noData;
-  return `${route.tollsMissing ? 'desde ' : ''}${formatMxn(route.tollsCents)}`;
+  return `${route.tollsMissing ? 'desde ' : ''}${formatMoney(route.tollsCents)}`;
 }
 
-/** "Casetas estimadas: $1,059.00" (see tollsAmount). */
+/** "Casetas estimadas: $1,059" (see tollsAmount). */
 export function tollsText(route: Pick<SuggestedRoute, 'tollsCents' | 'tollsMissing'>): string {
   return `${roadsCopy.tolls}: ${tollsAmount(route)}`;
 }

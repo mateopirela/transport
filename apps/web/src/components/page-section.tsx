@@ -44,7 +44,7 @@ export function BackLink({ href, children }: { href: string; children: React.Rea
   return (
     <Link
       href={href}
-      className="-ml-1 mb-4 inline-flex items-center gap-0.5 rounded-sm text-subhead text-accent-text outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className="mb-4 inline-flex items-center gap-0.5 rounded-sm text-subhead text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
     >
       <ChevronLeft aria-hidden className="size-4" />
       {children}
@@ -52,5 +52,6 @@ export function BackLink({ href, children }: { href: string; children: React.Rea
   );
 }
 
-/** A text link inside a table or a line of text, in the accent's text tone. */
-export const textLink = 'text-accent-text underline-offset-4 hover:underline';
+/** A text link inside a table or a line of text, in the accent's text tone, with the focus of §1.3. */
+export const textLink =
+  'rounded-sm text-accent-text underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text';

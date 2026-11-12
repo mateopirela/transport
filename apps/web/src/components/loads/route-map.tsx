@@ -100,7 +100,7 @@ export function RouteMap({
   const showMap = Boolean(key) && !failed && ready;
   return (
     <div className="space-y-2">
-      <div className="relative h-64 overflow-hidden rounded-2xl border bg-surface-high">
+      <div className="relative h-64 overflow-hidden border bg-surface-high">
         <div ref={container} className="absolute inset-0" hidden={!showMap} />
         {!showMap && <RouteDiagram origin={origin} destination={destination} />}
       </div>

@@ -58,7 +58,14 @@ describe('findHygieneViolations', () => {
     expect(rules('<p className="text-sm" />', 'web')).toEqual(['font-size']);
     expect(rules('<p className="text-[13px]" />', 'web')).toEqual(['font-size']);
     expect(rules('<div className="rounded-[10px]" />', 'web')).toEqual(['border-radius']);
-    expect(rules('<div className="rounded-2xl shadow-md" />', 'web')).toEqual(['shadow']);
+    expect(rules('<div className="rounded-2xl shadow-md" />', 'web')).toEqual([
+      'border-radius',
+      'shadow',
+    ]);
+    expect(rules('<div className="rounded-xl rounded-t-3xl" />', 'web')).toEqual([
+      'border-radius',
+      'border-radius',
+    ]);
     expect(rules('<div className="border shadow" />', 'web')).toEqual(['shadow']);
     // The scale and the tokens are fine.
     expect(

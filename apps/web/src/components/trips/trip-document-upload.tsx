@@ -90,7 +90,7 @@ export function TripDocumentUpload({
 
   return (
     <form
-      className="space-y-4 rounded-2xl border bg-cell p-4"
+      className="space-y-4 border bg-cell p-4"
       noValidate
       onSubmit={(event) => {
         event.preventDefault();

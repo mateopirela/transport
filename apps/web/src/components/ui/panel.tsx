@@ -4,7 +4,7 @@ import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * A block of the client's dashboard or detail (docs/plan-fulmis.md §1.5): a
+ * A block of a dashboard or a detail (docs/plan-fulmis.md §1.5): a
  * cell with a hairline and no radius, its heading on the first line (with a
  * count or a link on the right) and its content under a hairline. What goes
  * inside is drawn without its own box: rows, a table, steps.

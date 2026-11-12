@@ -5,10 +5,10 @@ import { spacing } from '../theme';
 import { Chip, ControlCell } from './ui';
 
 /*
- * Choices as a row of a group (docs/plan-rediseno.md §1.6, forms in groups):
- * the label above and the options as chips that wrap, the chosen ones on the
- * accent's tint. They take the place of ChoiceChips and MultiChips inside a
- * Group; U9 may fold them into the kit.
+ * Choices as a row of a group (forms in groups): the label above and the
+ * options as the kit's chips that wrap, the chosen ones filled with the ink
+ * (docs/plan-fulmis.md §1.3). They take the place of ChoiceChips and
+ * MultiChips inside a Group.
  */
 
 /** One option among a few. With `clearable`, tapping the chosen one again clears the choice. */

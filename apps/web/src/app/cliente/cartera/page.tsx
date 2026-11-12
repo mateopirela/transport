@@ -8,7 +8,7 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { rowLink } from '@/components/client/panel';
+import { rowLink } from '@/components/ui/panel';
 import { ClientStatusPill, dueLabel, InvoiceSummary } from '@/components/freight/freight-ui';
 import { Empty } from '@/components/ui/empty';
 import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';

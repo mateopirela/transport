@@ -3,7 +3,8 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 // Permission prompts are UI copy. Imported by path with its extension because
 // the config is loaded by Node, outside Metro and the workspace package.
 import { permissionCopy } from '../../packages/shared/src/copy/permissions.ts';
-// The splash and the adaptive icon sit on the accent (D26): the mark is white.
+// The icon, the adaptive icon and the splash are Night with the signal square
+// (docs/plan-fulmis.md §1.4), the same in both themes.
 import { palette } from '../../packages/shared/src/design/tokens.ts';
 // iOS 27 SDK: the app must adopt the UIScene life cycle (F11, docs/release.md).
 import withIosSceneLifecycle from './plugins/with-ios-scene-lifecycle.ts';
@@ -66,7 +67,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
     android: {
       package: bundleId,
       adaptiveIcon: {
-        backgroundColor: palette.light.accent,
+        backgroundColor: palette.light.brandBg,
         foregroundImage: './assets/android-icon-foreground.png',
         backgroundImage: './assets/android-icon-background.png',
         monochromeImage: './assets/android-icon-monochrome.png',
@@ -119,10 +120,10 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       [
         'expo-splash-screen',
         {
-          backgroundColor: palette.light.accent,
+          backgroundColor: palette.light.brandBg,
           image: './assets/splash-icon.png',
-          imageWidth: 96,
-          dark: { backgroundColor: palette.dark.bg, image: './assets/splash-icon.png' },
+          imageWidth: 48,
+          dark: { backgroundColor: palette.dark.brandBg, image: './assets/splash-icon.png' },
         },
       ],
       ...sentryUpload,

@@ -6,7 +6,8 @@ import { iconSize } from '../theme';
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 /**
- * The icons of the app (docs/plan-rediseno.md §1.4): Ionicons outline, line
+ * The icons of the app (they started in docs/plan-rediseno.md §1.4 and stay
+ * in Fulmis, docs/plan-fulmis.md): Ionicons outline, line
  * of 2 with round ends, 24 by default. Screens name an icon by what it means
  * here, never by its Ionicons name, so the set can change in one place. The
  * filled glyph is only for the selected tab.

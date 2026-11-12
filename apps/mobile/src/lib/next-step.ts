@@ -6,6 +6,7 @@
  * own (next-step.test.ts).
  */
 import {
+  formatDayMonth,
   formatTime,
   nextOperatorEvent,
   operatorNextStepCopy as copy,
@@ -99,14 +100,18 @@ const STEP_ENDS: readonly TripEventType[] = [
 ];
 
 /**
- * The line under each of the four steps: the time a done step ended (the
- * latest record of its event, sent or still on the phone), "Ahora" under the
- * one in course, nothing under the ones to come.
+ * The line under each of the four steps: when a done step ended (the latest
+ * record of its event, sent or still on the phone), "Ahora" under the one in
+ * course, nothing under the ones to come. A step that ended today reads its
+ * time ("22:00"); one of another day, its date ("10 nov"), so last night's
+ * hour is not taken for today's. Days are Mexico City's.
  */
 export function stepDetails(
   progress: number,
   events: readonly { type: TripEventType; occurredAt: string }[],
+  now: number = Date.now(),
 ): (string | undefined)[] {
+  const today = formatDayMonth(now);
   return STEP_ENDS.map((end, index) => {
     if (index === progress) return copy.now;
     if (index > progress) return undefined;
@@ -116,6 +121,8 @@ export function stepDetails(
       .map((event) => Date.parse(event.occurredAt))
       .filter((at) => Number.isFinite(at))
       .reduce((last, at) => Math.max(last, at), Number.NEGATIVE_INFINITY);
-    return Number.isFinite(latest) ? formatTime(latest) : undefined;
+    if (!Number.isFinite(latest)) return undefined;
+    const day = formatDayMonth(latest);
+    return day === today ? formatTime(latest) : day;
   });
 }

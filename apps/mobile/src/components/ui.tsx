@@ -1190,14 +1190,17 @@ function BrandContent({
   label,
   title,
   body,
+  meta,
   children,
 }: {
   mark: boolean;
   label?: string | undefined;
   title?: string | undefined;
-  body?: string | undefined;
+  body?: BrandBody;
+  meta?: string | undefined;
   children?: ReactNode;
 }) {
+  const lines = body === undefined ? [] : typeof body === 'string' ? [body] : body;
   const kit = useKit();
   const { colors } = useTheme();
   return (
@@ -1210,7 +1213,7 @@ function BrandContent({
           <Text style={kit.title3}>{PLATFORM_NAME}</Text>
         </View>
       ) : null}
-      {label || title || body ? (
+      {label || title || lines.length > 0 || meta ? (
         <View style={kit.brandText}>
           {label ? <Caps style={kit.label}>{label}</Caps> : null}
           {title ? (
@@ -1218,7 +1221,12 @@ function BrandContent({
               {title}
             </Text>
           ) : null}
-          {body ? <Text style={kit.dim}>{body}</Text> : null}
+          {lines.map((line, i) => (
+            <Text key={i} style={kit.dim}>
+              {line}
+            </Text>
+          ))}
+          {meta ? <Text style={kit.meta}>{meta}</Text> : null}
         </View>
       ) : null}
       {children}
@@ -1226,31 +1234,37 @@ function BrandContent({
   );
 }
 
+/** The lines of a brand block under its title: one text, or one per line. */
+export type BrandBody = string | readonly string[] | undefined;
+
 /**
  * The Night block, the same in both themes: the brand on the way in (`mark`
  * draws it with the platform's name) and, on a trip, "Tu siguiente paso" (a
- * short `label`, the step as `title`, a line of `body`). Its children are
- * its actions, and they read the Night look: the one primary of the screen,
- * 56 high, and the secondary ones under it.
+ * short `label`, the step as `title`, the lines of `body` — the place — and
+ * a `meta` line — its window, in Geist Mono). Its children are its actions,
+ * and they read the Night look: the one primary of the screen, 56 high, and
+ * the secondary ones under it.
  */
 export function BrandBlock({
   mark = false,
   label,
   title,
   body,
+  meta,
   children,
 }: {
   mark?: boolean;
   label?: string | undefined;
   title?: string | undefined;
-  body?: string | undefined;
+  body?: BrandBody;
+  meta?: string | undefined;
   children?: ReactNode;
 }) {
   const kit = useKit();
   return (
     <View style={kit.brand}>
       <BrandSurface>
-        <BrandContent mark={mark} label={label} title={title} body={body}>
+        <BrandContent mark={mark} label={label} title={title} body={body} meta={meta}>
           {children}
         </BrandContent>
       </BrandSurface>

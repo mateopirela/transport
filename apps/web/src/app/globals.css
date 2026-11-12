@@ -169,10 +169,10 @@
   --color-ring: var(--ring);
 
   /*
-   * Radii (§1.3): 0, 3, 8 and `rounded-full`. The classes keep the meaning
-   * the pages already give them: `rounded-sm` a chip and `rounded-md` a field
-   * (3), `rounded-lg` a button (8), `rounded-xl` and `rounded-2xl` a card, a
-   * table or a dialog (0).
+   * Radii (§1.3): 0, 3, 8 and `rounded-full`. `rounded-sm` a chip and
+   * `rounded-md` a field (3), `rounded-lg` a button (8). A card, a table or a
+   * dialog has no radius and no screen writes one (the hygiene forbids
+   * `rounded-xl` and up); the two larger steps stay at 0 all the same.
    */
   --radius-sm: 3px;
   --radius-md: 3px;

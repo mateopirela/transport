@@ -350,12 +350,12 @@ describe('suggestRoute', () => {
     expect(r.tollsMissing).toBe(true);
     expect(r.tollsCents).toBe(44_200);
     expect(r.segments[1]?.tollCents).toBeNull();
-    expect(tollsText(r)).toBe('Casetas estimadas: desde $442.00');
+    expect(tollsText(r)).toBe('Casetas estimadas: desde $442');
 
     const noClass = route({ axleCount: 2 });
     expect(noClass.tollsCents).toBe(0);
     expect(tollsText(noClass)).toBe(`${roadsCopy.tolls}: ${roadsCopy.noData}`);
-    expect(tollsText(route())).toBe('Casetas estimadas: $748.00');
+    expect(tollsText(route())).toBe('Casetas estimadas: $748');
   });
 });
 

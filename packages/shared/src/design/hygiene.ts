@@ -52,7 +52,7 @@ const OLD_FONT: HygieneRule = {
   pattern: /hanken\w*/giu,
 };
 
-/** The palette of the previous system ("Nativo"): its light and dark themes, white cells included. */
+/** The palette of the previous system (D26): its light and dark themes, white cells included. */
 const RETIRED_HEXES = [
   'F4F2EE',
   'FFFFFF',
@@ -197,6 +197,11 @@ const WEB: readonly HygieneRule[] = [
     id: 'border-radius',
     hint: 'a radius of the scale (§1.3: 0, 3, 8 or rounded-full), never one in brackets',
     pattern: /(?<![\w-])rounded(?:-[trblse]{1,2})?-\[/gu,
+  },
+  {
+    id: 'border-radius',
+    hint: 'a card, a table or a dialog has no radius (§1.3): leave the class out',
+    pattern: /(?<![\w-])rounded(?:-[trblse]{1,2})?-[23]?xl(?![\w-])/gu,
   },
   CLASS_SHADOW,
   CSS_SHADOW,

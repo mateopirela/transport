@@ -1,7 +1,7 @@
 import {
   formatCalendarDate,
   formatInvoiceIssuedDate,
-  formatMxn,
+  formatMoney,
   freightCarrierStatusLabels,
   freightClientStatusLabels,
   freightInvoicesCopy,
@@ -30,7 +30,7 @@ export function FreightTotals({
   return (
     <dl className={cn('mb-8 grid gap-3 sm:grid-cols-3', className)}>
       {items.map((item) => (
-        <div key={item.testId} className="rounded-2xl border bg-cell px-4 py-3.5">
+        <div key={item.testId} className="border bg-cell px-4 py-3.5">
           <dt className="text-subhead text-text-dim">{item.label}</dt>
           <dd
             data-testid={item.testId}
@@ -40,7 +40,7 @@ export function FreightTotals({
               item.cents > 0 && item.tone === 'amber' && 'text-amber-text',
             )}
           >
-            {formatMxn(item.cents)}
+            {formatMoney(item.cents)}
           </dd>
         </div>
       ))}

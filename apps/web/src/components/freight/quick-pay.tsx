@@ -1,6 +1,6 @@
 'use client';
 
-import { formatBasisPoints, formatMxn, quickPayCopy, quickPaySplit } from '@transport/shared';
+import { formatBasisPoints, formatMoney, quickPayCopy, quickPaySplit } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -52,13 +52,13 @@ export function QuickPayRequest({
           <div className="flex justify-between gap-3">
             <dt className="text-text-dim">{q.carrier.fee(formatBasisPoints(feeBps))}</dt>
             <dd className="text-text tabular-nums" data-testid="quick-pay-fee">
-              {formatMxn(split.feeCents)}
+              {formatMoney(split.feeCents)}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="font-semibold text-text">{q.carrier.receive}</dt>
             <dd className="font-semibold text-text tabular-nums" data-testid="quick-pay-net">
-              {formatMxn(split.quickNetCents)}
+              {formatMoney(split.quickNetCents)}
             </dd>
           </div>
         </dl>

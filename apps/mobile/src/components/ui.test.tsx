@@ -343,6 +343,27 @@ describe('BrandBlock', () => {
     }
   });
 
+  it('says each line of its body apart, and the window in Geist Mono', async () => {
+    const root = await render(
+      <BrandBlock
+        label="Tu siguiente paso"
+        title="Llega a la recolección"
+        body={['Bodega Apodaca', 'Av. Industrial 120']}
+        meta="Hoy, 8:00 a 12:00"
+      />,
+    );
+    expect(texts(root)).toEqual([
+      'Tu siguiente paso',
+      'Llega a la recolección',
+      'Bodega Apodaca',
+      'Av. Industrial 120',
+      'Hoy, 8:00 a 12:00',
+    ]);
+    const window = byType(root, 'Text').find((n) => n.props.children === 'Hoy, 8:00 a 12:00');
+    expect(styleOf(window as ReactTestInstance).fontFamily).toMatch(/^GeistMono_/u);
+    expect(styleOf(window as ReactTestInstance).color).toBe(palette.dark.textDim);
+  });
+
   it('holds the one primary, 56 high, over two secondary ways', async () => {
     const root = await render(
       <BrandBlock label="Tu siguiente paso" title="Llegué a la entrega">

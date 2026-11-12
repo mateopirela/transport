@@ -109,7 +109,7 @@ export function TripMap({
 
   const showMap = Boolean(key) && !failed;
   return (
-    <div className="relative h-72 overflow-hidden rounded-2xl border bg-surface-high lg:h-96">
+    <div className="relative h-72 overflow-hidden border bg-surface-high lg:h-96">
       <div ref={container} className="absolute inset-0" hidden={!showMap} />
       {!showMap && (
         <RouteDiagram

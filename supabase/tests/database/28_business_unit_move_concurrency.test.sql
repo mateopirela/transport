@@ -178,7 +178,7 @@ select extensions.dblink_exec('setup', $sql$
           'f2800000-0000-4000-8000-000000000001', 'c2800000-0000-4000-8000-000000000001',
           'c2800000-0000-4000-8000-000000000002', 'carrier', 2900000);
   -- R4 (D45): the units and operators have every required document approved
-  -- and current (66_trip_document_gate tests the gate itself).
+  -- and current (68_trip_document_gate tests the gate itself).
   insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
   select o.company_id, r.id, r.owner_type, o.id,
          o.company_id || '/' || r.owner_type || '/' || o.id || '/' || gen_random_uuid() || '.pdf',

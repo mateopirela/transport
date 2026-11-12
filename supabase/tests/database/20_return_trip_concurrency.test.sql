@@ -218,7 +218,7 @@ select extensions.dblink_exec('setup', $sql$
          case when right(n.load_id::text, 1) in ('2', '3') then 'e2f00000-0000-4000-8000-000000000001'::uuid end
   from public.negotiations n where n.shipper_company_id = 'c2f00000-0000-4000-8000-000000000001';
   -- R4 (D45): the units and operators have every required document approved
-  -- and current (66_trip_document_gate tests the gate itself).
+  -- and current (68_trip_document_gate tests the gate itself).
   insert into public.documents (company_id, requirement_id, owner_type, owner_id, storage_path, status, expires_at)
   select o.company_id, r.id, r.owner_type, o.id,
          o.company_id || '/' || r.owner_type || '/' || o.id || '/' || gen_random_uuid() || '.pdf',

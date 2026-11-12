@@ -9,7 +9,7 @@ select plan(37);
 
 -- R4 (D45): the units and operators this test creates come with every
 -- required document approved and current, so the trip document gate lets
--- them through (66_trip_document_gate tests the gate itself). Rolled back
+-- them through (68_trip_document_gate tests the gate itself). Rolled back
 -- with the transaction.
 create schema r4_fixture;
 create function r4_fixture.approve_documents()

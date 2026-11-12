@@ -46,13 +46,47 @@ const REQUIREMENT_COLUMNS =
 const DOCUMENT_COLUMNS =
   'id, requirement_id, owner_type, owner_id, status, review_notes, expires_at, created_at, archived_at, file_name';
 
+/**
+ * R4 (D13): the hombre-camión's own operator row, as owner_operator_id finds
+ * it (the oldest active row linked to a manager of the company), or null when
+ * it is archived or missing: then his units cannot travel.
+ */
+async function loadOwnerOperator(
+  supabase: Supabase,
+  companyId: string,
+): Promise<NonNullable<FleetContext['ownerOperator']>['operator']> {
+  const managers = check(
+    await supabase.from('profiles').select('id').eq('company_id', companyId).eq('role', 'manager'),
+  );
+  if (managers.length === 0) return null;
+  const rows = check(
+    await supabase
+      .from('operators')
+      .select('id, full_name')
+      .eq('company_id', companyId)
+      .in(
+        'profile_id',
+        managers.map((m) => m.id),
+      )
+      .is('archived_at', null)
+      .order('created_at')
+      .order('id')
+      .limit(1),
+  );
+  return rows[0] ?? null;
+}
+
 /** Loads what the readiness and the document list of every unit and operator need. */
 export async function loadFleetContext(
   supabase: Supabase,
   companyId: string,
 ): Promise<FleetContext> {
   const [company, requirements, documents] = await Promise.all([
-    supabase.from('companies').select('id, type, rfc, legal_name').eq('id', companyId).single(),
+    supabase
+      .from('companies')
+      .select('id, type, rfc, legal_name, is_owner_operator')
+      .eq('id', companyId)
+      .single(),
     supabase.from('document_requirements').select(REQUIREMENT_COLUMNS).is('archived_at', null),
     selectAll((from, to) =>
       supabase
@@ -64,7 +98,16 @@ export async function loadFleetContext(
         .range(from, to),
     ),
   ]);
-  return { company: check(company), requirements: check(requirements), documents };
+  const { is_owner_operator: isOwnerOperator, ...companyRow } = check(company);
+  return {
+    company: companyRow,
+    requirements: check(requirements),
+    documents,
+    ownerOperator: {
+      isOwnerOperator,
+      operator: isOwnerOperator ? await loadOwnerOperator(supabase, companyId) : null,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

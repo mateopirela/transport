@@ -25,8 +25,10 @@
 --       'vehicle has missing documents: <codes>'
 --       'operator has expired documents: <codes>: <full name>'
 --       'operator has missing documents: <codes>: <full name>'
---   * owner_operator_id (internal): the hombre-camión's own operator row
---     (D13), whose documents gate his units too (assert_vehicle_can_travel).
+--   * owner_operator_id / owner_operator_ready (internal): the hombre-camión's
+--     own operator row (D13), whose documents gate his units too
+--     (assert_vehicle_can_travel, match_pairs). Without an active row (never
+--     created, or archived) his units are blocked, not waved through.
 --   * operator_license_current: the approved, unexpired license document
 --     only; license_expires_on stays as information. assign_trip still calls
 --     it as a floor, so a license is needed even if the catalog row changed.
@@ -240,9 +242,10 @@ as $$
   );
 $$;
 
--- The hombre-camión's own operator (D13): the operator row linked to a
--- manager of an owner-operator company. Null for a fleet, or when the row is
--- missing (then only the operator assigned to each trip is checked).
+-- The hombre-camión's own operator (D13): the active operator row linked to
+-- a manager of an owner-operator company. Null for a fleet, and also for a
+-- hombre-camión whose row is missing or archived: callers tell both apart
+-- with companies.is_owner_operator and block the latter (owner_operator_ready).
 -- Internal.
 create function public.owner_operator_id(p_company_id uuid)
 returns uuid
@@ -261,6 +264,29 @@ as $$
 $$;
 
 revoke all on function public.owner_operator_id(uuid) from public, anon, authenticated;
+
+-- Whether a company's units may travel as far as the hombre-camión's own
+-- documents go: true for a fleet; for an owner-operator company, only with
+-- an active own operator row whose required documents are all approved and
+-- current. Archiving that row (or never having one) does not skip the gate.
+-- Internal (match_pairs).
+create function public.owner_operator_ready(p_company_id uuid)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select not c.is_owner_operator
+    or (
+      o.id is not null
+      and not exists (select 1 from public.operator_missing_requirements(o.id))
+    )
+  from public.companies c
+  left join lateral (select public.owner_operator_id(c.id) as id) o on true
+  where c.id = p_company_id;
+$$;
+
+revoke all on function public.owner_operator_ready(uuid) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- The gate: what blocks a unit or an operator, as a 55000 error
@@ -325,6 +351,8 @@ revoke all on function public.assert_operator_documents_ready(uuid) from public,
 
 -- What makes a unit available (set_vehicle_availability, release_vehicle):
 -- its documents and, for a hombre-camión, his own (he is its only driver).
+-- A hombre-camión without an active own operator row (never created, or
+-- archived) is refused too: 'owner operator not found'.
 create function public.assert_vehicle_can_travel(p_vehicle_id uuid)
 returns void
 language plpgsql
@@ -332,13 +360,19 @@ stable
 set search_path = ''
 as $$
 declare
+  v_is_owner_operator boolean;
   v_operator_id uuid;
 begin
   perform public.assert_vehicle_documents_ready(p_vehicle_id);
-  select public.owner_operator_id(v.company_id) into v_operator_id
-  from public.vehicles v where v.id = p_vehicle_id;
+  select c.is_owner_operator, public.owner_operator_id(c.id)
+    into v_is_owner_operator, v_operator_id
+  from public.vehicles v
+  join public.companies c on c.id = v.company_id
+  where v.id = p_vehicle_id;
   if v_operator_id is not null then
     perform public.assert_operator_documents_ready(v_operator_id);
+  elsif v_is_owner_operator then
+    raise exception 'owner operator not found' using errcode = '55000';
   end if;
 end;
 $$;
@@ -655,7 +689,7 @@ as $$
       and v.unit_type is not null
       and (p_vehicle_id is null or v.id = p_vehicle_id)
       and not exists (select 1 from public.vehicle_missing_requirements(v.id))
-      and not exists (select 1 from public.operator_missing_requirements(public.owner_operator_id(c.id)))
+      and public.owner_operator_ready(c.id)
       and not public.vehicle_pending_release(v.id)
   ),
   starts as (

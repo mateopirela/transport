@@ -33,6 +33,13 @@ export const documentGateCopy = {
     expired: (names: string, operator: string) => `Venció: ${names} de ${operator}.`,
     notApproved: (names: string, operator: string) => `Falta aprobar: ${names} de ${operator}.`,
   },
+  /**
+   * A hombre-camión (D13) without his own active operator row: his units do
+   * not travel until he has it, with his documents approved.
+   */
+  ownerOperator: {
+    missing: 'Falta tu registro como operador, con tu identificación y tu licencia aprobadas.',
+  },
   /** What follows the reason in an error, by where it happened. */
   errors: {
     assignUnit: 'Elige otra unidad o espera a que los documentos estén aprobados y vigentes.',

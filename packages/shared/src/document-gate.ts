@@ -60,6 +60,75 @@ export function documentGate<R extends GateRequirement>(
   return gate;
 }
 
+/** The hombre-camión's own operator row (D13), as the fleet reads it. */
+export interface OwnerOperatorRef {
+  id: string;
+  full_name: string;
+}
+
+/** What keeps a unit from being made available or recommended. */
+export interface UnitTravelGate {
+  /** Some document (the unit's or the hombre-camión's) expired. */
+  expired: boolean;
+  /** Some document is missing, in review or rejected, or the hombre-camión has no operator row. */
+  notApproved: boolean;
+  /** Why the unit's own documents block it, or null (what assign_trip checks of the unit). */
+  unitText: string | null;
+  /** Why it cannot travel at all, the hombre-camión's own documents included, or null. */
+  text: string | null;
+}
+
+/**
+ * The unit's own documents and, for an owner-operator company, the
+ * hombre-camión's (he is its only driver): what set_vehicle_availability,
+ * release_vehicle and match_pairs check (assert_vehicle_can_travel,
+ * owner_operator_ready). Without an active own operator row
+ * (`ownerOperator` null) the unit is blocked too.
+ */
+export function unitTravelGate<R extends GateRequirement>(
+  input: {
+    vehicleRequirements: readonly R[];
+    operatorRequirements: readonly R[];
+    documents: readonly GateDocument[];
+    vehicleId: string;
+    isOwnerOperator: boolean;
+    ownerOperator: OwnerOperatorRef | null;
+  },
+  now: Date = new Date(),
+): UnitTravelGate {
+  const unit = documentGate(
+    input.vehicleRequirements,
+    input.documents,
+    { type: 'vehicle', id: input.vehicleId },
+    now,
+  );
+  const unitText = documentGateText(unit);
+  const result: UnitTravelGate = {
+    expired: unit.expired.length > 0,
+    notApproved: unit.notApproved.length > 0,
+    unitText,
+    text: unitText,
+  };
+  if (!input.isOwnerOperator) return result;
+  let ownerText: string | null;
+  if (input.ownerOperator === null) {
+    result.notApproved = true;
+    ownerText = copy.ownerOperator.missing;
+  } else {
+    const owner = documentGate(
+      input.operatorRequirements,
+      input.documents,
+      { type: 'operator', id: input.ownerOperator.id },
+      now,
+    );
+    result.expired ||= owner.expired.length > 0;
+    result.notApproved ||= owner.notApproved.length > 0;
+    ownerText = documentGateText(owner, input.ownerOperator.full_name);
+  }
+  result.text = [unitText, ownerText].filter((t) => t !== null).join(' ') || null;
+  return result;
+}
+
 /** Whether nothing blocks the owner. */
 export function documentGateOpen(gate: DocumentGate<unknown>): boolean {
   return gate.expired.length === 0 && gate.notApproved.length === 0;
@@ -131,13 +200,16 @@ const OPERATOR_ERROR = new RegExp(
   'su',
 );
 
+const OWNER_OPERATOR_ERROR = 'owner operator not found';
+
 /** Where a gate error happened: it decides what the message suggests next. */
 export type DocumentGateErrorContext = 'assign' | 'availability';
 
 /**
  * Spanish text of a gate error of assign_trip, set_vehicle_availability or
  * release_vehicle (55000, "vehicle has missing documents: <codes>",
- * "operator has expired documents: <codes>: <name>"…), or null for any other
+ * "operator has expired documents: <codes>: <name>", "owner operator not
+ * found"…), or null for any other
  * message. Only catalog codes are read: unknown ones become "un documento
  * obligatorio", so database text never reaches the user.
  */
@@ -167,6 +239,10 @@ export function documentGateErrorText(
         : gateSentences([], requirements, name);
     const next = context === 'assign' ? copy.errors.assignOperator : copy.errors.availability;
     return [...sentences, next].join(' ');
+  }
+  if (message === OWNER_OPERATOR_ERROR) {
+    const next = context === 'assign' ? copy.errors.assignUnit : copy.errors.availability;
+    return [copy.ownerOperator.missing, next].join(' ');
   }
   return null;
 }

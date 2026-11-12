@@ -9,6 +9,7 @@ import {
   documentGateText,
   joinNames,
   requirementNameForCode,
+  unitTravelGate,
 } from './document-gate';
 import { fleetErrorText, vehicleReadiness } from './fleet';
 import { releaseErrorText } from './vehicle-release';
@@ -204,6 +205,74 @@ describe('documentGateErrorText', () => {
     expect(releaseErrorText(message)).toBe(documentGateErrorText(message, 'availability'));
     const owner = 'operator has missing documents: operator_official_id: José Sánchez Medina';
     expect(fleetErrorText(owner)).toBe(documentGateErrorText(owner, 'availability'));
+  });
+});
+
+describe('unitTravelGate (assert_vehicle_can_travel, owner_operator_ready)', () => {
+  const base = {
+    vehicleRequirements: [card, insurance],
+    operatorRequirements: [officialId, license],
+    vehicleId: 'v1',
+  };
+  const unitDocs = [doc('r-card'), doc('r-ins')];
+  const ownerDocs = (status: 'approved' | 'pending_review') => [
+    doc('r-id', { owner_type: 'operator', owner_id: 'o1', status }),
+    doc('r-lic', { owner_type: 'operator', owner_id: 'o1' }),
+  ];
+  const jose = { id: 'o1', full_name: 'José Sánchez Medina' };
+
+  it('only reads the unit for a fleet', () => {
+    const gate = unitTravelGate(
+      { ...base, documents: unitDocs, isOwnerOperator: false, ownerOperator: null },
+      now,
+    );
+    expect(gate).toEqual({ expired: false, notApproved: false, unitText: null, text: null });
+  });
+
+  it('adds the hombre-camión own documents, apart from what assign_trip checks of the unit', () => {
+    const gate = unitTravelGate(
+      {
+        ...base,
+        documents: [...unitDocs, ...ownerDocs('pending_review')],
+        isOwnerOperator: true,
+        ownerOperator: jose,
+      },
+      now,
+    );
+    expect(gate.notApproved).toBe(true);
+    expect(gate.unitText).toBeNull();
+    expect(gate.text).toBe(copy.operator.notApproved('Identificación oficial', jose.full_name));
+    const ready = unitTravelGate(
+      {
+        ...base,
+        documents: [...unitDocs, ...ownerDocs('approved')],
+        isOwnerOperator: true,
+        ownerOperator: jose,
+      },
+      now,
+    );
+    expect(ready.text).toBeNull();
+  });
+
+  it('blocks a hombre-camión without an active operator row (archived or never created)', () => {
+    const gate = unitTravelGate(
+      { ...base, documents: [doc('r-card')], isOwnerOperator: true, ownerOperator: null },
+      now,
+    );
+    expect(gate.notApproved).toBe(true);
+    expect(gate.unitText).toBe(copy.unit.notApproved('Seguro vigente'));
+    expect(gate.text).toBe(
+      `${copy.unit.notApproved('Seguro vigente')} ${copy.ownerOperator.missing}`,
+    );
+  });
+
+  it('translates the server error of a missing owner row', () => {
+    expect(fleetErrorText('owner operator not found')).toBe(
+      `${copy.ownerOperator.missing} ${copy.errors.availability}`,
+    );
+    expect(releaseErrorText('owner operator not found')).toBe(
+      `${copy.ownerOperator.missing} ${copy.errors.availability}`,
+    );
   });
 });
 

@@ -198,7 +198,8 @@ async function assignmentOptions(
         kind: v.kind,
         unitType: v.unit_type,
         expiredDocuments: v.readiness === 'expired_documents',
-        documentIssue: v.documentIssue,
+        // assign_trip checks the unit and the chosen operator apart (R4).
+        documentIssue: v.unitDocumentIssue,
         currentOperatorId: v.current_operator_id,
         otherTrips: others.filter((t) => t.vehicle_id === v.id).length,
       })),

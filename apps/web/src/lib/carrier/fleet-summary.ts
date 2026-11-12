@@ -3,7 +3,9 @@ import {
   documentGate,
   documentGateText,
   requirementProgress,
+  unitTravelGate,
   vehicleReadiness,
+  type OwnerOperatorRef,
   type Requirement,
   type RequirementProgress,
   type SubmittedDocument,
@@ -21,6 +23,12 @@ export interface FleetContext {
   company: Pick<Tables<'companies'>, 'id' | 'type' | 'rfc' | 'legal_name'>;
   requirements: Requirement[];
   documents: SubmittedDocument[];
+  /**
+   * R4 (D13): for an owner-operator company, the hombre-camión's own active
+   * operator row (null when archived or missing), whose documents gate his
+   * units too. Absent or `isOwnerOperator: false` for a fleet.
+   */
+  ownerOperator?: { isOwnerOperator: boolean; operator: OwnerOperatorRef | null };
 }
 
 /**
@@ -76,8 +84,13 @@ export type VehicleRow = Pick<
 export interface VehicleSummary extends VehicleRow {
   availability: Availability | null;
   readiness: VehicleReadiness;
-  /** R4: why its documents keep it from travelling, or null (ownerDocumentIssue). */
+  /**
+   * R4: why it cannot travel (its documents and, for a hombre-camión, his
+   * own), or null. What availability and recommendations check.
+   */
   documentIssue: string | null;
+  /** R4: why its own documents block it, or null: what assign_trip checks of the unit. */
+  unitDocumentIssue: string | null;
   /** Name of the business unit that runs it (G1a). */
   businessUnitName: string | null;
 }
@@ -93,24 +106,39 @@ export function summarizeVehicles(
   now: Date = new Date(),
 ): VehicleSummary[] {
   const byVehicle = new Map(availability.map((a) => [a.vehicle_id, a]));
-  const requirements = applicableRequirements(context.requirements, 'vehicle', context.company);
+  const vehicleRequirements = applicableRequirements(
+    context.requirements,
+    'vehicle',
+    context.company,
+  );
+  const operatorRequirements = applicableRequirements(
+    context.requirements,
+    'operator',
+    context.company,
+  );
   return vehicles.map(({ business_unit: unit, ...vehicle }) => {
     const current = byVehicle.get(vehicle.id) ?? null;
-    const gate = documentGate(
-      requirements,
-      context.documents,
-      { type: 'vehicle', id: vehicle.id },
+    const gate = unitTravelGate(
+      {
+        vehicleRequirements,
+        operatorRequirements,
+        documents: context.documents,
+        vehicleId: vehicle.id,
+        isOwnerOperator: context.ownerOperator?.isOwnerOperator === true,
+        ownerOperator: context.ownerOperator?.operator ?? null,
+      },
       now,
     );
     return {
       ...vehicle,
       businessUnitName: unit?.name ?? null,
       availability: current,
-      documentIssue: documentGateText(gate),
+      documentIssue: gate.text,
+      unitDocumentIssue: gate.unitText,
       readiness: vehicleReadiness(
         {
-          expiredDocuments: gate.expired.length > 0,
-          missingDocuments: gate.notApproved.length > 0,
+          expiredDocuments: gate.expired,
+          missingDocuments: gate.notApproved,
           availableFrom: current?.available_from ?? null,
           pendingRelease: pendingRelease.has(vehicle.id),
         },

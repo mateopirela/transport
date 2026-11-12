@@ -293,6 +293,46 @@ describe('summarizeVehicles', () => {
     expect(pending?.readiness).toBe('pending_release');
     expect(other?.readiness).toBe('unset');
   });
+
+  it('blocks a hombre-camión unit on his own documents, and without his operator row (R4)', () => {
+    const license = requirement({ id: 'licencia', owner_type: 'operator' });
+    const owner = (operatorRow: { id: string; full_name: string } | null): FleetContext => ({
+      ...context(
+        [insurance, license],
+        [document({ id: 'd1', requirement_id: 'seguro', expires_at: '2027-01-01T00:00:00Z' })],
+      ),
+      ownerOperator: { isOwnerOperator: true, operator: operatorRow },
+    });
+    const availability = [
+      {
+        vehicle_id: 'v1',
+        available_from: '2026-10-19T12:00:00Z',
+        city: 'Monterrey',
+        state: 'Nuevo León',
+      },
+    ];
+    const [withRow] = summarizeVehicles(
+      owner({ id: 'o1', full_name: 'José Sánchez' }),
+      [vehicle('v1')],
+      availability,
+      new Set(),
+      NOW,
+    );
+    expect(withRow).toMatchObject({
+      readiness: 'missing_documents',
+      unitDocumentIssue: null,
+      documentIssue: 'Falta aprobar: licencia de José Sánchez.',
+    });
+    const [withoutRow] = summarizeVehicles(
+      owner(null),
+      [vehicle('v1')],
+      availability,
+      new Set(),
+      NOW,
+    );
+    expect(withoutRow?.readiness).toBe('missing_documents');
+    expect(withoutRow?.documentIssue).toMatch(/registro como operador/u);
+  });
 });
 
 describe('summarizeOperators', () => {

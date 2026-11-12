@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(53);
+select plan(56);
 
 -- I1: the cargo insurance (51_cargo_insurance) takes no part in this test.
 update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
@@ -253,7 +253,7 @@ select ok(
     select 1 from unnest(array[
       'public.assert_vehicle_documents_ready(uuid)', 'public.assert_operator_documents_ready(uuid)',
       'public.assert_vehicle_can_travel(uuid)', 'public.owner_operator_id(uuid)',
-      'public.operator_license_current(uuid)'
+      'public.operator_license_current(uuid)', 'public.owner_operator_ready(uuid)'
     ]) f
     where has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')
   ),
@@ -539,6 +539,51 @@ select ok(
       and new_data ->> 'auto_review_eligible' = 'true'
   ),
   'the catalog change is audited'
+);
+
+-- ---------------------------------------------------------------------------
+-- A hombre-camión without an active own operator row (never created, or
+-- archived) is blocked, not waved through (owner_operator_ready).
+-- ---------------------------------------------------------------------------
+-- User 10: Pablo, hombre-camión whose own operator row is archived; unit 09
+-- has every document approved.
+select tests.new_user('a6600000-0000-4000-8000-000000000010', 'manager');
+insert into public.companies (id, type, legal_name, rfc, status, is_owner_operator) values
+  ('c6600000-0000-4000-8000-000000000005', 'carrier', 'Pablo Ruiz Treviño', 'RUTP800202CD2', 'approved', true);
+update public.profiles set company_id = 'c6600000-0000-4000-8000-000000000005'
+where id = 'a6600000-0000-4000-8000-000000000010';
+insert into public.operators (id, company_id, profile_id, full_name, license_type, license_expires_on, archived_at) values
+  ('d6600000-0000-4000-8000-000000000010', 'c6600000-0000-4000-8000-000000000005',
+   'a6600000-0000-4000-8000-000000000010', 'Pablo Ruiz Treviño', 'E', current_date + 365, now());
+insert into public.vehicles (id, company_id, kind, plate, unit_type, capacity_kg) values
+  ('e6600000-0000-4000-8000-000000000009', 'c6600000-0000-4000-8000-000000000005', 'trailer', 'RCU6609', 'dry_van', 30000);
+select tests.doc('vehicle', 'e6600000-0000-4000-8000-000000000009', c)
+from unnest(array['vehicle_registration_card', 'vehicle_insurance_policy', 'vehicle_permit']) c;
+-- His archived row's documents are approved: they must not count.
+select tests.doc('operator', 'd6600000-0000-4000-8000-000000000010', c)
+from unnest(array['operator_official_id', 'federal_driver_license']) c;
+
+set local role authenticated;
+select tests.login('a6600000-0000-4000-8000-000000000010');
+select throws_ok(
+  $$ select public.set_vehicle_availability('e6600000-0000-4000-8000-000000000009', now(), 25.6866, -100.3161, 'Monterrey', 'Nuevo León') $$,
+  '55000', 'owner operator not found',
+  'a hombre-camión whose own operator row is archived cannot make his unit available'
+);
+reset role;
+insert into public.vehicle_availability (company_id, vehicle_id, available_from, location, city, state, source)
+values ('c6600000-0000-4000-8000-000000000005', 'e6600000-0000-4000-8000-000000000009', now(),
+        'SRID=4326;POINT(-100.3161 25.6866)'::extensions.geography, 'Monterrey', 'Nuevo León', 'manual');
+select is(
+  (select count(*)::int from public.match_pairs(null, tests.val('load3'), 150)
+   where vehicle_id = 'e6600000-0000-4000-8000-000000000009'),
+  0, 'nor is his unit recommended while he has no active operator row'
+);
+update public.operators set archived_at = null where id = 'd6600000-0000-4000-8000-000000000010';
+select is(
+  (select count(*)::int from public.match_pairs(null, tests.val('load3'), 150)
+   where vehicle_id = 'e6600000-0000-4000-8000-000000000009'),
+  1, 'with his row active and its documents approved, it is recommended (control)'
 );
 
 select * from finish();

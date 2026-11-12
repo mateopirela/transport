@@ -1,7 +1,6 @@
 import {
   formatCalendarDate,
   formatDistance,
-  formatMxn,
   hourBandLabel,
   roadDataStatusLabels,
   roadRiskLevelLabels,
@@ -20,8 +19,10 @@ import {
 } from '@/components/admin/road-forms';
 import { PageSection, textLink } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
+import { Money } from '@/components/ui/money';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
+import { Tag } from '@/components/ui/tag';
 import { groupRow } from '@/components/ui/variants';
 import { adminContext } from '@/lib/admin/queries';
 import { listRoadCatalog, type AdminCorridor, type AdminSegment } from '@/lib/admin/roads';
@@ -115,15 +116,15 @@ export default async function AdminRoadsPage() {
           {corridors.length === 0 ? (
             <Empty title={c.empty} />
           ) : (
-            <ul className="overflow-hidden rounded-2xl border bg-cell">
+            <ul className="border bg-cell">
               {corridors.map((k) => (
-                <li key={k.id} className={`${groupRow} space-y-2 px-4 py-4`}>
+                <li key={k.id} className={`${groupRow} space-y-2 px-5 py-4`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-headline text-text">{k.name}</p>
-                    <Pill>{k.code}</Pill>
+                    <Tag>{k.code}</Tag>
                     {k.archived_at && <Pill>{c.archived}</Pill>}
                   </div>
-                  <p className="text-subhead text-text-dim">{k.segmentCodes.join(' → ')}</p>
+                  <p className="text-meta text-text-dim">{k.segmentCodes.join(' → ')}</p>
                   <CorridorForm initial={corridorValues(k)} summary={c.form.editCorridor} />
                 </li>
               ))}
@@ -141,10 +142,10 @@ export default async function AdminRoadsPage() {
           ) : (
             <ul className="space-y-4">
               {segments.map((s) => (
-                <li key={s.id} className="space-y-3 rounded-2xl border bg-cell p-4">
+                <li key={s.id} className="space-y-4 border bg-cell p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-headline text-text">{s.name}</h3>
-                    <Pill>{s.code}</Pill>
+                    <Tag>{s.code}</Tag>
                     <Pill tone={s.data_status === 'verified' ? 'done' : 'inactive'}>
                       {roadDataStatusLabels[s.data_status]}
                     </Pill>
@@ -161,12 +162,12 @@ export default async function AdminRoadsPage() {
                   </p>
                   <Source source={s.source} url={s.source_url} date={s.source_date} />
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2 border-t pt-4">
                     <p className="text-label text-text-dim">{c.tollsTitle}</p>
                     {s.tolls.length === 0 ? (
-                      <p className="text-subhead text-text-faint">{roadsCopy.noData}</p>
+                      <p className="text-subhead text-text-dim">{roadsCopy.noData}</p>
                     ) : (
-                      <ul className="overflow-hidden rounded-xl border">
+                      <ul className="border">
                         {s.tolls.map((t) => (
                           <li
                             key={t.id}
@@ -174,9 +175,11 @@ export default async function AdminRoadsPage() {
                           >
                             <span className="text-subhead text-text tabular-nums">
                               {tollClassLabels[t.vehicle_class]} ·{' '}
-                              {t.amount_cents === null
-                                ? roadsCopy.noData
-                                : formatMxn(t.amount_cents)}
+                              {t.amount_cents === null ? (
+                                roadsCopy.noData
+                              ) : (
+                                <Money cents={t.amount_cents} />
+                              )}
                             </span>
                             <span className="text-footnote text-text-dim">
                               {c.columns.validFrom} {formatCalendarDate(t.valid_from)} ·{' '}
@@ -189,12 +192,12 @@ export default async function AdminRoadsPage() {
                     <TollForm segmentId={s.id} today={today} />
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2 border-t pt-4">
                     <p className="text-label text-text-dim">{c.risksTitle}</p>
                     {s.risks.length === 0 ? (
-                      <p className="text-subhead text-text-faint">{c.noRisks}</p>
+                      <p className="text-subhead text-text-dim">{c.noRisks}</p>
                     ) : (
-                      <ul className="overflow-hidden rounded-xl border">
+                      <ul className="border">
                         {s.risks.map((r) => (
                           <li
                             key={r.id}

@@ -1,9 +1,9 @@
 'use client';
 
-import { brokeredCopy, centsToPesosInput } from '@transport/shared';
+import { adminPanelCopy, brokeredCopy, centsToPesosInput } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit, formAmount } from '@/components/admin/confirm-submit';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { quoteBrokeredLoadAction, respondBrokeredOfferAction } from '@/lib/broke
 import type { FormState } from '@/lib/forms';
 
 const c = brokeredCopy.admin;
+const k = adminPanelCopy.confirm;
 
 function StateNotice({ state }: { state: FormState }) {
   if (state.error) return <Notice tone="error">{state.error}</Notice>;
@@ -48,7 +49,7 @@ export function QuoteForm({
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor={`${id}-client`} className="block px-1">
+          <Label htmlFor={`${id}-client`} className="block">
             {c.clientPrice}
           </Label>
           <Input
@@ -61,7 +62,7 @@ export function QuoteForm({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${id}-carrier`} className="block px-1">
+          <Label htmlFor={`${id}-carrier`} className="block">
             {c.carrierPrice}
           </Label>
           <Input
@@ -73,10 +74,23 @@ export function QuoteForm({
           />
         </div>
       </div>
-      <p className="px-1 text-footnote text-text-dim">{c.quoteHelp}</p>
-      <Button type="submit" loading={pending}>
+      <p className="text-footnote text-text-dim">{c.quoteHelp}</p>
+      <ConfirmSubmit
+        variant="primary"
+        loading={pending}
+        title={k.quote.title}
+        confirmLabel={k.quote.confirm}
+        // A price that is not one goes to the server, which says which field.
+        skip={(data) => !formAmount(data, 'clientPrice') || !formAmount(data, 'carrierPrice')}
+        description={(data) =>
+          k.quote.body(
+            formAmount(data, 'clientPrice') ?? '',
+            formAmount(data, 'carrierPrice') ?? '',
+          )
+        }
+      >
         {pending ? c.saving : clientApproved ? c.updateRate : c.quote}
-      </Button>
+      </ConfirmSubmit>
     </form>
   );
 }
@@ -91,29 +105,40 @@ export function OfferResponseForm({ loadId, offerId }: { loadId: string; offerId
   return (
     <div className="space-y-2">
       <StateNotice state={state} />
-      <form action={action} className="flex flex-wrap gap-2">
+      <form action={action} className="flex flex-wrap justify-end gap-2">
         <input type="hidden" name="loadId" value={loadId} />
         <input type="hidden" name="offerId" value={offerId} />
-        <Button type="submit" name="intent" value="accept" size="sm" loading={pending}>
+        <ConfirmSubmit
+          name="intent"
+          value="accept"
+          size="sm"
+          loading={pending}
+          title={k.acceptBrokeredOffer.title}
+          description={k.acceptBrokeredOffer.body}
+          confirmLabel={k.acceptBrokeredOffer.confirm}
+        >
           {c.accept}
-        </Button>
-        <Button
-          type="submit"
+        </ConfirmSubmit>
+        <ConfirmSubmit
           name="intent"
           value="reject"
           size="sm"
-          variant="secondary"
+          variant="destructive"
+          destructive
           disabled={pending}
+          title={k.rejectBrokeredOffer.title}
+          description={k.rejectBrokeredOffer.body}
+          confirmLabel={k.rejectBrokeredOffer.confirm}
         >
           {c.reject}
-        </Button>
+        </ConfirmSubmit>
       </form>
-      <Disclosure summary={c.counter} look="inline" tone="accent" className="max-w-sm">
-        <form action={action} className="mt-2 space-y-2" noValidate>
+      <Disclosure summary={c.counter} look="inline" tone="accent" className="ml-auto max-w-sm">
+        <form action={action} className="mt-2 space-y-2 text-left" noValidate>
           <input type="hidden" name="loadId" value={loadId} />
           <input type="hidden" name="offerId" value={offerId} />
           <input type="hidden" name="intent" value="counter" />
-          <Label htmlFor={`${id}-amount`} className="block px-1">
+          <Label htmlFor={`${id}-amount`} className="block">
             {c.counterAmount}
           </Label>
           <Input
@@ -123,9 +148,16 @@ export function OfferResponseForm({ loadId, offerId }: { loadId: string; offerId
             autoComplete="off"
             defaultValue={state.values?.amount}
           />
-          <Button type="submit" size="sm" variant="secondary" loading={pending}>
+          <ConfirmSubmit
+            size="sm"
+            loading={pending}
+            title={k.counterBrokeredOffer.title}
+            confirmLabel={k.counterBrokeredOffer.confirm}
+            skip={(data) => !formAmount(data, 'amount')}
+            description={(data) => k.counterBrokeredOffer.body(formAmount(data, 'amount') ?? '')}
+          >
             {c.send}
-          </Button>
+          </ConfirmSubmit>
         </form>
       </Disclosure>
     </div>

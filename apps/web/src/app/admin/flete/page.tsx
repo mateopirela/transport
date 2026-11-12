@@ -1,8 +1,8 @@
 import {
-  centsToPesosInput,
+  adminPanelCopy,
   formatBasisPoints,
   formatCalendarDate,
-  formatMxn,
+  formatMoney,
   freightCopy,
   freightInvoicesCopy,
   freightPaymentDirectionLabels,
@@ -15,11 +15,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import {
-  CommissionSettingForm,
-  RecordPaymentForm,
-  ResolveReviewForm,
-} from '@/components/freight/admin-freight-forms';
+import { ApproveQuickPayForm, RejectQuickPayForm } from '@/components/admin/quick-pay-forms';
+import { RecordPaymentForm, ResolveReviewForm } from '@/components/freight/admin-freight-forms';
 import {
   CarrierStatusPill,
   ClientStatusPill,
@@ -27,13 +24,11 @@ import {
   InvoiceSummary,
 } from '@/components/freight/freight-ui';
 import { InvoiceUpload } from '@/components/freight/invoice-upload';
-import {
-  ApproveQuickPayForm,
-  QuickPaySettingsForm,
-  RejectQuickPayForm,
-} from '@/components/freight/quick-pay';
-import { PageSection, textLink } from '@/components/page-section';
+import { textLink } from '@/components/page-section';
+import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
+import { KpiGrid, KpiTile } from '@/components/ui/kpi-tile';
+import { Money } from '@/components/ui/money';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
@@ -48,11 +43,11 @@ import {
 import { invoiceKey, loadFreightInvoices, type FreightInvoice } from '@/lib/freight/invoices';
 import {
   loadAdminFreight,
-  loadCommissionSetting,
   loadQuickPayAdmin,
   type AdminFreightRow,
   type QuickPayAdminState,
 } from '@/lib/freight/queries';
+import { freightAttention } from '@/lib/admin/dashboard';
 import { withParams } from '@/lib/pagination';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
@@ -60,6 +55,11 @@ import { createClient } from '@/lib/supabase/server';
 
 const c = freightCopy.admin;
 const q = quickPayCopy.admin;
+const h = adminPanelCopy.home;
+const f = adminPanelCopy.freight;
+
+/** The label over a part of a trip's block. */
+const partLabel = 'text-label text-text-dim';
 
 export const metadata: Metadata = { title: c.title };
 
@@ -96,40 +96,40 @@ function InvoicesSection({
   client: FreightInvoice | undefined;
   carrier: FreightInvoice | undefined;
 }) {
-  const f = freightInvoicesCopy.admin;
+  const fi = freightInvoicesCopy.admin;
   const cancelled = row.client_status === 'cancelled';
-  let clientFallback = <p className="text-subhead text-text-dim">{f.noClientInvoice}</p>;
+  let clientFallback = <p className="text-subhead text-text-dim">{fi.noClientInvoice}</p>;
   if (!cancelled) {
     clientFallback =
       row.client_terms_days === null ? (
-        <p className="text-subhead text-text-dim">{f.termsFirst}</p>
+        <p className="text-subhead text-text-dim">{fi.termsFirst}</p>
       ) : (
         <div className="space-y-1">
-          <p className="text-subhead text-text-dim">{f.noClientInvoice}</p>
+          <p className="text-subhead text-text-dim">{fi.noClientInvoice}</p>
           <InvoiceUpload tripId={row.trip_id} direction="fulmis_to_client" />
         </div>
       );
   }
   return (
-    <div className="grid gap-4 border-t pt-3 sm:grid-cols-2">
+    <div className="grid gap-4 border-t px-5 py-4 sm:grid-cols-2">
       <section
-        aria-label={f.clientInvoice}
+        aria-label={fi.clientInvoice}
         className="space-y-1"
         data-testid="freight-client-invoice"
       >
-        <h4 className="text-footnote font-semibold text-text-dim uppercase">{f.clientInvoice}</h4>
+        <h4 className={partLabel}>{fi.clientInvoice}</h4>
         <InvoiceSummary invoice={client} area="admin" fallback={clientFallback} />
       </section>
       <section
-        aria-label={f.carrierInvoice}
+        aria-label={fi.carrierInvoice}
         className="space-y-1"
         data-testid="freight-carrier-invoice"
       >
-        <h4 className="text-footnote font-semibold text-text-dim uppercase">{f.carrierInvoice}</h4>
+        <h4 className={partLabel}>{fi.carrierInvoice}</h4>
         <InvoiceSummary
           invoice={carrier}
           area="admin"
-          fallback={<p className="text-subhead text-text-dim">{f.noCarrierInvoice}</p>}
+          fallback={<p className="text-subhead text-text-dim">{fi.noCarrierInvoice}</p>}
         />
       </section>
     </div>
@@ -151,7 +151,7 @@ function QuickPayFacts({ row, quickPay }: { row: AdminFreightRow; quickPay: Quic
   if (state.kind === 'none') return null;
   if (state.kind === 'rejected') {
     return (
-      <p className="text-subhead text-text-dim" data-testid="freight-quick-pay">
+      <p className="border-t px-5 py-4 text-subhead text-text-dim" data-testid="freight-quick-pay">
         {q.rejected(day(state.at), state.reason)}
       </p>
     );
@@ -165,13 +165,14 @@ function QuickPayFacts({ row, quickPay }: { row: AdminFreightRow; quickPay: Quic
     quickPay.limitCents,
   );
   return (
-    <div className="space-y-2 rounded-2xl bg-accent-soft px-4 py-3" data-testid="freight-quick-pay">
+    <div className="space-y-2 border-t px-5 py-4" data-testid="freight-quick-pay">
+      <h4 className={partLabel}>{q.filter}</h4>
       <p className="text-subhead font-semibold text-text">
         {state.kind === 'requested' ? q.requested(day(state.at)) : q.approved(day(state.at))}
       </p>
       <dl>
-        <Fact label={q.fee(formatBasisPoints(row.quick_pay_fee_bps ?? 0))}>{formatMxn(fee)}</Fact>
-        <Fact label={q.quickNet}>{formatMxn(quickNet)}</Fact>
+        <Fact label={q.fee(formatBasisPoints(row.quick_pay_fee_bps ?? 0))}>{formatMoney(fee)}</Fact>
+        <Fact label={q.quickNet}>{formatMoney(quickNet)}</Fact>
       </dl>
       <p className="text-footnote text-text-dim">{q.clientUnchanged}</p>
       {state.kind === 'requested' && row.carrier_invoice_blocker && (
@@ -187,9 +188,13 @@ function QuickPayFacts({ row, quickPay }: { row: AdminFreightRow; quickPay: Quic
           {!row.carrier_invoice_blocker && (
             <ApproveQuickPayForm
               tripId={row.trip_id}
+              quickNet={formatMoney(quickNet)}
               overLimit={
                 projection.overLimit && quickPay.limitCents !== null
-                  ? q.overLimit(formatMxn(projection.exposureCents), formatMxn(quickPay.limitCents))
+                  ? q.overLimit(
+                      formatMoney(projection.exposureCents),
+                      formatMoney(quickPay.limitCents),
+                    )
                   : null
               }
             />
@@ -212,11 +217,8 @@ function LedgerCard({
 }) {
   const directions = payableDirections(row);
   return (
-    <article
-      data-testid={`freight-row-${row.trip_id}`}
-      className="space-y-4 rounded-2xl border bg-cell p-4 sm:p-5"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <article data-testid={`freight-row-${row.trip_id}`} className="border bg-cell">
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 px-5 py-4">
         <div className="min-w-0 space-y-0.5">
           <h3 className="text-headline text-text">
             {freightCopy.route(row.origin_city, row.destination_city)}
@@ -231,26 +233,23 @@ function LedgerCard({
             </Link>
           </p>
         </div>
-      </div>
+      </header>
       {row.needs_review && (
-        <div
-          role="alert"
-          className="space-y-1 rounded-2xl bg-red/14 px-4 py-3 text-subhead text-red-text"
-        >
-          <p>{c.needsReview}</p>
+        <div className="space-y-2 border-t px-5 py-4">
+          <Notice tone="error">{c.needsReview}</Notice>
           <ResolveReviewForm tripId={row.trip_id} />
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section aria-label={c.clientSide} className="space-y-1">
+      <div className="grid border-t sm:grid-cols-2 sm:divide-x sm:divide-separator">
+        <section aria-label={c.clientSide} className="space-y-2 px-5 py-4">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-footnote font-semibold text-text-dim uppercase">{c.clientSide}</h4>
+            <h4 className={partLabel}>{c.clientSide}</h4>
             <span data-testid="freight-client-status">
               <ClientStatusPill status={row.client_status} />
             </span>
           </div>
           <dl>
-            <Fact label={c.amount}>{formatMxn(row.client_amount_cents)}</Fact>
+            <Fact label={c.amount}>{formatMoney(row.client_amount_cents)}</Fact>
             <Fact label={c.terms}>
               {row.client_terms_days
                 ? freightCopy.termsDays(row.client_terms_days)
@@ -259,31 +258,31 @@ function LedgerCard({
             <Fact label={c.dueOn}>
               {dueLabel(row.client_due_on, freightCopy.dueOnAfterDelivery)}
             </Fact>
-            <Fact label={c.paid}>{formatMxn(row.client_paid_cents)}</Fact>
+            <Fact label={c.paid}>{formatMoney(row.client_paid_cents)}</Fact>
           </dl>
         </section>
-        <section aria-label={c.carrierSide} className="space-y-1">
+        <section aria-label={c.carrierSide} className="space-y-2 border-t px-5 py-4 sm:border-t-0">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-footnote font-semibold text-text-dim uppercase">{c.carrierSide}</h4>
+            <h4 className={partLabel}>{c.carrierSide}</h4>
             <span data-testid="freight-carrier-status">
               <CarrierStatusPill status={row.carrier_status} />
             </span>
           </div>
           <dl>
             <Fact label={`${c.commission} (${formatBasisPoints(row.commission_bps)})`}>
-              {formatMxn(row.commission_cents)}
+              {formatMoney(row.commission_cents)}
             </Fact>
-            <Fact label={c.net}>{formatMxn(row.carrier_net_cents)}</Fact>
+            <Fact label={c.net}>{formatMoney(row.carrier_net_cents)}</Fact>
             {/* A brokered load (I6, D39): Fulmis's income is the margin, not a commission. */}
             {row.margin_cents > 0 && (
               <Fact label={c.margin}>
-                <span data-testid="freight-margin">{formatMxn(row.margin_cents)}</span>
+                <span data-testid="freight-margin">{formatMoney(row.margin_cents)}</span>
               </Fact>
             )}
             <Fact label={c.dueOn}>
               {dueLabel(row.carrier_due_on, freightCopy.dueOnAfterDelivery)}
             </Fact>
-            <Fact label={c.paid}>{formatMxn(row.carrier_paid_cents)}</Fact>
+            <Fact label={c.paid}>{formatMoney(row.carrier_paid_cents)}</Fact>
           </dl>
         </section>
       </div>
@@ -293,16 +292,17 @@ function LedgerCard({
         client={invoices.get(invoiceKey(row.trip_id, 'fulmis_to_client'))}
         carrier={invoices.get(invoiceKey(row.trip_id, 'carrier_to_fulmis'))}
       />
-      <div className="space-y-2 border-t pt-3">
-        <h4 className="text-footnote font-semibold text-text-dim uppercase">{c.payments}</h4>
+      <div className="space-y-2 border-t px-5 py-4">
+        <h4 className={partLabel}>{c.payments}</h4>
         {row.payments.length === 0 ? (
           <p className="text-subhead text-text-dim">{c.noPayments}</p>
         ) : (
           <ul className="space-y-1 text-subhead text-text">
             {row.payments.map((payment) => (
               <li key={payment.id} className="tabular-nums">
-                {freightPaymentDirectionLabels[payment.direction]}: {formatMxn(payment.amountCents)}{' '}
-                · {formatCalendarDate(payment.paidOn)} · {payment.speiReference}
+                {freightPaymentDirectionLabels[payment.direction]}:{' '}
+                {formatMoney(payment.amountCents)} · {formatCalendarDate(payment.paidOn)} ·{' '}
+                <span className="text-meta">{payment.speiReference}</span>
                 {payment.note && <span className="text-text-dim"> · {payment.note}</span>}
               </li>
             ))}
@@ -333,54 +333,80 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
   const supabase = await createClient();
   if (!supabase) return <PageHeader title={c.title} />;
   const filter = parseFreightFilter((await searchParams).filtro);
-  const [rows, commissionBps, invoices, quickPay] = await Promise.all([
+  const [rows, invoices, quickPay] = await Promise.all([
     loadAdminFreight(supabase),
-    loadCommissionSetting(supabase),
     loadFreightInvoices(supabase),
     loadQuickPayAdmin(supabase),
   ]);
   const shown = rows.filter((row) => matchesFreightFilter(row, filter));
+  const attention = freightAttention(rows);
+  const filterHref = (value: FreightFilter) =>
+    withParams(paths.adminFreight, {}, value === 'todos' ? {} : { filtro: value });
 
   return (
     <>
-      <PageHeader title={c.title} description={c.description} />
-      <div className="max-w-4xl space-y-12">
-        <PageSection title={c.settings}>
-          <div className="rounded-2xl border bg-cell p-5">
-            <CommissionSettingForm commissionBps={commissionBps} />
-          </div>
-        </PageSection>
-
-        <PageSection title={q.settings}>
-          <div className="space-y-4 rounded-2xl border bg-cell p-5">
-            <p className="text-subhead text-text" data-testid="quick-pay-exposure">
-              <span className="text-text-dim">{q.exposure}: </span>
-              <span className="tabular-nums">
+      <PageHeader
+        title={c.title}
+        description={c.description}
+        action={
+          <Link
+            href={`${paths.adminSettings}#comision`}
+            className={buttonVariants({ variant: 'secondary' })}
+          >
+            {f.settingsLink}
+          </Link>
+        }
+      />
+      <div className="space-y-10">
+        <KpiGrid>
+          <KpiTile
+            label={c.filters.overdue}
+            value={attention.overdue.length}
+            href={filterHref('vencidos')}
+            attention={attention.overdue.length > 0}
+          />
+          <KpiTile
+            label={h.tags.carrierPayment}
+            value={attention.carrierPayable.length}
+            hint={f.carrierPayableHint}
+            href={filterHref('transportista')}
+            attention={attention.carrierPayable.length > 0}
+          />
+          <KpiTile
+            label={q.filter}
+            value={attention.quickPay.length}
+            href={filterHref('rapido')}
+            attention={attention.quickPay.length > 0}
+          />
+          <KpiTile
+            label={q.exposure}
+            value={<Money cents={quickPay.exposureCents} />}
+            hint={
+              <span data-testid="quick-pay-exposure">
                 {q.exposureLine(
-                  formatMxn(quickPay.exposureCents),
-                  quickPay.limitCents === null ? null : formatMxn(quickPay.limitCents),
+                  formatMoney(quickPay.exposureCents),
+                  quickPay.limitCents === null ? null : formatMoney(quickPay.limitCents),
                 )}
               </span>
-            </p>
-            <QuickPaySettingsForm
-              feeBps={quickPay.feeBps}
-              limitPesos={
-                quickPay.limitCents === null ? '' : centsToPesosInput(quickPay.limitCents)
-              }
-            />
-          </div>
-        </PageSection>
-
-        <PageSection title={c.trips}>
-          <Segmented
-            label={c.filters.label}
-            value={filter}
-            items={FREIGHT_FILTERS.map((value) => ({
-              value,
-              label: FILTER_LABELS[value],
-              href: withParams(paths.adminFreight, {}, value === 'todos' ? {} : { filtro: value }),
-            }))}
+            }
           />
+        </KpiGrid>
+
+        <section aria-label={c.trips} className="space-y-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b pb-6">
+            <Segmented
+              label={c.filters.label}
+              value={filter}
+              items={FREIGHT_FILTERS.map((value) => ({
+                value,
+                label: FILTER_LABELS[value],
+                href: filterHref(value),
+              }))}
+            />
+            <p className="text-footnote text-text-dim tabular-nums sm:ml-auto">
+              {f.trips(shown.length)}
+            </p>
+          </div>
           {shown.length === 0 ? (
             <Empty title={c.empty} />
           ) : (
@@ -390,7 +416,7 @@ export default async function AdminFreightPage({ searchParams }: PageProps<'/adm
               ))}
             </div>
           )}
-        </PageSection>
+        </section>
       </div>
     </>
   );

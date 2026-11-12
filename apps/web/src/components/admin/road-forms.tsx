@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  adminPanelCopy,
   roadDataStatusLabels,
   roadRiskLevelLabels,
   roadsCopy,
@@ -24,6 +25,8 @@ import {
   setSegmentToll,
 } from '@/lib/admin/road-actions';
 import type { FormState } from '@/lib/forms';
+
+import { ConfirmSubmit } from './confirm-submit';
 
 const c = roadsCopy.admin.form;
 
@@ -322,9 +325,17 @@ export function ArchiveRiskForm({ risk }: { risk: Values }) {
         <input key={name} type="hidden" name={name} value={value} />
       ))}
       <input type="hidden" name="archived" value="on" />
-      <Button type="submit" variant="plain" size="sm" loading={pending}>
+      <ConfirmSubmit
+        variant="plain"
+        size="sm"
+        loading={pending}
+        destructive
+        title={adminPanelCopy.confirm.archiveRisk.title}
+        description={adminPanelCopy.confirm.archiveRisk.body}
+        confirmLabel={adminPanelCopy.confirm.archiveRisk.confirm}
+      >
         {c.archiveRisk}
-      </Button>
+      </ConfirmSubmit>
       {state.error && <Notice tone="error">{state.error}</Notice>}
     </form>
   );

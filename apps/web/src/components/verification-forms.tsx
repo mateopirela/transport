@@ -1,8 +1,9 @@
 'use client';
 
-import { adminCopy, onboardingCopy } from '@transport/shared';
+import { adminCopy, adminPanelCopy, onboardingCopy } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
+import { ConfirmSubmit } from '@/components/admin/confirm-submit';
 import { ActionForm, CompanyFiscalFields, Field, Notice } from '@/components/auth-forms';
 import { Button } from '@/components/ui/button';
 import { Field as FieldFrame, fieldHelpId } from '@/components/ui/field';
@@ -25,6 +26,8 @@ export function CompanyContactForm({ values }: { values: Record<string, string> 
       initial={{ values }}
       submit={c.submit}
       pending={c.pending}
+      // The documents are the main action of the review page: the data form is secondary.
+      submitVariant="secondary"
     >
       {(state) => (
         <>
@@ -60,12 +63,22 @@ export function RequestReviewForm() {
   return (
     <form action={action} className="space-y-3">
       {state.error && <Notice tone="error">{state.error}</Notice>}
-      <Button type="submit" disabled={pending} loading={pending}>
+      <Button type="submit" className="w-full" disabled={pending} loading={pending}>
         {pending ? c.pending : c.submit}
       </Button>
     </form>
   );
 }
+
+const k = adminPanelCopy.confirm;
+
+/** What each decision on a company says before it runs. */
+const COMPANY_CONFIRM = {
+  approve: k.approveCompany,
+  reactivate: k.reactivateCompany,
+  reject: k.rejectCompany,
+  suspend: k.suspendCompany,
+} as const;
 
 function Notes({ state, label, id }: { state: FormState; label: string; id: string }) {
   const error = state.fieldErrors?.notes;
@@ -109,7 +122,7 @@ export function DocumentReviewForm({
   const [state, action, pending] = useActionState(reviewDocument, {});
   const expiryError = state.fieldErrors?.expiresOn;
   return (
-    <form action={action} className="space-y-4 rounded-2xl bg-surface-high/60 p-4" noValidate>
+    <form action={action} className="space-y-4 border-t pt-4" noValidate>
       <FormFeedback state={state} />
       <input type="hidden" name="documentId" value={documentId} />
       <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
@@ -132,26 +145,30 @@ export function DocumentReviewForm({
         </FieldFrame>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
+        <ConfirmSubmit
           name="decision"
           value="approve"
           size="sm"
-          variant="secondary"
           disabled={pending}
+          title={k.approveDocument.title}
+          description={k.approveDocument.body}
+          confirmLabel={k.approveDocument.confirm}
         >
           {c.approve}
-        </Button>
-        <Button
-          type="submit"
+        </ConfirmSubmit>
+        <ConfirmSubmit
           name="decision"
           value="reject"
           size="sm"
           variant="destructive"
+          destructive
           disabled={pending}
+          title={k.rejectDocument.title}
+          description={k.rejectDocument.body}
+          confirmLabel={k.rejectDocument.confirm}
         >
           {c.reject}
-        </Button>
+        </ConfirmSubmit>
       </div>
     </form>
   );
@@ -174,23 +191,27 @@ export function CompanyReviewForm({
       <FormFeedback state={state} />
       <input type="hidden" name="companyId" value={companyId} />
       {needsReason && <Notes state={state} label={c.notes} id={`${id}-notes`} />}
-      <div className="flex flex-wrap gap-2">
-        {decisions.map((decision) => (
-          <Button
-            key={decision}
-            type="submit"
-            name="decision"
-            // Reactivating a suspended company is an approval (review_company).
-            value={decision === 'reactivate' ? 'approve' : decision}
-            size="sm"
-            variant={
-              decision === 'approve' || decision === 'reactivate' ? 'primary' : 'destructive'
-            }
-            disabled={pending}
-          >
-            {c[decision]}
-          </Button>
-        ))}
+      <div className="flex flex-col gap-2 [&>button]:w-full">
+        {decisions.map((decision) => {
+          const confirm = COMPANY_CONFIRM[decision];
+          const approves = decision === 'approve' || decision === 'reactivate';
+          return (
+            <ConfirmSubmit
+              key={decision}
+              name="decision"
+              // Reactivating a suspended company is an approval (review_company).
+              value={approves ? 'approve' : decision}
+              variant={approves ? 'primary' : 'destructive'}
+              destructive={!approves}
+              disabled={pending}
+              title={confirm.title}
+              description={confirm.body}
+              confirmLabel={confirm.confirm}
+            >
+              {c[decision]}
+            </ConfirmSubmit>
+          );
+        })}
       </div>
     </form>
   );

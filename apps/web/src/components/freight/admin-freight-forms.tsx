@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  adminPanelCopy,
+  formatBasisPoints,
   freightCopy,
   freightPaymentDirectionLabels,
   PAYMENT_TERMS_DAYS,
@@ -9,7 +11,7 @@ import {
 } from '@transport/shared';
 import { useActionState, useId } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit, formAmount, formText } from '@/components/admin/confirm-submit';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +27,13 @@ import {
 import type { FormState } from '@/lib/forms';
 
 const c = freightCopy.admin;
+const k = adminPanelCopy.confirm;
+
+/** A commission in basis points as the dialog says it ("3 %"), or the text as typed. */
+function bpsText(value: string): string {
+  const bps = Number(value);
+  return value !== '' && Number.isInteger(bps) ? formatBasisPoints(bps) : value;
+}
 
 function StateNotice({ state }: { state: FormState }) {
   if (state.error) return <Notice tone="error">{state.error}</Notice>;
@@ -53,7 +62,7 @@ export function RecordPaymentForm({
         <input type="hidden" name="tripId" value={tripId} />
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor={`${id}-direction`} className="block px-1">
+            <Label htmlFor={`${id}-direction`} className="block">
               {c.direction}
             </Label>
             <Select id={`${id}-direction`} name="direction" defaultValue={directions[0]}>
@@ -65,19 +74,19 @@ export function RecordPaymentForm({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-amount`} className="block px-1">
+            <Label htmlFor={`${id}-amount`} className="block">
               {c.paymentAmount}
             </Label>
             <Input id={`${id}-amount`} name="amount" inputMode="decimal" autoComplete="off" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${id}-date`} className="block px-1">
+            <Label htmlFor={`${id}-date`} className="block">
               {c.paidOn}
             </Label>
             <Input id={`${id}-date`} name="paidOn" type="date" defaultValue={today} max={today} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor={`${id}-reference`} className="block px-1">
+            <Label htmlFor={`${id}-reference`} className="block">
               {c.speiReference}
             </Label>
             <Input
@@ -87,21 +96,38 @@ export function RecordPaymentForm({
               autoComplete="off"
               aria-describedby={`${id}-reference-help`}
             />
-            <p id={`${id}-reference-help`} className="px-1 text-footnote text-text-dim">
+            <p id={`${id}-reference-help`} className="text-footnote text-text-dim">
               {c.speiReferenceHelp}
             </p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor={`${id}-note`} className="block px-1">
+            <Label htmlFor={`${id}-note`} className="block">
               {c.note}
             </Label>
             <Input id={`${id}-note`} name="note" maxLength={500} autoComplete="off" />
           </div>
         </div>
         <StateNotice state={state} />
-        <Button type="submit" size="sm" loading={pending}>
+        <ConfirmSubmit
+          variant="primary"
+          size="sm"
+          loading={pending}
+          title={k.recordPayment.title}
+          confirmLabel={k.recordPayment.confirm}
+          // Without an amount or a key there is nothing to confirm: the server says what is missing.
+          skip={(data) => !formAmount(data, 'amount') || !formText(data, 'speiReference')}
+          description={(data) =>
+            k.recordPayment.body(
+              freightPaymentDirectionLabels[
+                formText(data, 'direction') as FreightPaymentDirection
+              ] ?? '',
+              formAmount(data, 'amount') ?? '',
+              formText(data, 'speiReference').toUpperCase(),
+            )
+          }
+        >
           {c.save}
-        </Button>
+        </ConfirmSubmit>
       </form>
     </Disclosure>
   );
@@ -116,15 +142,21 @@ export function ResolveReviewForm({ tripId }: { tripId: string }) {
       <form action={action} className="mt-2 space-y-3" noValidate>
         <input type="hidden" name="tripId" value={tripId} />
         <div className="space-y-1.5">
-          <Label htmlFor={`${id}-note`} className="block px-1">
+          <Label htmlFor={`${id}-note`} className="block">
             {c.reviewNote}
           </Label>
           <Input id={`${id}-note`} name="note" maxLength={500} autoComplete="off" />
         </div>
         <StateNotice state={state} />
-        <Button type="submit" variant="secondary" size="sm" loading={pending}>
+        <ConfirmSubmit
+          size="sm"
+          loading={pending}
+          title={k.resolveReview.title}
+          description={k.resolveReview.body}
+          confirmLabel={k.resolveReview.confirm}
+        >
           {c.resolveReview}
-        </Button>
+        </ConfirmSubmit>
       </form>
     </Disclosure>
   );
@@ -138,7 +170,7 @@ export function CommissionSettingForm({ commissionBps }: { commissionBps: number
     <form action={action} className="space-y-2" noValidate>
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-48 space-y-1.5">
-          <Label htmlFor={`${id}-bps`} className="block px-1">
+          <Label htmlFor={`${id}-bps`} className="block">
             {c.commissionDefault}
           </Label>
           <Input
@@ -149,11 +181,16 @@ export function CommissionSettingForm({ commissionBps }: { commissionBps: number
             aria-describedby={`${id}-help`}
           />
         </div>
-        <Button type="submit" variant="secondary" loading={pending}>
+        <ConfirmSubmit
+          loading={pending}
+          title={k.commission.title}
+          confirmLabel={k.commission.confirm}
+          description={(data) => k.commission.body(bpsText(formText(data, 'commissionBps')))}
+        >
           {c.saveCommission}
-        </Button>
+        </ConfirmSubmit>
       </div>
-      <p id={`${id}-help`} className="px-1 text-footnote text-text-dim">
+      <p id={`${id}-help`} className="text-footnote text-text-dim">
         {c.commissionHelp}
       </p>
       <StateNotice state={state} />
@@ -176,7 +213,7 @@ export function CompanyTermsForm({
       <input type="hidden" name="companyId" value={companyId} />
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-48 space-y-1.5">
-          <Label htmlFor={`${id}-terms`} className="block px-1">
+          <Label htmlFor={`${id}-terms`} className="block">
             {c.companyTerms}
           </Label>
           <Select id={`${id}-terms`} name="termsDays" defaultValue={termsDays ?? ''}>
@@ -188,11 +225,19 @@ export function CompanyTermsForm({
             ))}
           </Select>
         </div>
-        <Button type="submit" variant="secondary" loading={pending}>
+        <ConfirmSubmit
+          loading={pending}
+          title={k.terms.title}
+          confirmLabel={k.terms.confirm}
+          description={(data) => {
+            const days = Number(formText(data, 'termsDays'));
+            return k.terms.body(days > 0 ? freightCopy.termsDays(days) : c.noTerms);
+          }}
+        >
           {c.saveTerms}
-        </Button>
+        </ConfirmSubmit>
       </div>
-      <p className="px-1 text-footnote text-text-dim">{c.companyTermsHelp}</p>
+      <p className="text-footnote text-text-dim">{c.companyTermsHelp}</p>
       <StateNotice state={state} />
     </form>
   );
@@ -213,7 +258,7 @@ export function CompanyCommissionForm({
       <input type="hidden" name="companyId" value={companyId} />
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-48 space-y-1.5">
-          <Label htmlFor={`${id}-bps`} className="block px-1">
+          <Label htmlFor={`${id}-bps`} className="block">
             {c.companyCommission}
           </Label>
           <Input
@@ -224,11 +269,19 @@ export function CompanyCommissionForm({
             defaultValue={commissionBps ?? ''}
           />
         </div>
-        <Button type="submit" variant="secondary" loading={pending}>
+        <ConfirmSubmit
+          loading={pending}
+          title={k.companyCommission.title}
+          confirmLabel={k.companyCommission.confirm}
+          description={(data) => {
+            const value = formText(data, 'commissionBps');
+            return k.companyCommission.body(value ? bpsText(value) : k.companyCommission.general);
+          }}
+        >
           {c.saveCompanyCommission}
-        </Button>
+        </ConfirmSubmit>
       </div>
-      <p className="px-1 text-footnote text-text-dim">{c.companyCommissionHelp}</p>
+      <p className="text-footnote text-text-dim">{c.companyCommissionHelp}</p>
       <StateNotice state={state} />
     </form>
   );

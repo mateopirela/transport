@@ -1,23 +1,17 @@
 'use client';
 
 import { formatBasisPoints, formatMxn, quickPayCopy, quickPaySplit } from '@transport/shared';
-import { useActionState, useId } from 'react';
+import { useActionState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
 import type { FormState } from '@/lib/forms';
-import {
-  approveQuickPayAction,
-  rejectQuickPayAction,
-  requestQuickPayAction,
-  setQuickPaySettingsAction,
-} from '@/lib/freight/quick-pay-actions';
+import { requestQuickPayAction } from '@/lib/freight/quick-pay-actions';
 
-// Quick pay (I4, D38): the carrier's request in Cobranza, and the admin's
-// decision and settings in /admin/flete. Postgres checks every rule again.
+// Quick pay (I4, D38): the carrier's request in Cobranza. The admin's
+// decision and settings live in components/admin/quick-pay-forms.tsx.
+// Postgres checks every rule again.
 
 const q = quickPayCopy;
 
@@ -74,127 +68,5 @@ export function QuickPayRequest({
         </Button>
       </form>
     </Disclosure>
-  );
-}
-
-/**
- * The admin approves a request. When the exposure with this trip would go
- * over the limit, the form says so and asks to confirm.
- */
-export function ApproveQuickPayForm({
-  tripId,
-  overLimit,
-}: {
-  tripId: string;
-  /** The warning when the projected exposure goes over the limit. */
-  overLimit: string | null;
-}) {
-  const [state, action, pending] = useActionState(approveQuickPayAction, {});
-  // The page's projection, or the RPC's answer when another approval took
-  // the room meanwhile: either way, the confirmation is asked for.
-  const askConfirmation = Boolean(overLimit) || state.values?.overLimit === '1';
-  return (
-    <form action={action} className="space-y-2" noValidate>
-      <input type="hidden" name="tripId" value={tripId} />
-      {askConfirmation && (
-        <>
-          {overLimit && <Notice tone="error">{overLimit}</Notice>}
-          <label className="flex items-center gap-2.5 px-1 text-subhead text-text">
-            <input type="checkbox" name="confirmOverLimit" className="size-4 accent-accent" />
-            {q.admin.confirmOverLimit}
-          </label>
-        </>
-      )}
-      <StateNotice state={state} />
-      <Button type="submit" size="sm" loading={pending}>
-        {q.admin.approve}
-      </Button>
-    </form>
-  );
-}
-
-/** The admin rejects a request with the reason the carrier sees. */
-export function RejectQuickPayForm({ tripId }: { tripId: string }) {
-  const id = useId();
-  const [state, action, pending] = useActionState(rejectQuickPayAction, {});
-  return (
-    <Disclosure summary={q.admin.reject} look="inline" tone="red" open={Boolean(state.error)}>
-      <form action={action} className="mt-2 space-y-3" noValidate>
-        <input type="hidden" name="tripId" value={tripId} />
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-reason`} className="block px-1">
-            {q.admin.rejectReason}
-          </Label>
-          <Input
-            id={`${id}-reason`}
-            name="reason"
-            maxLength={500}
-            autoComplete="off"
-            aria-describedby={`${id}-help`}
-          />
-          <p id={`${id}-help`} className="px-1 text-footnote text-text-dim">
-            {q.admin.rejectReasonHelp}
-          </p>
-        </div>
-        <StateNotice state={state} />
-        <Button type="submit" variant="destructive" size="sm" loading={pending}>
-          {q.admin.rejectSubmit}
-        </Button>
-      </form>
-    </Disclosure>
-  );
-}
-
-/** The quick pay fee (basis points) and the exposure limit (pesos; empty: none). */
-export function QuickPaySettingsForm({
-  feeBps,
-  limitPesos,
-}: {
-  feeBps: number;
-  /** The limit as the field shows it ("50000.00"), or empty. */
-  limitPesos: string;
-}) {
-  const id = useId();
-  const [state, action, pending] = useActionState(setQuickPaySettingsAction, {});
-  return (
-    <form action={action} className="space-y-3" noValidate>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-fee`} className="block px-1">
-            {q.admin.feeLabel}
-          </Label>
-          <Input
-            id={`${id}-fee`}
-            name="feeBps"
-            inputMode="numeric"
-            defaultValue={feeBps}
-            aria-describedby={`${id}-fee-help`}
-          />
-          <p id={`${id}-fee-help`} className="px-1 text-footnote text-text-dim">
-            {q.admin.feeHelp}
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-limit`} className="block px-1">
-            {q.admin.limitLabel}
-          </Label>
-          <Input
-            id={`${id}-limit`}
-            name="limit"
-            inputMode="decimal"
-            defaultValue={limitPesos}
-            autoComplete="off"
-            aria-describedby={`${id}-limit-help`}
-          />
-          <p id={`${id}-limit-help`} className="px-1 text-footnote text-text-dim">
-            {q.admin.limitHelp}
-          </p>
-        </div>
-      </div>
-      <StateNotice state={state} />
-      <Button type="submit" variant="secondary" loading={pending}>
-        {q.admin.saveSettings}
-      </Button>
-    </form>
   );
 }

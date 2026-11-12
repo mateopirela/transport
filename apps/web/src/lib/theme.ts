@@ -35,3 +35,16 @@ export function themeCookie(choice: ThemeChoice, secure: boolean): string {
     ...(secure ? ['Secure'] : []),
   ].join('; ');
 }
+
+/**
+ * The choice kept in a whole `document.cookie` string ("a=1; theme=dark"),
+ * for the screens that render outside the root layout (global-error.tsx),
+ * with the same fallback as the layout: light (D26-E1).
+ */
+export function themeChoiceFromCookieString(cookies: string): ThemeChoice {
+  const entry = cookies
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${THEME_COOKIE}=`));
+  return themeChoiceFromCookie(entry?.slice(THEME_COOKIE.length + 1));
+}

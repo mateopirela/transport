@@ -1,5 +1,6 @@
 import {
   adminCopy,
+  adminPanelCopy,
   auditChangedFields,
   formatDateTime,
   uuidField,
@@ -10,19 +11,23 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { textLink } from '@/components/page-section';
+import { Pager } from '@/components/pager';
 import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
+import { parsePage, withParams } from '@/lib/pagination';
 import { adminCompanyPath, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 
 const c = adminCopy.audit;
 const col = adminCopy.columns;
-const LIMIT = 200;
+const l = adminPanelCopy.lists;
+/** Entries per page: the log is paged instead of cut at the latest ones. */
+const PAGE_SIZE = 50;
 
 export const metadata: Metadata = { title: c.title };
 
@@ -46,10 +51,14 @@ function describeChanges(oldData: unknown, newData: unknown): string {
     .join(' · ');
 }
 
-/** Read-only view of the immutable audit log (B03), optionally for one company. */
+/**
+ * Read-only view of the immutable audit log (B03), optionally for one
+ * company, newest first and paged (docs/plan-fulmis.md §2 V5).
+ */
 export default async function AdminAuditPage({ searchParams }: PageProps<'/admin/auditoria'>) {
   await requireAccess(paths.adminAudit);
-  const { empresa } = await searchParams;
+  const { empresa, pagina } = await searchParams;
+  const page = parsePage(pagina);
   const companyId =
     typeof empresa === 'string' && uuidField.safeParse(empresa).success ? empresa : null;
 
@@ -65,17 +74,23 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
     new_data: unknown;
   }[] = [];
   const names = new Map<string, string>();
+  let total = 0;
   let loadError = !supabase;
   if (supabase) {
     let query = supabase
       .from('audit_log')
-      .select('id, occurred_at, actor_id, action, table_name, company_id, old_data, new_data')
-      .order('occurred_at', { ascending: false })
-      .limit(LIMIT);
+      .select('id, occurred_at, actor_id, action, table_name, company_id, old_data, new_data', {
+        count: 'exact',
+      });
     if (companyId) query = query.eq('company_id', companyId);
-    const result = await query;
+    const from = (page - 1) * PAGE_SIZE;
+    const result = await query
+      .order('occurred_at', { ascending: false })
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1);
     loadError = result.error !== null;
     entries = result.data ?? [];
+    total = result.count ?? entries.length;
 
     const actorIds = [...new Set(entries.flatMap((e) => (e.actor_id ? [e.actor_id] : [])))];
     const companyIds = [
@@ -97,7 +112,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
     <>
       <PageHeader title={c.title} description={c.description} />
       {companyId && (
-        <div className="mb-6 flex flex-wrap items-center gap-2 text-subhead">
+        <div className="mb-6 flex flex-wrap items-center gap-2 border-b pb-6 text-subhead">
           <span className="text-text-dim">{c.filtered}</span>
           <Pill>{names.get(companyId) ?? companyId}</Pill>
           <Link
@@ -110,33 +125,56 @@ export default async function AdminAuditPage({ searchParams }: PageProps<'/admin
       )}
       {loadError ? (
         <Notice tone="error">{adminCopy.errors.loadFailed}</Notice>
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 && page === 1 ? (
         <Empty title={c.empty} />
       ) : (
-        <Table headers={[col.date, col.actor, col.action, col.record, col.company, col.changes]}>
-          {entries.map((entry) => (
-            <tr key={entry.id}>
-              <td className="whitespace-nowrap text-text-dim tabular-nums">
-                {formatDateTime(entry.occurred_at)}
-              </td>
-              <td className="font-semibold">
-                {(entry.actor_id && names.get(entry.actor_id)) ?? c.unknownActor}
-              </td>
-              <td>{c.actions[entry.action] ?? entry.action}</td>
-              <td>{c.tables[entry.table_name] ?? entry.table_name}</td>
-              <td>
-                {entry.company_id && (
-                  <Link href={adminCompanyPath(entry.company_id)} className={textLink}>
-                    {names.get(entry.company_id) ?? entry.company_id}
-                  </Link>
-                )}
-              </td>
-              <td className="text-footnote text-text-dim">
-                {entry.action === 'update' && describeChanges(entry.old_data, entry.new_data)}
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <div className="space-y-4">
+          <p className="text-footnote text-text-dim tabular-nums">
+            {l.count(total, ...l.auditEntries)}
+          </p>
+          {entries.length > 0 && (
+            <Table
+              cards
+              headers={[col.date, col.actor, col.action, col.record, col.company, col.changes]}
+            >
+              {entries.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell primary className="whitespace-nowrap tabular-nums">
+                    {formatDateTime(entry.occurred_at)}
+                  </TableCell>
+                  <TableCell label={col.actor} className="font-semibold">
+                    {(entry.actor_id && names.get(entry.actor_id)) ?? c.unknownActor}
+                  </TableCell>
+                  <TableCell label={col.action}>
+                    {c.actions[entry.action] ?? entry.action}
+                  </TableCell>
+                  <TableCell label={col.record}>
+                    {c.tables[entry.table_name] ?? entry.table_name}
+                  </TableCell>
+                  <TableCell label={col.company}>
+                    {entry.company_id && (
+                      <Link href={adminCompanyPath(entry.company_id)} className={textLink}>
+                        {names.get(entry.company_id) ?? entry.company_id}
+                      </Link>
+                    )}
+                  </TableCell>
+                  <TableCell label={col.changes} className="text-footnote text-text-dim">
+                    {entry.action === 'update' && describeChanges(entry.old_data, entry.new_data)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </Table>
+          )}
+          <Pager
+            page={page}
+            pageSize={PAGE_SIZE}
+            shown={entries.length}
+            total={total}
+            href={(n) =>
+              withParams(paths.adminAudit, { empresa: companyId ?? undefined }, { pagina: n })
+            }
+          />
+        </div>
       )}
     </>
   );

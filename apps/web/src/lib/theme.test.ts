@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { THEME_COOKIE, themeChoiceFromCookie, themeClass, themeCookie } from './theme';
+import {
+  THEME_COOKIE,
+  themeChoiceFromCookie,
+  themeChoiceFromCookieString,
+  themeClass,
+  themeCookie,
+} from './theme';
 
 describe('themeChoiceFromCookie', () => {
   it('reads a valid choice', () => {
@@ -48,5 +54,19 @@ describe('themeCookie', () => {
       const value = themeCookie(choice, true).split(';')[0]?.split('=')[1];
       expect(themeChoiceFromCookie(value)).toBe(choice);
     }
+  });
+});
+
+describe('themeChoiceFromCookieString', () => {
+  it('finds the choice among the other cookies', () => {
+    expect(themeChoiceFromCookieString(`a=1; ${THEME_COOKIE}=dark; b=2`)).toBe('dark');
+    expect(themeChoiceFromCookieString(`${THEME_COOKIE}=system`)).toBe('system');
+  });
+
+  it('starts in light without the cookie or with garbage (D26-E1)', () => {
+    expect(themeChoiceFromCookieString('')).toBe('light');
+    expect(themeChoiceFromCookieString('a=1')).toBe('light');
+    expect(themeChoiceFromCookieString(`${THEME_COOKIE}=purple`)).toBe('light');
+    expect(themeChoiceFromCookieString(`x${THEME_COOKIE}=dark`)).toBe('light');
   });
 });

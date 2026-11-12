@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 
 import { AppShell } from '@/components/app-shell';
 import { buttonVariants } from '@/components/ui/button';
+import { Notice } from '@/components/ui/notice';
 import { MOBILE_ONLY_SHARE_PARAM, paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
 
@@ -23,22 +24,22 @@ export default async function MobileOnlyPage({ searchParams }: PageProps<'/solo-
   const token = typeof shared === 'string' && isShareToken(shared) ? shared : null;
   return (
     <AppShell viewer={viewer}>
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border bg-cell px-6 py-12 text-center sm:mt-8">
-        <span className="flex size-12 items-center justify-center rounded-full bg-surface-high text-text-dim">
-          <Smartphone aria-hidden className="size-6" />
-        </span>
-        <div className="space-y-1.5">
-          <h1 className="text-title2 text-text">{c.title}</h1>
-          <p className="text-callout text-text-dim">{c.description}</p>
+      <div className="mx-auto max-w-lg border bg-cell sm:mt-8">
+        <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-surface-high text-text">
+            <Smartphone aria-hidden className="size-6" />
+          </span>
+          <div className="space-y-2">
+            <h1 className="text-title2 text-text">{c.title}</h1>
+            <p className="text-callout text-text-dim">{c.description}</p>
+          </div>
         </div>
         {token && (
-          <div className="mt-2 w-full space-y-4 rounded-2xl bg-highlight px-4 py-4">
-            <p className="text-subhead text-text" role="status">
-              {shareLinksCopy.internal.operatorHandoff}
-            </p>
+          <div className="space-y-4 border-t px-6 py-6">
+            <Notice tone="info">{shareLinksCopy.internal.operatorHandoff}</Notice>
             <a
               href={appShareLink(token)}
-              className={buttonVariants({ variant: 'primary', className: 'w-full' })}
+              className={buttonVariants({ variant: 'primary', size: 'lg', className: 'w-full' })}
             >
               {shareLinksCopy.internal.openInApp}
             </a>

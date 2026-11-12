@@ -33,6 +33,9 @@ const ALIVE: readonly LoadStatus[] = [
 /** Rows per request; PostgREST caps a response (1,000 by default). */
 const PAGE_SIZE = 1000;
 
+/** Load ids per request of `tripRoutes`. */
+const ROUTE_BATCH = 100;
+
 /** Rows of "Cargas activas" and of "Requiere tu atención". */
 export const ACTIVE_LOADS_SHOWN = 5;
 export const ATTENTION_SHOWN = 6;
@@ -149,13 +152,20 @@ interface TripLoadRoute {
 /** The routes of some trips' loads, from client_loads (I6). */
 async function tripRoutes(supabase: Supabase, loadIds: string[]) {
   const routes = new Map<string, TripLoadRoute>();
-  if (loadIds.length === 0) return routes;
-  const { data, error } = await supabase
-    .rpc('client_loads')
-    .select('id, origin_city, destination_city')
-    .in('id', loadIds);
-  if (error) throw new Error(`Dashboard trip loads query failed: ${error.message}`);
-  for (const row of data as unknown as TripLoadRoute[]) routes.set(row.id, row);
+  // In batches: a response holds at most 1,000 rows, and a URL only so many ids.
+  const batches: string[][] = [];
+  for (let from = 0; from < loadIds.length; from += ROUTE_BATCH) {
+    batches.push(loadIds.slice(from, from + ROUTE_BATCH));
+  }
+  const results = await Promise.all(
+    batches.map((ids) =>
+      supabase.rpc('client_loads').select('id, origin_city, destination_city').in('id', ids),
+    ),
+  );
+  for (const { data, error } of results) {
+    if (error) throw new Error(`Dashboard trip loads query failed: ${error.message}`);
+    for (const row of data as unknown as TripLoadRoute[]) routes.set(row.id, row);
+  }
   return routes;
 }
 

@@ -52,12 +52,6 @@ export default async function AdminLoadPage({ params }: PageProps<'/admin/cargas
 
   const rail = (
     <DetailRail>
-      <RailSection label={adminOpsCopy.columns.status}>
-        <div className="flex flex-wrap items-center gap-2">
-          <LoadStatusBadge status={load.status} />
-          {trip && <TripStatusBadge status={trip.status} />}
-        </div>
-      </RailSection>
       <RailSection label={agreed === null ? d.proposed : d.agreed}>
         <Money cents={agreed ?? load.proposed_price_cents} size="numeral" className="block" />
         {agreed !== null && (
@@ -65,6 +59,8 @@ export default async function AdminLoadPage({ params }: PageProps<'/admin/cargas
             {d.proposed}: <Money cents={load.proposed_price_cents} />
           </p>
         )}
+        {/* The load's state is in the header; the rail adds its trip's. */}
+        {trip && <TripStatusBadge status={trip.status} />}
       </RailSection>
       <RailSection label={adminOpsCopy.contract.title}>
         {open ? (

@@ -41,7 +41,6 @@ export function ContractForm({
   const carrierName = (id: string) => carriers.find((carrier) => carrier.id === id)?.legal_name;
   return (
     <form action={action} className="space-y-4" noValidate>
-      <p className="text-footnote text-text-dim">{c.help}</p>
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.message && <Notice tone="success">{state.message}</Notice>}
       <input type="hidden" name="loadId" value={loadId} />
@@ -77,6 +76,7 @@ export function ContractForm({
           name="conditions"
           rows={2}
           maxLength={1000}
+          className="min-h-16"
           defaultValue={state.values?.conditions}
           aria-invalid={errors.conditions ? true : undefined}
           aria-describedby={describedBy('contract-conditions', errors.conditions)}
@@ -111,6 +111,7 @@ export function ContractForm({
       >
         {pending ? c.pending : c.submit}
       </ConfirmSubmit>
+      <p className="text-footnote text-text-dim">{c.help}</p>
     </form>
   );
 }

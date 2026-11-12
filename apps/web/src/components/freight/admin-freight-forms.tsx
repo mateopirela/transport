@@ -109,7 +109,6 @@ export function RecordPaymentForm({
         </div>
         <StateNotice state={state} />
         <ConfirmSubmit
-          variant="primary"
           size="sm"
           loading={pending}
           title={k.recordPayment.title}

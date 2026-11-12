@@ -121,9 +121,6 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
 
   const rail = (
     <DetailRail>
-      <RailSection label={adminCopy.columns.status}>
-        <StatusBadge state={company.status} kind="verification" />
-      </RailSection>
       {summary && (
         <RailSection label={e.progressHint}>
           <p className="text-numeral text-text tabular-nums">

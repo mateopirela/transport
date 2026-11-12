@@ -218,9 +218,12 @@ function Kit() {
 
         <SectionHeader title={sample.fieldsTitle} />
         <Group>
+          <FieldCell label={mobileCompanyCopy.rfcLabel} placeholder={mobileCompanyCopy.rfcLabel} />
           <FieldCell
-            label={mobileCompanyCopy.legalNameLabel}
-            placeholder={mobileCompanyCopy.legalNameLabel}
+            label={mobileAuthCopy.passwordLabel}
+            secureTextEntry
+            revealable
+            autoComplete="new-password"
           />
           <FieldCell
             label={mobilePhoneCopy.label}
@@ -239,7 +242,7 @@ function Kit() {
             />
           </ControlCell>
           <TextCell icon="info" tone="dim">
-            {mobileCompanyCopy.legalRepresentativeHint}
+            {mobileCompanyCopy.subtitle}
           </TextCell>
         </Group>
         <Field

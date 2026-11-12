@@ -1,0 +1,177 @@
+# Sign-up in steps (D42, D43, R2): a new hombre-camión, Rosa Elizondo, opens
+# "Soy transportista: crear cuenta" from the sign-in, sees the invitation
+# entry under the kinds, fills step 1 (the account, with the password shown
+# once), goes to step 2 (Nombre fiscal, without Representante legal for a
+# persona física), goes back and finds everything as it was, and creates the
+# account: "Confirma tu correo". 25-carrier-sign-up-confirm opens the link.
+# Run it on a fresh seed (the email and the RFC are new there).
+appId: ${APP_ID}
+name: Hombre-camión · registro por pasos
+tags: [carrier, sign-up]
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+    permissions:
+      location: always
+      camera: allow
+      notifications: deny
+- openLink: ${DEV_CLIENT_URL}
+# iOS can ask before a custom scheme opens the app ("Open in …?").
+- extendedWaitUntil:
+    visible: 'Open in .*'
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: 'Open'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Entrar'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+      - waitForAnimationToEnd
+# The dev menu sheet can stay open after "Continue": close it first.
+- runFlow:
+    when:
+      visible: 'Toggle performance monitor'
+    commands:
+      - tapOn:
+          point: '50%,12%'
+      - waitForAnimationToEnd
+# D43: the invitation sits under the sign-in fields.
+- assertVisible: '¿Tu empresa ya utiliza Transport?'
+- assertVisible: 'Únete con tu invitación'
+- takeScreenshot: 24-1-sign-in
+- tapOn: 'Soy transportista: crear cuenta'
+- extendedWaitUntil:
+    visible: 'Paso 1 de 5'
+    timeout: 10000
+# D42: the kinds, who runs the company, and the invitation under them.
+- assertVisible: 'Soy transportista \(Gerente\).*'
+- assertVisible: 'Posteriormente podrás invitar y administrar a los colaboradores de tu empresa.'
+- tapOn: 'Soy hombre-camión.*'
+- assertVisible: 'Manejas tu propio camión.*'
+- takeScreenshot: 24-2-step-1
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Nombre completo'
+      TEXT: 'Rosa Elizondo'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Teléfono'
+      TEXT: '8110000077'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Correo electrónico'
+      TEXT: 'rosa.elizondo@demo.test'
+- runFlow:
+    file: subflows/fill-new-password.yaml
+    env:
+      LABEL: 'Contraseña'
+      TEXT: 'Demo1234'
+- runFlow:
+    file: subflows/fill-new-password.yaml
+    env:
+      LABEL: 'Confirma tu contraseña'
+      TEXT: 'Demo1234'
+- tapOn: 'Confirma tu contraseña'
+# The password can be shown with the button beside it.
+- scrollUntilVisible:
+    element: 'Mostrar contraseña'
+    centerElement: true
+- tapOn:
+    text: 'Mostrar contraseña'
+    index: 0
+- assertVisible: 'Ocultar contraseña'
+- takeScreenshot: 24-3-password-shown
+- tapOn: 'Siguiente'
+- extendedWaitUntil:
+    visible: 'Paso 2 de 5'
+    timeout: 10000
+# A persona física: "Nombre fiscal", and no "Representante legal".
+- assertVisible: 'Nombre fiscal'
+- assertNotVisible: 'Representante legal'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Nombre fiscal'
+      TEXT: 'Rosa Elizondo Ríos'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'RFC'
+      TEXT: 'EIRR850312AB1'
+- takeScreenshot: 24-4-step-2
+# Regresar keeps everything, and so does Siguiente again.
+- tapOn: 'Regresar'
+- extendedWaitUntil:
+    visible: 'Paso 1 de 5'
+    timeout: 10000
+- scrollUntilVisible:
+    element: 'rosa.elizondo@demo.test'
+    centerElement: true
+- assertVisible: 'Rosa Elizondo'
+- tapOn: 'Siguiente'
+- extendedWaitUntil:
+    visible: 'Paso 2 de 5'
+    timeout: 10000
+- assertVisible: 'EIRR850312AB1'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Calle'
+      TEXT: 'Av. Constitución'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Número exterior'
+      TEXT: '100'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Colonia'
+      TEXT: 'Centro'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Código postal'
+      TEXT: '64000'
+- runFlow:
+    file: subflows/fill-field.yaml
+    env:
+      LABEL: 'Municipio o alcaldía'
+      TEXT: 'Monterrey'
+- tapOn: 'Municipio o alcaldía'
+- scrollUntilVisible:
+    element: 'Estado.*'
+    centerElement: true
+- tapOn: 'Estado.*'
+- scrollUntilVisible:
+    element: 'Nuevo León'
+    centerElement: true
+- tapOn: 'Nuevo León'
+- scrollUntilVisible:
+    element: 'Acepto los términos y condiciones y el aviso de privacidad'
+    centerElement: true
+- tapOn: 'Acepto los términos y condiciones y el aviso de privacidad'
+- takeScreenshot: 24-5-step-2-filled
+- tapOn: 'Crear cuenta'
+- extendedWaitUntil:
+    visible: 'Not Now'
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: 'Not Now'
+    optional: true
+- extendedWaitUntil:
+    visible: 'Confirma tu correo'
+    timeout: 30000
+- assertVisible: '.*rosa.elizondo@demo.test.*'
+- takeScreenshot: 24-6-check-email

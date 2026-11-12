@@ -474,33 +474,66 @@ export function SwitchCell({
 /**
  * A field as a row of a group: the label small above its box, 48 high with
  * the control line (red on an error). `inSheet` inside a Sheet, so the sheet
- * makes room for the keyboard.
+ * makes room for the keyboard. A `revealable` password field (D42) has a
+ * button at the end of its box that shows or hides what is typed; the button
+ * has its own name, so the field keeps its label. `inputRef` reaches the
+ * input, e.g. to scroll a form to the field with an error.
  */
 export function FieldCell({
   label,
   error,
   inSheet = false,
+  revealable = false,
+  inputRef,
   style,
   ...input
-}: TextInputProps & { label: string; error?: string | undefined; inSheet?: boolean }) {
+}: TextInputProps & {
+  label: string;
+  error?: string | undefined;
+  inSheet?: boolean;
+  revealable?: boolean;
+  inputRef?: Ref<TextInput>;
+}) {
   const kit = useKit();
   const { colors, theme } = useTheme();
+  const [shown, setShown] = useState(false);
   const Input = inSheet ? BottomSheetTextInput : TextInput;
+  const reveal = revealable && input.secureTextEntry === true;
+  const box = (
+    <Input
+      ref={inputRef as Ref<never>}
+      accessibilityLabel={label}
+      placeholderTextColor={colors.textDim}
+      keyboardAppearance={theme}
+      style={[
+        kit.input,
+        input.multiline ? kit.inputMultiline : null,
+        error ? kit.inputError : null,
+        reveal ? kit.inputRevealable : null,
+        style,
+      ]}
+      {...input}
+      secureTextEntry={reveal ? !shown : input.secureTextEntry}
+    />
+  );
   return (
     <View style={kit.controlCell}>
       <Caps style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Caps>
-      <Input
-        accessibilityLabel={label}
-        placeholderTextColor={colors.textDim}
-        keyboardAppearance={theme}
-        style={[
-          kit.input,
-          input.multiline ? kit.inputMultiline : null,
-          error ? kit.inputError : null,
-          style,
-        ]}
-        {...input}
-      />
+      {reveal ? (
+        <View>
+          {box}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={shown ? mobileKitCopy.hidePassword : mobileKitCopy.showPassword}
+            onPress={() => setShown((current) => !current)}
+            style={({ pressed }) => [kit.reveal, pressed ? kit.pressed : null]}
+          >
+            <Icon name={shown ? 'eyeOff' : 'eye'} size={iconSize.cell} color={colors.textDim} />
+          </Pressable>
+        </View>
+      ) : (
+        box
+      )}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </View>
   );
@@ -1606,6 +1639,17 @@ function makeStyles({ colors, type, theme }: Look) {
       textAlignVertical: 'top',
     },
     inputError: { borderColor: colors.redText },
+    // Room at the end of a password box for the button that shows it (D42).
+    inputRevealable: { paddingRight: shape.fieldHeight },
+    reveal: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: shape.fieldHeight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     checkRow: {
       flexDirection: 'row',
       gap: spacing.sm + spacing.xs,

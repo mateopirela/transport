@@ -23,6 +23,7 @@ function setup(overrides: Partial<AuthBackend> = {}) {
     acceptCoordinatorInvitation: vi.fn(async () => ({ error: null })),
     redeemInvitation: vi.fn(async () => ({ error: null, kind: 'operator' as const })),
     registerCompany: vi.fn(async () => ({ error: null })),
+    clearPendingCompany: vi.fn(async () => ({ error: null })),
     updatePhone: vi.fn(async () => ({ error: null })),
     acceptTerms: vi.fn(async () => ({ error: null })),
     ...overrides,
@@ -45,8 +46,40 @@ const carrier = {
   kind: 'carrier' as const,
   email: 'c@x.mx',
   password: 'camion2026',
+  passwordConfirmation: 'camion2026',
+  acceptTerms: true as const,
   fullName: 'Ana',
   phone: '+528112345678',
+  personType: 'fisica' as const,
+  legalName: 'Ana Pérez Garza',
+  rfc: 'PEGA800101AB1',
+  fiscalStreet: 'Av. Constitución',
+  fiscalExteriorNumber: '100',
+  fiscalInteriorNumber: undefined,
+  fiscalNeighborhood: 'Centro',
+  fiscalPostalCode: '64000',
+  fiscalMunicipality: 'Monterrey',
+  fiscalState: 'Nuevo León' as const,
+  legalRepresentativeName: undefined,
+};
+
+/** The company the carrier sign-up keeps for after the email confirmation (D42). */
+const carrierCompany = {
+  kind: 'owner_operator',
+  personType: 'fisica',
+  legalName: 'Ana Pérez Garza',
+  rfc: 'PEGA800101AB1',
+  fiscalStreet: 'Av. Constitución',
+  fiscalExteriorNumber: '100',
+  fiscalInteriorNumber: undefined,
+  fiscalNeighborhood: 'Centro',
+  fiscalPostalCode: '64000',
+  fiscalMunicipality: 'Monterrey',
+  fiscalState: 'Nuevo León',
+  legalRepresentativeName: undefined,
+  contactName: 'Ana',
+  contactEmail: 'c@x.mx',
+  contactPhone: '+528112345678',
 };
 
 describe('signIn', () => {
@@ -61,7 +94,7 @@ describe('signIn', () => {
 });
 
 describe('signUpCarrier', () => {
-  it('signs up with the manager role, the kind and the confirmation deep link', async () => {
+  it('signs up with the manager role, the company and the confirmation deep link', async () => {
     const { actions, backend } = setup();
     const result = await actions.signUpCarrier({ ...carrier, kind: 'owner_operator' });
     expect(result).toEqual({ ok: true, value: 'check_email' });
@@ -75,8 +108,16 @@ describe('signUpCarrier', () => {
         phone: '+528112345678',
         pending_company_kind: 'owner_operator',
         terms_version: TERMS_VERSION,
+        pending_company: carrierCompany,
       },
     });
+  });
+
+  it('never puts a password in the metadata (D42)', async () => {
+    const { actions, backend } = setup();
+    await actions.signUpCarrier(carrier);
+    const metadata = JSON.stringify(vi.mocked(backend.signUp).mock.calls[0]?.[0].metadata);
+    expect(metadata).not.toContain(carrier.password);
   });
 
   it('drops a leftover invitation token from an unfinished sign-up', async () => {
@@ -84,6 +125,59 @@ describe('signUpCarrier', () => {
     await pending.set(TOKEN);
     await actions.signUpCarrier(carrier);
     expect(stored()).toBeNull();
+  });
+});
+
+describe('registerPendingCompany (D42)', () => {
+  it('registers the company saved at sign-up and then drops it from the metadata', async () => {
+    const { actions, backend } = setup();
+    const company = {
+      ...carrierCompany,
+      kind: 'owner_operator' as const,
+      personType: 'fisica' as const,
+      fiscalState: 'Nuevo León' as const,
+    };
+    expect(await actions.registerPendingCompany(company)).toEqual({ ok: true, value: undefined });
+    expect(vi.mocked(backend.registerCompany).mock.calls[0]?.[0]).toMatchObject({
+      kind: 'owner_operator',
+      rfc: 'PEGA800101AB1',
+      legalRepresentativeName: null,
+    });
+    expect(backend.clearPendingCompany).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps it when the registration fails, with the reason (a taken RFC)', async () => {
+    const { actions, backend } = setup({
+      registerCompany: async () => ({
+        error: {
+          code: '23505',
+          message: 'duplicate key value violates unique constraint "companies_rfc_key"',
+        },
+      }),
+    });
+    const company = {
+      ...carrierCompany,
+      kind: 'carrier' as const,
+      personType: 'fisica' as const,
+      fiscalState: 'Nuevo León' as const,
+    };
+    expect(await actions.registerPendingCompany(company)).toEqual({ ok: false, error: 'rfcTaken' });
+    expect(backend.clearPendingCompany).not.toHaveBeenCalled();
+  });
+
+  it('still succeeds when dropping the saved copy fails', async () => {
+    const { actions } = setup({
+      clearPendingCompany: async () => {
+        throw new Error('offline');
+      },
+    });
+    const company = {
+      ...carrierCompany,
+      kind: 'carrier' as const,
+      personType: 'fisica' as const,
+      fiscalState: 'Nuevo León' as const,
+    };
+    expect(await actions.registerPendingCompany(company)).toEqual({ ok: true, value: undefined });
   });
 });
 

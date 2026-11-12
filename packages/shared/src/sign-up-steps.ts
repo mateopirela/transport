@@ -4,7 +4,11 @@
 // the account exists (R3). Pure, so the web (R1) and the app (R2) share it.
 import { authCopy } from './copy/auth';
 import { REGISTRATION_ACCOUNT_FIELDS } from './schemas/auth';
-import type { PersonType } from './schemas/company';
+import {
+  companyRegistrationSchema,
+  type CompanyRegistrationValues,
+  type PersonType,
+} from './schemas/company';
 
 /** The five steps of D42, in order. */
 export const SIGN_UP_STEPS = ['account', 'fiscal', 'documents', 'profile', 'verification'] as const;
@@ -64,4 +68,25 @@ export function fiscalFieldsFor(personType: PersonType): {
 /** The person type a stored RFC tells: 12 characters moral, 13 física. */
 export function personTypeOfRfc(rfc: string): PersonType {
   return rfc.trim().length === 13 ? 'fisica' : 'moral';
+}
+
+/**
+ * Key in the user metadata where a sign-up keeps the company registration
+ * (kind, fiscal data and contact, G2) until the email is confirmed and there
+ * is a session to call `register_company` with: the web (R1) and the app
+ * (R2) both write and read it. Never a password.
+ */
+export const PENDING_COMPANY_KEY = 'pending_company';
+
+/**
+ * The company registration a sign-up left in the user metadata, or null when
+ * there is none or it is not valid. The metadata is user-controlled, so it is
+ * validated again here (and `register_company` validates it once more).
+ */
+export function pendingCompanyOf(metadata: unknown): CompanyRegistrationValues | null {
+  if (typeof metadata !== 'object' || metadata === null) return null;
+  const parsed = companyRegistrationSchema.safeParse(
+    (metadata as Record<string, unknown>)[PENDING_COMPANY_KEY],
+  );
+  return parsed.success ? parsed.data : null;
 }

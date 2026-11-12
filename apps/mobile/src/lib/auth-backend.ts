@@ -1,4 +1,4 @@
-import type { RedeemableKind } from '@transport/shared';
+import { PENDING_COMPANY_KEY, type RedeemableKind } from '@transport/shared';
 
 import type { AuthBackend } from './auth';
 import type { Supabase } from './supabase';
@@ -60,6 +60,8 @@ export function createSupabaseAuthBackend(client: Supabase): AuthBackend {
     },
 
     registerCompany: (payload) => client.rpc('register_company', { p_payload: payload }),
+
+    clearPendingCompany: () => client.auth.updateUser({ data: { [PENDING_COMPANY_KEY]: null } }),
 
     acceptTerms: (version) => client.rpc('accept_terms', { p_terms_version: version }),
 

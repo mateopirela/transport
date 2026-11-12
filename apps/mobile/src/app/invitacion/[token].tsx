@@ -278,6 +278,7 @@ function PasswordFields({
         onChangeText={set('password')}
         error={errors.password}
         secureTextEntry
+        revealable
         autoComplete="new-password"
         textContentType="newPassword"
       />
@@ -287,6 +288,7 @@ function PasswordFields({
         onChangeText={set('passwordConfirmation')}
         error={errors.passwordConfirmation}
         secureTextEntry
+        revealable
         autoComplete="new-password"
         textContentType="newPassword"
       />

@@ -40,6 +40,9 @@ const GLYPHS = {
   mail: 'mail-outline',
   lock: 'lock-closed-outline',
   key: 'key-outline',
+  /** The button that shows a password (D42); `eyeOff` hides it again. */
+  eye: 'eye-outline',
+  eyeOff: 'eye-off-outline',
   notifications: 'notifications-outline',
   search: 'search-outline',
   add: 'add',

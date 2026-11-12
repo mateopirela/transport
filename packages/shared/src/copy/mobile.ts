@@ -1,6 +1,7 @@
 // Spanish copy of the carrier/operator app shell (B17): authentication,
 // invitations, navigation and connectivity.
 import { LOGIN_LOCKOUT } from '../auth-security';
+import { authCopy } from './auth';
 import { accessSecurityCopy } from './auth-security';
 
 import { PLATFORM_NAME } from './brokered';
@@ -18,16 +19,30 @@ export const mobileAuthCopy = {
   phoneLabel: 'Teléfono',
   signInTitle: 'Iniciar sesión',
   signInAction: 'Entrar',
-  signUpTitle: 'Registro de transportista',
-  signUpSubtitle: 'Crea tu cuenta para registrar tu empresa y tu flota.',
-  signUpKindLabel: '¿Qué vas a registrar?',
-  signUpKindCarrier: 'Soy transportista (empresa)',
-  signUpKindOwnerOperator: 'Soy hombre camión',
-  signUpKindOwnerOperatorHint:
+  signUpTitle: authCopy.signUp.title,
+  signUpSubtitle:
+    'Registra tu empresa como transportista u hombre-camión. La revisaremos antes de activarla.',
+  signUpKindLabel: authCopy.registrationKinds.label,
+  /** The kinds of D42, as in the web (R1); each with its line under it. */
+  signUpKindCarrier: authCopy.registrationKinds.carrier,
+  signUpKindCarrierHint: authCopy.registrationKinds.carrierHint,
+  signUpKindOwnerOperator: authCopy.registrationKinds.owner_operator,
+  signUpKindOwnerOperatorHint: authCopy.registrationKinds.ownerOperatorHint,
+  /** Under the kinds when the Gerente is chosen (D42). */
+  signUpManagerNote: authCopy.registrationKinds.managerNote,
+  /** Under the kinds when the hombre-camión is chosen (D13). */
+  signUpOwnerOperatorNote:
     'Manejas tu propio camión: tendrás las pantallas del transportista y las del operador.',
-  signUpAction: 'Crear cuenta',
+  /** The five steps of the sign-up (D42); the app fills the first two, as the web. */
+  signUpStepsLabel: authCopy.signUp.stepsLabel,
+  signUpSteps: authCopy.signUp.steps,
+  signUpNext: authCopy.signUp.next,
+  signUpBack: authCopy.signUp.back,
+  signUpAction: authCopy.signUp.submit,
   goToSignUp: 'Soy transportista: crear cuenta',
-  goToInvite: 'Tengo un enlace de invitación',
+  /** The way in for people whose company already uses Transport (D43). */
+  invitationQuestion: authCopy.invitationEntry.question,
+  invitationLink: authCopy.invitationEntry.link,
   goToSignIn: 'Ya tengo cuenta: iniciar sesión',
   checkEmailTitle: 'Confirma tu correo',
   checkEmailBody: (email: string) =>
@@ -84,10 +99,8 @@ export const mobileCompanyCopy = {
   subtitle:
     'Como aparecen en tu constancia de situación fiscal. Los revisaremos antes de que puedas ofertar.',
   kindLabel: 'Tipo de registro',
-  kindCarrier: 'Transportista (empresa)',
-  kindOwnerOperator: 'Hombre camión',
-  kindOwnerOperatorHint: 'Serás Gerente y Operador de tu propia empresa (D13).',
-  legalNameLabel: 'Razón social o nombre',
+  /** While the company saved at sign-up is registered, once the email is confirmed (R2). */
+  registering: 'Registrando tu empresa…',
   rfcLabel: 'RFC',
   personTypeLabel: 'Tipo de persona',
   personTypeMoral: 'Persona moral',
@@ -101,8 +114,7 @@ export const mobileCompanyCopy = {
   municipalityLabel: 'Municipio o alcaldía',
   stateLabel: 'Estado',
   statePlaceholder: 'Selecciona un estado',
-  legalRepresentativeLabel: 'Representante legal',
-  legalRepresentativeHint: 'Obligatorio para personas morales.',
+  legalRepresentativeLabel: authCopy.fields.legalRepresentativeName,
   contactTitle: 'Contacto',
   saveAction: 'Guardar y continuar',
   inReviewTitle: 'Tu cuenta está en revisión',
@@ -149,6 +161,9 @@ export const mobilePhoneCopy = {
 export const mobileKitCopy = {
   /** Over a row of steps: "Paso 2 de 4". */
   stepOf: (step: number, count: number) => `Paso ${step} de ${count}`,
+  /** The button beside a password field (D42): its name says what a tap does. */
+  showPassword: authCopy.fields.showPassword,
+  hidePassword: 'Ocultar contraseña',
   sample: {
     title: 'Muestra del kit',
     tones: {

@@ -5,8 +5,9 @@ import { Cell, ErrorText, Footnote, Group, GroupLabel } from './ui';
 
 /**
  * A labelled choice among a few exclusive options (the registration kind),
- * as the phone's own settings: a group of rows, the chosen one with a check,
- * and the hint of the choice (or the error) under it.
+ * as the phone's own settings: a group of rows, each with an optional line
+ * under its title, the chosen one with a check, and the hint of the choice
+ * (or the error) under it.
  */
 export function OptionGroup<T extends string>({
   label,
@@ -17,7 +18,7 @@ export function OptionGroup<T extends string>({
   error,
 }: {
   label: string;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; subtitle?: string | undefined }[];
   value: T;
   onChange: (value: T) => void;
   hint?: string | undefined;
@@ -33,6 +34,7 @@ export function OptionGroup<T extends string>({
               key={option.value}
               role="radio"
               title={option.label}
+              subtitle={option.subtitle}
               lines={2}
               checked={value === option.value}
               onPress={() => onChange(option.value)}

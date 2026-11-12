@@ -2,6 +2,7 @@ import { mobileAuthCopy as copy, mobileErrorCopy, signInSchema } from '@transpor
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
+import { InvitationEntry } from '../../components/invitation-entry';
 import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { BrandBlock, Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
@@ -11,7 +12,8 @@ import { useSession } from '../../providers/session';
  * Sign-in with "Correo o teléfono" (G2): a phone-only operator types their
  * phone. The brand opens it on its Night block; the two fields in one group
  * and "Entrar" as the only primary, fixed at the bottom over the keyboard;
- * the ways to sign up or to open an invitation stay quiet under the fields.
+ * the password can be shown (D42). Under the fields, the way in with an
+ * invitation (D43) and the way to sign up stay quiet.
  */
 export default function SignIn() {
   const { actions } = useSession();
@@ -58,20 +60,17 @@ export default function SignIn() {
             onChangeText={setPassword}
             error={errors.password}
             secureTextEntry
+            revealable
             autoComplete="current-password"
             textContentType="password"
             onSubmitEditing={submit}
           />
         </Group>
+        <InvitationEntry />
         <Button
           label={copy.goToSignUp}
           variant="secondary"
           onPress={() => router.push('/sign-up')}
-        />
-        <Button
-          label={copy.goToInvite}
-          variant="plain"
-          onPress={() => router.push('/invitacion')}
         />
       </Screen>
       <KeyboardBottomBar

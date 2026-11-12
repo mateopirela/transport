@@ -1,7 +1,8 @@
 import 'server-only';
 
 import {
-  companyRegistrationSchema,
+  PENDING_COMPANY_KEY,
+  pendingCompanyOf,
   registerCompanyPayload,
   type CompanyRegistrationValues,
 } from '@transport/shared';
@@ -12,12 +13,11 @@ import type { Supabase } from '../viewer';
 
 /**
  * Key in the user metadata where the sign-up keeps the company registration
- * (kind, fiscal data and contact, G2) until the email is confirmed and there
- * is a session to call `register_company` with. The metadata is
- * user-controlled: it is re-validated here and the RPC validates again
- * (role against kind, one company per user, RFC, address).
+ * until the email is confirmed (shared with the app, R2). The metadata is
+ * user-controlled: pendingCompanyOf re-validates it and the RPC validates
+ * again (role against kind, one company per user, RFC, address).
  */
-export const PENDING_COMPANY_KEY = 'pending_company';
+export { PENDING_COMPANY_KEY };
 
 /** Registers the caller's company through the `register_company` RPC (G2). */
 export async function registerCompany(
@@ -39,8 +39,8 @@ export async function pendingCompany(
 ): Promise<{ userId: string; company: CompanyRegistrationValues } | null> {
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
-  const parsed = companyRegistrationSchema.safeParse(data.user.user_metadata[PENDING_COMPANY_KEY]);
-  return parsed.success ? { userId: data.user.id, company: parsed.data } : null;
+  const company = pendingCompanyOf(data.user.user_metadata);
+  return company ? { userId: data.user.id, company } : null;
 }
 
 /**

@@ -3,8 +3,15 @@ import type {
   CompanyRegistrationValues,
   MobileErrorKey,
   RedeemableKind,
+  RegistrationSignUpValues,
 } from '@transport/shared';
-import { phoneAuthEmail, registerCompanyPayload, TERMS_VERSION } from '@transport/shared';
+import {
+  companyFromSignUp,
+  PENDING_COMPANY_KEY,
+  phoneAuthEmail,
+  registerCompanyPayload,
+  TERMS_VERSION,
+} from '@transport/shared';
 
 import { isFinalInvitationError, toErrorKey } from './errors';
 
@@ -28,8 +35,13 @@ export interface AuthBackend {
       role: 'manager' | 'coordinator';
       full_name: string;
       phone: string;
-      /** What a Gerente registers next (company or hombre-camión); only a hint for the form. */
+      /** What a Gerente registers (company or hombre-camión); only a hint for the form. */
       pending_company_kind?: CarrierSignUpKind;
+      /**
+       * The company of the sign-up (D42, R2), registered once the email is
+       * confirmed and there is a session (registerPendingCompany). Never a password.
+       */
+      [PENDING_COMPANY_KEY]?: CompanyRegistrationValues;
       /** The version of the terms accepted with the checkbox (I1, TERMS_VERSION). */
       terms_version: string;
     };
@@ -52,6 +64,8 @@ export interface AuthBackend {
   acceptTerms(version: string): PromiseLike<Outcome>;
   /** register_company (G2). */
   registerCompany(payload: ReturnType<typeof registerCompanyPayload>): PromiseLike<Outcome>;
+  /** Drops the company saved at sign-up from the user metadata, once registered. */
+  clearPendingCompany(): PromiseLike<Outcome>;
   /** profiles.phone of the signed-in user (G2, "Completa tu teléfono"). */
   updatePhone(userId: string, phone: string): PromiseLike<Outcome>;
 }
@@ -115,27 +129,29 @@ export function createAuthActions(
       });
     },
 
-    /** A carrier company or a hombre-camión (D13); the company comes next (company.tsx). */
-    signUpCarrier(input: {
-      kind: CarrierSignUpKind;
-      email: string;
-      password: string;
-      fullName: string;
-      phone: string;
-    }): Promise<Result<SignUpOutcome>> {
+    /**
+     * A carrier company or a hombre-camión (D13), in the two steps of D42:
+     * the account and the company's fiscal data. The company travels in the
+     * user metadata (as on the web) and is registered once the email is
+     * confirmed and there is a session (registerPendingCompany, company.tsx).
+     */
+    signUpCarrier(
+      values: RegistrationSignUpValues & { kind: CarrierSignUpKind },
+    ): Promise<Result<SignUpOutcome>> {
       return guarded(async () => {
         // A previous, unfinished sign-up by link must not leak into this account.
         await pending.clear();
         const { error, hasSession } = await backend.signUp({
-          email: input.email,
-          password: input.password,
+          email: values.email,
+          password: values.password,
           redirectTo,
           metadata: {
             role: 'manager',
-            full_name: input.fullName,
-            phone: input.phone,
-            pending_company_kind: input.kind,
+            full_name: values.fullName,
+            phone: values.phone,
+            pending_company_kind: values.kind,
             terms_version: TERMS_VERSION,
+            [PENDING_COMPANY_KEY]: companyFromSignUp(values),
           },
         });
         if (error) return fail(error);
@@ -265,6 +281,20 @@ export function createAuthActions(
       return guarded(async () => {
         const { error } = await backend.registerCompany(registerCompanyPayload(values));
         return error ? fail(error) : ok(undefined);
+      });
+    },
+
+    /**
+     * Registers the company saved at sign-up (D42) and then drops it from the
+     * metadata. Dropping it is best effort: a stale copy is harmless, since
+     * register_company refuses a second company.
+     */
+    registerPendingCompany(values: CompanyRegistrationValues): Promise<Result> {
+      return guarded(async () => {
+        const { error } = await backend.registerCompany(registerCompanyPayload(values));
+        if (error) return fail(error);
+        await Promise.resolve(backend.clearPendingCompany()).catch(() => undefined);
+        return ok(undefined);
       });
     },
 

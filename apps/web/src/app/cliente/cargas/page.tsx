@@ -1,33 +1,27 @@
-import {
-  brokeredCopy,
-  formatDate,
-  formatMxn,
-  LOAD_STATUSES,
-  loadsCopy,
-  loadStatusLabels,
-  unitTypeLabels,
-} from '@transport/shared';
+import { clientListsCopy, LOAD_STATUSES, loadsCopy, loadStatusLabels } from '@transport/shared';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { LoadStatusBadge } from '@/components/loads/load-status-badge';
+import { LoadsTable } from '@/components/client/loads-table';
 import { Pager } from '@/components/pager';
 import { buttonVariants } from '@/components/ui/button';
-import { Cell } from '@/components/ui/cell';
 import { Empty } from '@/components/ui/empty';
-import { Group } from '@/components/ui/group';
 import { PageHeader } from '@/components/ui/page-header';
 import { Segmented } from '@/components/ui/segmented';
 import { listCompanyLoads, LOADS_PAGE_SIZE, shipperContext } from '@/lib/loads/queries';
 import { parseStatusFilter } from '@/lib/loads/status';
 import { parsePage, withParams } from '@/lib/pagination';
-import { loadPath, paths } from '@/lib/routing';
+import { paths } from '@/lib/routing';
 
 const c = loadsCopy.list;
 
 export const metadata: Metadata = { title: c.title };
 
-/** The shipper's loads, filterable by status (B13): one cell per load, its status as a pill. */
+/**
+ * The shipper's loads, filterable by status (B13), as a table (V3): the
+ * route, the pickup, the unit, the price and the status. "Publicar carga" is
+ * the one primary, in the header.
+ */
 export default async function LoadsPage({ searchParams }: PageProps<'/cliente/cargas'>) {
   const { supabase, companyId } = await shipperContext(paths.shipperLoads);
   const params = await searchParams;
@@ -60,26 +54,21 @@ export default async function LoadsPage({ searchParams }: PageProps<'/cliente/ca
       <Segmented label={c.title} value={status ?? 'all'} items={filters} className="mb-6" />
 
       {rows.length === 0 ? (
-        total === 0 && <Empty title={c.empty} />
+        total === 0 &&
+        (status ? (
+          <Empty
+            title={clientListsCopy.loads.emptyFiltered}
+            action={
+              <Link href={paths.shipperLoads} className={buttonVariants({ variant: 'secondary' })}>
+                {clientListsCopy.loads.seeAll}
+              </Link>
+            }
+          />
+        ) : (
+          <Empty title={c.empty} description={clientListsCopy.loads.emptyHelp} />
+        ))
       ) : (
-        <Group>
-          {rows.map((load) => (
-            <Cell
-              key={load.id}
-              href={loadPath(load.id)}
-              title={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
-              subtitle={[
-                `${c.columns.pickup} ${formatDate(load.pickup_window_start)}`,
-                unitTypeLabels[load.unit_type],
-                // A load sent to the platform (I6): the client's price, once quoted.
-                load.proposed_price_cents === null
-                  ? brokeredCopy.shipper.toQuote
-                  : formatMxn(load.proposed_price_cents),
-              ].join(' · ')}
-              trailing={<LoadStatusBadge status={load.status} quoteStatus={load.brokered_status} />}
-            />
-          ))}
-        </Group>
+        <LoadsTable rows={rows} />
       )}
       <div className="mt-4">
         <Pager

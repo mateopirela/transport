@@ -137,7 +137,7 @@ describe('buildOfferBoard', () => {
 
 describe('formatDelta', () => {
   it('signs the difference against the proposed price', () => {
-    expect(formatDelta(100_000, 'Igual')).toBe('+$1,000.00');
+    expect(formatDelta(100_000, 'Igual')).toBe('+$1,000');
     expect(formatDelta(-50_050, 'Igual')).toBe('−$500.50');
     expect(formatDelta(0, 'Igual')).toBe('Igual');
   });

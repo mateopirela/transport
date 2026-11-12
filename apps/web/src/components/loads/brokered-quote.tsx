@@ -1,6 +1,6 @@
 'use client';
 
-import { brokeredCopy, formatMxn } from '@transport/shared';
+import { brokeredCopy, formatMoney } from '@transport/shared';
 import { useActionState } from 'react';
 
 import { Notice } from '@/components/auth-forms';
@@ -21,7 +21,7 @@ export function ApproveQuoteButton({ loadId, priceCents }: { loadId: string; pri
       <input type="hidden" name="loadId" value={loadId} />
       <input type="hidden" name="priceCents" value={priceCents} />
       <Button type="submit" className="w-full" disabled={pending} loading={pending}>
-        {pending ? c.approving : c.approve(formatMxn(priceCents))}
+        {pending ? c.approving : c.approve(formatMoney(priceCents))}
       </Button>
     </form>
   );

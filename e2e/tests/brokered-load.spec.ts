@@ -71,7 +71,8 @@ test('the client sends a load to Transport, approves its price and the carriers 
     await expect(ana).toHaveURL(/\/cliente\/cargas\/[0-9a-f-]{36}$/u);
     loadId = ana.url().split('/').at(-1) ?? '';
     await expect(ana.getByText(b.shipper.stage.requested).first()).toBeVisible();
-    await expect(ana.getByText('$11,500.00')).toBeVisible();
+    // The client's web writes whole pesos without `.00` (Fulmis, §1.5).
+    await expect(ana.getByText('$11,500')).toBeVisible();
   });
 
   await test.step('the admin quotes $12,000 to Ana and $10,800 to the carriers', async () => {
@@ -95,10 +96,10 @@ test('the client sends a load to Transport, approves its price and the carriers 
   await test.step('Ana sees only her price and approves it', async () => {
     await ana.reload();
     await expect(ana.getByText(b.shipper.stage.quoted).first()).toBeVisible();
-    await expect(ana.getByText('$10,800.00')).toHaveCount(0);
-    await ana.getByRole('button', { name: b.shipper.approve('$12,000.00') }).click();
+    await expect(ana.getByText('$10,800')).toHaveCount(0);
+    await ana.getByRole('button', { name: b.shipper.approve('$12,000') }).click();
     await expect(ana.getByText(b.shipper.stage.searching).first()).toBeVisible();
-    await expect(ana.getByText('$10,800.00')).toHaveCount(0);
+    await expect(ana.getByText('$10,800')).toHaveCount(0);
   });
 
   await test.step('Ana finds it in her loads list, newest first, with her price', async () => {
@@ -107,9 +108,12 @@ test('the client sends a load to Transport, approves its price and the carriers 
     for (const list of ['/cliente/cargas', '/cliente/cargas?estado=published']) {
       await ana.goto(list);
       await expect(ana.getByRole('heading', { name: loadsCopy.list.title })).toBeVisible();
-      const row = ana.locator(`a[href="/cliente/cargas/${loadId}"]`);
-      await expect(row).toContainText('$12,000.00');
-      await expect(ana.getByText('$10,800.00')).toHaveCount(0);
+      // The loads are a table (V3): the route is the row's link, the price its own cell.
+      const row = ana
+        .getByRole('row')
+        .filter({ has: ana.locator(`a[href="/cliente/cargas/${loadId}"]`) });
+      await expect(row).toContainText('$12,000');
+      await expect(ana.getByText('$10,800')).toHaveCount(0);
     }
   });
 
@@ -165,14 +169,14 @@ test('the carrier takes the brokered load at its rate and the margin stays with 
     const ana = await browser.newPage();
     await signInOnWeb(ana, 'ana');
     await ana.goto(`/cliente/cargas/${load}`);
-    await expect(ana.getByText('$12,000.00').first()).toBeVisible();
-    await expect(ana.getByText('$10,800.00')).toHaveCount(0);
+    await expect(ana.getByText('$12,000').first()).toBeVisible();
+    await expect(ana.getByText('$10,800')).toHaveCount(0);
     await ana.goto(`/cliente/viajes/${trip.id}`);
-    await expect(ana.getByText('$12,000.00').first()).toBeVisible();
-    await expect(ana.getByText('$10,800.00')).toHaveCount(0);
+    await expect(ana.getByText('$12,000').first()).toBeVisible();
+    await expect(ana.getByText('$10,800')).toHaveCount(0);
     await ana.goto('/cliente/cartera');
-    await expect(ana.getByTestId(`portfolio-row-${trip.id}`)).toContainText('$12,000.00');
-    await expect(ana.getByText('$1,200.00')).toHaveCount(0);
+    await expect(ana.getByTestId(`portfolio-row-${trip.id}`)).toContainText('$12,000');
+    await expect(ana.getByText('$1,200')).toHaveCount(0);
     await ana.close();
   });
 

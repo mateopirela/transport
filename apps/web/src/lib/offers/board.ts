@@ -2,7 +2,7 @@
 // offers (RLS) and the carriers and units the B14 RPCs expose. Pure, so the
 // ordering and the allowed actions are unit-tested.
 import {
-  formatMxn,
+  formatMoney,
   type LoadStatus,
   type OfferSide,
   type OfferStatus,
@@ -144,8 +144,8 @@ export function buildOfferBoard({
   );
 }
 
-/** "+$1,000.00", "−$500.00" or `same` when equal. */
+/** "+$1,000", "−$500.50" or `same` when equal (no `.00` on whole pesos, §1.5). */
 export function formatDelta(cents: number, same: string): string {
   if (cents === 0) return same;
-  return `${cents > 0 ? '+' : '−'}${formatMxn(Math.abs(cents))}`;
+  return `${cents > 0 ? '+' : '−'}${formatMoney(Math.abs(cents))}`;
 }

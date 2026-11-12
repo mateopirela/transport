@@ -1,119 +1,124 @@
 'use client';
 
-import { offersCopy } from '@transport/shared';
-import { useActionState } from 'react';
+import { clientListsCopy, offersCopy } from '@transport/shared';
+import { useActionState, useId } from 'react';
 
-import { Notice } from '@/components/auth-forms';
-import { Disclosure } from '@/components/ui/disclosure';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Field, fieldHelpId } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { acceptOffer, counterOffer, rejectOffer } from '@/lib/offers/actions';
+import { cn } from '@/lib/utils';
 
 const c = offersCopy.actions;
+const o = clientListsCopy.offer;
 
 /**
- * Accept (after an explicit confirmation), counter or reject a carrier's
- * pending offer, each folded in its cell. Confirming the acceptance is the
- * screen's one primary. The RPCs re-check that the offer is still pending.
+ * Accept, counter or reject a carrier's pending offer (§1.5): three buttons,
+ * each opening a dialog that says what will happen. Accepting is the filled
+ * primary when `primary` (the screen's one: the offer the client should
+ * answer first); otherwise it is outlined like the rest. The RPCs re-check
+ * that the offer is still pending.
  */
 export function OfferResponse({
   offerId,
   amount,
   carrier,
+  primary = true,
+  stacked = false,
 }: {
   offerId: string;
-  /** Formatted amount of the offer, for the confirmation. */
+  /** Formatted amount of the offer, for the dialogs. */
   amount: string;
   carrier: string;
+  /** Accept is the screen's filled primary. */
+  primary?: boolean;
+  /** One button under another, the whole width (the rail of a detail). */
+  stacked?: boolean;
 }) {
   const [accepted, accept, accepting] = useActionState(acceptOffer, {});
   const [countered, counter, countering] = useActionState(counterOffer, {});
   const [rejected, reject, rejecting] = useActionState(rejectOffer, {});
+  const id = useId();
+  const amountId = `${id}-amount`;
+  const conditionsId = `${id}-conditions`;
+  const reasonId = `${id}-reason`;
   const amountError = countered.fieldErrors?.amount;
   const conditionsError = countered.fieldErrors?.conditions;
   const reasonError = rejected.fieldErrors?.reason;
+  const offer = <input type="hidden" name="offerId" value={offerId} />;
 
   return (
-    <div className="space-y-3">
-      <Disclosure look="cell" summary={c.accept} tone="accent">
-        <form action={accept} className="space-y-4">
-          <div className="space-y-1">
-            <p className="text-headline text-text">{c.acceptTitle}</p>
-            <p className="text-subhead text-text-dim">{c.acceptHelp(amount, carrier)}</p>
-          </div>
-          {accepted.error && <Notice tone="error">{accepted.error}</Notice>}
-          <input type="hidden" name="offerId" value={offerId} />
-          <Button type="submit" className="w-full" disabled={accepting} loading={accepting}>
-            {accepting ? c.accepting : c.acceptConfirm}
-          </Button>
-        </form>
-      </Disclosure>
+    <div className={cn('flex flex-wrap gap-2', stacked && 'flex-col [&>*]:w-full')}>
+      <ConfirmDialog
+        trigger={<Button variant={primary ? 'primary' : 'secondary'}>{c.accept}</Button>}
+        title={c.acceptTitle}
+        description={c.acceptHelp(amount, carrier)}
+        confirmLabel={accepting ? c.accepting : c.acceptConfirm}
+        action={accept}
+        pending={accepting}
+        error={accepted.error}
+      >
+        {offer}
+      </ConfirmDialog>
 
-      <Disclosure look="cell" summary={c.counter} open={Boolean(countered.error || amountError)}>
-        <form action={counter} className="space-y-4" noValidate>
-          {countered.error && <Notice tone="error">{countered.error}</Notice>}
-          <input type="hidden" name="offerId" value={offerId} />
-          <Field label={c.counterAmount} htmlFor="counter-amount" error={amountError}>
-            <Input
-              id="counter-amount"
-              name="amount"
-              inputMode="decimal"
-              defaultValue={countered.values?.amount}
-              aria-invalid={amountError ? true : undefined}
-              aria-describedby={amountError ? fieldHelpId('counter-amount') : undefined}
-              className="tabular-nums"
-            />
-          </Field>
-          <Field label={c.counterConditions} htmlFor="counter-conditions" error={conditionsError}>
-            <Textarea
-              id="counter-conditions"
-              name="conditions"
-              rows={2}
-              maxLength={1000}
-              defaultValue={countered.values?.conditions}
-              aria-invalid={conditionsError ? true : undefined}
-              aria-describedby={conditionsError ? fieldHelpId('counter-conditions') : undefined}
-            />
-          </Field>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-full"
-            disabled={countering}
-            loading={countering}
-          >
-            {countering ? c.countering : c.counterSubmit}
-          </Button>
-        </form>
-      </Disclosure>
+      <ConfirmDialog
+        trigger={<Button variant="secondary">{c.counter}</Button>}
+        title={o.counterTitle}
+        description={o.counterHelp(amount, carrier)}
+        confirmLabel={countering ? c.countering : c.counterSubmit}
+        action={counter}
+        pending={countering}
+        error={countered.error}
+      >
+        {offer}
+        <Field label={c.counterAmount} htmlFor={amountId} error={amountError}>
+          <Input
+            id={amountId}
+            name="amount"
+            inputMode="decimal"
+            defaultValue={countered.values?.amount}
+            aria-invalid={amountError ? true : undefined}
+            aria-describedby={amountError ? fieldHelpId(amountId) : undefined}
+            className="tabular-nums"
+          />
+        </Field>
+        <Field label={c.counterConditions} htmlFor={conditionsId} error={conditionsError}>
+          <Textarea
+            id={conditionsId}
+            name="conditions"
+            rows={2}
+            maxLength={1000}
+            defaultValue={countered.values?.conditions}
+            aria-invalid={conditionsError ? true : undefined}
+            aria-describedby={conditionsError ? fieldHelpId(conditionsId) : undefined}
+          />
+        </Field>
+      </ConfirmDialog>
 
-      <Disclosure look="cell" summary={c.reject} tone="red">
-        <form action={reject} className="space-y-4" noValidate>
-          {rejected.error && <Notice tone="error">{rejected.error}</Notice>}
-          <input type="hidden" name="offerId" value={offerId} />
-          <Field label={c.rejectReason} htmlFor="reject-reason" error={reasonError}>
-            <Textarea
-              id="reject-reason"
-              name="reason"
-              rows={2}
-              maxLength={1000}
-              aria-invalid={reasonError ? true : undefined}
-              aria-describedby={reasonError ? fieldHelpId('reject-reason') : undefined}
-            />
-          </Field>
-          <Button
-            type="submit"
-            variant="destructive"
-            className="w-full"
-            disabled={rejecting}
-            loading={rejecting}
-          >
-            {rejecting ? c.rejecting : c.rejectConfirm}
-          </Button>
-        </form>
-      </Disclosure>
+      <ConfirmDialog
+        trigger={<Button variant="destructive">{c.reject}</Button>}
+        title={o.rejectTitle}
+        description={o.rejectHelp(carrier)}
+        confirmLabel={rejecting ? c.rejecting : c.rejectConfirm}
+        destructive
+        action={reject}
+        pending={rejecting}
+        error={rejected.error}
+      >
+        {offer}
+        <Field label={c.rejectReason} htmlFor={reasonId} error={reasonError}>
+          <Textarea
+            id={reasonId}
+            name="reason"
+            rows={2}
+            maxLength={1000}
+            aria-invalid={reasonError ? true : undefined}
+            aria-describedby={reasonError ? fieldHelpId(reasonId) : undefined}
+          />
+        </Field>
+      </ConfirmDialog>
     </div>
   );
 }

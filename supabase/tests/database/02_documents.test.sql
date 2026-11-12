@@ -133,8 +133,8 @@ select results_eq(
 );
 select is(
   (select count(*)::int from public.document_requirements),
-  12,
-  'the requirement catalog is seeded: the provisional list of B03 plus the D16 rows (archived ones kept) and the cargo insurance (I1)'
+  14,
+  'the requirement catalog is seeded: the provisional list of B03 plus the D16 rows (archived ones kept), the cargo insurance (I1), the power of attorney and the selfie (R3)'
 );
 
 -- ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ set local role authenticated;
 
 select is(
   (select count(*)::int from public.document_requirements),
-  12,
+  14,
   'members read the requirement catalog'
 );
 select throws_ok(
@@ -157,9 +157,10 @@ select lives_ok(
   $$ update public.document_requirements set is_required = false $$,
   'non-admin requirement updates run but match no rows'
 );
+-- R3: the power of attorney is optional by design (D16-E3).
 select is(
   (select count(*)::int from public.document_requirements where not is_required),
-  0,
+  1,
   'non-admins cannot edit requirements'
 );
 
@@ -513,8 +514,8 @@ select results_eq(
 select tests.login('a0000000-0000-4000-8000-000000000006');
 select results_eq(
   $$ select code from public.company_missing_requirements('c0000000-0000-4000-8000-00000000000c') $$,
-  $$ values ('tax_status_certificate') $$,
-  'a persona física needs the constancia; the id of the legal representative is optional for shippers'
+  $$ values ('tax_status_certificate'), ('legal_representative_id') $$,
+  'a persona física needs the constancia and, since R3 (D16-E3), the INE of the holder or the legal representative'
 );
 select throws_ok(
   $$ select tests.submit('articles_of_incorporation', 'f0000000-0000-4000-8000-000000000040') $$,

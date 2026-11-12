@@ -16,6 +16,9 @@ select plan(63);
 
 -- I1: the cargo insurance (51_cargo_insurance) takes no part in this test.
 update public.trip_document_requirements set is_required = false, blocks_departure = false where kind = 'cargo_insurance';
+-- R3: neither does the operator's selfie (69_onboarding_documents checks that
+-- the gate asks for it).
+update public.document_requirements set is_required = false where code = 'operator_selfie';
 
 -- ---------------------------------------------------------------------------
 -- Test helpers (rolled back with the transaction)

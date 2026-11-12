@@ -244,8 +244,8 @@ select is(
     $$ select r.code from public.document_requirements r
        where r.owner_type = 'operator' and r.is_required and r.archived_at is null
          and (r.company_type is null or r.company_type = 'carrier') $$),
-  'federal_driver_license,operator_official_id',
-  'the personal ones: official id and driver''s license'
+  'federal_driver_license,operator_official_id,operator_selfie',
+  'the personal ones: official id, driver''s license and, since R3 (D44), the selfie'
 );
 select is(
   tests.codes('a5100000-0000-4000-8000-000000000004',

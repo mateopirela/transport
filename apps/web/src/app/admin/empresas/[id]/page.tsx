@@ -10,8 +10,10 @@ import {
   formatDate,
   formatDateTime,
   freightCopy,
+  OPERATOR_ID_REQUIREMENT,
   planPriceLabel,
   progressSummary,
+  SELFIE_REQUIREMENT,
   subscriptionStatusLabels,
   toMexicoCityDate,
   userRoleLabels,
@@ -24,6 +26,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { IdentityCompare, type IdentityDocument } from '@/components/admin/identity-compare';
 import { CompanyCommissionForm, CompanyTermsForm } from '@/components/freight/admin-freight-forms';
 import { BackLink, PageSection, textLink } from '@/components/page-section';
 import { ValueRow } from '@/components/ui/cell';
@@ -111,6 +114,36 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
     .join(', ');
   const { company, owners, unlisted } = verification;
   const [companyOwner, ...fleet] = owners;
+  // D44: each operator's selfie and official id side by side; images only
+  // render as images, so the file type of those documents is read too.
+  const identityIds = fleet.flatMap((owner) =>
+    owner.ownerType === 'operator'
+      ? owner.progress.flatMap(({ requirement, document }) =>
+          document &&
+          (requirement.code === SELFIE_REQUIREMENT || requirement.code === OPERATOR_ID_REQUIREMENT)
+            ? [document.id]
+            : [],
+        )
+      : [],
+  );
+  const mimeTypes = new Map<string, string | null>();
+  if (identityIds.length > 0) {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, mime_type')
+      .in('id', identityIds);
+    if (error) throw new Error(`Could not load identity documents: ${error.message}`);
+    for (const row of data) mimeTypes.set(row.id, row.mime_type);
+  }
+  const identityOf = (progress: (typeof owners)[number]['progress'], code: string) => {
+    const document = progress.find((item) => item.requirement.code === code)?.document;
+    return document
+      ? ({
+          id: document.id,
+          mimeType: mimeTypes.get(document.id) ?? null,
+        } satisfies IdentityDocument)
+      : null;
+  };
   const summary = companyOwner ? progressSummary(companyOwner.progress) : null;
   const missing = summary ? summary.required - summary.approved : 0;
   const address = fiscalAddressLine(company) || '—';
@@ -157,6 +190,14 @@ export default async function AdminCompanyPage({ params }: PageProps<'/admin/emp
                 : `${documentOwnerTypeLabels[owner.ownerType]}: ${owner.label}`
             }
           >
+            {owner.ownerType === 'operator' &&
+              owner.progress.some((item) => item.requirement.code === SELFIE_REQUIREMENT) && (
+                <IdentityCompare
+                  name={owner.label}
+                  selfie={identityOf(owner.progress, SELFIE_REQUIREMENT)}
+                  officialId={identityOf(owner.progress, OPERATOR_ID_REQUIREMENT)}
+                />
+              )}
             <RequirementList
               progress={owner.progress}
               action={({ requirement, document }) =>

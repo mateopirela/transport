@@ -24,6 +24,7 @@ import { authErrorMessage, authFailureState } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
 import {
+  coordinatorWelcomePath,
   homeFor,
   invitationPath,
   invitationPathFromLink,
@@ -235,6 +236,10 @@ export async function joinCompany(_prev: FormState, formData: FormData): Promise
 
   const { error } = await supabase.rpc('accept_coordinator_invitation', { p_token: token.data });
   if (error) return { error: authErrorMessage(error) };
+  // R3 (D43): the invitation ends in step 4 of the Coordinador, the units of
+  // their business units with their documents, once the company is approved.
+  const viewer = await loadViewer(supabase);
+  if (viewer && homeFor(viewer) === paths.carrier) redirect(coordinatorWelcomePath);
   return redirectHome(supabase);
 }
 

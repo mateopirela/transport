@@ -2,6 +2,8 @@ import {
   carrierWebCopy,
   documentsBlockUnit,
   formatDateTime,
+  onboardingStepsCopy,
+  parseOnboardingStep,
   unitLabel,
   unitTypeLabels,
   vehicleKindLabels,
@@ -13,6 +15,7 @@ import Link from 'next/link';
 
 import { FleetNav } from '@/components/carrier/fleet-nav';
 import { ReadinessPill } from '@/components/carrier/readiness-pill';
+import { CoordinatorOnboarding, type StatusGroup } from '@/components/onboarding-steps';
 import { textLink } from '@/components/page-section';
 import { buttonVariants } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
@@ -20,9 +23,10 @@ import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
-import { listCarrierVehicles, loadFleetContext } from '@/lib/carrier/fleet';
+import { listCarrierOperators, listCarrierVehicles, loadFleetContext } from '@/lib/carrier/fleet';
+import { ownerProgress } from '@/lib/carrier/fleet-summary';
 import { parseFleetFlash } from '@/lib/carrier/fleet-forms';
-import { carrierUnitPath, paths } from '@/lib/routing';
+import { carrierOperatorPath, carrierUnitPath, paths } from '@/lib/routing';
 
 const c = carrierWebCopy.fleet;
 
@@ -38,9 +42,35 @@ export default async function CarrierUnitsPage({
   searchParams,
 }: PageProps<'/transportista/flota/unidades'>) {
   const { supabase, companyId, isManager, units } = await carrierContext(paths.carrierUnits);
-  const flash = parseFleetFlash((await searchParams).aviso);
+  const params = await searchParams;
+  const flash = parseFleetFlash(params.aviso);
+  // R3 (D43): a Coordinador who just joined lands here, on their step 4
+  // (`?paso=4`); step 5 (`?paso=5`) is the state of their team's documents.
+  const onboarding = isManager ? null : parseOnboardingStep(params.paso, 'coordinator');
   const context = await loadFleetContext(supabase, companyId);
   const vehicles = await listCarrierVehicles(supabase, context, units.ids);
+  const onboardingGroups: StatusGroup[] = [];
+  if (onboarding === 'verification') {
+    const s = onboardingStepsCopy.coordinator;
+    for (const vehicle of vehicles) {
+      onboardingGroups.push({
+        key: vehicle.id,
+        title: s.unit(`${unitLabel(vehicle)} · ${vehicle.plate}`),
+        step: 'profile',
+        progress: ownerProgress(context, { type: 'vehicle', id: vehicle.id }),
+        href: carrierUnitPath(vehicle.id),
+      });
+    }
+    for (const operator of await listCarrierOperators(supabase, context, units.ids)) {
+      onboardingGroups.push({
+        key: operator.id,
+        title: s.operator(operator.full_name),
+        step: 'profile',
+        progress: ownerProgress(context, { type: 'operator', id: operator.id }),
+        href: carrierOperatorPath(operator.id),
+      });
+    }
+  }
   const add = isManager && (
     <Link href={paths.newCarrierUnit} className={buttonVariants({ variant: 'primary' })}>
       {c.units.add}
@@ -50,6 +80,14 @@ export default async function CarrierUnitsPage({
   return (
     <>
       <PageHeader title={c.title} description={c.units.description} action={add} />
+      {onboarding && (
+        <CoordinatorOnboarding
+          base={paths.carrierUnits}
+          step={onboarding}
+          operatorsHref={paths.carrierOperators}
+          groups={onboardingGroups}
+        />
+      )}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <FleetNav current="units" />
         {!isManager && <p className="text-footnote text-text-dim">{c.managerOnly}</p>}

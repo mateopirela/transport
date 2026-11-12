@@ -1,5 +1,7 @@
 import {
   documentExpirySchema,
+  onboardingStepsCopy,
+  SELFIE_REQUIREMENT,
   documentFileIssueMessages,
   fleetCopy,
   fleetErrorCopy,
@@ -28,11 +30,21 @@ const SOURCES: [PickSource, string, IconName][] = [
   ['pdf', copy.chooseFile, 'document'],
 ];
 
+/**
+ * The selfie (D44) is a photo of the person: the front camera first, a photo
+ * of the library as a fallback (a phone without a working camera), never a PDF.
+ */
+const SELFIE_SOURCES: [PickSource, string, IconName][] = [
+  ['selfie', onboardingStepsCopy.operator.takeSelfie, 'camera'],
+  ['library', copy.choosePhoto, 'image'],
+];
+
 /** The requirement a sheet sends a file for. */
 interface Target {
   requirementId: string;
   name: string;
   requiresExpiry: boolean;
+  selfie: boolean;
 }
 
 /**
@@ -46,6 +58,7 @@ export function DocumentList({
   owner,
   onChanged,
   readOnly = false,
+  codes,
 }: {
   client: Supabase;
   context: CompanyContext;
@@ -53,11 +66,15 @@ export function DocumentList({
   onChanged: () => Promise<void>;
   /** Shows the state only, without the upload actions. */
   readOnly?: boolean;
+  /** Only these requirements (a step of the sign-up, R3); all of the owner's by default. */
+  codes?: (code: string) => boolean;
 }) {
   const sheet = useRef<SheetHandle>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [sent, setSent] = useState(false);
-  const progress = ownerProgress(context, owner);
+  const progress = ownerProgress(context, owner).filter(
+    ({ requirement }) => !codes || codes(requirement.code),
+  );
   if (progress.length === 0) {
     return (
       <Group>
@@ -93,6 +110,7 @@ export function DocumentList({
                         requirementId: requirement.id,
                         name: requirement.name,
                         requiresExpiry: requirement.requires_expiry,
+                        selfie: requirement.code === SELFIE_REQUIREMENT,
                       });
                       sheet.current?.open();
                     }
@@ -188,7 +206,7 @@ function UploadActions({
         </Group>
       ) : null}
       <Group inset={groupInset.icon}>
-        {SOURCES.map(([source, label, icon]) => (
+        {(target.selfie ? SELFIE_SOURCES : SOURCES).map(([source, label, icon]) => (
           <Cell
             key={source}
             icon={icon}

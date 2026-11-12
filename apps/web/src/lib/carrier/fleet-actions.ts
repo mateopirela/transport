@@ -123,6 +123,12 @@ export async function saveCarrierVehicle(_prev: FormState, formData: FormData): 
     .single();
   if (error) return { error: fleetError(error), values: refillValues(entries) };
   revalidatePath(paths.carrier, 'layout');
+  // A hombre-camión registers his truck in step 4 of a company in review (R3)
+  // and stays there to send its documents.
+  if (formData.get('returnTo') === 'review') {
+    revalidatePath(paths.review);
+    redirect(`${paths.review}?paso=4`);
+  }
   redirect(withParams(carrierUnitPath(data.id), {}, { [FLEET_FLASH_PARAM]: 'alta' }));
 }
 

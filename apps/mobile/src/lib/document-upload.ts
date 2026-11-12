@@ -7,10 +7,11 @@ import {
 } from '@transport/shared';
 import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
-import { File as LocalFile } from 'expo-file-system';
+import { File as LocalFile, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
+import { FAKE_PHOTO_SIZE, fakePhotoBase64, isFakeCameraEnabled } from './e2e-camera';
 import { photoResize } from './fleet-forms';
 import type { Supabase } from './supabase';
 
@@ -26,7 +27,8 @@ export interface PickedFile {
   size: number;
 }
 
-export type PickSource = 'camera' | 'library' | 'pdf';
+/** `selfie` is the camera too, opened on the front lens (D44). */
+export type PickSource = 'camera' | 'selfie' | 'library' | 'pdf';
 
 export type PickOutcome =
   | { status: 'picked'; file: PickedFile }
@@ -35,6 +37,24 @@ export type PickOutcome =
   | { status: 'invalid'; issue: DocumentFileIssue };
 
 const PHOTO_QUALITY = 0.7;
+
+// Development builds only (F14): the iOS simulator has no camera, so with
+// EXPO_PUBLIC_E2E_FAKE_CAMERA=1 the camera returns a fixed photo (the
+// operator's evidence, B23, and the documents' "Tomar foto", R3).
+export const fakeCamera = isFakeCameraEnabled(process.env.EXPO_PUBLIC_E2E_FAKE_CAMERA, __DEV__);
+
+/** The fixed photo of the stand-in camera, as the camera would return it. */
+export function fakeCameraAsset(): ImagePicker.ImagePickerAsset {
+  const file = new LocalFile(Paths.cache, 'e2e-photo.jpg');
+  file.write(fakePhotoBase64(), { encoding: 'base64' });
+  return {
+    uri: file.uri,
+    width: FAKE_PHOTO_SIZE,
+    height: FAKE_PHOTO_SIZE,
+    type: 'image',
+    mimeType: 'image/jpeg',
+  };
+}
 
 /** Resizes and re-encodes a photo as JPEG in the cache (also used for trip evidence, B23). */
 export async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promise<PickedFile> {
@@ -51,16 +71,24 @@ export async function compressPhoto(asset: ImagePicker.ImagePickerAsset): Promis
   };
 }
 
-async function pickPhoto(source: 'camera' | 'library', check: FileCheck): Promise<PickOutcome> {
-  if (source === 'camera') {
+async function pickPhoto(
+  source: 'camera' | 'selfie' | 'library',
+  check: FileCheck,
+): Promise<PickOutcome> {
+  const camera = source !== 'library';
+  if (camera && fakeCamera) return checked(await compressPhoto(fakeCameraAsset()), check);
+  if (camera) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return { status: 'denied' };
   }
-  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
-  const result =
-    source === 'camera'
-      ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+  const options: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ['images'],
+    quality: 1,
+    ...(source === 'selfie' ? { cameraType: ImagePicker.CameraType.front } : {}),
+  };
+  const result = camera
+    ? await ImagePicker.launchCameraAsync(options)
+    : await ImagePicker.launchImageLibraryAsync(options);
   const asset = result.canceled ? undefined : result.assets[0];
   if (!asset) return { status: 'cancelled' };
   return checked(await compressPhoto(asset), check);

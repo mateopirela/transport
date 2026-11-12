@@ -24,3 +24,20 @@ tags: [carrier, sign-up]
     timeout: 30000
 - assertNotVisible: 'Datos de tu empresa'
 - takeScreenshot: 25-1-company-in-review
+# R3 (D42): the steps go on from the home: the common documents (3), her
+# truck and her own documents as its operator (4) and "En verificación" (5).
+- tapOn: 'Continuar mi alta.*'
+- extendedWaitUntil:
+    visible: 'Sube la Constancia de Situación Fiscal.*'
+    timeout: 30000
+- takeScreenshot: 25-2-onboarding-documents
+- tapOn: 'Siguiente'
+- extendedWaitUntil:
+    visible: 'Registra tu camión con sus documentos.*'
+    timeout: 15000
+- takeScreenshot: 25-3-onboarding-profile
+- tapOn: 'Siguiente'
+- extendedWaitUntil:
+    visible: 'Te falta subir o corregir .*'
+    timeout: 15000
+- takeScreenshot: 25-4-onboarding-verification

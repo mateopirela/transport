@@ -135,6 +135,12 @@ export const carrierSharedPath = (token: string) =>
 /** Carrier web (G10b): a won trip of the company (assignment, map, documents, chat). */
 export const carrierTripPath = (tripId: string) => `/transportista/viajes/${tripId}`;
 
+/**
+ * Where a Coordinador lands after joining by invitation (R3, D43): step 4 of
+ * their profile, the units of their business units with their documents.
+ */
+export const coordinatorWelcomePath = `${paths.carrierUnits}?paso=4`;
+
 /** Carrier web (G10b): a unit (vehicle) of the fleet, with its documents and availability. */
 export const carrierUnitPath = (vehicleId: string) => `/transportista/flota/unidades/${vehicleId}`;
 

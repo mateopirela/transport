@@ -1,7 +1,10 @@
 # Operator by phone (G2, D15-E1): opens the demo invitation link of
 # Transportes Regios ("Regional Monterrey"), creates the account with a phone
-# and a password (Edge Function redeem-invitation) and lands on the operator
-# area, signed in with that phone, without a trip yet.
+# and a password (Edge Function redeem-invitation) and lands on step 4 of his
+# profile (R3, D43): "Mis documentos". He takes his selfie (the stand-in
+# camera of a development build, EXPO_PUBLIC_E2E_FAKE_CAMERA), sees what is
+# missing in "En verificación" and goes on to his area, without a trip yet,
+# where a notice says he cannot travel until his documents are approved.
 # Seed: the operator link with the fixed local token demo-operador-trn-… (it
 # is single-use: run `supabase db reset` before repeating the flow).
 appId: ${APP_ID}
@@ -94,6 +97,30 @@ tags: [operator, invitation]
     text: 'Not Now'
     optional: true
 - extendedWaitUntil:
+    visible: 'Sube tu INE, tu licencia vigente y una selfie.*'
+    timeout: 30000
+- takeScreenshot: 08-2-operator-documents
+- tapOn: 'Selfie.*'
+# The sheet slides up: tap its first action once it has settled.
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: 'Tomar selfie'
+    timeout: 10000
+- tapOn: 'Tomar selfie'
+- extendedWaitUntil:
+    visible: 'Documento enviado. Lo revisaremos pronto.'
+    timeout: 30000
+- takeScreenshot: 08-3-selfie-sent
+- tapOn: 'Siguiente'
+- extendedWaitUntil:
+    visible: 'Te falta subir o corregir 2 documentos obligatorios.'
+    timeout: 15000
+- takeScreenshot: 08-4-operator-verification
+- tapOn: 'Ir al inicio'
+- extendedWaitUntil:
     visible: 'No tienes un viaje asignado por ahora.*'
     timeout: 30000
-- takeScreenshot: 08-2-operator-no-trip
+- extendedWaitUntil:
+    visible: 'Te faltan documentos para poder viajar.'
+    timeout: 15000
+- takeScreenshot: 08-5-operator-no-trip

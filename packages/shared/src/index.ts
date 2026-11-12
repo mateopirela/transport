@@ -37,6 +37,7 @@ export * from './schemas';
 export * from './share-links';
 export * from './trip-link';
 export * from './shared-documents';
+export * from './onboarding';
 export * from './sign-up-steps';
 export * from './state-machines';
 export * from './support';

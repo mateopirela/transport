@@ -6,25 +6,26 @@ import {
   carrierNegotiationState,
   carrierWebCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   offerStatusLabels,
   offerStatusReasonText,
+  offerStatusTone,
   sortOffers,
   type LoadStatus,
   type NegotiationOffer,
 } from '@transport/shared';
+import Link from 'next/link';
 import { useActionState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Disclosure } from '@/components/ui/disclosure';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { DetailRail, RailActions, RailSection } from '@/components/ui/detail-layout';
 import { Field, fieldHelpId } from '@/components/ui/field';
-import { Group } from '@/components/ui/group';
 import { Input } from '@/components/ui/input';
-import { Notice } from '@/components/ui/notice';
+import { Money } from '@/components/ui/money';
 import { Pill } from '@/components/ui/pill';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { groupRow } from '@/components/ui/variants';
 import {
   acceptProposedPrice,
   acceptShipperOffer,
@@ -38,6 +39,7 @@ import type { FormState } from '@/lib/forms';
 const c = carrierWebCopy.offer;
 const a = carrierLoadsCopy.actions;
 const states = carrierLoadsCopy.negotiation.states;
+const n = carrierWebCopy.negotiations;
 
 /** A unit the viewer may propose, with the business unit it belongs to. */
 export interface PanelUnit {
@@ -58,14 +60,14 @@ function centsToPesosInput(cents: number): string {
 
 /**
  * The carrier's side of a negotiation (G10a, same rules as the app's
- * NegotiationPanel, B19): offer the proposed price or negotiate; accept,
- * counter or reject the shipper's counteroffer; withdraw its own pending
- * offer. Every action is an RPC that validates the actor, the business unit
- * and the state again (B05, G1a). Without a visible load (contracted with
- * another carrier) only the history and the outcome are shown.
- *
- * The state on top, the offers as a group of rows, and the actions folded in
- * one group: accepting is the screen's primary, the rest secondary or red.
+ * NegotiationPanel, B19), as the rail of a detail (docs/plan-fulmis.md §1.5):
+ * where it stands, the price, the actions and the history of offers. Every
+ * action is a button (§1.5: never a folded row) that opens a dialog saying
+ * what will happen; each one is an RPC that validates the actor, the business
+ * unit and the state again (B05, G1a). Offering the proposed price, or
+ * accepting the client's counteroffer, is the screen's one primary; the rest
+ * are secondary or red. Without a visible load (contracted with another
+ * carrier) only the history and the outcome are shown.
  */
 export function CarrierNegotiationPanel({
   load,
@@ -75,6 +77,7 @@ export function CarrierNegotiationPanel({
   defaultVehicleId,
   defaultBusinessUnitId,
   negotiationBusinessUnitId,
+  tripHref,
 }: {
   /** `brokered`: published by Transport (I6), which answers the offers. */
   load: { id: string; status: LoadStatus; proposedPriceCents: number; brokered?: boolean } | null;
@@ -88,6 +91,8 @@ export function CarrierNegotiationPanel({
   defaultBusinessUnitId: string | null;
   /** Business unit of the existing negotiation: a new unit must belong to it. */
   negotiationBusinessUnitId: string | null;
+  /** The company's trip of a won load: the next step, and the rail's primary. */
+  tripHref?: string | null;
 }) {
   const chain = sortOffers(offers);
   const latest = chain.at(-1);
@@ -99,103 +104,127 @@ export function CarrierNegotiationPanel({
     : units;
   const defaultUnit = options.some((u) => u.id === defaultVehicleId) ? defaultVehicleId : null;
   const chooseBusinessUnit = !negotiationBusinessUnitId && businessUnits.length > 1;
-  const proposed = load ? formatMxn(load.proposedPriceCents) : '';
+  const sideLabel = (offer: NegotiationOffer) =>
+    offer.side === 'shipper' && load?.brokered ? brokeredCopy.counterpart : c.side[offer.side];
 
   return (
-    <div className="space-y-6">
-      <Notice tone={state === 'won' ? 'success' : 'info'}>{states[state]}</Notice>
+    <DetailRail>
+      <RailSection label={c.title}>
+        <p className="text-subhead text-text">{states[state]}</p>
+      </RailSection>
+
+      {load && (
+        <RailSection label={carrierWebCopy.detail.labels.price}>
+          <Money cents={load.proposedPriceCents} size="numeral" className="block" />
+          {latest && (
+            <p className="text-footnote text-text-dim">
+              {n.columns.latest}: {n.lastOffer(formatMoney(latest.amount_cents), sideLabel(latest))}
+            </p>
+          )}
+        </RailSection>
+      )}
 
       {load && (state === 'open' || state === 'reopen') && (
-        <div className="overflow-hidden rounded-2xl border bg-cell">
-          <AcceptProposedForm
-            loadId={load.id}
-            proposed={proposed}
-            vehicleId={defaultUnit}
-            businessUnits={chooseBusinessUnit ? businessUnits : []}
-            defaultBusinessUnitId={chooseBusinessUnit ? defaultBusinessUnitId : null}
-          />
-          <OfferForm
-            action={makeCarrierOffer}
-            title={c.negotiateTitle}
-            summary={a.negotiate}
-            submit={c.submit}
-            hidden={{ loadId: load.id }}
-            defaultAmount={centsToPesosInput(latest?.amount_cents ?? load.proposedPriceCents)}
-            options={options}
-            defaultUnit={defaultUnit}
-            businessUnits={chooseBusinessUnit ? businessUnits : []}
-            defaultBusinessUnitId={defaultBusinessUnitId}
-          />
-        </div>
+        <RailSection>
+          <RailActions>
+            <AcceptProposedDialog
+              loadId={load.id}
+              proposed={formatMoney(load.proposedPriceCents)}
+              vehicleId={defaultUnit}
+              businessUnits={chooseBusinessUnit ? businessUnits : []}
+              defaultBusinessUnitId={chooseBusinessUnit ? defaultBusinessUnitId : null}
+            />
+            <OfferDialog
+              action={makeCarrierOffer}
+              trigger={a.negotiate}
+              title={c.negotiateTitle}
+              submit={c.submit}
+              hidden={{ loadId: load.id }}
+              defaultAmount={centsToPesosInput(latest?.amount_cents ?? load.proposedPriceCents)}
+              options={options}
+              defaultUnit={defaultUnit}
+              businessUnits={chooseBusinessUnit ? businessUnits : []}
+              defaultBusinessUnitId={defaultBusinessUnitId}
+            />
+          </RailActions>
+        </RailSection>
       )}
 
       {load && state === 'respond' && latest && (
-        <div className="overflow-hidden rounded-2xl border bg-cell">
-          <ConfirmForm
-            action={acceptShipperOffer}
-            summary={a.accept}
-            title={c.acceptTitle}
-            help={a.acceptHelp(formatMxn(latest.amount_cents))}
-            confirm={c.acceptConfirm}
-            pending={c.accepting}
-            hidden={{ offerId: latest.id }}
-            tone="accept"
-          />
-          <OfferForm
-            action={counterShipperOffer}
-            title={c.counterTitle}
-            summary={a.counter}
-            submit={c.counterSubmit}
-            hidden={{ offerId: latest.id }}
-            defaultAmount={centsToPesosInput(latest.amount_cents)}
-            options={options}
-            defaultUnit={defaultUnit}
-            businessUnits={[]}
-            defaultBusinessUnitId={null}
-          />
-          <RejectForm offerId={latest.id} />
-        </div>
+        <RailSection>
+          <RailActions>
+            <ActionDialog
+              action={acceptShipperOffer}
+              trigger={a.accept}
+              title={c.acceptTitle}
+              description={a.acceptHelp(formatMoney(latest.amount_cents))}
+              confirm={c.acceptConfirm}
+              hidden={{ offerId: latest.id }}
+              tone="primary"
+            />
+            <OfferDialog
+              action={counterShipperOffer}
+              trigger={a.counter}
+              title={c.counterTitle}
+              submit={c.counterSubmit}
+              hidden={{ offerId: latest.id }}
+              defaultAmount={centsToPesosInput(latest.amount_cents)}
+              options={options}
+              defaultUnit={defaultUnit}
+              businessUnits={[]}
+              defaultBusinessUnitId={null}
+            />
+            <RejectDialog offerId={latest.id} />
+          </RailActions>
+        </RailSection>
       )}
 
       {load && state === 'awaiting_shipper' && latest && (
-        <div className="overflow-hidden rounded-2xl border bg-cell">
-          <ConfirmForm
-            action={withdrawCarrierOffer}
-            summary={a.withdraw}
-            title={c.withdrawTitle}
-            help={c.withdrawHelp}
-            confirm={c.withdrawConfirm}
-            pending={c.withdrawing}
-            hidden={{ offerId: latest.id }}
-            tone="withdraw"
-          />
-        </div>
+        <RailSection>
+          <RailActions>
+            <ActionDialog
+              action={withdrawCarrierOffer}
+              trigger={a.withdraw}
+              title={c.withdrawTitle}
+              description={c.withdrawHelp}
+              confirm={c.withdrawConfirm}
+              hidden={{ offerId: latest.id }}
+              tone="destructive"
+            />
+          </RailActions>
+        </RailSection>
+      )}
+
+      {state === 'won' && tripHref && (
+        <RailSection>
+          <RailActions>
+            <Link href={tripHref} className={buttonVariants({ variant: 'primary' })}>
+              {carrierWebCopy.trips.seeTrip}
+            </Link>
+          </RailActions>
+        </RailSection>
       )}
 
       {chain.length > 0 && (
-        <Group label={c.history}>
-          <ol>
-            {chain.map((offer) => {
+        <RailSection label={c.history}>
+          <ol className="divide-y divide-separator">
+            {[...chain].reverse().map((offer) => {
               const unit = offer.vehicle_id ? unitById.get(offer.vehicle_id) : undefined;
               const reason = offerStatusReasonText(offer.status_reason);
               return (
-                <li key={offer.id} className={`${groupRow} space-y-1 px-4 py-3`}>
+                <li key={offer.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-headline text-text tabular-nums">
-                      {offer.side === 'shipper' && load?.brokered
-                        ? brokeredCopy.counterpart
-                        : c.side[offer.side]}{' '}
-                      · {formatMxn(offer.amount_cents)}
+                    <p className="text-subhead text-text">
+                      <span className="font-semibold">{sideLabel(offer)}</span> ·{' '}
+                      <Money cents={offer.amount_cents} />
                     </p>
-                    <Pill tone={offer.status === 'accepted' ? 'done' : 'inactive'}>
+                    <Pill tone={offerStatusTone(offer.status)}>
                       {offerStatusLabels[offer.status]}
                     </Pill>
                   </div>
-                  <p className="text-footnote text-text-dim tabular-nums">
-                    {formatDateTime(offer.created_at)}
-                  </p>
+                  <p className="text-meta text-text-dim">{formatDateTime(offer.created_at)}</p>
                   {offer.conditions && (
-                    <p className="text-subhead text-text-dim">
+                    <p className="text-footnote text-text-dim">
                       {c.conditions}: {offer.conditions}
                     </p>
                   )}
@@ -213,9 +242,9 @@ export function CarrierNegotiationPanel({
               );
             })}
           </ol>
-        </Group>
+        </RailSection>
       )}
-    </div>
+    </DetailRail>
   );
 }
 
@@ -227,31 +256,12 @@ function Hidden({ values }: { values: Record<string, string | null> }) {
   );
 }
 
-function Feedback({ state }: { state: FormState }) {
-  return (
-    <>
-      {state.error && <Notice tone="error">{state.error}</Notice>}
-      {state.message && <Notice tone="success">{state.message}</Notice>}
-    </>
-  );
-}
-
-/** The title and the line of a folded form. */
-function FormIntro({ title, help }: { title: string; help?: string }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-headline text-text">{title}</p>
-      {help && <p className="text-subhead text-text-dim">{help}</p>}
-    </div>
-  );
-}
-
 /**
- * One-step offer of the proposed price, after an explicit confirmation. The
+ * Offers the proposed price in one step, after the dialog confirms it. The
  * unit decides the business unit; without one, and with several business
- * units to choose from, the confirmation asks for it (make_offer needs one).
+ * units to choose from, the dialog asks for it (make_offer needs one).
  */
-function AcceptProposedForm({
+function AcceptProposedDialog({
   loadId,
   proposed,
   vehicleId,
@@ -268,48 +278,49 @@ function AcceptProposedForm({
   const [state, action, pending] = useActionState(acceptProposedPrice, {});
   const askBusinessUnit = vehicleId === null && businessUnits.length > 0;
   return (
-    <Disclosure summary={a.acceptProposed} tone="accent" open={Boolean(state.error)}>
-      <form action={action} className="space-y-4">
-        <FormIntro title={c.acceptProposedTitle} help={a.acceptProposedHelp(proposed)} />
-        <Feedback state={state} />
-        <Hidden values={{ loadId, vehicleId }} />
-        {askBusinessUnit ? (
-          <Field
-            label={c.businessUnitField}
-            htmlFor="accept-business-unit"
-            hint={c.acceptProposedBusinessUnitHint}
+    <ConfirmDialog
+      trigger={<Button variant="primary">{a.acceptProposed}</Button>}
+      title={c.acceptProposedTitle}
+      description={a.acceptProposedHelp(proposed)}
+      confirmLabel={c.acceptProposedConfirm}
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
+      <Hidden values={{ loadId, vehicleId }} />
+      {askBusinessUnit ? (
+        <Field
+          label={c.businessUnitField}
+          htmlFor="accept-business-unit"
+          hint={c.acceptProposedBusinessUnitHint}
+        >
+          <Select
+            id="accept-business-unit"
+            name="businessUnitId"
+            required
+            defaultValue={defaultBusinessUnitId ?? ''}
+            aria-describedby={fieldHelpId('accept-business-unit')}
           >
-            <Select
-              id="accept-business-unit"
-              name="businessUnitId"
-              required
-              defaultValue={defaultBusinessUnitId ?? ''}
-              aria-describedby={fieldHelpId('accept-business-unit')}
-            >
-              <option value="">—</option>
-              {businessUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : (
-          <Hidden values={{ businessUnitId: defaultBusinessUnitId }} />
-        )}
-        <Button type="submit" variant="primary" loading={pending} className="w-full">
-          {pending ? c.sending : c.acceptProposedConfirm}
-        </Button>
-      </form>
-    </Disclosure>
+            <option value="">—</option>
+            {businessUnits.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : (
+        <Hidden values={{ businessUnitId: defaultBusinessUnitId }} />
+      )}
+    </ConfirmDialog>
   );
 }
 
-/** Amount, conditions, unit and (for a first offer of a multi-unit staff) business unit. */
-function OfferForm({
+/** Amount, conditions, unit and (for a first offer of a multi-unit staff) business unit, in a dialog. */
+function OfferDialog({
   action: serverAction,
+  trigger,
   title,
-  summary,
   submit,
   hidden,
   defaultAmount,
@@ -319,8 +330,8 @@ function OfferForm({
   defaultBusinessUnitId,
 }: {
   action: Action;
+  trigger: string;
   title: string;
-  summary: string;
   submit: string;
   hidden: Record<string, string>;
   defaultAmount: string;
@@ -331,152 +342,148 @@ function OfferForm({
 }) {
   const [state, action, pending] = useActionState(serverAction, {});
   const errors = state.fieldErrors ?? {};
-  const id = (field: string) => `${summary}-${field}`.replaceAll(/\s+/gu, '-').toLowerCase();
+  const id = (field: string) => `${trigger}-${field}`.replaceAll(/\s+/gu, '-').toLowerCase();
   return (
-    <Disclosure summary={summary} open={Boolean(state.error || state.fieldErrors)}>
-      <form action={action} className="space-y-4" noValidate>
-        <FormIntro title={title} />
-        <Feedback state={state} />
-        <Hidden values={hidden} />
-        <Field label={c.amount} htmlFor={id('amount')} error={errors.amount}>
-          <Input
-            id={id('amount')}
-            name="amount"
-            inputMode="decimal"
-            defaultValue={state.values?.amount ?? defaultAmount}
-            aria-invalid={errors.amount ? true : undefined}
-            aria-describedby={errors.amount ? fieldHelpId(id('amount')) : undefined}
-            className="tabular-nums"
-          />
-        </Field>
-        <Field label={c.conditionsField} htmlFor={id('conditions')} error={errors.conditions}>
-          <Textarea
-            id={id('conditions')}
-            name="conditions"
-            rows={2}
-            maxLength={1000}
-            defaultValue={state.values?.conditions}
-            aria-invalid={errors.conditions ? true : undefined}
-            aria-describedby={errors.conditions ? fieldHelpId(id('conditions')) : undefined}
-            className="min-h-20"
-          />
-        </Field>
-        <Field label={c.unitField} htmlFor={id('unit')} error={errors.vehicleId} hint={c.unitHint}>
+    <ConfirmDialog
+      trigger={<Button variant="secondary">{trigger}</Button>}
+      title={title}
+      confirmLabel={submit}
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
+      <Hidden values={hidden} />
+      <Field label={c.amount} htmlFor={id('amount')} error={errors.amount}>
+        <Input
+          id={id('amount')}
+          name="amount"
+          inputMode="decimal"
+          defaultValue={state.values?.amount ?? defaultAmount}
+          aria-invalid={errors.amount ? true : undefined}
+          aria-describedby={errors.amount ? fieldHelpId(id('amount')) : undefined}
+          className="tabular-nums"
+        />
+      </Field>
+      <Field label={c.conditionsField} htmlFor={id('conditions')} error={errors.conditions}>
+        <Textarea
+          id={id('conditions')}
+          name="conditions"
+          rows={2}
+          maxLength={1000}
+          defaultValue={state.values?.conditions}
+          aria-invalid={errors.conditions ? true : undefined}
+          aria-describedby={errors.conditions ? fieldHelpId(id('conditions')) : undefined}
+          className="min-h-20"
+        />
+      </Field>
+      <Field label={c.unitField} htmlFor={id('unit')} error={errors.vehicleId} hint={c.unitHint}>
+        <Select
+          id={id('unit')}
+          name="vehicleId"
+          defaultValue={state.values?.vehicleId ?? defaultUnit ?? ''}
+          aria-invalid={errors.vehicleId ? true : undefined}
+          aria-describedby={fieldHelpId(id('unit'))}
+        >
+          <option value="">{c.unitNone}</option>
+          {options.map((unit) => (
+            <option key={unit.id} value={unit.id}>
+              {unit.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {businessUnits.length > 0 && (
+        <Field
+          label={c.businessUnitField}
+          htmlFor={id('business-unit')}
+          error={errors.businessUnitId}
+          hint={c.businessUnitHint}
+        >
           <Select
-            id={id('unit')}
-            name="vehicleId"
-            defaultValue={state.values?.vehicleId ?? defaultUnit ?? ''}
-            aria-invalid={errors.vehicleId ? true : undefined}
-            aria-describedby={fieldHelpId(id('unit'))}
+            id={id('business-unit')}
+            name="businessUnitId"
+            defaultValue={state.values?.businessUnitId ?? defaultBusinessUnitId ?? ''}
+            aria-invalid={errors.businessUnitId ? true : undefined}
+            aria-describedby={fieldHelpId(id('business-unit'))}
           >
-            <option value="">{c.unitNone}</option>
-            {options.map((unit) => (
+            <option value="">—</option>
+            {businessUnits.map((unit) => (
               <option key={unit.id} value={unit.id}>
-                {unit.label}
+                {unit.name}
               </option>
             ))}
           </Select>
         </Field>
-        {businessUnits.length > 0 && (
-          <Field
-            label={c.businessUnitField}
-            htmlFor={id('business-unit')}
-            error={errors.businessUnitId}
-            hint={c.businessUnitHint}
-          >
-            <Select
-              id={id('business-unit')}
-              name="businessUnitId"
-              defaultValue={state.values?.businessUnitId ?? defaultBusinessUnitId ?? ''}
-              aria-invalid={errors.businessUnitId ? true : undefined}
-              aria-describedby={fieldHelpId(id('business-unit'))}
-            >
-              <option value="">—</option>
-              {businessUnits.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        <Button type="submit" variant="secondary" loading={pending} className="w-full">
-          {pending ? c.sending : submit}
-        </Button>
-      </form>
-    </Disclosure>
+      )}
+    </ConfirmDialog>
   );
 }
 
-/** An action the other side sees or that cannot be undone, behind a confirmation. */
-function ConfirmForm({
+/**
+ * An action the other side sees or that cannot be undone, behind its
+ * dialog: accepting the counteroffer (the primary) or withdrawing the own
+ * offer (red).
+ */
+function ActionDialog({
   action: serverAction,
-  summary,
+  trigger,
   title,
-  help,
+  description,
   confirm,
-  pending: pendingLabel,
   hidden,
   tone,
 }: {
   action: Action;
-  summary: string;
+  trigger: string;
   title: string;
-  help: string;
+  description: string;
   confirm: string;
-  pending: string;
   hidden: Record<string, string>;
-  /** `accept`: the screen's primary; `withdraw`: takes back the own offer (red). */
-  tone: 'accept' | 'withdraw';
+  tone: 'primary' | 'destructive';
 }) {
   const [state, action, pending] = useActionState(serverAction, {});
   return (
-    <Disclosure
-      summary={summary}
-      tone={tone === 'accept' ? 'accent' : 'red'}
-      open={Boolean(state.error)}
+    <ConfirmDialog
+      trigger={<Button variant={tone}>{trigger}</Button>}
+      title={title}
+      description={description}
+      confirmLabel={confirm}
+      destructive={tone === 'destructive'}
+      action={action}
+      pending={pending}
+      error={state.error}
     >
-      <form action={action} className="space-y-4">
-        <FormIntro title={title} help={help} />
-        <Feedback state={state} />
-        <Hidden values={hidden} />
-        <Button
-          type="submit"
-          variant={tone === 'accept' ? 'primary' : 'destructive'}
-          loading={pending}
-          className="w-full"
-        >
-          {pending ? pendingLabel : confirm}
-        </Button>
-      </form>
-    </Disclosure>
+      <Hidden values={hidden} />
+    </ConfirmDialog>
   );
 }
 
-function RejectForm({ offerId }: { offerId: string }) {
+function RejectDialog({ offerId }: { offerId: string }) {
   const [state, action, pending] = useActionState(rejectShipperOffer, {});
   const reasonError = state.fieldErrors?.reason;
   return (
-    <Disclosure summary={a.reject} tone="red" open={Boolean(state.error || reasonError)}>
-      <form action={action} className="space-y-4" noValidate>
-        <FormIntro title={c.rejectTitle} help={a.rejectHelp} />
-        <Feedback state={state} />
-        <Hidden values={{ offerId }} />
-        <Field label={c.rejectReason} htmlFor="reject-reason" error={reasonError}>
-          <Textarea
-            id="reject-reason"
-            name="reason"
-            rows={2}
-            maxLength={1000}
-            aria-invalid={reasonError ? true : undefined}
-            aria-describedby={reasonError ? fieldHelpId('reject-reason') : undefined}
-            className="min-h-20"
-          />
-        </Field>
-        <Button type="submit" variant="destructive" loading={pending} className="w-full">
-          {pending ? c.rejecting : c.rejectConfirm}
-        </Button>
-      </form>
-    </Disclosure>
+    <ConfirmDialog
+      trigger={<Button variant="destructive">{a.reject}</Button>}
+      title={c.rejectTitle}
+      description={a.rejectHelp}
+      confirmLabel={c.rejectConfirm}
+      destructive
+      action={action}
+      pending={pending}
+      error={state.error}
+    >
+      <Hidden values={{ offerId }} />
+      <Field label={c.rejectReason} htmlFor="reject-reason" error={reasonError}>
+        <Textarea
+          id="reject-reason"
+          name="reason"
+          rows={2}
+          maxLength={1000}
+          aria-invalid={reasonError ? true : undefined}
+          aria-describedby={reasonError ? fieldHelpId('reject-reason') : undefined}
+          className="min-h-20"
+        />
+      </Field>
+    </ConfirmDialog>
   );
 }

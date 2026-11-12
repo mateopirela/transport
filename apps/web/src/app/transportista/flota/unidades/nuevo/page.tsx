@@ -20,7 +20,7 @@ export default async function NewCarrierUnitPage() {
       <BackLink href={paths.carrierUnits}>{c.units.back}</BackLink>
       <PageHeader title={c.units.newTitle} description={fleetCopy.units.saveFirst} />
       {isManager ? (
-        <div className="max-w-3xl rounded-2xl border bg-cell p-5 sm:p-6">
+        <div className="max-w-3xl border bg-cell p-5">
           <VehicleForm
             vehicleId={null}
             initial={{ kind: 'trailer' }}

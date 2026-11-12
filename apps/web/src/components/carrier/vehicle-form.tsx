@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorText, Field as FormField, fieldHelpId } from '@/components/ui/field';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
+import { StickyFormActions } from '@/components/carrier/form-actions';
 import type { BusinessUnitOption } from '@/lib/carrier/business-units';
 import { saveCarrierVehicle } from '@/lib/carrier/fleet-actions';
 import type { FormState } from '@/lib/forms';
@@ -77,12 +78,12 @@ export function VehicleForm({
       <div className="grid gap-4 sm:grid-cols-2">
         {vehicleId ? (
           <div className="space-y-1.5">
-            <p className="px-1 text-label text-text-dim">{c.kindLabel}</p>
+            <p className="text-label text-text-dim">{c.kindLabel}</p>
             <input type="hidden" name="kind" value={kind} />
-            <p className="flex h-11 items-center rounded-md bg-surface-high px-3.5 text-callout text-text">
+            <p className="flex h-control items-center rounded-sm bg-surface-high px-3 text-callout text-text">
               {vehicleKindLabels[kind as (typeof VEHICLE_KINDS)[number]]}
             </p>
-            <p className="px-1 text-footnote text-text-dim">{w.units.kindLocked}</p>
+            <p className="text-footnote text-text-dim">{w.units.kindLocked}</p>
           </div>
         ) : (
           <FormField label={c.kindLabel} htmlFor={`${id}-kind`} error={errors.kind}>
@@ -184,9 +185,11 @@ export function VehicleForm({
           </>
         )}
       </div>
-      <Button type="submit" variant={primary ? 'primary' : 'secondary'} loading={pending}>
-        {c.save}
-      </Button>
+      <StickyFormActions>
+        <Button type="submit" variant={primary ? 'primary' : 'secondary'} loading={pending}>
+          {c.save}
+        </Button>
+      </StickyFormActions>
     </form>
   );
 }

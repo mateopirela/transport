@@ -11,8 +11,6 @@ import {
   vehicleAxles,
 } from '@transport/shared';
 import type { Metadata } from 'next';
-import Link from 'next/link';
-
 import { CarrierLoadBadges } from '@/components/carrier/brokered-badge';
 import { LoadDetails, loadRoute } from '@/components/carrier/load-details';
 import { CarrierNegotiationPanel } from '@/components/carrier/negotiation-panel';
@@ -22,7 +20,7 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { RouteMap } from '@/components/loads/route-map';
 import { BackLink, PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
-import { buttonVariants } from '@/components/ui/button';
+import { DetailLayout } from '@/components/ui/detail-layout';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
@@ -107,72 +105,10 @@ export default async function CarrierLoadPage({
         title={loadRoute(load)}
         status={<CarrierLoadBadges load={load} />}
         description={`${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`}
-        action={
-          tripId && (
-            <Link
-              href={carrierTripPath(tripId)}
-              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-            >
-              {carrierWebCopy.trips.seeTrip}
-            </Link>
-          )
-        }
       />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-        <div className="min-w-0 space-y-10">
-          <PageSection title={c.route}>
-            <RouteMap
-              origin={{ lat: load.origin_lat, lng: load.origin_lng, label: load.origin_city }}
-              destination={{
-                lat: load.destination_lat,
-                lng: load.destination_lng,
-                label: load.destination_city,
-              }}
-              roadFactor={serverRoadFactor()}
-            />
-            <p className="px-1 text-subhead text-text-dim">
-              {best
-                ? c.emptyLeg(
-                    formatDistance(best.emptyKm),
-                    labels.get(best.vehicleId) ?? '',
-                    best.start.city,
-                  )
-                : c.emptyLegUnknown}
-            </p>
-          </PageSection>
-
-          <SuggestedRoute
-            road={road}
-            estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
-            pickupDwell={pickupDwell}
-          />
-
-          <PageSection title={c.details}>
-            <LoadDetails load={load} />
-          </PageSection>
-
-          <PageSection
-            title={carrierLoadsCopy.chat.title}
-            description={chat && negotiation?.conversationId ? chatCopy.description : undefined}
-          >
-            {chat && negotiation?.conversationId ? (
-              <ChatPanel
-                conversationId={negotiation.conversationId}
-                viewerId={viewer.userId}
-                ownCompanyUserIds={chat.ownCompanyUserIds}
-                initialMessages={chat.messages}
-                initialReads={chat.reads}
-                area="transportista"
-              />
-            ) : (
-              <p className="px-1 text-subhead text-text-dim">{carrierLoadsCopy.chat.unavailable}</p>
-            )}
-          </PageSection>
-        </div>
-
-        <aside className="space-y-3">
-          <h2 className="px-1 text-title3 text-text">{carrierWebCopy.offer.title}</h2>
+      <DetailLayout
+        rail={
           <CarrierNegotiationPanel
             load={{
               id: load.id,
@@ -190,9 +126,59 @@ export default async function CarrierLoadPage({
             defaultVehicleId={defaultUnit}
             defaultBusinessUnitId={units.selected?.id ?? null}
             negotiationBusinessUnitId={negotiation?.businessUnitId ?? null}
+            tripHref={tripId ? carrierTripPath(tripId) : null}
           />
-        </aside>
-      </div>
+        }
+      >
+        <PageSection title={c.route}>
+          <RouteMap
+            origin={{ lat: load.origin_lat, lng: load.origin_lng, label: load.origin_city }}
+            destination={{
+              lat: load.destination_lat,
+              lng: load.destination_lng,
+              label: load.destination_city,
+            }}
+            roadFactor={serverRoadFactor()}
+          />
+          <p className="text-subhead text-text-dim">
+            {best
+              ? c.emptyLeg(
+                  formatDistance(best.emptyKm),
+                  labels.get(best.vehicleId) ?? '',
+                  best.start.city,
+                )
+              : c.emptyLegUnknown}
+          </p>
+        </PageSection>
+
+        <PageSection title={c.details}>
+          <LoadDetails load={load} />
+        </PageSection>
+
+        <SuggestedRoute
+          road={road}
+          estimateFor={roadsCopy.estimateFor(roadUnit ? unitLabel(roadUnit) : null, roadAxles)}
+          pickupDwell={pickupDwell}
+        />
+
+        <PageSection
+          title={carrierLoadsCopy.chat.title}
+          description={chat && negotiation?.conversationId ? chatCopy.description : undefined}
+        >
+          {chat && negotiation?.conversationId ? (
+            <ChatPanel
+              conversationId={negotiation.conversationId}
+              viewerId={viewer.userId}
+              ownCompanyUserIds={chat.ownCompanyUserIds}
+              initialMessages={chat.messages}
+              initialReads={chat.reads}
+              area="transportista"
+            />
+          ) : (
+            <p className="text-subhead text-text-dim">{carrierLoadsCopy.chat.unavailable}</p>
+          )}
+        </PageSection>
+      </DetailLayout>
     </>
   );
 }

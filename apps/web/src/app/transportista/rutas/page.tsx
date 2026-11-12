@@ -15,7 +15,7 @@ import { RemoveRouteForm, RouteForm } from '@/components/carrier/route-form';
 import { PageSection } from '@/components/page-section';
 import { Empty } from '@/components/ui/empty';
 import { PageHeader } from '@/components/ui/page-header';
-import { Table } from '@/components/ui/table';
+import { Table, TableCell, TableRow } from '@/components/ui/table';
 import { carrierContext } from '@/lib/carrier/context';
 import { listCarrierRoutes } from '@/lib/carrier/fleet';
 import { listRoadPreferences, loadRoadContext } from '@/lib/carrier/roads';
@@ -54,13 +54,16 @@ export default async function CarrierRoutesPage() {
   return (
     <>
       <PageHeader title={c.title} description={c.routes.description} />
-      <FleetNav current="routes" />
+      <div className="mb-6">
+        <FleetNav current="routes" />
+      </div>
       <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
         <PageSection title={fleetCopy.routes.title} className="min-w-0">
           {routes.length === 0 ? (
             <Empty title={fleetCopy.routes.empty} />
           ) : (
             <Table
+              cards
               headers={[
                 c.routes.columns.route,
                 c.routes.columns.unitTypes,
@@ -68,24 +71,24 @@ export default async function CarrierRoutesPage() {
               ]}
             >
               {routes.map((route) => (
-                <tr key={route.id}>
-                  <td>
-                    <p className="font-semibold text-text">
+                <TableRow key={route.id}>
+                  <TableCell primary>
+                    <span className="block">
                       {fleetCopy.routes.item(route.origin_city, route.destination_city)}
-                    </p>
-                    <p className="text-footnote text-text-dim">
+                    </span>
+                    <span className="block text-footnote font-normal text-text-dim">
                       {route.origin_state} → {route.destination_state}
-                    </p>
-                  </td>
-                  <td className="text-text-dim">
+                    </span>
+                  </TableCell>
+                  <TableCell label={c.routes.columns.unitTypes} className="text-text-dim">
                     {route.unit_types.length === 0
                       ? c.routes.anyUnitType
                       : route.unit_types.map((t) => unitTypeLabels[t]).join(', ')}
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell action>
                     <RemoveRouteForm routeId={route.id} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
             </Table>
           )}

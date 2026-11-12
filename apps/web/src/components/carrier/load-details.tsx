@@ -3,7 +3,7 @@ import {
   cargoTypeLabels,
   carrierWebCopy,
   formatDateTime,
-  formatMxn,
+  formatMoney,
   loadStatusLabels,
   specialRequirementLabels,
   unitTypeLabels,
@@ -38,7 +38,7 @@ export function LoadDetails({ load, columns }: { load: CarrierLoad; columns?: 1 
         ? c.labels.noRequirements
         : load.special_requirements.map((r) => specialRequirementLabels[r]).join(', '),
     ],
-    [c.labels.price, formatMxn(load.proposed_price_cents)],
+    [c.labels.price, formatMoney(load.proposed_price_cents)],
     [c.labels.notes, load.notes],
   ];
   return <FactList rows={rows} columns={columns} />;

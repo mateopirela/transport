@@ -15,5 +15,5 @@ const TABS: { value: FleetSection; href: string; label: string }[] = [
 
 /** Sub-navigation of the fleet (G10b): units, operators and usual routes, as a segmented control. */
 export function FleetNav({ current }: { current: FleetSection }) {
-  return <Segmented items={TABS} value={current} label={c.title} className="mb-8" />;
+  return <Segmented items={TABS} value={current} label={c.title} />;
 }

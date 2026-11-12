@@ -20,6 +20,7 @@ import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { groupRow } from '@/components/ui/variants';
+import { StickyFormActions } from '@/components/carrier/form-actions';
 import { releaseCarrierUnit } from '@/lib/carrier/release-actions';
 import type { ReleaseContext } from '@/lib/carrier/release';
 import type { FormState } from '@/lib/forms';
@@ -95,12 +96,12 @@ export function ReleaseForm({
       </p>
 
       <fieldset>
-        <legend className="mb-1.5 px-1 text-label text-text-dim">{c.where}</legend>
-        <div className="overflow-hidden rounded-2xl border bg-cell">
+        <legend className="mb-2 text-label text-text-dim">{c.where}</legend>
+        <div className="overflow-hidden border bg-cell">
           {places.map((value) => (
             <label
               key={value}
-              className={`${groupRow} flex min-h-12.5 cursor-pointer items-center gap-3 px-4 py-2.5 text-body text-text has-checked:bg-accent-soft`}
+              className={`${groupRow} flex min-h-12.5 cursor-pointer items-center gap-3 px-4 py-2.5 text-body text-text has-checked:bg-surface-high`}
             >
               <input
                 type="radio"
@@ -122,13 +123,11 @@ export function ReleaseForm({
         <div className="mt-1.5 space-y-1">
           {state.fieldErrors?.place && <ErrorText>{state.fieldErrors.place}</ErrorText>}
           {place === 'map' && (
-            <p className="px-1 text-footnote text-text-dim">
+            <p className="text-footnote text-text-dim">
               {pickedNear ? c.mapPicked(pickedNear.city, pickedNear.state) : c.mapHint}
             </p>
           )}
-          {mapReady === false && (
-            <p className="px-1 text-footnote text-text-dim">{c.mapUnavailable}</p>
-          )}
+          {mapReady === false && <p className="text-footnote text-text-dim">{c.mapUnavailable}</p>}
         </div>
       </fieldset>
 
@@ -150,7 +149,7 @@ export function ReleaseForm({
       )}
 
       <fieldset>
-        <legend className="mb-1.5 px-1 text-label text-text-dim">{c.when}</legend>
+        <legend className="mb-2 text-label text-text-dim">{c.when}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field name="date" type="date" label={c.date} state={{ ...state, values }} />
           <Field
@@ -175,9 +174,11 @@ export function ReleaseForm({
         />
       </FormField>
 
-      <Button type="submit" variant="primary" loading={pending}>
-        {pending ? c.submitting : c.submit}
-      </Button>
+      <StickyFormActions>
+        <Button type="submit" variant="primary" loading={pending}>
+          {pending ? c.submitting : c.submit}
+        </Button>
+      </StickyFormActions>
     </form>
   );
 }

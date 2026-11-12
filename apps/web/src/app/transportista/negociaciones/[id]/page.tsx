@@ -17,6 +17,7 @@ import { ChatPanel } from '@/components/chat/chat-panel';
 import { BackLink, PageSection } from '@/components/page-section';
 import { RealtimeRefresh } from '@/components/realtime/realtime-refresh';
 import { buttonVariants } from '@/components/ui/button';
+import { DetailLayout } from '@/components/ui/detail-layout';
 import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
 import { getCarrierNegotiation, listCarrierUnits } from '@/lib/carrier/loads';
@@ -60,56 +61,10 @@ export default async function CarrierNegotiationPage({
         title={c.title2(load ? loadRoute(load) : c.unavailableLoad)}
         status={load && <CarrierLoadBadges load={load} />}
         description={unitName ? fleetCopy.businessUnit(unitName) : undefined}
-        action={
-          tripId && (
-            <Link href={carrierTripPath(tripId)} className={small}>
-              {carrierWebCopy.trips.seeTrip}
-            </Link>
-          )
-        }
       />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-        <div className="min-w-0 space-y-10">
-          {load && (
-            <PageSection
-              title={carrierWebCopy.detail.details}
-              action={
-                <Link href={carrierLoadPath(load.id)} className={small}>
-                  {c.seeLoad}
-                </Link>
-              }
-            >
-              <LoadDetails load={load} />
-            </PageSection>
-          )}
-
-          <PageSection
-            title={carrierLoadsCopy.chat.title}
-            description={chat && negotiation.conversationId ? chatCopy.description : undefined}
-          >
-            {chat && negotiation.conversationId ? (
-              <ChatPanel
-                conversationId={negotiation.conversationId}
-                viewerId={viewer.userId}
-                ownCompanyUserIds={chat.ownCompanyUserIds}
-                initialMessages={chat.messages}
-                initialReads={chat.reads}
-                area="transportista"
-              />
-            ) : (
-              <p className="px-1 text-subhead text-text-dim">
-                {/* I6: Transport negotiates a brokered load with offers only. */}
-                {load?.brokered
-                  ? brokeredCopy.carrierChatClosed
-                  : carrierLoadsCopy.chat.unavailable}
-              </p>
-            )}
-          </PageSection>
-        </div>
-
-        <aside className="space-y-3">
-          <h2 className="px-1 text-title3 text-text">{carrierWebCopy.offer.title}</h2>
+      <DetailLayout
+        rail={
           <CarrierNegotiationPanel
             load={
               load && {
@@ -129,9 +84,44 @@ export default async function CarrierNegotiationPage({
             defaultVehicleId={null}
             defaultBusinessUnitId={negotiation.businessUnitId}
             negotiationBusinessUnitId={negotiation.businessUnitId}
+            tripHref={tripId ? carrierTripPath(tripId) : null}
           />
-        </aside>
-      </div>
+        }
+      >
+        {load && (
+          <PageSection
+            title={carrierWebCopy.detail.details}
+            action={
+              <Link href={carrierLoadPath(load.id)} className={small}>
+                {c.seeLoad}
+              </Link>
+            }
+          >
+            <LoadDetails load={load} />
+          </PageSection>
+        )}
+
+        <PageSection
+          title={carrierLoadsCopy.chat.title}
+          description={chat && negotiation.conversationId ? chatCopy.description : undefined}
+        >
+          {chat && negotiation.conversationId ? (
+            <ChatPanel
+              conversationId={negotiation.conversationId}
+              viewerId={viewer.userId}
+              ownCompanyUserIds={chat.ownCompanyUserIds}
+              initialMessages={chat.messages}
+              initialReads={chat.reads}
+              area="transportista"
+            />
+          ) : (
+            <p className="text-subhead text-text-dim">
+              {/* I6: Transport negotiates a brokered load with offers only. */}
+              {load?.brokered ? brokeredCopy.carrierChatClosed : carrierLoadsCopy.chat.unavailable}
+            </p>
+          )}
+        </PageSection>
+      </DetailLayout>
     </>
   );
 }

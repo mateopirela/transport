@@ -76,7 +76,7 @@ export function InvitationLinkForm({
       {operatorId && <input type="hidden" name="operatorId" value={operatorId} />}
       {!operatorId && kind === 'coordinator' && (
         <fieldset>
-          <legend className="mb-1.5 px-1 text-label text-text-dim">
+          <legend className="mb-2 text-label text-text-dim">
             {managerCompanyCopy.coordinators.inviteUnitsLabel}
           </legend>
           <div className="flex flex-wrap gap-2">
@@ -124,7 +124,7 @@ export function InvitationLinkForm({
       )}
       {state.error && <Notice tone="error">{state.error}</Notice>}
       {state.link && state.expiresAt && (
-        <div className="space-y-3 rounded-2xl bg-surface-high px-4 py-4">
+        <div className="space-y-3 border bg-surface-high px-4 py-4">
           <Field
             label={c.link}
             htmlFor={`${id}-link`}
@@ -159,7 +159,7 @@ export function InvitationLinkForm({
               {c.share}
             </Button>
             {copied && (
-              <span className="px-1 text-footnote text-ok-text" role="status">
+              <span className="text-footnote text-text" role="status">
                 {c.copied}
               </span>
             )}

@@ -122,9 +122,10 @@ test('the client sends a load to Transport, approves its price and the carriers 
     await signInOnWeb(jorge, 'jorge');
     await jorge.goto(`/transportista/cargas/${loadId}`);
     await expect(jorge.getByTestId('brokered-badge').first()).toHaveText(b.badge);
-    await expect(jorge.getByText('$10,800.00').first()).toBeVisible();
-    await expect(jorge.getByText('$12,000.00')).toHaveCount(0);
-    await expect(jorge.getByText('$11,500.00')).toHaveCount(0);
+    // The carrier web drops a whole `.00` (docs/plan-fulmis.md §1.5).
+    await expect(jorge.getByText('$10,800').first()).toBeVisible();
+    await expect(jorge.getByText('$12,000')).toHaveCount(0);
+    await expect(jorge.getByText('$11,500')).toHaveCount(0);
     await jorge.close();
   });
 });
@@ -185,9 +186,9 @@ test('the carrier takes the brokered load at its rate and the margin stays with 
     await signInOnWeb(page2, 'jose');
     await page2.goto('/transportista/cobranza');
     const row = page2.getByTestId(`collections-row-${trip.id}`);
-    await expect(row).toContainText('$10,800.00');
-    await expect(page2.getByText('$12,000.00')).toHaveCount(0);
-    await expect(page2.getByText('$1,200.00')).toHaveCount(0);
+    await expect(row).toContainText('$10,800');
+    await expect(page2.getByText('$12,000')).toHaveCount(0);
+    await expect(page2.getByText('$1,200')).toHaveCount(0);
     await expect(page2.getByRole('heading', { name: freightCopy.collections.title })).toBeVisible();
     await page2.close();
   });

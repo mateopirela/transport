@@ -16,8 +16,8 @@ import { RECOMMENDATION_LIST, RecommendationCard } from '@/components/carrier/re
 import { ReleaseForm } from '@/components/carrier/release-form';
 import { VehicleForm } from '@/components/carrier/vehicle-form';
 import { BackLink, PageSection } from '@/components/page-section';
+import { DetailLayout, DetailRail, RailSection } from '@/components/ui/detail-layout';
 import { Empty } from '@/components/ui/empty';
-import { Group } from '@/components/ui/group';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { carrierContext } from '@/lib/carrier/context';
@@ -38,7 +38,9 @@ export const metadata: Metadata = { title: fleetCopy.units.editTitle };
  * archive. A unit whose trip was cancelled after it set off shows the release
  * form instead of the availability (G5, D20); once released, its
  * recommendations from where it is. The release, when it waits, is the
- * screen's primary; otherwise saving the data.
+ * screen's primary; otherwise saving the data. Two columns (docs/plan-fulmis.md
+ * §1.5): the data and documents, and a rail with the availability, moving it
+ * and the archive.
  */
 export default async function CarrierUnitPage({
   params,
@@ -88,90 +90,81 @@ export default async function CarrierUnitPage({
         </Notice>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-        <div className="min-w-0 space-y-10">
-          {release && (
-            <PageSection title={vehicleReleaseCopy.screen.title}>
-              <div className="rounded-2xl border border-red/30 bg-cell p-5">
-                <ReleaseForm
-                  vehicleId={vehicle.id}
-                  route={`${release.origin.city} → ${release.destination.city}`}
-                  context={release}
-                />
-              </div>
-            </PageSection>
-          )}
-          {recommendations && (
-            <PageSection title={vehicleReleaseCopy.screen.recommendations}>
-              {recommendations.recommendations.length === 0 ? (
-                <Empty title={vehicleReleaseCopy.screen.noRecommendations} />
-              ) : (
-                <ul className={RECOMMENDATION_LIST}>
-                  {recommendations.recommendations.map((r, i) => (
-                    <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
-                  ))}
-                </ul>
+      <DetailLayout
+        rail={
+          <div className="space-y-6">
+            <DetailRail>
+              <RailSection label={fleetCopy.availability.title}>
+                {vehicle.readiness === 'pending_release' ? (
+                  <Notice tone="error">{vehicleReleaseCopy.errors.pendingRelease}</Notice>
+                ) : (
+                  <AvailabilityForm
+                    vehicleId={vehicle.id}
+                    current={vehicle.availability}
+                    blocked={vehicle.readiness === 'expired_documents'}
+                  />
+                )}
+              </RailSection>
+              {isManager && units.operable.some((u) => u.id !== vehicle.business_unit_id) && (
+                <RailSection label={c.businessUnitField}>
+                  <MoveForm
+                    kind="vehicle"
+                    id={vehicle.id}
+                    currentUnitId={vehicle.business_unit_id}
+                    units={units.operable}
+                  />
+                </RailSection>
               )}
-            </PageSection>
-          )}
-          <PageSection title={c.units.data}>
-            <div className="rounded-2xl border bg-cell p-5">
-              <VehicleForm
+            </DetailRail>
+            {isManager && <FleetArchiveForm kind="vehicle" id={vehicle.id} />}
+          </div>
+        }
+      >
+        {release && (
+          <PageSection title={vehicleReleaseCopy.screen.title}>
+            <div className="border border-control bg-cell p-5">
+              <ReleaseForm
                 vehicleId={vehicle.id}
-                initial={vehicleFormValues(vehicle)}
-                features={vehicle.features}
-                businessUnits={[]}
-                defaultBusinessUnitId={null}
-                primary={!release}
+                route={`${release.origin.city} → ${release.destination.city}`}
+                context={release}
               />
             </div>
           </PageSection>
-
-          <PageSection title={fleetCopy.units.documentsTitle} description={c.documents.description}>
-            <FleetDocuments
-              companyId={companyId}
-              owner={{ type: 'vehicle', id: vehicle.id }}
-              progress={vehicle.progress}
+        )}
+        {recommendations && (
+          <PageSection title={vehicleReleaseCopy.screen.recommendations}>
+            {recommendations.recommendations.length === 0 ? (
+              <Empty title={vehicleReleaseCopy.screen.noRecommendations} />
+            ) : (
+              <ul className={RECOMMENDATION_LIST}>
+                {recommendations.recommendations.map((r, i) => (
+                  <RecommendationCard key={r.loadId} recommendation={r} rank={i + 1} />
+                ))}
+              </ul>
+            )}
+          </PageSection>
+        )}
+        <PageSection title={c.units.data}>
+          <div className="border bg-cell p-5">
+            <VehicleForm
+              vehicleId={vehicle.id}
+              initial={vehicleFormValues(vehicle)}
+              features={vehicle.features}
+              businessUnits={[]}
+              defaultBusinessUnitId={null}
+              primary={!release}
             />
-          </PageSection>
-        </div>
+          </div>
+        </PageSection>
 
-        <aside className="space-y-8">
-          <Group label={fleetCopy.availability.title}>
-            <div className="px-4 py-4">
-              {vehicle.readiness === 'pending_release' ? (
-                <Notice tone="error">{vehicleReleaseCopy.errors.pendingRelease}</Notice>
-              ) : (
-                <AvailabilityForm
-                  vehicleId={vehicle.id}
-                  current={vehicle.availability}
-                  blocked={vehicle.readiness === 'expired_documents'}
-                />
-              )}
-            </div>
-          </Group>
-          {isManager && units.operable.some((u) => u.id !== vehicle.business_unit_id) && (
-            <MoveSection>
-              <MoveForm
-                kind="vehicle"
-                id={vehicle.id}
-                currentUnitId={vehicle.business_unit_id}
-                units={units.operable}
-              />
-            </MoveSection>
-          )}
-          {isManager && <FleetArchiveForm kind="vehicle" id={vehicle.id} />}
-        </aside>
-      </div>
+        <PageSection title={fleetCopy.units.documentsTitle} description={c.documents.description}>
+          <FleetDocuments
+            companyId={companyId}
+            owner={{ type: 'vehicle', id: vehicle.id }}
+            progress={vehicle.progress}
+          />
+        </PageSection>
+      </DetailLayout>
     </>
-  );
-}
-
-/** "Unidad de negocio" with the move form, in the side column (the Gerente). */
-function MoveSection({ children }: { children: React.ReactNode }) {
-  return (
-    <Group label={c.businessUnitField}>
-      <div className="px-4 py-4">{children}</div>
-    </Group>
   );
 }

@@ -20,7 +20,7 @@ export default async function NewCarrierOperatorPage() {
       <BackLink href={paths.carrierOperators}>{c.operators.back}</BackLink>
       <PageHeader title={c.operators.newTitle} description={c.operators.invitationHint} />
       {isManager ? (
-        <div className="max-w-3xl rounded-2xl border bg-cell p-5 sm:p-6">
+        <div className="max-w-3xl border bg-cell p-5">
           <OperatorForm
             operatorId={null}
             initial={{}}

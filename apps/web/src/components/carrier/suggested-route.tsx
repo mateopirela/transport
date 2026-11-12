@@ -35,12 +35,12 @@ export function SuggestedRoute({
   pickupDwell?: DwellEstimate | null;
 }) {
   const dwell = pickupDwell ? (
-    <p className="px-1 text-subhead text-text-dim tabular-nums">{dwellCopy.pickup(pickupDwell)}</p>
+    <p className="text-subhead text-text-dim tabular-nums">{dwellCopy.pickup(pickupDwell)}</p>
   ) : null;
   if (road.source === 'none') {
     return (
       <PageSection title={roadsCopy.section}>
-        <div className="space-y-1 rounded-2xl border bg-cell px-4 py-3">
+        <div className="space-y-1 border bg-cell px-4 py-3">
           <p className="text-headline text-text">{roadsCopy.none}</p>
           <p className="text-subhead text-text-dim">{roadsCopy.noneHint}</p>
         </div>
@@ -51,7 +51,7 @@ export function SuggestedRoute({
   return (
     <PageSection title={roadsCopy.section} description={road.corridor.name}>
       {road.usesAvoided && <Notice tone="info">{roadsCopy.usesAvoided}</Notice>}
-      <div className="space-y-1 rounded-2xl border bg-cell px-4 py-3">
+      <div className="space-y-1 border bg-cell px-4 py-3">
         <p className="text-headline text-text tabular-nums">{tollsText(road)}</p>
         <p className="text-footnote text-text-dim">
           {roadsCopy.tollClass(tollClassLabels[road.tollClass])} ·{' '}
@@ -77,7 +77,7 @@ export function SuggestedRoute({
           {road.warnings.map((w) => (
             <li
               key={`${w.segmentId}-${w.fromHour}-${w.level}`}
-              className="flex gap-2 rounded-2xl bg-amber/14 px-4 py-3 text-subhead text-amber-text"
+              className="flex gap-2 bg-amber px-4 py-3 text-subhead text-amber-ink"
             >
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               <span>
@@ -87,10 +87,10 @@ export function SuggestedRoute({
           ))}
         </ul>
       ) : (
-        <p className="px-1 text-subhead text-text-dim">{roadsCopy.noRisks}</p>
+        <p className="text-subhead text-text-dim">{roadsCopy.noRisks}</p>
       )}
 
-      <ol className="overflow-hidden rounded-2xl border bg-cell">
+      <ol className="overflow-hidden border bg-cell">
         {road.segments.map((s) => (
           <li key={s.id} className={`${groupRow} space-y-0.5 px-4 py-3`}>
             <div className="flex flex-wrap items-center justify-between gap-2">

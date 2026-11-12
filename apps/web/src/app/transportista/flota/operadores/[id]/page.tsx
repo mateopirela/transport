@@ -7,7 +7,7 @@ import { FleetDocuments } from '@/components/carrier/fleet-documents';
 import { InvitationLinkForm } from '@/components/carrier/invitation-link-form';
 import { OperatorForm } from '@/components/carrier/operator-form';
 import { BackLink, PageSection } from '@/components/page-section';
-import { Group } from '@/components/ui/group';
+import { DetailLayout, DetailRail, RailSection } from '@/components/ui/detail-layout';
 import { Notice } from '@/components/ui/notice';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
@@ -71,81 +71,77 @@ export default async function CarrierOperatorPage({
         </Notice>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
-        <div className="min-w-0 space-y-10">
-          <PageSection title={c.operators.data}>
-            <div className="rounded-2xl border bg-cell p-5">
-              <OperatorForm
-                operatorId={operator.id}
-                initial={operatorFormValues(operator)}
-                emailLocked={operator.profile_id !== null}
-                businessUnits={[]}
-                defaultBusinessUnitId={null}
-              />
-            </div>
-          </PageSection>
-
-          <PageSection
-            title={fleetCopy.operators.documentsTitle}
-            description={c.documents.description}
-          >
-            <FleetDocuments
-              companyId={companyId}
-              owner={{ type: 'operator', id: operator.id }}
-              progress={operator.progress}
+      <DetailLayout
+        rail={
+          <div className="space-y-6">
+            <DetailRail>
+              {!operator.profile_id ? (
+                <RailSection label={fleetCopy.invitation.title}>
+                  <p className="text-subhead text-text-dim">{fleetCopy.invitation.subtitle}</p>
+                  <InvitationLinkForm
+                    kind="operator"
+                    label={fleetCopy.invitation.create}
+                    operatorId={operator.id}
+                    companyName={companyName}
+                  />
+                </RailSection>
+              ) : operator.profile_id !== viewer.userId ? (
+                // A hombre-camión's own row is a manager account: never reset (G2).
+                <RailSection label={fleetCopy.invitation.title}>
+                  <div className="space-y-0.5">
+                    <h3 className="text-headline text-text">
+                      {managerCompanyCopy.operators.resetTitle}
+                    </h3>
+                    <p className="text-subhead text-text-dim">
+                      {managerCompanyCopy.operators.resetDescription}
+                    </p>
+                  </div>
+                  <InvitationLinkForm
+                    kind="operator_access_reset"
+                    label={managerCompanyCopy.operators.resetAccess}
+                    operatorId={operator.id}
+                    companyName={companyName}
+                  />
+                </RailSection>
+              ) : null}
+              {isManager && units.operable.some((u) => u.id !== operator.business_unit_id) && (
+                <RailSection label={carrierWebCopy.fleet.businessUnitField}>
+                  <MoveForm
+                    kind="operator"
+                    id={operator.id}
+                    currentUnitId={operator.business_unit_id}
+                    units={units.operable}
+                  />
+                </RailSection>
+              )}
+            </DetailRail>
+            {isManager && <FleetArchiveForm kind="operator" id={operator.id} />}
+          </div>
+        }
+      >
+        <PageSection title={c.operators.data}>
+          <div className="border bg-cell p-5">
+            <OperatorForm
+              operatorId={operator.id}
+              initial={operatorFormValues(operator)}
+              emailLocked={operator.profile_id !== null}
+              businessUnits={[]}
+              defaultBusinessUnitId={null}
             />
-          </PageSection>
-        </div>
+          </div>
+        </PageSection>
 
-        <aside className="space-y-8">
-          {!operator.profile_id ? (
-            <Group label={fleetCopy.invitation.title}>
-              <div className="space-y-3 px-4 py-4">
-                <p className="text-subhead text-text-dim">{fleetCopy.invitation.subtitle}</p>
-                <InvitationLinkForm
-                  kind="operator"
-                  label={fleetCopy.invitation.create}
-                  operatorId={operator.id}
-                  companyName={companyName}
-                />
-              </div>
-            </Group>
-          ) : operator.profile_id !== viewer.userId ? (
-            // A hombre-camión's own row is a manager account: never reset (G2).
-            <Group label={fleetCopy.invitation.title}>
-              <div className="space-y-3 px-4 py-4">
-                <div className="space-y-0.5">
-                  <h3 className="text-headline text-text">
-                    {managerCompanyCopy.operators.resetTitle}
-                  </h3>
-                  <p className="text-subhead text-text-dim">
-                    {managerCompanyCopy.operators.resetDescription}
-                  </p>
-                </div>
-                <InvitationLinkForm
-                  kind="operator_access_reset"
-                  label={managerCompanyCopy.operators.resetAccess}
-                  operatorId={operator.id}
-                  companyName={companyName}
-                />
-              </div>
-            </Group>
-          ) : null}
-          {isManager && units.operable.some((u) => u.id !== operator.business_unit_id) && (
-            <Group label={carrierWebCopy.fleet.businessUnitField}>
-              <div className="px-4 py-4">
-                <MoveForm
-                  kind="operator"
-                  id={operator.id}
-                  currentUnitId={operator.business_unit_id}
-                  units={units.operable}
-                />
-              </div>
-            </Group>
-          )}
-          {isManager && <FleetArchiveForm kind="operator" id={operator.id} />}
-        </aside>
-      </div>
+        <PageSection
+          title={fleetCopy.operators.documentsTitle}
+          description={c.documents.description}
+        >
+          <FleetDocuments
+            companyId={companyId}
+            owner={{ type: 'operator', id: operator.id }}
+            progress={operator.progress}
+          />
+        </PageSection>
+      </DetailLayout>
     </>
   );
 }

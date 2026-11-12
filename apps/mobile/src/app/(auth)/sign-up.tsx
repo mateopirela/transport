@@ -2,12 +2,14 @@ import {
   carrierSignUpSchema,
   mobileAuthCopy as copy,
   mobileErrorCopy,
+  PLATFORM_NAME,
   type CarrierSignUpKind,
 } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 import { CheckEmail } from '../../components/check-email';
+import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { TermsCheckbox } from '../../components/legal-links';
 import { OptionGroup } from '../../components/option-group';
 import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
@@ -22,7 +24,8 @@ const KINDS: { value: CarrierSignUpKind; label: string }[] = [
 /**
  * Carrier self sign-up: a company or a hombre-camión (D13). The company and
  * its fiscal data are registered next (app/company.tsx). One group per step:
- * what is registered, who the person is, the password.
+ * what is registered, who the person is, the password; "Crear cuenta" stays
+ * fixed at the bottom.
  */
 export default function SignUp() {
   const { actions } = useSession();
@@ -40,6 +43,7 @@ export default function SignUp() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [barHeight, setBarHeight] = useState(0);
 
   const set = (field: Exclude<keyof typeof values, 'kind' | 'acceptTerms'>) => (text: string) =>
     setValues((current) => ({ ...current, [field]: text }));
@@ -59,72 +63,91 @@ export default function SignUp() {
   if (sentTo) return <CheckEmail email={sentTo} />;
 
   return (
-    <Screen title={copy.signUpTitle} subtitle={copy.signUpSubtitle}>
-      {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <OptionGroup
-        label={copy.signUpKindLabel}
-        options={KINDS}
-        value={values.kind}
-        onChange={(kind) => setValues((current) => ({ ...current, kind }))}
-        hint={values.kind === 'owner_operator' ? copy.signUpKindOwnerOperatorHint : undefined}
-        error={errors.kind}
+    <>
+      <Screen
+        title={copy.signUpTitle}
+        eyebrow={PLATFORM_NAME}
+        subtitle={copy.signUpSubtitle}
+        bottom={barHeight}
+      >
+        {formError ? <Notice tone="danger">{formError}</Notice> : null}
+        <OptionGroup
+          label={copy.signUpKindLabel}
+          options={KINDS}
+          value={values.kind}
+          onChange={(kind) => setValues((current) => ({ ...current, kind }))}
+          hint={values.kind === 'owner_operator' ? copy.signUpKindOwnerOperatorHint : undefined}
+          error={errors.kind}
+        />
+        <Group>
+          <FieldCell
+            label={copy.fullNameLabel}
+            value={values.fullName}
+            onChangeText={set('fullName')}
+            error={errors.fullName}
+            autoComplete="name"
+            textContentType="name"
+          />
+          <FieldCell
+            label={copy.emailLabel}
+            value={values.email}
+            onChangeText={set('email')}
+            error={errors.email}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            textContentType="username"
+          />
+          <FieldCell
+            label={copy.phoneLabel}
+            value={values.phone}
+            onChangeText={set('phone')}
+            error={errors.phone}
+            autoComplete="tel"
+            keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+          />
+        </Group>
+        <Group>
+          <FieldCell
+            label={copy.passwordLabel}
+            value={values.password}
+            onChangeText={set('password')}
+            error={errors.password}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+          />
+          <FieldCell
+            label={copy.passwordConfirmLabel}
+            value={values.passwordConfirmation}
+            onChangeText={set('passwordConfirmation')}
+            error={errors.passwordConfirmation}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+          />
+        </Group>
+        <TermsCheckbox
+          checked={values.acceptTerms}
+          onChange={(acceptTerms) => setValues((current) => ({ ...current, acceptTerms }))}
+          error={errors.acceptTerms}
+        />
+        <Button
+          label={copy.goToSignIn}
+          variant="plain"
+          onPress={() => router.replace('/sign-in')}
+        />
+      </Screen>
+      <KeyboardBottomBar
+        action={{
+          label: copy.signUpAction,
+          onPress: () => void submit(),
+          loading: submitting,
+          size: 'large',
+        }}
+        onHeight={setBarHeight}
       />
-      <Group>
-        <FieldCell
-          label={copy.fullNameLabel}
-          value={values.fullName}
-          onChangeText={set('fullName')}
-          error={errors.fullName}
-          autoComplete="name"
-          textContentType="name"
-        />
-        <FieldCell
-          label={copy.emailLabel}
-          value={values.email}
-          onChangeText={set('email')}
-          error={errors.email}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          textContentType="username"
-        />
-        <FieldCell
-          label={copy.phoneLabel}
-          value={values.phone}
-          onChangeText={set('phone')}
-          error={errors.phone}
-          autoComplete="tel"
-          keyboardType="phone-pad"
-          textContentType="telephoneNumber"
-        />
-      </Group>
-      <Group>
-        <FieldCell
-          label={copy.passwordLabel}
-          value={values.password}
-          onChangeText={set('password')}
-          error={errors.password}
-          secureTextEntry
-          autoComplete="new-password"
-          textContentType="newPassword"
-        />
-        <FieldCell
-          label={copy.passwordConfirmLabel}
-          value={values.passwordConfirmation}
-          onChangeText={set('passwordConfirmation')}
-          error={errors.passwordConfirmation}
-          secureTextEntry
-          autoComplete="new-password"
-          textContentType="newPassword"
-        />
-      </Group>
-      <TermsCheckbox
-        checked={values.acceptTerms}
-        onChange={(acceptTerms) => setValues((current) => ({ ...current, acceptTerms }))}
-        error={errors.acceptTerms}
-      />
-      <Button label={copy.signUpAction} onPress={submit} loading={submitting} />
-      <Button label={copy.goToSignIn} variant="plain" onPress={() => router.replace('/sign-in')} />
-    </Screen>
+    </>
   );
 }

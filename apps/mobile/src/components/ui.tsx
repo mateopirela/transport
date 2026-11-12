@@ -1,5 +1,13 @@
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { fleetCopy, mobileAuthCopy, type StatusTone, toneColors } from '@transport/shared';
+import {
+  fleetCopy,
+  formatMoney,
+  mobileAuthCopy,
+  mobileKitCopy,
+  PLATFORM_NAME,
+  stateToneColors,
+  type StateTone,
+} from '@transport/shared';
 import {
   Children,
   createContext,
@@ -26,11 +34,15 @@ import {
   View,
   type StyleProp,
   type TextInputProps,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { chunkRows, stepNumber, stepStates, toTone, type LegacyTone } from '../lib/kit';
 import {
+  BrandSurface,
+  font,
   iconSize,
   lookOf,
   motion,
@@ -45,31 +57,37 @@ import { Icon, type IconName } from './icons';
 
 /*
  * The kit of "Fulmis" (docs/plan-fulmis.md §1): a screen on the page with
- * an optional large title, groups of cells with inset hairlines, pill
- * buttons (one primary per screen), tinted status pills, chips and a
- * segmented control, fields, and loading and empty states shaped like the
- * content they stand for. Everything reads its colours and type from
- * useTheme(), so it follows the light and the dark theme.
+ * an optional large title, square groups of cells with fine lines, buttons
+ * with a radius of 8 (one filled primary per screen, 56 high where it is the
+ * step to take), boxed fields, status pills in the six tones, notices by
+ * tone, chips and a segmented control, the brand block, steps, figures and
+ * indicators, and loading and empty states shaped like the content they stand
+ * for. Everything reads its colours and type from useTheme(), so it follows
+ * the light and the dark theme. No shadow anywhere.
  */
 
 // ---------------------------------------------------------------------------
 // Screen and text
 // ---------------------------------------------------------------------------
 
-/** Where the floating tab bar sits over the bottom edge, given the phone's bottom inset. */
+/**
+ * The room the tab bar leaves under its tabs, given the phone's bottom inset:
+ * the home indicator's, a little less than the whole inset so the bar stays
+ * low, and never less than the bar's own padding.
+ */
 export function tabBarBottom(insetBottom: number): number {
-  return insetBottom > 0 ? Math.max(insetBottom - spacing.sm, 0) : tabBar.inset;
+  return Math.max(insetBottom - spacing.sm, tabBar.padding);
 }
 
-/** True inside a tab navigator with the floating bar: its screens keep clear of it. */
+/** True inside a tab navigator: its screens keep clear of the bar laid over them. */
 const InTabsContext = createContext(false);
 
-/** Wraps a tab navigator whose bar floats over its screens (components/tab-bar.tsx). */
+/** Wraps a tab navigator whose bar lies over its screens (components/tab-bar.tsx). */
 export function TabScreens({ children }: { children: ReactNode }) {
   return <InTabsContext.Provider value>{children}</InTabsContext.Provider>;
 }
 
-/** How much room a screen keeps under its content for the floating tab bar (0 outside the tabs). */
+/** How much room a screen keeps under its content for the tab bar (0 outside the tabs). */
 export function useTabBarClearance(): number {
   const inTabs = useContext(InTabsContext);
   const insets = useSafeAreaInsets();
@@ -78,15 +96,16 @@ export function useTabBarClearance(): number {
 
 /**
  * A screen that scrolls on the page colour, 16 from each side, with fields
- * kept above the keyboard. A tab screen clears the status bar and the
- * floating tab bar by itself; `belowHeader` for a screen under a navigation
- * header, which already covers the top. `title` opens it with a large title.
- * `bottom` is the height of a BottomBar over it.
+ * kept above the keyboard. A tab screen clears the status bar and the tab
+ * bar by itself; `belowHeader` for a screen under a navigation header, which
+ * already covers the top. `title` opens it with a large title, under a short
+ * `eyebrow` if it has one. `bottom` is the height of a BottomBar over it.
  */
 export function Screen({
   children,
   belowHeader = false,
   title,
+  eyebrow,
   subtitle,
   right,
   bottom = 0,
@@ -97,6 +116,7 @@ export function Screen({
   children: ReactNode;
   belowHeader?: boolean;
   title?: string;
+  eyebrow?: string;
   subtitle?: string;
   right?: ReactNode;
   bottom?: number;
@@ -139,7 +159,9 @@ export function Screen({
             ) : undefined
           }
         >
-          {title ? <LargeTitle title={title} subtitle={subtitle} right={right} /> : null}
+          {title ? (
+            <LargeTitle title={title} eyebrow={eyebrow} subtitle={subtitle} right={right} />
+          ) : null}
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -147,13 +169,18 @@ export function Screen({
   );
 }
 
-/** The large title that opens a screen, its subtitle, and room above it on the right for an action. */
+/**
+ * The large title that opens a screen: a short label over it (`eyebrow`),
+ * its subtitle, and room above it on the right for an action.
+ */
 export function LargeTitle({
   title,
+  eyebrow,
   subtitle,
   right,
 }: {
   title: string;
+  eyebrow?: string | undefined;
   subtitle?: string | undefined;
   right?: ReactNode;
 }) {
@@ -161,6 +188,7 @@ export function LargeTitle({
   return (
     <View style={kit.largeTitle}>
       {right ? <View style={kit.largeTitleRight}>{right}</View> : null}
+      {eyebrow ? <Caps style={kit.label}>{eyebrow}</Caps> : null}
       <Text accessibilityRole="header" style={kit.largeTitleText}>
         {title}
       </Text>
@@ -192,10 +220,35 @@ export function SectionHeader({
   );
 }
 
+/**
+ * A label drawn in capitals. iOS reads a transformed text the way it is drawn,
+ * so the label keeps its own wording as its accessible name: a screen reader
+ * and the E2E flows get "Publicada por Transport", not "PUBLICADA POR TRANSPORT".
+ */
+export function Caps({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: ReactNode;
+  style: StyleProp<TextStyle>;
+  numberOfLines?: number;
+}) {
+  return (
+    <Text
+      {...(typeof children === 'string' ? { accessibilityLabel: children } : null)}
+      style={style}
+      numberOfLines={numberOfLines}
+    >
+      {children}
+    </Text>
+  );
+}
+
 /** The small label over a group of fields or choices. */
 export function GroupLabel({ children }: { children: ReactNode }) {
   const kit = useKit();
-  return <Text style={[kit.label, kit.groupLabel]}>{children}</Text>;
+  return <Caps style={[kit.label, kit.groupLabel]}>{children}</Caps>;
 }
 
 /** The line under a group that explains it. */
@@ -229,9 +282,15 @@ function flattenRows(children: ReactNode, prefix = ''): { key: string; row: Reac
   });
 }
 
+/** A row that is a field or a control: its own box sets it apart, so no line between two of them. */
+function isFormRow(row: ReactNode): boolean {
+  return isValidElement(row) && (row.type === FieldCell || row.type === ControlCell);
+}
+
 /**
- * A group of cells: the cell colour, radius 16, a hairline around it and an
- * inset hairline between its rows (`inset`, 16 for text rows).
+ * A group of cells: the cell colour with square corners, a fine line around
+ * it and an inset one between its rows (`inset`, 16 for text rows). Fields
+ * and controls that follow one another go without the line: each has its box.
  */
 export function Group({
   children,
@@ -248,7 +307,9 @@ export function Group({
     <View style={[kit.group, style]}>
       {rows.map(({ key, row }, i) => (
         <View key={key}>
-          {i > 0 ? <View style={[kit.separator, { marginLeft: inset }]} /> : null}
+          {i > 0 && !(isFormRow(row) && isFormRow(rows[i - 1]?.row)) ? (
+            <View style={[kit.separator, { marginLeft: inset }]} />
+          ) : null}
           {row}
         </View>
       ))}
@@ -347,7 +408,7 @@ export function Cell({
       {trailing}
       {checked ? <Icon name="check" size={iconSize.cell} color={colors.accentText} /> : null}
       {showChevron ? (
-        <Icon name="chevronRight" size={iconSize.small} color={colors.textFaint} />
+        <Icon name="chevronRight" size={iconSize.small} color={colors.textDim} />
       ) : null}
     </>
   );
@@ -411,9 +472,9 @@ export function SwitchCell({
 }
 
 /**
- * A field as a row of a group: the label small above and the text written
- * on the cell, as the phone's own forms. `inSheet` inside a Sheet, so the
- * sheet makes room for the keyboard.
+ * A field as a row of a group: the label small above its box, 48 high with
+ * the control line (red on an error). `inSheet` inside a Sheet, so the sheet
+ * makes room for the keyboard.
  */
 export function FieldCell({
   label,
@@ -427,12 +488,17 @@ export function FieldCell({
   const Input = inSheet ? BottomSheetTextInput : TextInput;
   return (
     <View style={kit.controlCell}>
-      <Text style={[kit.label, error ? kit.redText : null]}>{label}</Text>
+      <Caps style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Caps>
       <Input
         accessibilityLabel={label}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         keyboardAppearance={theme}
-        style={[kit.fieldCellInput, input.multiline ? kit.multiline : null, style]}
+        style={[
+          kit.input,
+          input.multiline ? kit.inputMultiline : null,
+          error ? kit.inputError : null,
+          style,
+        ]}
         {...input}
       />
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -453,7 +519,7 @@ export function ControlCell({
   const kit = useKit();
   return (
     <View style={kit.controlCell}>
-      {label ? <Text style={kit.label}>{label}</Text> : null}
+      {label ? <Caps style={kit.fieldLabel}>{label}</Caps> : null}
       {children}
       {error ? <ErrorText>{error}</ErrorText> : null}
     </View>
@@ -514,11 +580,19 @@ export function touchSlop(height: number): { top: number; bottom: number } | und
   return extra > 0 ? { top: extra, bottom: extra } : undefined;
 }
 
+export type ButtonSize = 'small' | 'regular' | 'large';
+
+const BUTTON_HEIGHT: Readonly<Record<ButtonSize, number>> = {
+  small: shape.buttonHeightSmall,
+  regular: shape.buttonHeight,
+  large: shape.buttonHeightPrimary,
+};
+
 /**
- * The buttons of the system, all pills, 52 high (40 `small`): `primary` in
- * the accent, the only one per screen; `secondary` on the cell colour;
- * `plain` as text; `destructive` in red. `loading` shows a spinner and
- * disables it.
+ * The buttons of the system, radius 8, 48 high (40 `small`; 56 `large`, for
+ * the step to take): `primary` filled with the accent, the only one per
+ * screen; `secondary` with the control line; `plain` as text; `destructive`
+ * with a red line. `loading` shows a spinner and disables it.
  */
 export function Button({
   label,
@@ -533,7 +607,7 @@ export function Button({
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
-  size?: 'regular' | 'small';
+  size?: ButtonSize;
   loading?: boolean;
   disabled?: boolean;
   icon?: IconName;
@@ -544,7 +618,7 @@ export function Button({
   const kind = variant;
   const off = disabled || loading;
   const ink = off
-    ? colors.textFaint
+    ? colors.textDim
     : kind === 'primary'
       ? colors.accentInk
       : kind === 'destructive'
@@ -559,15 +633,17 @@ export function Button({
       accessibilityState={{ disabled: off, busy: loading }}
       disabled={off}
       onPress={onPress}
-      hitSlop={touchSlop(size === 'small' ? shape.buttonHeightSmall : shape.buttonHeight)}
+      hitSlop={touchSlop(BUTTON_HEIGHT[size])}
       style={({ pressed }) => [
         kit.button,
-        size === 'small' ? kit.buttonSmall : null,
+        size === 'small' ? kit.buttonSmall : size === 'large' ? kit.buttonLarge : null,
         kind === 'primary'
           ? kit.buttonPrimary
           : kind === 'plain'
             ? kit.buttonPlain
-            : kit.buttonSecondary,
+            : kind === 'destructive'
+              ? kit.buttonDestructive
+              : kit.buttonSecondary,
         off && kind !== 'plain' ? kit.buttonOff : null,
         pressed && !off ? kit.pressed : null,
       ]}
@@ -578,7 +654,11 @@ export function Button({
         <Icon name={icon} size={iconSize.cell} color={ink} />
       ) : null}
       <Text
-        style={[kit.buttonText, size === 'small' ? kit.buttonTextSmall : null, { color: ink }]}
+        style={[
+          kit.buttonText,
+          size === 'small' ? kit.buttonTextSmall : size === 'large' ? kit.buttonTextLarge : null,
+          { color: ink },
+        ]}
         numberOfLines={2}
       >
         {label}
@@ -589,9 +669,10 @@ export function Button({
 
 /**
  * The bar that stays at the bottom of a screen, solid on the cell colour: the
- * screen's one primary action, an optional secondary one beside it, a figure
- * on the left and a note under it. The screen keeps clear of it with
- * Screen's `bottom` and the height `onHeight` reports.
+ * screen's one primary action (`size: 'large'` where it is the step to
+ * take), an optional secondary one beside it, a figure on the left and a note
+ * under it. The screen keeps clear of it with Screen's `bottom` and the
+ * height `onHeight` reports.
  */
 export function BottomBar({
   action,
@@ -606,6 +687,8 @@ export function BottomBar({
     loading?: boolean;
     disabled?: boolean;
     variant?: 'primary' | 'destructive';
+    size?: 'regular' | 'large';
+    icon?: IconName;
   };
   secondary?: { label: string; onPress: () => void; disabled?: boolean } | undefined;
   figure?: { label: string; value: string } | undefined;
@@ -623,9 +706,9 @@ export function BottomBar({
       <View style={kit.barRow}>
         {figure ? (
           <View style={kit.grow}>
-            <Text style={kit.footnote} numberOfLines={1}>
+            <Caps style={kit.label} numberOfLines={1}>
               {figure.label}
-            </Text>
+            </Caps>
             <Text style={[kit.title3, kit.num]} numberOfLines={1}>
               {figure.value}
             </Text>
@@ -638,6 +721,7 @@ export function BottomBar({
               onPress={secondary.onPress}
               disabled={secondary.disabled}
               variant="secondary"
+              size={action.size ?? 'regular'}
             />
           </View>
         ) : null}
@@ -648,6 +732,8 @@ export function BottomBar({
             loading={action.loading}
             disabled={action.disabled}
             variant={action.variant ?? 'primary'}
+            size={action.size ?? 'regular'}
+            icon={action.icon}
           />
         </View>
       </View>
@@ -660,7 +746,7 @@ export function BottomBar({
 // Fields and choices
 // ---------------------------------------------------------------------------
 
-/** A field: the label above, a 48-high box on the cell colour, the error in red under it (or a hint). */
+/** A field on the page: the label above, a 48-high box with the control line, the error in red under it (or a hint). */
 export function Field({
   label,
   error,
@@ -672,10 +758,10 @@ export function Field({
   const { colors, theme } = useTheme();
   return (
     <View style={kit.field}>
-      <Text style={kit.label}>{label}</Text>
+      <Caps style={[kit.fieldLabel, error ? kit.redText : null]}>{label}</Caps>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         keyboardAppearance={theme}
         style={[
           kit.input,
@@ -718,7 +804,7 @@ export function Checkbox({
       <View
         style={[kit.checkBox, checked ? kit.checkBoxOn : null, invalid ? kit.inputError : null]}
       >
-        {checked ? <Icon name="check" size={iconSize.small} color={colors.accentInk} /> : null}
+        {checked ? <Icon name="check" size={iconSize.small} color={colors.bg} /> : null}
       </View>
       <View style={kit.grow}>
         {typeof children === 'string' ? <Text style={kit.subheadText}>{children}</Text> : children}
@@ -738,7 +824,7 @@ const SEGMENT_HEIGHT = shape.buttonHeightSmall - spacing.xs;
 const SEGMENT_SLOP = touchSlop(SEGMENT_HEIGHT)?.top ?? 0;
 const CHIP_SLOP = touchSlop(shape.buttonHeightSmall)?.top ?? 0;
 
-/** Two or three exclusive options side by side: the selected one lifted on the cell colour. */
+/** Two or three exclusive options side by side in one box: the selected one filled with the ink. */
 export function Segmented<T extends string>({
   label,
   value,
@@ -778,7 +864,7 @@ export function Segmented<T extends string>({
   );
 }
 
-/** A chip: on the cell colour with a hairline; selected, on the accent's tint. Without `onPress`, a plain tag. */
+/** A chip: a box with the control line; selected, filled with the ink. Without `onPress`, a plain tag. */
 export function Chip({
   label,
   selected = false,
@@ -851,7 +937,7 @@ export function ChipTabs<T extends string>({
   );
 }
 
-/** The search field over a list: a box on the cell colour with the magnifier. */
+/** The search field over a list: a field's box with the magnifier. */
 export function SearchBox({
   label,
   placeholder,
@@ -872,13 +958,13 @@ export function SearchBox({
   const Input = inSheet ? BottomSheetTextInput : TextInput;
   return (
     <View accessibilityRole="search" style={kit.searchBox}>
-      <Icon name="search" size={iconSize.cell} color={colors.textFaint} />
+      <Icon name="search" size={iconSize.cell} color={colors.textDim} />
       <Input
         accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? label}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={colors.textDim}
         keyboardAppearance={theme}
         returnKeyType="search"
         onSubmitEditing={onSubmit}
@@ -894,25 +980,51 @@ export function SearchBox({
 // Status, states and notices
 // ---------------------------------------------------------------------------
 
-/** The tones of a pill: the four status tones of the palette, and a quiet one. */
-export type PillTone = StatusTone | 'neutral';
+/**
+ * The tones of a pill: the six of Fulmis (docs/plan-fulmis.md §1.1), and the
+ * names the screens used before it, which read as the tone each one became.
+ */
+export type PillTone = StateTone | LegacyTone;
 
-/** The ground and the text of a pill of `tone` in a theme. */
-export function pillColors(look: Look, tone: PillTone): { bg: string; fg: string } {
-  return tone === 'neutral'
-    ? { bg: look.colors.surfaceHigh, fg: look.colors.textDim }
-    : toneColors(look.theme, tone);
+export interface PillColors {
+  readonly bg: string;
+  readonly fg: string;
+  /** `null` when the fill alone sets the pill apart. */
+  readonly border: string | null;
+  /** "Hecho" is the neutral pill with a check: Fulmis has no green. */
+  readonly check: boolean;
 }
 
-/** A short state on its tone's 14 % tint: "Disponible", "En revisión", "Vencido". */
+/** The fill, the ink, the outline and the check of a pill of `tone` in a theme. */
+export function pillColors(look: Look, tone: PillTone): PillColors {
+  const state = toTone(tone);
+  const { fill, ink, border } = stateToneColors(look.theme, state);
+  return { bg: fill, fg: ink, border, check: state === 'done' };
+}
+
+/** The check of a pill, as high as its text. */
+const PILL_CHECK = iconSize.small - spacing.xs;
+
+/**
+ * A short state in its tone: "Disponible", "En revisión", "Vencido". The
+ * name says the state and the tone how much it asks, so colour is never the
+ * only sign; what is done is the quiet pill with a check.
+ */
 export function Pill({ label, tone = 'neutral' }: { label: string; tone?: PillTone }) {
   const kit = useKit();
-  const { bg, fg } = pillColors(useTheme(), tone);
+  const { bg, fg, border, check } = pillColors(useTheme(), tone);
   return (
-    <View style={[kit.pill, { backgroundColor: bg }]}>
-      <Text style={[kit.pillText, { color: fg }]} numberOfLines={1}>
+    <View
+      style={[
+        kit.pill,
+        { backgroundColor: bg },
+        border ? { borderWidth: 1, borderColor: border } : null,
+      ]}
+    >
+      {check ? <Icon name="check" size={PILL_CHECK} color={fg} /> : null}
+      <Caps style={[kit.pillText, { color: fg }]} numberOfLines={1}>
         {label}
-      </Text>
+      </Caps>
     </View>
   );
 }
@@ -1004,12 +1116,23 @@ export function LoadError({
   );
 }
 
-export type NoticeTone = 'highlight' | 'info' | 'warning' | 'danger';
+export type NoticeTone = 'highlight' | 'info' | 'warning' | 'danger' | 'attention';
+
+/** The status tone and the icon each notice wears on its mark. */
+const NOTICE_MARK: Readonly<Record<NoticeTone, { tone: StateTone; icon: IconName }>> = {
+  highlight: { tone: 'done', icon: 'check' },
+  info: { tone: 'progress', icon: 'info' },
+  warning: { tone: 'pending', icon: 'warning' },
+  danger: { tone: 'problem', icon: 'alert' },
+  attention: { tone: 'attention', icon: 'alert' },
+};
 
 /**
- * A notice: `highlight` after something went well, `info` on the accent's
- * tint, `warning` on the highlight with an amber title, `danger` on the red
- * tint (read out as an alert).
+ * A notice, on the cell colour with a fine line and a mark in its tone:
+ * `highlight` after something went well, `info` for what is under way,
+ * `warning` for what waits or is about to expire, `danger` for what failed
+ * (read out as an alert) and `attention` for what the person has to do. The
+ * title and the icon say it: the colour is never the only sign.
  */
 export function Notice({
   tone = 'highlight',
@@ -1021,13 +1144,18 @@ export function Notice({
   children?: ReactNode;
 }) {
   const kit = useKit();
+  const { theme } = useTheme();
+  const mark = NOTICE_MARK[tone];
+  const { fill: bg, ink: fg } = stateToneColors(theme, mark.tone);
   return (
-    <View
-      accessibilityRole={tone === 'danger' ? 'alert' : undefined}
-      style={[kit.notice, kit[`${tone}Notice`]]}
-    >
-      {title ? <Text style={[kit.headline, kit[`${tone}Title`]]}>{title}</Text> : null}
-      {typeof children === 'string' ? <Text style={kit.subheadText}>{children}</Text> : children}
+    <View accessibilityRole={tone === 'danger' ? 'alert' : undefined} style={kit.notice}>
+      <View style={[kit.noticeMark, { backgroundColor: bg }]}>
+        <Icon name={mark.icon} size={iconSize.small} color={fg} />
+      </View>
+      <View style={kit.noticeBody}>
+        {title ? <Text style={kit.headline}>{title}</Text> : null}
+        {typeof children === 'string' ? <Text style={kit.subheadText}>{children}</Text> : children}
+      </View>
     </View>
   );
 }
@@ -1043,15 +1171,289 @@ export function ErrorText({ children }: { children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
+// The brand block, steps, figures and indicators
+// ---------------------------------------------------------------------------
+
+/** Buttons side by side, each as wide as the others: the two secondary ways of a step. */
+export function ButtonRow({ children }: { children: ReactNode }) {
+  const kit = useKit();
+  return (
+    <View style={kit.buttonRow}>
+      {Children.toArray(children).map((child, i) => (
+        <View key={isValidElement(child) && child.key !== null ? child.key : i} style={kit.grow}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** What a brand block holds, read in the Night look whatever the theme. */
+function BrandContent({
+  mark,
+  label,
+  title,
+  body,
+  children,
+}: {
+  mark: boolean;
+  label?: string | undefined;
+  title?: string | undefined;
+  body?: string | undefined;
+  children?: ReactNode;
+}) {
+  const kit = useKit();
+  const { colors } = useTheme();
+  return (
+    <>
+      {mark ? (
+        <View style={kit.brandMarkRow}>
+          <View style={kit.brandMark}>
+            <Icon name="swap" size={iconSize.cell} color={colors.accentInk} />
+          </View>
+          <Text style={kit.title3}>{PLATFORM_NAME}</Text>
+        </View>
+      ) : null}
+      {label || title || body ? (
+        <View style={kit.brandText}>
+          {label ? <Caps style={kit.label}>{label}</Caps> : null}
+          {title ? (
+            <Text accessibilityRole="header" style={kit.brandTitle}>
+              {title}
+            </Text>
+          ) : null}
+          {body ? <Text style={kit.dim}>{body}</Text> : null}
+        </View>
+      ) : null}
+      {children}
+    </>
+  );
+}
+
+/**
+ * The Night block, the same in both themes: the brand on the way in (`mark`
+ * draws it with the platform's name) and, on a trip, "Tu siguiente paso" (a
+ * short `label`, the step as `title`, a line of `body`). Its children are
+ * its actions, and they read the Night look: the one primary of the screen,
+ * 56 high, and the secondary ones under it.
+ */
+export function BrandBlock({
+  mark = false,
+  label,
+  title,
+  body,
+  children,
+}: {
+  mark?: boolean;
+  label?: string | undefined;
+  title?: string | undefined;
+  body?: string | undefined;
+  children?: ReactNode;
+}) {
+  const kit = useKit();
+  return (
+    <View style={kit.brand}>
+      <BrandSurface>
+        <BrandContent mark={mark} label={label} title={title} body={body}>
+          {children}
+        </BrandContent>
+      </BrandSurface>
+    </View>
+  );
+}
+
+/**
+ * How far something is along its steps (the four of a trip): a bar per step,
+ * filled up to the one in course, and each step's name under its bar with an
+ * optional `detail` (an hour). `current` counts from 0; below 0 nothing has
+ * started and at the number of steps all are done. `title` names the row and
+ * "Paso 2 de 4" sits beside it. `inset={false}` where its parent already
+ * gives it the padding of a cell.
+ */
+export function Steps({
+  steps,
+  current,
+  title,
+  inset = true,
+}: {
+  steps: readonly { label: string; detail?: string | undefined }[];
+  current: number;
+  title?: string | undefined;
+  inset?: boolean;
+}) {
+  const kit = useKit();
+  const states = stepStates(steps.length, current);
+  const number = stepNumber(steps.length, current);
+  const count = mobileKitCopy.stepOf(number, steps.length);
+  const active = steps[states.indexOf('current')]?.label;
+  return (
+    <View style={[kit.steps, inset ? kit.stepsInset : null]}>
+      <View style={kit.stepsHeader}>
+        {title ? <Caps style={[kit.label, kit.grow]}>{title}</Caps> : <View style={kit.grow} />}
+        <Text style={kit.meta}>{count}</Text>
+      </View>
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={title ?? count}
+        accessibilityValue={{
+          min: 0,
+          max: steps.length,
+          now: states.filter((state) => state === 'done').length,
+          text: active ? `${count}: ${active}` : count,
+        }}
+        style={kit.stepBars}
+      >
+        {states.map((state, i) => (
+          <View
+            key={i}
+            style={[
+              kit.stepBar,
+              state === 'done' ? kit.stepBarDone : state === 'current' ? kit.stepBarCurrent : null,
+            ]}
+          />
+        ))}
+      </View>
+      <View style={kit.stepLabels}>
+        {steps.map((step, i) => (
+          <View key={i} style={kit.stepLabel}>
+            <Text
+              style={[
+                kit.stepText,
+                states[i] === 'done'
+                  ? kit.stepTextDone
+                  : states[i] === 'current'
+                    ? kit.stepTextCurrent
+                    : null,
+              ]}
+              numberOfLines={2}
+            >
+              {step.label}
+            </Text>
+            {step.detail ? (
+              <Text style={kit.meta} numberOfLines={1}>
+                {step.detail}
+              </Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export type MoneySize = 'numeral' | 'title' | 'headline' | 'body';
+
+/**
+ * An amount in pesos from its integer cents, without ".00" on whole pesos
+ * (`formatMoney`): `numeral` for the figure of a screen, `title` for the
+ * freight of a load, `headline` and `body` inside a row. A short `label` goes
+ * over it. Every figure is as wide as the others and never wraps.
+ */
+export function Money({
+  cents,
+  size = 'numeral',
+  label,
+  align = 'left',
+}: {
+  cents: number | bigint | string;
+  size?: MoneySize;
+  label?: string | undefined;
+  align?: 'left' | 'right';
+}) {
+  const kit = useKit();
+  const right = align === 'right' ? kit.valueText : null;
+  const figure = (
+    <Text style={[kit[`money${size}`], kit.num, right]} numberOfLines={1} adjustsFontSizeToFit>
+      {formatMoney(cents)}
+    </Text>
+  );
+  if (!label) return figure;
+  return (
+    <View style={kit.money}>
+      <Caps style={[kit.label, right]} numberOfLines={1}>
+        {label}
+      </Caps>
+      {figure}
+    </View>
+  );
+}
+
+/**
+ * An indicator: a short label, its figure large and a line under it. With
+ * `onPress` it opens where the figure comes from. Tiles go in a KpiGrid.
+ */
+export function KpiTile({
+  label,
+  value,
+  hint,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  hint?: string | undefined;
+  onPress?: (() => void) | undefined;
+}) {
+  const kit = useKit();
+  const content = (
+    <>
+      <Caps style={kit.label} numberOfLines={2}>
+        {label}
+      </Caps>
+      <Text style={[kit.kpiValue, kit.num]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      {hint ? (
+        <Text style={kit.footnote} numberOfLines={2}>
+          {hint}
+        </Text>
+      ) : null}
+    </>
+  );
+  if (!onPress) return <View style={kit.kpi}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={hint ? `${label}: ${value}. ${hint}` : `${label}: ${value}`}
+      onPress={onPress}
+      style={({ pressed }) => [kit.kpi, pressed ? kit.cellPressed : null]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
+/** Indicators in rows of `columns` (2), on one ground with fine lines between them. */
+export function KpiGrid({ children, columns = 2 }: { children: ReactNode; columns?: number }) {
+  const kit = useKit();
+  const rows = chunkRows(Children.toArray(children), columns);
+  const width = rows[0]?.length ?? 0;
+  return (
+    <View style={kit.group}>
+      {rows.map((row, r) => (
+        <View key={r} style={[kit.kpiRow, r > 0 ? kit.kpiRowNext : null]}>
+          {Array.from({ length: width }, (_, c) => (
+            <View key={c} style={[kit.grow, c > 0 ? kit.kpiCellNext : null]}>
+              {row[c] ?? null}
+            </View>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
 /** The kit's styles on the colours and type of one theme. */
 function makeStyles({ colors, type, theme }: Look) {
-  // What is lifted (a selected segment) is lighter than its track in both themes.
-  const [track, lifted] =
-    theme === 'dark' ? [colors.cell, colors.surfaceHigh] : [colors.surfaceHigh, colors.cell];
+  /** The fine line between surfaces. */
   const hairline = { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.separator };
+  /** The line of a field or a control. */
+  const outline = { borderWidth: 1, borderColor: colors.control };
+  const strong = { fontFamily: type.headline.fontFamily };
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg },
     screen: {
@@ -1075,6 +1477,7 @@ function makeStyles({ colors, type, theme }: Look) {
     footnote: type.footnote,
     caption: type.caption,
     label: type.label,
+    meta: type.meta,
     redText: { color: colors.redText },
     disabled: { opacity: opacity.disabled },
     pressed: { opacity: opacity.pressed },
@@ -1093,7 +1496,7 @@ function makeStyles({ colors, type, theme }: Look) {
       marginTop: spacing.sm,
     },
     sectionTitle: type.title3,
-    sectionAction: { ...type.subhead, color: colors.accentText },
+    sectionAction: { ...type.subhead, ...strong, color: colors.accentText },
     groupLabel: { paddingHorizontal: spacing.md, marginBottom: -spacing.xs },
     groupFootnote: { paddingHorizontal: spacing.md, marginTop: -spacing.xs },
 
@@ -1117,13 +1520,11 @@ function makeStyles({ colors, type, theme }: Look) {
     cellSubtitle: { ...type.subhead, color: colors.textDim },
     cellValue: { ...type.body, ...type.num, color: colors.textDim, flexShrink: 1 },
     controlCell: {
-      gap: spacing.xs,
+      gap: spacing.xs + spacing.xs / 2,
       minHeight: shape.cellMinHeight,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm + spacing.xs / 2,
     },
-    fieldCellInput: { ...type.body, paddingVertical: spacing.xs / 2 },
-    multiline: { minHeight: shape.fieldHeight + spacing.lg, textAlignVertical: 'top' },
     textCell: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -1144,7 +1545,9 @@ function makeStyles({ colors, type, theme }: Look) {
 
     button: {
       minHeight: shape.buttonHeight,
-      borderRadius: shape.pill,
+      borderRadius: shape.button,
+      borderWidth: 1,
+      borderColor: 'transparent',
       paddingHorizontal: spacing.lg,
       flexDirection: 'row',
       gap: spacing.sm,
@@ -1152,12 +1555,16 @@ function makeStyles({ colors, type, theme }: Look) {
       justifyContent: 'center',
     },
     buttonSmall: { minHeight: shape.buttonHeightSmall, paddingHorizontal: spacing.md },
-    buttonPrimary: { backgroundColor: colors.accent },
-    buttonSecondary: { ...hairline, backgroundColor: colors.cell },
+    buttonLarge: { minHeight: shape.buttonHeightPrimary },
+    buttonPrimary: { backgroundColor: colors.accent, borderColor: colors.accent },
+    buttonSecondary: { ...outline, backgroundColor: 'transparent' },
+    buttonDestructive: { borderColor: colors.redText, backgroundColor: 'transparent' },
     buttonPlain: { backgroundColor: 'transparent', paddingHorizontal: spacing.sm },
     buttonOff: { backgroundColor: colors.surfaceHigh, borderColor: colors.surfaceHigh },
     buttonText: { ...type.headline, textAlign: 'center', flexShrink: 1 },
-    buttonTextSmall: type.subhead,
+    buttonTextSmall: { ...type.subhead, ...strong },
+    buttonTextLarge: { fontFamily: font[700] },
+    buttonRow: { flexDirection: 'row', gap: spacing.sm },
     bar: {
       position: 'absolute',
       left: 0,
@@ -1174,12 +1581,13 @@ function makeStyles({ colors, type, theme }: Look) {
     barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + spacing.xs },
 
     field: { gap: spacing.xs + spacing.xs / 2 },
+    fieldLabel: type.label,
     input: {
       ...type.body,
-      ...hairline,
+      ...outline,
       minHeight: shape.fieldHeight,
       borderRadius: shape.field,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.sm + spacing.xs,
       backgroundColor: colors.cell,
     },
     inputMultiline: {
@@ -1187,7 +1595,7 @@ function makeStyles({ colors, type, theme }: Look) {
       paddingTop: spacing.sm + spacing.xs,
       textAlignVertical: 'top',
     },
-    inputError: { borderWidth: 1, borderColor: colors.redText },
+    inputError: { borderColor: colors.redText },
     checkRow: {
       flexDirection: 'row',
       gap: spacing.sm + spacing.xs,
@@ -1199,13 +1607,13 @@ function makeStyles({ colors, type, theme }: Look) {
       width: iconSize.cell + 2,
       height: iconSize.cell + 2,
       borderWidth: 1.5,
-      borderColor: colors.textFaint,
+      borderColor: colors.control,
       borderRadius: shape.tag,
       backgroundColor: colors.cell,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    checkBoxOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+    checkBoxOn: { backgroundColor: colors.text, borderColor: colors.text },
     // The segments sit SEGMENT_SLOP from the frame's edges (the track's padding
     // above and below, plus room for their hit slop) and the track's padding
     // from its sides; the negative margin keeps the control as tall as before.
@@ -1216,45 +1624,46 @@ function makeStyles({ colors, type, theme }: Look) {
       marginVertical: spacing.xs / 2 - SEGMENT_SLOP,
     },
     segmented: {
+      ...outline,
       position: 'absolute',
       left: 0,
       right: 0,
       top: SEGMENT_SLOP - spacing.xs / 2,
       bottom: SEGMENT_SLOP - spacing.xs / 2,
-      borderRadius: shape.pill,
-      backgroundColor: track,
+      borderRadius: shape.field,
+      backgroundColor: colors.cell,
     },
     segment: {
       flex: 1,
       minHeight: SEGMENT_HEIGHT,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: shape.pill,
+      borderRadius: shape.field,
       paddingHorizontal: spacing.sm,
     },
-    segmentOn: { backgroundColor: lifted },
+    segmentOn: { backgroundColor: colors.text },
     segmentText: { ...type.subhead, color: colors.textDim },
-    segmentTextOn: { ...type.subhead, fontFamily: type.headline.fontFamily, color: colors.text },
+    segmentTextOn: { ...type.subhead, ...strong, color: colors.bg },
     chip: {
-      ...hairline,
+      ...outline,
       minHeight: shape.buttonHeightSmall,
       justifyContent: 'center',
-      borderRadius: shape.pill,
+      borderRadius: shape.tag,
       paddingHorizontal: spacing.md,
-      backgroundColor: colors.cell,
+      backgroundColor: 'transparent',
     },
-    chipOn: { borderColor: colors.accentSoft, backgroundColor: colors.accentSoft },
+    chipOn: { borderColor: colors.text, backgroundColor: colors.text },
     chipText: { ...type.subhead, color: colors.text },
-    chipTextOn: { fontFamily: type.headline.fontFamily, color: colors.accentText },
+    chipTextOn: { ...strong, color: colors.bg },
     // Room above and below the chips for their hit slop (a ScrollView clips).
     chipTabs: { marginHorizontal: -spacing.md, marginVertical: -CHIP_SLOP, flexGrow: 0 },
     chipTabsRow: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: CHIP_SLOP },
     searchBox: {
-      ...hairline,
+      ...outline,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      minHeight: shape.fieldHeight - spacing.xs,
+      minHeight: shape.fieldHeight,
       borderRadius: shape.field,
       paddingHorizontal: spacing.sm + spacing.xs,
       backgroundColor: colors.cell,
@@ -1263,10 +1672,12 @@ function makeStyles({ colors, type, theme }: Look) {
 
     pill: {
       alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
       minHeight: spacing.lg,
       borderRadius: shape.pill,
       paddingHorizontal: spacing.sm + spacing.xs / 2,
-      justifyContent: 'center',
     },
     pillText: type.label,
     empty: { paddingHorizontal: spacing.md, paddingVertical: spacing.md + spacing.xs, gap: 2 },
@@ -1281,18 +1692,72 @@ function makeStyles({ colors, type, theme }: Look) {
     bone: {
       height: spacing.sm + spacing.xs,
       borderRadius: shape.tag,
-      backgroundColor: colors.surfaceHigh,
+      // The line colour reads on the cell in both themes; `surfaceHigh` is lost on Night.
+      backgroundColor: colors.separator,
     },
     boneShort: { width: '35%', height: spacing.sm + 2 },
-    notice: { borderRadius: shape.card, padding: spacing.md, gap: spacing.xs },
-    highlightNotice: { backgroundColor: colors.highlight },
-    infoNotice: { backgroundColor: colors.accentSoft },
-    warningNotice: { backgroundColor: colors.highlight },
-    dangerNotice: { backgroundColor: colors.redSoft },
-    highlightTitle: { color: colors.text },
-    infoTitle: { color: colors.accentText },
-    warningTitle: { color: colors.amberText },
-    dangerTitle: { color: colors.redText },
+    notice: {
+      ...hairline,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + spacing.xs,
+      borderRadius: shape.card,
+      padding: spacing.md,
+      backgroundColor: colors.cell,
+    },
+    noticeMark: {
+      width: spacing.lg + spacing.xs,
+      height: spacing.lg + spacing.xs,
+      borderRadius: shape.tag,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    noticeBody: { flex: 1, gap: spacing.xs },
+
+    // The Night block: Night itself on Paper, and one step up from the page on Night.
+    brand: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.brandLine,
+      borderRadius: shape.card,
+      backgroundColor: theme === 'dark' ? colors.brandSelected : colors.brandBg,
+      padding: spacing.md + spacing.xs,
+      gap: spacing.md,
+    },
+    brandMarkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + spacing.xs },
+    brandMark: {
+      width: spacing.xl - spacing.xs,
+      height: spacing.xl - spacing.xs,
+      borderRadius: shape.tag,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brandText: { gap: spacing.xs + spacing.xs / 2 },
+    brandTitle: type.title2,
+
+    steps: { gap: spacing.sm },
+    stepsInset: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+    stepsHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+    stepBars: { flexDirection: 'row', gap: spacing.xs },
+    stepBar: { flex: 1, height: spacing.xs, backgroundColor: colors.separator },
+    stepBarDone: { backgroundColor: colors.text },
+    stepBarCurrent: { backgroundColor: colors.accent },
+    stepLabels: { flexDirection: 'row', gap: spacing.xs },
+    stepLabel: { flex: 1, gap: 1 },
+    stepText: { ...type.caption, ...strong, color: colors.textDim },
+    stepTextDone: { color: colors.text },
+    stepTextCurrent: { fontFamily: font[700], color: colors.accentText },
+
+    money: { gap: spacing.xs / 2 },
+    moneynumeral: type.numeral,
+    moneytitle: type.title2,
+    moneyheadline: type.headline,
+    moneybody: type.body,
+    kpi: { flex: 1, gap: spacing.xs, padding: spacing.md },
+    kpiValue: type.numeral,
+    kpiRow: { flexDirection: 'row' },
+    kpiRowNext: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.separator },
+    kpiCellNext: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.separator },
   });
 }
 

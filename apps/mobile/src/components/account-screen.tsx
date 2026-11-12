@@ -16,7 +16,7 @@ import { useTheme } from '../theme';
 import { AppearancePicker } from './appearance-picker';
 import { HelpCell } from './help-cell';
 import { LegalLinks } from './legal-links';
-import { Button, Cell, FieldCell, Group, Notice, Screen, SectionHeader } from './ui';
+import { Button, Caps, Cell, FieldCell, Group, Notice, Screen, SectionHeader } from './ui';
 
 /**
  * "Más" tab, as the phone's own settings: what the screen adds (`children`,
@@ -57,7 +57,7 @@ export function AccountScreen({ children }: { children?: ReactNode }) {
         {rows.map(([label, value]) =>
           value ? (
             <Cell key={label}>
-              <Text style={type.label}>{label}</Text>
+              <Caps style={type.label}>{label}</Caps>
               <Text style={type.body}>{value}</Text>
             </Cell>
           ) : null,

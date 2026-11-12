@@ -1,4 +1,4 @@
-import { mobileAuthCopy as copy } from '@transport/shared';
+import { mobileAuthCopy as copy, PLATFORM_NAME } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 
@@ -40,5 +40,9 @@ export function CheckEmail({
       </>
     );
   }
-  return <Screen title={copy.checkEmailTitle}>{content}</Screen>;
+  return (
+    <Screen title={copy.checkEmailTitle} eyebrow={PLATFORM_NAME}>
+      {content}
+    </Screen>
+  );
 }

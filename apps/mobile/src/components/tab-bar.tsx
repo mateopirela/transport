@@ -3,6 +3,7 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { badgeText } from '../lib/kit';
 import { font, iconSize, lookOf, shape, spacing, tabBar, useTheme, type Look } from '../theme';
 import { Icon, type IconName } from './icons';
 import { tabBarBottom } from './ui';
@@ -38,11 +39,12 @@ function useKeyboardShown(): boolean {
 }
 
 /**
- * The floating tab bar of the system: a solid pill of the cell colour 16
- * from each side over the bottom edge, with a hairline and no shadow nor
- * glass (docs/plan-fulmis.md §0.4); the selected tab on the page colour with
- * its filled icon and the accent; a count on a tab whose `tabBarBadge` is
- * set. Screens keep clear of it through TabScreens and Screen (components/ui.tsx).
+ * The tab bar of the system (docs/plan-fulmis.md §1.5): solid, the cell
+ * colour from edge to edge on the bottom of the screen under a fine line,
+ * with no shadow and nothing seen through it. The selected tab reads in the
+ * accent's text colour, heavier and with its filled icon; no tab is a filled
+ * button. A tab whose `tabBarBadge` is set carries its count on the accent.
+ * Screens keep clear of it through TabScreens and Screen (components/ui.tsx).
  */
 export function TabBar({
   state,
@@ -59,10 +61,9 @@ export function TabBar({
   return (
     <View
       accessibilityRole="tablist"
-      pointerEvents="box-none"
-      style={[styles.float, { bottom: tabBarBottom(insets.bottom) }]}
+      style={[styles.bar, { paddingBottom: tabBarBottom(insets.bottom) }]}
     >
-      <View style={styles.bar}>
+      <View style={styles.tabs}>
         {state.routes.map((route, index) => {
           const descriptor = descriptors[route.key];
           if (!descriptor || isHidden(descriptor.options)) return null;
@@ -73,7 +74,7 @@ export function TabBar({
               : (options.title ?? route.name);
           const focused = state.index === index;
           const tint = focused ? colors.accentText : colors.textDim;
-          const badge = options.tabBarBadge;
+          const badge = badgeText(options.tabBarBadge);
           return (
             <Pressable
               key={route.key}
@@ -89,7 +90,7 @@ export function TabBar({
                 if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
               }}
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-              style={[styles.tab, focused ? styles.tabOn : null]}
+              style={styles.tab}
             >
               <View>
                 <Icon
@@ -98,9 +99,9 @@ export function TabBar({
                   color={tint}
                   filled={focused}
                 />
-                {badge !== undefined && badge !== '' && badge !== 0 ? (
+                {badge ? (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{String(badge)}</Text>
+                    <Text style={styles.badgeText}>{badge}</Text>
                   </View>
                 ) : null}
               </View>
@@ -119,31 +120,22 @@ export function TabBar({
 }
 
 function makeStyles({ colors, type }: Look) {
-  const inner = tabBar.height - tabBar.padding * 2;
   return StyleSheet.create({
-    float: { position: 'absolute', left: tabBar.side, right: tabBar.side },
     bar: {
-      flexDirection: 'row',
-      height: tabBar.height,
-      padding: tabBar.padding,
-      borderRadius: shape.pill,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.separator,
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingTop: tabBar.padding,
+      paddingHorizontal: tabBar.side,
       backgroundColor: colors.cell,
-      overflow: 'hidden',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.separator,
     },
-    tab: {
-      flex: 1,
-      height: inner,
-      borderRadius: shape.pill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 2,
-    },
-    // The selected tab is a step down to the page colour, where `accentText` meets AA.
-    tabOn: { backgroundColor: colors.bg },
-    label: { ...type.caption, fontFamily: font[500] },
-    labelOn: { fontFamily: font[600] },
+    tabs: { flexDirection: 'row', height: tabBar.item },
+    tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+    label: { ...type.caption, fontFamily: font[600] },
+    labelOn: { fontFamily: font[700] },
     badge: {
       position: 'absolute',
       top: -spacing.xs,
@@ -158,7 +150,8 @@ function makeStyles({ colors, type }: Look) {
     },
     badgeText: {
       ...type.caption,
-      fontFamily: font[600],
+      ...type.num,
+      fontFamily: font[700],
       lineHeight: iconSize.small,
       color: colors.accentInk,
     },

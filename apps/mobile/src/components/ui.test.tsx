@@ -1,4 +1,13 @@
-import { palette, shape, toneColors } from '@transport/shared';
+import {
+  formatMoney,
+  mobileKitCopy,
+  palette,
+  PLATFORM_NAME,
+  shape,
+  stateToneColors,
+  STATE_TONES,
+  typeScale,
+} from '@transport/shared';
 import { act, type ReactElement } from 'react';
 import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -7,7 +16,23 @@ import { setSavedForTest } from '../../test/stubs/secure-store';
 import { ThemeProvider } from '../theme';
 import { glyphOf } from './icons';
 import { tabAccessibilityLabel } from './tab-bar';
-import { Button, Cell, ChipTabs, Empty, Group, Pill, Segmented } from './ui';
+import {
+  BottomBar,
+  BrandBlock,
+  Button,
+  ButtonRow,
+  Cell,
+  ChipTabs,
+  Empty,
+  Group,
+  KpiGrid,
+  KpiTile,
+  Money,
+  Notice,
+  Pill,
+  Segmented,
+  Steps,
+} from './ui';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -93,7 +118,9 @@ describe('Cell', () => {
   });
 
   it('shows its pill', async () => {
-    const root = await render(<Cell title="CS53-01" pill={{ label: 'Disponible', tone: 'ok' }} />);
+    const root = await render(
+      <Cell title="CS53-01" pill={{ label: 'Disponible', tone: 'done' }} />,
+    );
     expect(texts(root)).toContain('Disponible');
   });
 });
@@ -157,6 +184,27 @@ describe('Button', () => {
     }
   });
 
+  it('is 56 high when it is the step to take, with a radius of 8', async () => {
+    const root = await render(
+      <Button label="Llegué a la entrega" size="large" onPress={() => undefined} />,
+    );
+    const large = at(byRole(root, 'button'));
+    expect(styleOf(large).minHeight).toBe(shape.buttonHeightPrimary);
+    expect(styleOf(large).borderRadius).toBe(shape.button);
+    expect(shape.buttonHeightPrimary).toBe(56);
+    expect(shape.button).toBe(8);
+  });
+
+  it('outlines a destructive button in red, without filling it', async () => {
+    const root = await render(
+      <Button label="Archivar" variant="destructive" onPress={() => undefined} />,
+    );
+    const button = at(byRole(root, 'button'));
+    expect(styleOf(button).borderColor).toBe(palette.light.redText);
+    expect(styleOf(button).backgroundColor).toBe('transparent');
+    expect(styleOf(at(byType(root, 'Text'))).color).toBe(palette.light.redText);
+  });
+
   it('writes a plain button as text in the accent', async () => {
     const root = await render(
       <Button label="Crear cuenta" variant="plain" onPress={() => undefined} />,
@@ -182,30 +230,320 @@ describe('Button', () => {
 describe('Pill', () => {
   const ground = (root: ReactTestInstance) => styleOf(at(byType(root, 'View'))).backgroundColor;
   const ink = (root: ReactTestInstance) => styleOf(at(byType(root, 'Text'))).color;
+  const checks = (root: ReactTestInstance) =>
+    byType(root, 'Ionicons').filter((n) => n.props.name === glyphOf('check'));
 
-  it('paints each tone on its own tint (light)', async () => {
-    for (const tone of ['accent', 'ok', 'amber', 'red'] as const) {
+  it.each(STATE_TONES)(
+    'paints "%s" with the fill and the ink of the tone map (light)',
+    async (tone) => {
       const root = await render(<Pill label="Estado" tone={tone} />);
-      expect(ground(root)).toBe(toneColors('light', tone).bg);
-      expect(ink(root)).toBe(toneColors('light', tone).fg);
+      const colors = stateToneColors('light', tone);
+      expect(ground(root)).toBe(colors.fill);
+      expect(ink(root)).toBe(colors.ink);
+      expect(texts(root)).toEqual(['Estado']);
+    },
+  );
+
+  it('keeps its wording as its accessible name, though it is drawn in capitals', async () => {
+    const root = await render(<Pill label="Publicada por Transport" tone="attention" />);
+    const text = at(byType(root, 'Text'));
+    expect(styleOf(text).textTransform).toBe('uppercase');
+    expect(text.props.accessibilityLabel).toBe('Publicada por Transport');
+  });
+
+  it('marks what is done with a check on the quiet fill, never with green', async () => {
+    const root = await render(<Pill label="Entregado" tone="done" />);
+    expect(ground(root)).toBe(palette.light.surfaceHigh);
+    expect(ink(root)).toBe(palette.light.text);
+    expect(checks(root)).toHaveLength(1);
+    for (const tone of STATE_TONES.filter((t) => t !== 'done')) {
+      expect(checks(await render(<Pill label="Estado" tone={tone} />))).toHaveLength(0);
     }
   });
 
-  it('is quiet without a tone', async () => {
+  it('outlines the inactive tone, whose fill is the page', async () => {
+    const root = await render(<Pill label="Borrador" tone="inactive" />);
+    const pill = styleOf(at(byType(root, 'View')));
+    expect(pill.backgroundColor).toBe(palette.light.bg);
+    expect(pill.borderColor).toBe(palette.light.control);
+    expect(pill.borderWidth).toBe(1);
+    const filled = await render(<Pill label="Vencido" tone="problem" />);
+    expect(styleOf(at(byType(filled, 'View')))).not.toHaveProperty('borderColor');
+  });
+
+  it('is the inactive pill without a tone', async () => {
     const root = await render(<Pill label="Cerrado" />);
-    expect(ground(root)).toBe(palette.light.surfaceHigh);
+    expect(ground(root)).toBe(stateToneColors('light', 'inactive').fill);
     expect(ink(root)).toBe(palette.light.textDim);
+  });
+
+  it('reads the names the screens used before as the tone each one became', async () => {
+    const renamed = [
+      ['accent', 'attention'],
+      ['ok', 'done'],
+      ['amber', 'pending'],
+      ['red', 'problem'],
+      ['neutral', 'inactive'],
+    ] as const;
+    for (const [before, tone] of renamed) {
+      const root = await render(<Pill label="Estado" tone={before} />);
+      expect(ground(root)).toBe(stateToneColors('light', tone).fill);
+      expect(ink(root)).toBe(stateToneColors('light', tone).ink);
+    }
   });
 
   it('follows the dark theme', async () => {
     setSavedForTest('dark');
     const root = await render(
       <ThemeProvider>
-        <Pill label="Vencido" tone="red" />
+        <Pill label="Vencido" tone="problem" />
       </ThemeProvider>,
     );
-    expect(ground(root)).toBe(toneColors('dark', 'red').bg);
-    expect(ink(root)).toBe(toneColors('dark', 'red').fg);
+    expect(ground(root)).toBe(stateToneColors('dark', 'problem').fill);
+    expect(ink(root)).toBe(stateToneColors('dark', 'problem').ink);
+  });
+});
+
+describe('Notice', () => {
+  const mark = (root: ReactTestInstance) => styleOf(at(byType(root, 'View'), 1)).backgroundColor;
+  const icon = (root: ReactTestInstance) => at(byType(root, 'Ionicons')).props.name;
+
+  it('wears the tone of what it says, with an icon beside the colour', async () => {
+    const marks = [
+      ['attention', 'attention', 'alert'],
+      ['info', 'progress', 'info'],
+      ['warning', 'pending', 'warning'],
+      ['danger', 'problem', 'alert'],
+      ['highlight', 'done', 'check'],
+    ] as const;
+    for (const [tone, status, glyph] of marks) {
+      const root = await render(
+        <Notice tone={tone} title="Sube tu constancia">
+          Vence en 3 días.
+        </Notice>,
+      );
+      expect(mark(root)).toBe(stateToneColors('light', status).fill);
+      expect(icon(root)).toBe(glyphOf(glyph));
+      expect(texts(root)).toEqual(['Sube tu constancia', 'Vence en 3 días.']);
+      expect(styleOf(at(byType(root, 'View'))).backgroundColor).toBe(palette.light.cell);
+    }
+  });
+
+  it('is read out as an alert only when something failed', async () => {
+    const failed = await render(<Notice tone="danger" title="Rechazado" />);
+    expect(byRole(failed, 'alert')).toHaveLength(1);
+    for (const tone of ['attention', 'info', 'warning', 'highlight'] as const) {
+      expect(byRole(await render(<Notice tone={tone} title="Aviso" />), 'alert')).toHaveLength(0);
+    }
+  });
+});
+
+describe('BrandBlock', () => {
+  it('is Night in both themes, with the Night ink on it', async () => {
+    for (const theme of ['light', 'dark'] as const) {
+      setSavedForTest(theme);
+      const root = await render(
+        <ThemeProvider>
+          <BrandBlock label="Tu siguiente paso" title="Llegué a la entrega" body="Saltillo" />
+        </ThemeProvider>,
+      );
+      const block = styleOf(at(byType(root, 'View')));
+      expect(block.backgroundColor).toBe(
+        theme === 'dark' ? palette.dark.brandSelected : palette.light.brandBg,
+      );
+      expect(block.borderRadius).toBe(shape.card);
+      const title = at(byRole(root, 'header'));
+      expect(styleOf(title).color).toBe(palette.dark.text);
+      expect(texts(root)).toEqual(['Tu siguiente paso', 'Llegué a la entrega', 'Saltillo']);
+    }
+  });
+
+  it('holds the one primary, 56 high, over two secondary ways', async () => {
+    const root = await render(
+      <BrandBlock label="Tu siguiente paso" title="Llegué a la entrega">
+        <Button label="Llegué a la entrega" size="large" onPress={() => undefined} />
+        <ButtonRow>
+          <Button label="Cómo llegar" variant="secondary" onPress={() => undefined} />
+          <Button label="Reportar incidencia" variant="secondary" onPress={() => undefined} />
+        </ButtonRow>
+      </BrandBlock>,
+    );
+    const buttons = byRole(root, 'button');
+    expect(buttons).toHaveLength(3);
+    const filled = buttons.filter((n) => styleOf(n).backgroundColor === palette.dark.accent);
+    expect(filled).toHaveLength(1);
+    expect(styleOf(at(filled)).minHeight).toBe(shape.buttonHeightPrimary);
+    // The secondary ones read the Night ink, whatever the theme of the app.
+    expect(styleOf(at(byType(at(buttons, 1), 'Text'))).color).toBe(palette.dark.text);
+  });
+
+  it('shows the brand by its name on the way in', async () => {
+    const root = await render(<BrandBlock mark title="Tu siguiente viaje" />);
+    expect(texts(root)).toEqual([PLATFORM_NAME, 'Tu siguiente viaje']);
+  });
+});
+
+describe('ButtonRow', () => {
+  it('gives each button the same share of the row', async () => {
+    const root = await render(
+      <ButtonRow>
+        <Button label="Cómo llegar" variant="secondary" onPress={() => undefined} />
+        <Button label="Reportar incidencia" variant="secondary" onPress={() => undefined} />
+      </ButtonRow>,
+    );
+    const row = at(byType(root, 'View'));
+    expect(styleOf(row).flexDirection).toBe('row');
+    const cells = row.children.filter((n): n is ReactTestInstance => typeof n !== 'string');
+    expect(cells.map((n) => styleOf(n).flex)).toEqual([1, 1]);
+  });
+});
+
+describe('Steps', () => {
+  const steps = [
+    { label: 'Recolección', detail: '08:10' },
+    { label: 'En ruta' },
+    { label: 'Entrega' },
+    { label: 'Evidencia' },
+  ];
+  const bars = (root: ReactTestInstance) =>
+    at(byRole(root, 'progressbar'))
+      .children.filter((n): n is ReactTestInstance => typeof n !== 'string')
+      .map((n) => styleOf(n).backgroundColor);
+
+  it('fills the steps done, marks the one in course and says which it is', async () => {
+    const root = await render(<Steps title="Avance del viaje" steps={steps} current={1} />);
+    const light = palette.light;
+    expect(bars(root)).toEqual([light.text, light.accent, light.separator, light.separator]);
+    const bar = at(byRole(root, 'progressbar'));
+    expect(bar.props.accessibilityLabel).toBe('Avance del viaje');
+    expect(bar.props.accessibilityValue).toEqual({
+      min: 0,
+      max: 4,
+      now: 1,
+      text: `${mobileKitCopy.stepOf(2, 4)}: En ruta`,
+    });
+    expect(texts(root)).toEqual([
+      'Avance del viaje',
+      mobileKitCopy.stepOf(2, 4),
+      'Recolección',
+      '08:10',
+      'En ruta',
+      'Entrega',
+      'Evidencia',
+    ]);
+  });
+
+  it('never writes the step in course in the accent on Paper', async () => {
+    const root = await render(<Steps steps={steps} current={1} />);
+    const current = byType(root, 'Text').find((n) => n.children.includes('En ruta'));
+    expect(styleOf(current as ReactTestInstance).color).toBe(palette.light.accentText);
+  });
+
+  it('has every step done past the last one, and none before the first', async () => {
+    const done = await render(<Steps steps={steps} current={4} />);
+    expect(bars(done)).toEqual(Array(4).fill(palette.light.text));
+    expect(at(byRole(done, 'progressbar')).props.accessibilityValue.now).toBe(4);
+    const waiting = await render(<Steps steps={steps} current={-1} />);
+    expect(bars(waiting)).toEqual(Array(4).fill(palette.light.separator));
+    expect(at(byRole(waiting, 'progressbar')).props.accessibilityValue.now).toBe(0);
+  });
+});
+
+describe('Money', () => {
+  it('writes whole pesos without cents, as the shared formatter does', async () => {
+    const root = await render(<Money cents={1845000} />);
+    expect(texts(root)).toEqual([formatMoney(1845000)]);
+    expect(String(texts(root)[0])).not.toMatch(/\.00/u);
+    const withCents = await render(<Money cents={18450050} />);
+    expect(texts(withCents)).toEqual([formatMoney(18450050)]);
+  });
+
+  it('is the figure of the screen by default, each digit as wide as the others', async () => {
+    const figure = at(byType(await render(<Money cents={1845000} />), 'Text'));
+    expect(styleOf(figure).fontSize).toBe(typeScale.numeral.size);
+    expect(styleOf(figure).fontVariant).toEqual(['tabular-nums']);
+    expect(figure.props.numberOfLines).toBe(1);
+    const row = at(byType(await render(<Money cents={1845000} size="body" />), 'Text'));
+    expect(styleOf(row).fontSize).toBe(typeScale.body.size);
+  });
+
+  it('goes under its short label', async () => {
+    const root = await render(<Money cents={1845000} label="Por cobrar" />);
+    expect(texts(root)).toEqual(['Por cobrar', formatMoney(1845000)]);
+    expect(styleOf(at(byType(root, 'Text'))).textTransform).toBe('uppercase');
+  });
+});
+
+describe('KpiTile', () => {
+  it('is a label, its figure and a line, and no button when it opens nothing', async () => {
+    const root = await render(<KpiTile label="Viajes activos" value="4" hint="2 en ruta" />);
+    expect(texts(root)).toEqual(['Viajes activos', '4', '2 en ruta']);
+    expect(byRole(root, 'button')).toHaveLength(0);
+  });
+
+  it('opens where the figure comes from, read whole', async () => {
+    const onPress = vi.fn();
+    const root = await render(
+      <KpiTile label="Viajes activos" value="4" hint="2 en ruta" onPress={onPress} />,
+    );
+    const tile = at(byRole(root, 'button'));
+    expect(tile.props.accessibilityLabel).toBe('Viajes activos: 4. 2 en ruta');
+    act(() => tile.props.onPress());
+    expect(onPress).toHaveBeenCalledOnce();
+    expect(styleOf(tile).backgroundColor).not.toBe(palette.light.accent);
+  });
+});
+
+describe('KpiGrid', () => {
+  it('lays the tiles in rows of two, keeping the place of a missing one', async () => {
+    const root = await render(
+      <KpiGrid>
+        <KpiTile label="Viajes" value="4" />
+        <KpiTile label="Ofertas" value="2" />
+        <KpiTile label="Unidades" value="7" />
+      </KpiGrid>,
+    );
+    const grid = at(byType(root, 'View'));
+    const rows = byType(grid, 'View').filter((n) => styleOf(n).flexDirection === 'row');
+    expect(rows).toHaveLength(2);
+    // Each row has two places as wide as each other, the last one empty.
+    for (const row of rows) {
+      const places = row.children.filter((n): n is ReactTestInstance => typeof n !== 'string');
+      expect(places.map((n) => styleOf(n).flex)).toEqual([1, 1]);
+    }
+    expect(texts(root)).toEqual(['Viajes', '4', 'Ofertas', '2', 'Unidades', '7']);
+  });
+});
+
+describe('BottomBar', () => {
+  it('holds the one primary on the cell colour, 56 high when it is the step', async () => {
+    const root = await render(
+      <BottomBar
+        action={{ label: 'Ofertar', onPress: () => undefined, size: 'large' }}
+        figure={{ label: 'Flete', value: '$18,450' }}
+      />,
+    );
+    const bar = root.find((n) => typeof n.type === 'string' && n.props.testID === 'bottom-bar');
+    expect(styleOf(bar).backgroundColor).toBe(palette.light.cell);
+    const buttons = byRole(root, 'button');
+    expect(buttons).toHaveLength(1);
+    expect(styleOf(at(buttons)).backgroundColor).toBe(palette.light.accent);
+    expect(styleOf(at(buttons)).minHeight).toBe(shape.buttonHeightPrimary);
+    expect(texts(root)).toEqual(['Flete', '$18,450', 'Ofertar']);
+  });
+
+  it('fills only its action when there is a secondary one beside it', async () => {
+    const root = await render(
+      <BottomBar
+        action={{ label: 'Guardar', onPress: () => undefined }}
+        secondary={{ label: 'Cancelar', onPress: () => undefined }}
+      />,
+    );
+    const filled = byRole(root, 'button').filter(
+      (n) => styleOf(n).backgroundColor === palette.light.accent,
+    );
+    expect(filled).toHaveLength(1);
+    expect(byType(at(filled), 'Text').flatMap((n) => n.children)).toEqual(['Guardar']);
   });
 });
 

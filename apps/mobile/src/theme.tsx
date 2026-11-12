@@ -17,12 +17,10 @@ import { Geist_800ExtraBold } from '@expo-google-fonts/geist/800ExtraBold';
 import { Geist_900Black } from '@expo-google-fonts/geist/900Black';
 import {
   DEFAULT_THEME_CHOICE,
-  mixColors,
   palette,
   parseThemeChoice,
   resolveTheme,
   shape,
-  SOFT_ALPHA,
   spacing as tokenSpacing,
   typeScale,
   type FontWeight,
@@ -51,15 +49,18 @@ export const spacing = tokenSpacing;
 export const iconSize = Object.freeze({ regular: 24, cell: 20, small: 16 });
 
 /**
- * The floating tab bar: a solid pill `height` high, `side` from each edge,
- * `inset` over the bottom edge where the phone has none. Screens in the tabs
- * keep clear of it (Screen does it).
+ * The tab bar: solid, from edge to edge on the bottom of the screen. Each tab
+ * is `item` high under `padding`, so the bar is `height` high over the room it
+ * leaves under it for the phone's home indicator (`tabBarBottom` in
+ * components/ui.tsx); `side` is what it keeps from each edge. Screens in the
+ * tabs keep clear of it (Screen does it).
  */
+const TAB_ITEM = shape.minTouch + spacing.xs;
 export const tabBar = Object.freeze({
-  height: 66,
-  side: spacing.md,
-  inset: spacing.md,
-  padding: 7,
+  item: TAB_ITEM,
+  padding: spacing.sm,
+  height: TAB_ITEM + spacing.sm,
+  side: spacing.sm + spacing.xs,
 });
 
 /** Durations of the system's motion (§1.5), in milliseconds. */
@@ -106,15 +107,10 @@ const THEME_STORE_KEY = 'transport.theme';
 /** What the app shows before the person chooses: the phone's theme (every screen reads it). */
 export const APP_DEFAULT_THEME_CHOICE: ThemeChoice = DEFAULT_THEME_CHOICE;
 
-/** The colours of one theme, with the soft red of a danger notice (the tone at 14 % on `cell`). */
-function colorsOf(theme: Theme) {
-  const c = palette[theme];
-  return Object.freeze({ ...c, redSoft: mixColors(c.red, c.cell, SOFT_ALPHA) });
-}
+/** The colours of one theme: the palette as it is, with no tint of its own. */
+export type AppColors = (typeof palette)[Theme];
 
-export type AppColors = ReturnType<typeof colorsOf>;
-
-const COLORS: Record<Theme, AppColors> = { light: colorsOf('light'), dark: colorsOf('dark') };
+const COLORS: Record<Theme, AppColors> = palette;
 
 function textStyle(name: TypeName, color: string): TextStyle {
   const s = typeScale[name];
@@ -165,8 +161,14 @@ function makeLook(theme: Theme) {
       backgroundColor: c.cell,
       padding: spacing.md,
     },
-    /** A notice after something went well. */
-    notice: { borderRadius: shape.card, backgroundColor: c.highlight, padding: spacing.md },
+    /** A notice: the cell colour with a hairline, as the kit's Notice. */
+    notice: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.separator,
+      borderRadius: shape.card,
+      backgroundColor: c.cell,
+      padding: spacing.md,
+    },
     /** The page. */
     page: { flex: 1, backgroundColor: c.bg },
   });
@@ -238,6 +240,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 /** The theme in force: its colours, text and box styles, and the person's choice. */
 export function useTheme(): ThemeValue {
   return useContext(ThemeContext);
+}
+
+/**
+ * The brand surface (§1.1): what is inside reads the Night look in both
+ * themes, as the surface itself is `brandBg` in both. The person's choice and
+ * how to change it stay the ones of the app.
+ */
+export function BrandSurface({ children }: { children: ReactNode }) {
+  const outer = useContext(ThemeContext);
+  const value = useMemo<ThemeValue>(() => ({ ...outer, ...LOOKS.dark }), [outer]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 /** Styles that depend on the colours of the theme, rebuilt only when the theme changes. */

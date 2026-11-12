@@ -39,7 +39,10 @@ tags: [carrier, owner-operator]
 # The sheet slides up: tap its button once it settled.
 - waitForAnimationToEnd
 - tapOn: 'Confirmar'
-- extendedWaitUntil:
-    visible: 'Oferta enviada.'
+# The notice is at the top of the screen, above the route: the flow scrolled
+# past it to reach "Compartir con mi equipo".
+- scrollUntilVisible:
+    element: 'Oferta enviada.'
+    direction: UP
     timeout: 15000
 - takeScreenshot: 13-4-owner-operator-offer-sent

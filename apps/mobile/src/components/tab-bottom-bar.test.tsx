@@ -51,7 +51,7 @@ describe('TabBottomBar', () => {
     expect(barPadding(root)).toBe(PHONE_BOTTOM + spacing.sm);
   });
 
-  it('rests its actions right above the floating tab bar inside the tabs', async () => {
+  it('rests its actions right above the tab bar inside the tabs', async () => {
     const root = await render(
       <TabScreens>
         <TabBottomBar action={action} />

@@ -61,9 +61,11 @@ tags: [carrier, manager]
     centerElement: true
 - tapOn: '.*TT-01.*'
 # "Mover a…" and its chips sit at the end of the screen, clear of the bottom bar
-# (the end of the screen cannot be centered: scroll to it).
+# only once the screen is scrolled to its end: the label alone can show while
+# the chips are still under the bar. The end cannot be centered: scroll to the
+# last button.
 - scrollUntilVisible:
-    element: 'Mover a…'
+    element: 'Dar de baja la unidad'
 - tapOn:
     text: 'Bajío'
     below: 'Mover a…'

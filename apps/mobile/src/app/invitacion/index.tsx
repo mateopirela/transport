@@ -1,7 +1,13 @@
-import { mobileAuthCopy, mobileInviteCopy as copy, parseInvitationLink } from '@transport/shared';
+import {
+  mobileAuthCopy,
+  mobileInviteCopy as copy,
+  parseInvitationLink,
+  PLATFORM_NAME,
+} from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
+import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { Button, FieldCell, Footnote, Group, Loading, Screen } from '../../components/ui';
 import { useSession } from '../../providers/session';
 
@@ -9,7 +15,7 @@ import { useSession } from '../../providers/session';
  * /invitacion without a token (G1b, G2): a coordinator or operator account
  * that does not belong to a company yet, or a visitor who tapped "Tengo un
  * enlace de invitación". A token saved at sign-up opens its screen at once;
- * otherwise the link can be pasted.
+ * otherwise the link can be pasted, with "Abrir invitación" fixed at the bottom.
  */
 export default function InvitationIndex() {
   const { area, actions } = useSession();
@@ -17,6 +23,7 @@ export default function InvitationIndex() {
   const [checking, setChecking] = useState(true);
   const [link, setLink] = useState('');
   const [error, setError] = useState<string | undefined>();
+  const [barHeight, setBarHeight] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,38 +57,45 @@ export default function InvitationIndex() {
 
   const signedIn = area === 'join';
   return (
-    <Screen
-      title={signedIn ? copy.noLinkTitle : copy.title}
-      subtitle={signedIn ? copy.noLinkBody : copy.subtitle}
-    >
-      <Group>
-        <FieldCell
-          label={copy.linkLabel}
-          value={link}
-          onChangeText={setLink}
-          error={error}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-        />
-      </Group>
-      <Button label={copy.openLinkAction} onPress={open} />
-      {signedIn ? (
-        <>
-          <Footnote>{copy.signOutHint}</Footnote>
-          <Button
-            label={mobileAuthCopy.signOut}
-            variant="plain"
-            onPress={() => void actions.signOut()}
+    <>
+      <Screen
+        title={signedIn ? copy.noLinkTitle : copy.title}
+        eyebrow={PLATFORM_NAME}
+        subtitle={signedIn ? copy.noLinkBody : copy.subtitle}
+        bottom={barHeight}
+      >
+        <Group>
+          <FieldCell
+            label={copy.linkLabel}
+            value={link}
+            onChangeText={setLink}
+            error={error}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
           />
-        </>
-      ) : (
-        <Button
-          label={mobileAuthCopy.goToSignIn}
-          variant="plain"
-          onPress={() => router.replace('/sign-in')}
-        />
-      )}
-    </Screen>
+        </Group>
+        {signedIn ? (
+          <>
+            <Footnote>{copy.signOutHint}</Footnote>
+            <Button
+              label={mobileAuthCopy.signOut}
+              variant="plain"
+              onPress={() => void actions.signOut()}
+            />
+          </>
+        ) : (
+          <Button
+            label={mobileAuthCopy.goToSignIn}
+            variant="plain"
+            onPress={() => router.replace('/sign-in')}
+          />
+        )}
+      </Screen>
+      <KeyboardBottomBar
+        action={{ label: copy.openLinkAction, onPress: open, size: 'large' }}
+        onHeight={setBarHeight}
+      />
+    </>
   );
 }

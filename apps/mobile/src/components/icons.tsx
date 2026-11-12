@@ -60,6 +60,7 @@ const GLYPHS = {
   chevronRight: 'chevron-forward',
   chevronDown: 'chevron-down',
   chevronBack: 'chevron-back',
+  swap: 'swap-horizontal',
 } as const satisfies Record<string, IoniconName>;
 
 export type IconName = keyof typeof GLYPHS;

@@ -6,7 +6,7 @@ import { BottomBar, useTabBarClearance } from './ui';
 /**
  * The kit's BottomBar on a screen that may sit inside the tabs (the
  * operator's trip, "Mi viaje" of the hombre-camión). Inside the tabs its ground
- * reaches the bottom edge behind the floating tab bar and its actions rest
+ * reaches the bottom edge behind the tab bar and its actions rest
  * right above the bar, so the two read as one surface; outside them it is the
  * BottomBar itself. The bar keeps reporting its whole height through
  * `onHeight`, which a Screen's `bottom` keeps clear of.

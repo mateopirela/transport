@@ -1,17 +1,17 @@
 import { mobileAuthCopy as copy, mobileErrorCopy, signInSchema } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
-import { Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
+import { KeyboardBottomBar } from '../../components/keyboard-bar';
+import { BrandBlock, Button, FieldCell, Group, Notice, Screen } from '../../components/ui';
 import { validateForm, type FieldErrors } from '../../lib/forms';
 import { useSession } from '../../providers/session';
-import { spacing } from '../../theme';
 
 /**
  * Sign-in with "Correo o teléfono" (G2): a phone-only operator types their
- * phone. The two fields in one group and "Entrar" as the only primary; the
- * ways to sign up or to open an invitation as text.
+ * phone. The brand opens it on its Night block; the two fields in one group
+ * and "Entrar" as the only primary, fixed at the bottom over the keyboard;
+ * the ways to sign up or to open an invitation stay quiet under the fields.
  */
 export default function SignIn() {
   const { actions } = useSession();
@@ -21,6 +21,7 @@ export default function SignIn() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [barHeight, setBarHeight] = useState(0);
 
   async function submit() {
     setFormError(null);
@@ -35,42 +36,53 @@ export default function SignIn() {
   }
 
   return (
-    <Screen title={copy.appName} subtitle={copy.tagline}>
-      {formError ? <Notice tone="danger">{formError}</Notice> : null}
-      <Group>
-        <FieldCell
-          label={copy.identifierLabel}
-          value={identifier}
-          onChangeText={setIdentifier}
-          error={errors.identifier}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="username"
-          keyboardType="email-address"
-          textContentType="username"
+    <>
+      <Screen bottom={barHeight}>
+        <BrandBlock mark label={copy.signInTitle} title={copy.tagline} />
+        {formError ? <Notice tone="danger">{formError}</Notice> : null}
+        <Group>
+          <FieldCell
+            label={copy.identifierLabel}
+            value={identifier}
+            onChangeText={setIdentifier}
+            error={errors.identifier}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="username"
+            keyboardType="email-address"
+            textContentType="username"
+          />
+          <FieldCell
+            label={copy.passwordLabel}
+            value={password}
+            onChangeText={setPassword}
+            error={errors.password}
+            secureTextEntry
+            autoComplete="current-password"
+            textContentType="password"
+            onSubmitEditing={submit}
+          />
+        </Group>
+        <Button
+          label={copy.goToSignUp}
+          variant="secondary"
+          onPress={() => router.push('/sign-up')}
         />
-        <FieldCell
-          label={copy.passwordLabel}
-          value={password}
-          onChangeText={setPassword}
-          error={errors.password}
-          secureTextEntry
-          autoComplete="current-password"
-          textContentType="password"
-          onSubmitEditing={submit}
-        />
-      </Group>
-      <Button label={copy.signInAction} onPress={submit} loading={submitting} />
-      <View style={styles.links}>
-        <Button label={copy.goToSignUp} variant="plain" onPress={() => router.push('/sign-up')} />
         <Button
           label={copy.goToInvite}
           variant="plain"
           onPress={() => router.push('/invitacion')}
         />
-      </View>
-    </Screen>
+      </Screen>
+      <KeyboardBottomBar
+        action={{
+          label: copy.signInAction,
+          onPress: () => void submit(),
+          loading: submitting,
+          size: 'large',
+        }}
+        onHeight={setBarHeight}
+      />
+    </>
   );
 }
-
-const styles = StyleSheet.create({ links: { marginTop: spacing.sm } });

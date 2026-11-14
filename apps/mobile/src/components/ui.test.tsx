@@ -13,6 +13,7 @@ import { create, type ReactTestInstance, type ReactTestRenderer } from 'react-te
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { setSavedForTest } from '../../test/stubs/secure-store';
+import { TITLE_MAX_FONT_SCALE } from '../lib/kit';
 import { ThemeProvider } from '../theme';
 import { glyphOf } from './icons';
 import { tabAccessibilityLabel } from './tab-bar';
@@ -27,6 +28,7 @@ import {
   Group,
   KpiGrid,
   KpiTile,
+  LargeTitle,
   Money,
   Notice,
   Pill,
@@ -386,6 +388,25 @@ describe('BrandBlock', () => {
   it('shows the brand by its name on the way in', async () => {
     const root = await render(<BrandBlock mark title="Tu siguiente viaje" />);
     expect(texts(root)).toEqual([PLATFORM_NAME, 'Tu siguiente viaje']);
+  });
+
+  it('grows its title with the system text size only up to the cap (R6)', async () => {
+    const root = await render(
+      <BrandBlock label="Iniciar sesión" title="Tu siguiente viaje" body="Saltillo" />,
+    );
+    expect(at(byRole(root, 'header')).props.maxFontSizeMultiplier).toBe(TITLE_MAX_FONT_SCALE);
+    // The rest of the text follows the phone's setting.
+    const body = byType(root, 'Text').find((n) => n.props.children === 'Saltillo');
+    expect(body?.props.maxFontSizeMultiplier).toBeUndefined();
+  });
+});
+
+describe('LargeTitle', () => {
+  it('grows the title only up to the cap, and its subtitle freely (R6)', async () => {
+    const root = await render(<LargeTitle title="Crea tu cuenta" subtitle="Dos pasos" />);
+    expect(at(byRole(root, 'header')).props.maxFontSizeMultiplier).toBe(TITLE_MAX_FONT_SCALE);
+    const subtitle = byType(root, 'Text').find((n) => n.props.children === 'Dos pasos');
+    expect(subtitle?.props.maxFontSizeMultiplier).toBeUndefined();
   });
 });
 

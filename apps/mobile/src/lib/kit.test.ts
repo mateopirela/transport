@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { badgeText, chunkRows, stepNumber, stepStates } from './kit';
+import { badgeText, barAboveKeyboard, chunkRows, stepNumber, stepStates } from './kit';
 
 describe('stepStates', () => {
   it('marks what is behind as done, the step in course and what waits', () => {
@@ -101,5 +101,21 @@ describe('badgeText', () => {
   it('shows a text that is not a number as it is', () => {
     expect(badgeText('!')).toBe('!');
     expect(badgeText(' nuevo ')).toBe('nuevo');
+  });
+});
+
+describe('barAboveKeyboard', () => {
+  it('is the bar past the bottom inset it keeps behind the keyboard', () => {
+    // A phone with a home indicator (34) and the 4.7-inch iPhone SE (no inset).
+    expect(barAboveKeyboard(106, 34)).toBe(72);
+    expect(barAboveKeyboard(80, 0)).toBe(80);
+  });
+
+  it('is 0 before the bar measures itself and never below 0', () => {
+    expect(barAboveKeyboard(0, 34)).toBe(0);
+    expect(barAboveKeyboard(20, 34)).toBe(0);
+    expect(barAboveKeyboard(Number.NaN, 34)).toBe(0);
+    expect(barAboveKeyboard(80, Number.NaN)).toBe(80);
+    expect(barAboveKeyboard(80, -5)).toBe(80);
   });
 });

@@ -1,0 +1,12 @@
+# Puts the keyboard away by dragging the page a little (the kit's Screen
+# closes it on drag, R6). Between the fields of a long form on a 4.7-inch
+# iPhone: with the keyboard open, the next field can sit behind it or behind
+# the bar over it, where Maestro still sees it, and the tap would land on the
+# bar. hideKeyboard does not work there; a number pad has no return key.
+# Only on a Screen: inside a sheet the drag would move the sheet.
+appId: ${APP_ID}
+---
+- swipe:
+    start: '50%,30%'
+    end: '50%,40%'
+- waitForAnimationToEnd

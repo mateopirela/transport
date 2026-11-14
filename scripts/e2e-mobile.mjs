@@ -21,6 +21,9 @@
 //   pnpm e2e:mobile                          # reset the seed, run everything
 //   pnpm e2e:mobile --no-reset               # on the current data
 //   pnpm e2e:mobile --from 05-operator-pickup
+//   pnpm e2e:mobile --only 08-operator-invite,20-terms-acceptance,24-carrier-sign-up-steps
+//                                            # just those steps (and what each needs), e.g.
+//                                            # the access flows on another phone size (R6)
 //
 // Environment (see apps/mobile/.maestro/README.md):
 //   MAESTRO_DEVICE   simulator/emulator id (`xcrun simctl list devices`); default: the only one booted
@@ -28,6 +31,8 @@
 //   APP_ID           bundle id (default mx.transport.app)
 //   E2E_MOBILE_OUTPUT  output folder (default e2e/mobile-results)
 //   MAESTRO_BIN      Maestro CLI (default `maestro`)
+//   SHEET_CLOSE      where iOS draws the close button of its "Use Strong Password?" sheet,
+//                    as Maestro's 'x%,y%' (default the 6.9-inch iPhone's; '91%,54%' on a 4.7-inch SE)
 //   E2E_MAILPIT_URL  Mailpit of the stack (default http://127.0.0.1:54324; scripts/local-ports.sh sets it)
 //   SUPABASE_PROJECT_ID and the SUPABASE_*_PORT variables of scripts/local-ports.sh, as for `supabase start`.
 import { spawnSync } from 'node:child_process';
@@ -42,6 +47,9 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// Which steps run (--from, --only): pure, with its tests (Node strips the types).
+import { selectSteps } from '../e2e/support/mobile-steps.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const flowsDir = join(root, 'apps/mobile/.maestro');
@@ -82,8 +90,17 @@ const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
 const fromIndex = args.indexOf('--from');
 const from = fromIndex >= 0 ? args[fromIndex + 1] : undefined;
+const onlyIndex = args.indexOf('--only');
+const only =
+  onlyIndex >= 0
+    ? (args[onlyIndex + 1] ?? '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+    : undefined;
 
 const metroUrl = process.env.METRO_URL || 'http://127.0.0.1:8081';
+const sheetClose = process.env.SHEET_CLOSE;
 const appId = process.env.APP_ID || 'mx.transport.app';
 const output = resolve(root, process.env.E2E_MOBILE_OUTPUT || 'e2e/mobile-results');
 const maestro = process.env.MAESTRO_BIN || 'maestro';
@@ -535,6 +552,7 @@ function flow(name, env = {}) {
     `APP_ID=${appId}`,
     '-e',
     `DEV_CLIENT_URL=${devClientUrl}`,
+    ...(sheetClose ? ['-e', `SHEET_CLOSE=${sheetClose}`] : []),
     ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
     '--test-output-dir',
     join(output, 'maestro', name),
@@ -560,12 +578,14 @@ function collectScreenshots() {
 }
 
 // `needs`: the step that sets up what a flow expects, run first when the run
-// starts at that flow (--from).
+// starts at that flow (--from) or asks for it (--only); on a fresh seed, with
+// whatever that step needs in turn (e2e/support/mobile-steps.ts).
 const steps = [
   // H4: reads the tolls and the suggested road of the return trip before 01 offers on it.
   { name: '18-carrier-road', run: () => flow('18-carrier-road') },
   { name: '01-carrier-offer', run: () => flow('01-carrier-offer') },
-  { name: 'shipper-accepts', run: (status) => shipperAccepts(status) },
+  // Luis accepts the offer 01 made.
+  { name: 'shipper-accepts', needs: '01-carrier-offer', run: (status) => shipperAccepts(status) },
   { name: '02-operator-unloading', run: () => flow('02-operator-unloading') },
   { name: '03-carrier-assign', run: () => flow('03-carrier-assign') },
   { name: '04-carrier-counteroffer', run: () => flow('04-carrier-counteroffer') },
@@ -610,7 +630,12 @@ const steps = [
     needs: 'owner-operator-load',
     run: () => flow('13-owner-operator-offer'),
   },
-  { name: 'owner-operator-accepted', run: (status) => shipperAcceptsOwnerOperator(status) },
+  // Sofía accepts the offer 13 made.
+  {
+    name: 'owner-operator-accepted',
+    needs: '13-owner-operator-offer',
+    run: (status) => shipperAcceptsOwnerOperator(status),
+  },
   {
     name: '14-owner-operator-trip',
     needs: 'owner-operator-accepted',
@@ -644,11 +669,7 @@ const steps = [
   },
 ];
 
-let start = from ? steps.findIndex((s) => s.name === from) : 0;
-if (start < 0) throw new Error(`unknown step ${from}: ${steps.map((s) => s.name).join(', ')}`);
-const needs = steps[start]?.needs;
-if (needs) start = steps.findIndex((s) => s.name === needs);
-const pending = steps.slice(start);
+const pending = selectSteps(steps, { from, only, reset });
 
 // Results of the steps about to run are replaced, never mixed with an older run.
 rmSync(join(output, 'screenshots'), { recursive: true, force: true });

@@ -60,17 +60,42 @@ export MAESTRO_DEVICE=<id del simulador>     # xcrun simctl list devices | grep 
 export METRO_URL=http://127.0.0.1:8090        # Metro tal como lo ve el dispositivo
 pnpm e2e:mobile                               # reinicia la seed y corre todo (~15 min)
 pnpm e2e:mobile --no-reset --from 05-operator-pickup   # retomar desde un paso
+pnpm e2e:mobile --only 08-operator-invite,24-carrier-sign-up-steps   # solo esos pasos y lo que necesitan (R6)
 ```
 
-| Variable            | Por defecto             | Para qué                                                          |
-| ------------------- | ----------------------- | ----------------------------------------------------------------- |
-| `MAESTRO_DEVICE`    | el único dispositivo    | Simulador o emulador donde corren los flujos                      |
-| `METRO_URL`         | `http://127.0.0.1:8081` | Metro con el bundle (la app lo abre con un enlace del dev client) |
-| `APP_ID`            | `mx.transport.app`      | Bundle id / paquete (`APP_BUNDLE_ID`)                             |
-| `E2E_MOBILE_OUTPUT` | `e2e/mobile-results`    | Capturas y registros                                              |
-| `MAESTRO_BIN`       | `maestro`               | Ruta del CLI de Maestro                                           |
+| Variable            | Por defecto             | Para qué                                                                        |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `MAESTRO_DEVICE`    | el único dispositivo    | Simulador o emulador donde corren los flujos                                    |
+| `METRO_URL`         | `http://127.0.0.1:8081` | Metro con el bundle (la app lo abre con un enlace del dev client)               |
+| `APP_ID`            | `mx.transport.app`      | Bundle id / paquete (`APP_BUNDLE_ID`)                                           |
+| `E2E_MOBILE_OUTPUT` | `e2e/mobile-results`    | Capturas y registros                                                            |
+| `MAESTRO_BIN`       | `maestro`               | Ruta del CLI de Maestro                                                         |
+| `SHEET_CLOSE`       | `93%,61%`               | Cierre de la hoja "Use Strong Password?" de iOS; `91%,54%` en un iPhone SE (R6) |
 
 Un flujo suelto, sin el script: `maestro --device <id> test -e APP_ID=mx.transport.app -e DEV_CLIENT_URL='exp+transport://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8090' apps/mobile/.maestro/01-carrier-offer.yaml`. Los flujos cambian los datos demo: vuelve a correr `supabase db reset` antes de repetirlos.
+
+## Revisión en dispositivos (R6)
+
+El acceso y el alta se revisan en un iPhone pequeño (SE de 4.7", 375 × 667 pt, sin zona segura inferior) y uno grande (Pro Max de 6.9"), en claro y oscuro. Los flujos del acceso corren igual en los dos:
+
+```sh
+xcrun simctl create "iPhone SE" "iPhone SE (3rd generation)"   # una vez; queda su id
+xcrun simctl ui <id> appearance dark                           # o light
+xcrun simctl ui <id> content_size accessibility-medium         # texto grande; `large` es el normal
+MAESTRO_DEVICE=<id> SHEET_CLOSE='91%,54%' pnpm e2e:mobile \
+  --only 08-operator-invite,20-terms-acceptance,12-operator-phone,24-carrier-sign-up-steps,25-carrier-sign-up-confirm
+```
+
+Qué se cuida en el código: la barra con el primario va sobre el teclado (`KeyboardBottomBar`) y la página termina encima de ella (`Screen` con `barOverKeyboard`), así el campo activo nunca queda debajo; arrastrar la página guarda el teclado; un error lleva el formulario a su campo; los títulos grandes y el del bloque de marca crecen con el tamaño de texto del sistema solo hasta 1.3× (`TITLE_MAX_FONT_SCALE`) y el resto sin tope.
+
+**Android (pendiente, sin emulador en la Mac del piloto):** en un teléfono o emulador Android pequeño (≈ 360 × 640 dp) y uno grande, en claro y oscuro, con la build de desarrollo:
+
+1. Inicio de sesión: los dos campos, "Únete con tu invitación" y "Entrar" a la vista; con el teclado abierto, "Entrar" encima de él y el campo activo visible (Android ajusta la ventana: `KeyboardAvoidingView` no actúa ahí).
+2. Registro por pasos (1 y 2): el indicador "Paso n de 5", "Regresar" sin perder datos, el botón de mostrar contraseña y el autocompletado de Google para guardarla; el teclado numérico del teléfono y del código postal no tapa "Siguiente" ni "Crear cuenta".
+3. Invitación (pegar enlace y `/invitacion/<token>` de Operador y Coordinador): el primario fijo abajo, el error del enlace visible, la casilla de términos alcanzable.
+4. Pasos 3–5 y "Mis documentos": la hoja para subir un documento con la fecha de vencimiento y el teclado abierto; "Tomar selfie" con la cámara frontal real (`subflows/shutter.yaml`).
+5. Botón atrás del sistema en cada paso y barra de navegación por gestos o con botones (zona segura inferior).
+6. Tamaño de fuente del sistema al máximo: nada cortado ni encimado, el primario siempre visible.
 
 ## Notas
 

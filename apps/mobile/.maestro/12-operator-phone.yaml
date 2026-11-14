@@ -56,6 +56,9 @@ tags: [operator, location]
             LABEL: 'Correo o teléfono'
             TEXT: '8110000013'
       - assertVisible: '8110000013'
+# The return key closes the keyboard: on a 4.7-inch iPhone (R6) the password
+# would otherwise sit right over it, under the bar with "Entrar".
+- pressKey: Enter
 - runFlow:
     file: subflows/fill-field.yaml
     env:

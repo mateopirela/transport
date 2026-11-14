@@ -39,7 +39,7 @@ export default function SignIn() {
 
   return (
     <>
-      <Screen bottom={barHeight}>
+      <Screen bottom={barHeight} barOverKeyboard>
         <BrandBlock mark label={copy.signInTitle} title={copy.tagline} />
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
         <Group>

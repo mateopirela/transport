@@ -85,7 +85,7 @@ function NewOperatorForm({
   });
   return (
     <>
-      <Screen belowHeader bottom={barHeight}>
+      <Screen belowHeader bottom={barHeight} barOverKeyboard>
         {form.section}
       </Screen>
       <KeyboardBottomBar action={form.save} onHeight={setBarHeight} />

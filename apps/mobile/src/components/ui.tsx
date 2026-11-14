@@ -39,7 +39,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { chunkRows, stepNumber, stepStates } from '../lib/kit';
+import {
+  barAboveKeyboard,
+  chunkRows,
+  stepNumber,
+  stepStates,
+  TITLE_MAX_FONT_SCALE,
+} from '../lib/kit';
 import {
   BrandSurface,
   font,
@@ -99,7 +105,10 @@ export function useTabBarClearance(): number {
  * kept above the keyboard. A tab screen clears the status bar and the tab
  * bar by itself; `belowHeader` for a screen under a navigation header, which
  * already covers the top. `title` opens it with a large title, under a short
- * `eyebrow` if it has one. `bottom` is the height of a BottomBar over it.
+ * `eyebrow` if it has one. `bottom` is the height of a BottomBar over it;
+ * `barOverKeyboard` when that bar rides on the keyboard (KeyboardBottomBar):
+ * then the page ends above the bar too, so the field with the focus is never
+ * left under it on a small phone (R6).
  */
 export function Screen({
   children,
@@ -109,6 +118,7 @@ export function Screen({
   subtitle,
   right,
   bottom = 0,
+  barOverKeyboard = false,
   onRefresh,
   refreshing = false,
   scrollRef,
@@ -120,12 +130,14 @@ export function Screen({
   subtitle?: string;
   right?: ReactNode;
   bottom?: number;
+  barOverKeyboard?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
   scrollRef?: Ref<ScrollView>;
 }) {
   const kit = useKit();
   const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
   const extra = Math.max(clearance, bottom);
   return (
@@ -134,10 +146,12 @@ export function Screen({
       edges={belowHeader ? ['left', 'right'] : ['top', 'left', 'right']}
     >
       {/* The page shrinks above the keyboard (iOS; Android resizes the window), so a field
-          scrolled to the middle of the screen is never under it. */}
+          scrolled to the middle of the screen is never under it; with a bar riding on the
+          keyboard, above the part of the bar that shows over it. */}
       <KeyboardAvoidingView
         style={kit.page}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={barOverKeyboard ? barAboveKeyboard(bottom, insets.bottom) : 0}
       >
         <ScrollView
           ref={scrollRef}
@@ -148,6 +162,9 @@ export function Screen({
             extra > 0 ? { paddingBottom: extra + spacing.lg } : null,
           ]}
           keyboardShouldPersistTaps="handled"
+          // Dragging the page puts the keyboard away, so on a small phone the
+          // whole form shows again (R6).
+          keyboardDismissMode="on-drag"
           indicatorStyle={theme === 'dark' ? 'white' : 'black'}
           refreshControl={
             onRefresh ? (
@@ -189,7 +206,11 @@ export function LargeTitle({
     <View style={kit.largeTitle}>
       {right ? <View style={kit.largeTitleRight}>{right}</View> : null}
       {eyebrow ? <Caps style={kit.label}>{eyebrow}</Caps> : null}
-      <Text accessibilityRole="header" style={kit.largeTitleText}>
+      <Text
+        accessibilityRole="header"
+        style={kit.largeTitleText}
+        maxFontSizeMultiplier={TITLE_MAX_FONT_SCALE}
+      >
         {title}
       </Text>
       {subtitle ? <Text style={kit.dim}>{subtitle}</Text> : null}
@@ -1252,7 +1273,11 @@ function BrandContent({
         <View style={kit.brandText}>
           {label ? <Caps style={kit.label}>{label}</Caps> : null}
           {title ? (
-            <Text accessibilityRole="header" style={kit.brandTitle}>
+            <Text
+              accessibilityRole="header"
+              style={kit.brandTitle}
+              maxFontSizeMultiplier={TITLE_MAX_FONT_SCALE}
+            >
               {title}
             </Text>
           ) : null}

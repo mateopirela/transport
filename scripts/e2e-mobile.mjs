@@ -577,12 +577,14 @@ function collectScreenshots() {
 }
 
 // `needs`: the step that sets up what a flow expects, run first when the run
-// starts at that flow (--from).
+// starts at that flow (--from) or asks for it (--only), with whatever that
+// step needs in turn: the chain is followed to its first step.
 const steps = [
   // H4: reads the tolls and the suggested road of the return trip before 01 offers on it.
   { name: '18-carrier-road', run: () => flow('18-carrier-road') },
   { name: '01-carrier-offer', run: () => flow('01-carrier-offer') },
-  { name: 'shipper-accepts', run: (status) => shipperAccepts(status) },
+  // Luis accepts the offer 01 made.
+  { name: 'shipper-accepts', needs: '01-carrier-offer', run: (status) => shipperAccepts(status) },
   { name: '02-operator-unloading', run: () => flow('02-operator-unloading') },
   { name: '03-carrier-assign', run: () => flow('03-carrier-assign') },
   { name: '04-carrier-counteroffer', run: () => flow('04-carrier-counteroffer') },
@@ -627,7 +629,12 @@ const steps = [
     needs: 'owner-operator-load',
     run: () => flow('13-owner-operator-offer'),
   },
-  { name: 'owner-operator-accepted', run: (status) => shipperAcceptsOwnerOperator(status) },
+  // Sofía accepts the offer 13 made.
+  {
+    name: 'owner-operator-accepted',
+    needs: '13-owner-operator-offer',
+    run: (status) => shipperAcceptsOwnerOperator(status),
+  },
   {
     name: '14-owner-operator-trip',
     needs: 'owner-operator-accepted',
@@ -662,24 +669,39 @@ const steps = [
 ];
 
 const stepNames = () => steps.map((s) => s.name).join(', ');
+
+/** Index of the step called `name`; an unknown name stops the run. */
+function stepIndex(name) {
+  const at = steps.findIndex((s) => s.name === name);
+  if (at < 0) throw new Error(`unknown step ${name}: ${stepNames()}`);
+  return at;
+}
+
+/**
+ * The first step to run for the step at `at`: its `needs`, what that one
+ * needs, and so on (each `needs` comes earlier in the run).
+ */
+function firstNeeded(at) {
+  let first = at;
+  for (let needs = steps[first].needs; needs; needs = steps[first].needs) {
+    const before = stepIndex(needs);
+    if (before >= first) throw new Error(`${steps[first].name} needs a later step: ${needs}`);
+    first = before;
+  }
+  return first;
+}
+
 let pending;
 if (only) {
-  // Each step asked for, from the one it needs (as --from does), in the order of the run.
+  // Each step asked for, from the first one it needs (as --from does), in the order of the run.
   const wanted = new Set();
   for (const name of only) {
-    const at = steps.findIndex((s) => s.name === name);
-    if (at < 0) throw new Error(`unknown step ${name}: ${stepNames()}`);
-    const needs = steps[at].needs;
-    const first = needs ? steps.findIndex((s) => s.name === needs) : at;
-    for (let i = first; i <= at; i += 1) wanted.add(i);
+    const at = stepIndex(name);
+    for (let i = firstNeeded(at); i <= at; i += 1) wanted.add(i);
   }
   pending = steps.filter((_, i) => wanted.has(i));
 } else {
-  let start = from ? steps.findIndex((s) => s.name === from) : 0;
-  if (start < 0) throw new Error(`unknown step ${from}: ${stepNames()}`);
-  const needs = steps[start]?.needs;
-  if (needs) start = steps.findIndex((s) => s.name === needs);
-  pending = steps.slice(start);
+  pending = steps.slice(from ? firstNeeded(stepIndex(from)) : 0);
 }
 
 // Results of the steps about to run are replaced, never mixed with an older run.

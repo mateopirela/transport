@@ -160,6 +160,7 @@ export default function SignUp() {
         eyebrow={PLATFORM_NAME}
         subtitle={copy.signUpSubtitle}
         bottom={barHeight}
+        barOverKeyboard
         scrollRef={scrollRef}
       >
         {/* Five steps are too many names for a phone: the title names this one. */}

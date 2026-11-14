@@ -195,6 +195,7 @@ export default function CompanySetup() {
         eyebrow={PLATFORM_NAME}
         subtitle={copy.subtitle}
         bottom={barHeight}
+        barOverKeyboard
         scrollRef={scrollRef}
       >
         <Steps

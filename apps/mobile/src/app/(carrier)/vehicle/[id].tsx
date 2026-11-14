@@ -66,7 +66,7 @@ function WithBar({ children, action }: { children: ReactNode; action: FormSave |
   const [barHeight, setBarHeight] = useState(0);
   return (
     <>
-      <Screen belowHeader bottom={action ? barHeight : 0}>
+      <Screen belowHeader bottom={action ? barHeight : 0} barOverKeyboard>
         {children}
       </Screen>
       {action ? <KeyboardBottomBar action={action} onHeight={setBarHeight} /> : null}

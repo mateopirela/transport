@@ -21,6 +21,9 @@
 //   pnpm e2e:mobile                          # reset the seed, run everything
 //   pnpm e2e:mobile --no-reset               # on the current data
 //   pnpm e2e:mobile --from 05-operator-pickup
+//   pnpm e2e:mobile --only 08-operator-invite,20-terms-acceptance,24-carrier-sign-up-steps
+//                                            # just those steps (and what each needs), e.g.
+//                                            # the access flows on another phone size (R6)
 //
 // Environment (see apps/mobile/.maestro/README.md):
 //   MAESTRO_DEVICE   simulator/emulator id (`xcrun simctl list devices`); default: the only one booted
@@ -28,6 +31,8 @@
 //   APP_ID           bundle id (default mx.transport.app)
 //   E2E_MOBILE_OUTPUT  output folder (default e2e/mobile-results)
 //   MAESTRO_BIN      Maestro CLI (default `maestro`)
+//   SHEET_CLOSE      where iOS draws the close button of its "Use Strong Password?" sheet,
+//                    as Maestro's 'x%,y%' (default the 6.9-inch iPhone's; '91%,54%' on a 4.7-inch SE)
 //   E2E_MAILPIT_URL  Mailpit of the stack (default http://127.0.0.1:54324; scripts/local-ports.sh sets it)
 //   SUPABASE_PROJECT_ID and the SUPABASE_*_PORT variables of scripts/local-ports.sh, as for `supabase start`.
 import { spawnSync } from 'node:child_process';
@@ -82,8 +87,19 @@ const args = process.argv.slice(2);
 const reset = !args.includes('--no-reset');
 const fromIndex = args.indexOf('--from');
 const from = fromIndex >= 0 ? args[fromIndex + 1] : undefined;
+const onlyIndex = args.indexOf('--only');
+const only =
+  onlyIndex >= 0
+    ? (args[onlyIndex + 1] ?? '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+    : undefined;
+if (from && only) throw new Error('use --from or --only, not both');
+if (only && only.length === 0) throw new Error('--only needs a comma-separated list of steps');
 
 const metroUrl = process.env.METRO_URL || 'http://127.0.0.1:8081';
+const sheetClose = process.env.SHEET_CLOSE;
 const appId = process.env.APP_ID || 'mx.transport.app';
 const output = resolve(root, process.env.E2E_MOBILE_OUTPUT || 'e2e/mobile-results');
 const maestro = process.env.MAESTRO_BIN || 'maestro';
@@ -535,6 +551,7 @@ function flow(name, env = {}) {
     `APP_ID=${appId}`,
     '-e',
     `DEV_CLIENT_URL=${devClientUrl}`,
+    ...(sheetClose ? ['-e', `SHEET_CLOSE=${sheetClose}`] : []),
     ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
     '--test-output-dir',
     join(output, 'maestro', name),
@@ -644,11 +661,26 @@ const steps = [
   },
 ];
 
-let start = from ? steps.findIndex((s) => s.name === from) : 0;
-if (start < 0) throw new Error(`unknown step ${from}: ${steps.map((s) => s.name).join(', ')}`);
-const needs = steps[start]?.needs;
-if (needs) start = steps.findIndex((s) => s.name === needs);
-const pending = steps.slice(start);
+const stepNames = () => steps.map((s) => s.name).join(', ');
+let pending;
+if (only) {
+  // Each step asked for, from the one it needs (as --from does), in the order of the run.
+  const wanted = new Set();
+  for (const name of only) {
+    const at = steps.findIndex((s) => s.name === name);
+    if (at < 0) throw new Error(`unknown step ${name}: ${stepNames()}`);
+    const needs = steps[at].needs;
+    const first = needs ? steps.findIndex((s) => s.name === needs) : at;
+    for (let i = first; i <= at; i += 1) wanted.add(i);
+  }
+  pending = steps.filter((_, i) => wanted.has(i));
+} else {
+  let start = from ? steps.findIndex((s) => s.name === from) : 0;
+  if (start < 0) throw new Error(`unknown step ${from}: ${stepNames()}`);
+  const needs = steps[start]?.needs;
+  if (needs) start = steps.findIndex((s) => s.name === needs);
+  pending = steps.slice(start);
+}
 
 // Results of the steps about to run are replaced, never mixed with an older run.
 rmSync(join(output, 'screenshots'), { recursive: true, force: true });

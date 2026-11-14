@@ -57,26 +57,29 @@ tags: [operator, invitation, terms]
     env:
       LABEL: 'Nombre completo'
       TEXT: 'Lucía Torres'
+- runFlow: subflows/close-keyboard.yaml
 - runFlow:
     file: subflows/fill-field.yaml
     env:
       LABEL: 'Teléfono'
       TEXT: '8110000098'
+- runFlow: subflows/close-keyboard.yaml
 - runFlow:
     file: subflows/fill-new-password.yaml
     env:
       LABEL: 'Contraseña'
       TEXT: 'Demo1234'
+- runFlow: subflows/close-keyboard.yaml
 - runFlow:
     file: subflows/fill-new-password.yaml
     env:
       LABEL: 'Confirma tu contraseña'
       TEXT: 'Demo1234'
-- tapOn: 'Confirma tu contraseña'
+# Each field is left with the keyboard put away (subflows/close-keyboard.yaml):
+# on a 4.7-inch iPhone the next one would sit behind it (R6).
+- runFlow: subflows/close-keyboard.yaml
 # Without the checkbox the account is not created.
-- scrollUntilVisible:
-    element: 'Crear mi cuenta'
-    centerElement: true
+# "Crear mi cuenta" stays in the bar at the bottom (R6).
 - tapOn: 'Crear mi cuenta'
 - scrollUntilVisible:
     element: 'Acepta los términos y condiciones y el aviso de privacidad para continuar.'
@@ -85,9 +88,7 @@ tags: [operator, invitation, terms]
 - takeScreenshot: 20-1-terms-required
 - tapOn: 'Acepto los términos y condiciones y el aviso de privacidad'
 - takeScreenshot: 20-2-terms-checked
-- scrollUntilVisible:
-    element: 'Crear mi cuenta'
-    centerElement: true
+# "Crear mi cuenta" stays in the bar at the bottom (R6).
 - tapOn: 'Crear mi cuenta'
 - extendedWaitUntil:
     visible: 'Not Now'

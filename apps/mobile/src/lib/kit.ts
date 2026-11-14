@@ -58,3 +58,16 @@ export function badgeText(badge: number | string | null | undefined, max = 99): 
   if (count <= 0) return undefined;
   return count > max ? `${max}+` : String(count);
 }
+
+/**
+ * How much of a bar `barHeight` high that rides on the keyboard
+ * (KeyboardBottomBar) shows over it: the bar keeps the phone's bottom inset
+ * as padding, and that part hides behind the keyboard. A screen ends this
+ * much above the keyboard so the field with the focus is not left under the
+ * bar (R6). Never below 0, and 0 before the bar has measured itself.
+ */
+export function barAboveKeyboard(barHeight: number, insetBottom: number): number {
+  if (!Number.isFinite(barHeight) || barHeight <= 0) return 0;
+  const inset = Number.isFinite(insetBottom) ? Math.max(insetBottom, 0) : 0;
+  return Math.max(barHeight - inset, 0);
+}

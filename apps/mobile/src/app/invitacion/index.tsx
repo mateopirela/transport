@@ -63,6 +63,7 @@ export default function InvitationIndex() {
         eyebrow={PLATFORM_NAME}
         subtitle={signedIn ? copy.noLinkBody : copy.subtitle}
         bottom={barHeight}
+        barOverKeyboard
       >
         <Group>
           <FieldCell

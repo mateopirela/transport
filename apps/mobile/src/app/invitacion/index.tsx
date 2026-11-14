@@ -6,6 +6,7 @@ import {
 } from '@transport/shared';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { Keyboard } from 'react-native';
 
 import { KeyboardBottomBar } from '../../components/keyboard-bar';
 import { Button, FieldCell, Footnote, Group, Loading, Screen } from '../../components/ui';
@@ -41,6 +42,9 @@ export default function InvitationIndex() {
     const token = parseInvitationLink(link);
     if (!token) {
       setError(copy.invalidBody);
+      // The keyboard goes away so the error under the field shows: on a small
+      // phone or with large text it would sit behind the bar over the keyboard (R6).
+      Keyboard.dismiss();
       return;
     }
     setError(undefined);

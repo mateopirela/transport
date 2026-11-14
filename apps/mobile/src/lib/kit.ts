@@ -71,3 +71,12 @@ export function barAboveKeyboard(barHeight: number, insetBottom: number): number
   const inset = Number.isFinite(insetBottom) ? Math.max(insetBottom, 0) : 0;
   return Math.max(barHeight - inset, 0);
 }
+
+/**
+ * How far the system text size (Dynamic Type) grows a screen's large title
+ * and the brand block's title: 1.3 times at most. The rest of the text
+ * follows the phone's setting without a cap; the titles are the largest
+ * text and, past this, on a 4.7-inch phone they push the form and its
+ * fields out of sight before anything else (R6).
+ */
+export const TITLE_MAX_FONT_SCALE = 1.3;

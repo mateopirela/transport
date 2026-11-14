@@ -39,7 +39,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { barAboveKeyboard, chunkRows, stepNumber, stepStates } from '../lib/kit';
+import {
+  barAboveKeyboard,
+  chunkRows,
+  stepNumber,
+  stepStates,
+  TITLE_MAX_FONT_SCALE,
+} from '../lib/kit';
 import {
   BrandSurface,
   font,
@@ -200,7 +206,11 @@ export function LargeTitle({
     <View style={kit.largeTitle}>
       {right ? <View style={kit.largeTitleRight}>{right}</View> : null}
       {eyebrow ? <Caps style={kit.label}>{eyebrow}</Caps> : null}
-      <Text accessibilityRole="header" style={kit.largeTitleText}>
+      <Text
+        accessibilityRole="header"
+        style={kit.largeTitleText}
+        maxFontSizeMultiplier={TITLE_MAX_FONT_SCALE}
+      >
         {title}
       </Text>
       {subtitle ? <Text style={kit.dim}>{subtitle}</Text> : null}
@@ -1263,7 +1273,11 @@ function BrandContent({
         <View style={kit.brandText}>
           {label ? <Caps style={kit.label}>{label}</Caps> : null}
           {title ? (
-            <Text accessibilityRole="header" style={kit.brandTitle}>
+            <Text
+              accessibilityRole="header"
+              style={kit.brandTitle}
+              maxFontSizeMultiplier={TITLE_MAX_FONT_SCALE}
+            >
               {title}
             </Text>
           ) : null}

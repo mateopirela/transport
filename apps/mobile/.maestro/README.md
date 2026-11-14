@@ -60,15 +60,17 @@ export MAESTRO_DEVICE=<id del simulador>     # xcrun simctl list devices | grep 
 export METRO_URL=http://127.0.0.1:8090        # Metro tal como lo ve el dispositivo
 pnpm e2e:mobile                               # reinicia la seed y corre todo (~15 min)
 pnpm e2e:mobile --no-reset --from 05-operator-pickup   # retomar desde un paso
+pnpm e2e:mobile --only 08-operator-invite,24-carrier-sign-up-steps   # solo esos pasos y lo que necesitan (R6)
 ```
 
-| Variable            | Por defecto             | Para qué                                                          |
-| ------------------- | ----------------------- | ----------------------------------------------------------------- |
-| `MAESTRO_DEVICE`    | el único dispositivo    | Simulador o emulador donde corren los flujos                      |
-| `METRO_URL`         | `http://127.0.0.1:8081` | Metro con el bundle (la app lo abre con un enlace del dev client) |
-| `APP_ID`            | `mx.transport.app`      | Bundle id / paquete (`APP_BUNDLE_ID`)                             |
-| `E2E_MOBILE_OUTPUT` | `e2e/mobile-results`    | Capturas y registros                                              |
-| `MAESTRO_BIN`       | `maestro`               | Ruta del CLI de Maestro                                           |
+| Variable            | Por defecto             | Para qué                                                                        |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `MAESTRO_DEVICE`    | el único dispositivo    | Simulador o emulador donde corren los flujos                                    |
+| `METRO_URL`         | `http://127.0.0.1:8081` | Metro con el bundle (la app lo abre con un enlace del dev client)               |
+| `APP_ID`            | `mx.transport.app`      | Bundle id / paquete (`APP_BUNDLE_ID`)                                           |
+| `E2E_MOBILE_OUTPUT` | `e2e/mobile-results`    | Capturas y registros                                                            |
+| `MAESTRO_BIN`       | `maestro`               | Ruta del CLI de Maestro                                                         |
+| `SHEET_CLOSE`       | `93%,61%`               | Cierre de la hoja "Use Strong Password?" de iOS; `91%,54%` en un iPhone SE (R6) |
 
 Un flujo suelto, sin el script: `maestro --device <id> test -e APP_ID=mx.transport.app -e DEV_CLIENT_URL='exp+transport://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8090' apps/mobile/.maestro/01-carrier-offer.yaml`. Los flujos cambian los datos demo: vuelve a correr `supabase db reset` antes de repetirlos.
 

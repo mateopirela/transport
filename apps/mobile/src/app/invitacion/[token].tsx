@@ -128,7 +128,11 @@ function InvalidInvitation() {
 }
 
 /** The one primary of a step of the invitation, fixed at the bottom. */
-type BarAction = { label: string; onPress: () => void; loading?: boolean };
+interface BarAction {
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+}
 
 /**
  * A valid invitation: its title, who invites and to what over `children`,

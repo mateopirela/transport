@@ -48,6 +48,9 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Which steps run (--from, --only): pure, with its tests (Node strips the types).
+import { selectSteps } from '../e2e/support/mobile-steps.ts';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const flowsDir = join(root, 'apps/mobile/.maestro');
 
@@ -95,8 +98,6 @@ const only =
         .map((name) => name.trim())
         .filter(Boolean)
     : undefined;
-if (from && only) throw new Error('use --from or --only, not both');
-if (only && only.length === 0) throw new Error('--only needs a comma-separated list of steps');
 
 const metroUrl = process.env.METRO_URL || 'http://127.0.0.1:8081';
 const sheetClose = process.env.SHEET_CLOSE;
@@ -577,8 +578,8 @@ function collectScreenshots() {
 }
 
 // `needs`: the step that sets up what a flow expects, run first when the run
-// starts at that flow (--from) or asks for it (--only), with whatever that
-// step needs in turn: the chain is followed to its first step.
+// starts at that flow (--from) or asks for it (--only); on a fresh seed, with
+// whatever that step needs in turn (e2e/support/mobile-steps.ts).
 const steps = [
   // H4: reads the tolls and the suggested road of the return trip before 01 offers on it.
   { name: '18-carrier-road', run: () => flow('18-carrier-road') },
@@ -668,41 +669,7 @@ const steps = [
   },
 ];
 
-const stepNames = () => steps.map((s) => s.name).join(', ');
-
-/** Index of the step called `name`; an unknown name stops the run. */
-function stepIndex(name) {
-  const at = steps.findIndex((s) => s.name === name);
-  if (at < 0) throw new Error(`unknown step ${name}: ${stepNames()}`);
-  return at;
-}
-
-/**
- * The first step to run for the step at `at`: its `needs`, what that one
- * needs, and so on (each `needs` comes earlier in the run).
- */
-function firstNeeded(at) {
-  let first = at;
-  for (let needs = steps[first].needs; needs; needs = steps[first].needs) {
-    const before = stepIndex(needs);
-    if (before >= first) throw new Error(`${steps[first].name} needs a later step: ${needs}`);
-    first = before;
-  }
-  return first;
-}
-
-let pending;
-if (only) {
-  // Each step asked for, from the first one it needs (as --from does), in the order of the run.
-  const wanted = new Set();
-  for (const name of only) {
-    const at = stepIndex(name);
-    for (let i = firstNeeded(at); i <= at; i += 1) wanted.add(i);
-  }
-  pending = steps.filter((_, i) => wanted.has(i));
-} else {
-  pending = steps.slice(from ? firstNeeded(stepIndex(from)) : 0);
-}
+const pending = selectSteps(steps, { from, only, reset });
 
 // Results of the steps about to run are replaced, never mixed with an older run.
 rmSync(join(output, 'screenshots'), { recursive: true, force: true });

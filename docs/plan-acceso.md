@@ -11,8 +11,8 @@ Cuarta ola sobre el acceso. Sale de la auditoría del 2026-11-19 que pidió Mate
 | Sin recuperar contraseña en la app | `apps/mobile/src` no tiene "olvidé mi contraseña" |
 | Errores tardíos | Los datos fiscales se capturan antes de confirmar el correo, pero `register_company` corre después (`auth/confirm/route.ts`, `company.tsx`): un RFC repetido aparece hasta `/completar-registro` |
 | Bloqueo hasta la aprobación (web) | `HOME_ONLY` en `apps/web/src/lib/routing.ts` no deja abrir `/cliente` ni `/transportista` con la empresa sin aprobar: el cliente no puede dejar un borrador y el Gerente no puede armar su flota, así que hay dos rondas de revisión antes del primer viaje. La app sí deja entrar (`(carrier)/(tabs)/home.tsx`) |
-| Sin aviso | El enum de notificaciones no tiene "empresa aprobada/rechazada" (`20261015200000_chat_notifications.sql`) |
-| Datos repetidos | Contacto de la empresa (solo se prellena el nombre en la web); el operador reescribe nombre y teléfono (`OperatorRedeem` en `invitacion/[token].tsx` no usa `invitee_name`); el hombre-camión sube su INE dos veces; el coordinador toca "Unirme" después de confirmar |
+| Sin aviso | El enum `notification_type` (creado en `20261015200000_chat_notifications.sql` y ampliado en migraciones posteriores) no tiene "empresa aprobada/rechazada" |
+| Datos repetidos | Contacto de la empresa (solo se prellena el nombre en la web); el operador reescribe nombre y teléfono (`OperatorRedeem` en `invitacion/[token].tsx` no usa `invitee_name`, que el formulario del coordinador sí usa; la invitación no guarda teléfono); el hombre-camión sube su INE dos veces; el coordinador toca "Unirme" después de confirmar |
 
 **Qué no cambia:** D45 (candado de viajes), los documentos (D16, D16-E3, D44), la revisión manual (D10-E1), D46 (segundo factor, bloqueo, sesiones), D06-E1 (superficies), la confirmación obligatoria del correo, las invitaciones (D43) y el panel de marca del acceso.
 
@@ -22,7 +22,7 @@ Cuarta ola sobre el acceso. Sale de la auditoría del 2026-11-19 que pidió Mate
 
 ### 0.1 Reglas comunes
 
-Las de [plan-registro.md §0.1](plan-registro.md) completas (ciclo y gate D14, UI Fulmis con capturas claro/oscuro en `assets/<ID>-screenshots`, backend con autorización en Postgres, copy en `packages/shared/src/copy/`, contraseñas nunca en almacenamiento, E2E por rol y nombre accesible, sin recursos en la nube). Además:
+Las de [plan-registro.md §0.1](plan-registro.md) completas, con su definición de terminado (§0.4, además de plan-v1.md §0.3) (ciclo y gate D14, UI Fulmis con capturas claro/oscuro en `assets/<ID>-screenshots`, backend con autorización en Postgres, copy en `packages/shared/src/copy/`, contraseñas nunca en almacenamiento, E2E por rol y nombre accesible, sin recursos en la nube). Además:
 
 - **No se relaja ninguna RPC ni RLS.** D48 abre pantallas, no permisos. Si un bloque encuentra una pantalla que ahora se puede abrir y cuya RPC o RLS no exige empresa aprobada donde debería, lo corrige en el backend en el mismo PR (🔒) o lo reporta en "Seguimiento"; nunca lo tapa solo en la UI.
 - **Sin RPC anónimas nuevas.** Nada que permita averiguar si un correo, un teléfono o un RFC ya existe sin sesión.
@@ -48,7 +48,7 @@ Campos para entrar: de 16–17 a **5** (más tipo y términos).
 | S-B | S2 (web) y S3 (app) en paralelo | S1 |
 | S-C | S4 (cierre: E2E completos, dispositivos y documentación) | S2 y S3 |
 
-Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pura que usan los dos (alta de un paso, lista "Completa tu cuenta", espera del reenvío); S2 solo edita `apps/web`, `copy/auth.ts` y `e2e/`; S3 solo `apps/mobile`, `copy/mobile.ts` y `.maestro/`.
+Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pura que usan los dos (alta de un paso, lista "Completa tu cuenta", espera del reenvío); S2 solo edita `apps/web`, `copy/auth.ts` y `e2e/`; S3 solo `apps/mobile` (con `apps/mobile/.maestro/`) y `copy/mobile.ts`.
 
 ---
 
@@ -56,7 +56,7 @@ Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pu
 
 - `register_company`, `/completar-registro` (web) y `company.tsx` (app): ya registran la empresa de una cuenta que no la tiene. Pasan a ser el paso 1 de "Completa tu cuenta"; **`companies` no cambia** (`legal_name` y `rfc` siguen obligatorios y el RFC único): mientras no hay datos fiscales, no hay empresa.
 - `sign-up-steps.ts` y `onboarding.ts` de `@transport/shared` (pasos y qué le falta a cada perfil), `/cuenta-en-revision` y `(carrier)/onboarding.tsx`, `document-upload`.
-- El comportamiento de la app con empresa sin aprobar (`CompanyStatus` y la tarjeta "Continuar registro") es el modelo para la web.
+- El comportamiento de la app con empresa sin aprobar (`CompanyStatus` y la tarjeta "Continuar mi alta", `ContinueOnboarding` en `home.tsx`) es el modelo para la web.
 - `review_company`, el sistema de notificaciones (B16) y sus envíos.
 - Plantillas `supabase/templates/confirmation.html` y `recovery.html`; `/auth/confirm`.
 
@@ -70,13 +70,14 @@ Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pu
 - **Alcance:**
   - **Esquemas (`packages/shared/src/schemas/`):** el alta de un paso (tipo, nombre, teléfono, correo, contraseña, términos) a partir de los esquemas actuales; la contraseña nueva sin confirmación (alta, invitación de coordinador y operador, restablecer, restablecer acceso del operador); código de 6 dígitos. El alta **deja de mandar** `pending_company` en los metadatos; `registerPendingCompany` y su equivalente en la app se conservan para las cuentas que ya lo traen.
   - **Lógica pura:** la lista "Completa tu cuenta" por perfil (parte de `onboarding.ts`: agrega "datos fiscales" como primer pendiente cuando no hay empresa) y la espera entre reenvíos, con Vitest.
-  - **Plantillas de correo:** `confirmation.html` y `recovery.html` muestran `{{ .Token }}` (6 dígitos) además del enlace; el enlace de confirmación deja de depender del dispositivo (enlace web con `token_hash` a `/auth/confirm`, que al terminar ofrece abrir la app). `config.toml`: `otp_length = 6` y la vigencia del código documentada.
+  - **Plantillas de correo:** `confirmation.html` y `recovery.html` muestran `{{ .Token }}` (6 dígitos) además del enlace; el enlace de confirmación deja de depender del dispositivo (enlace web con `token_hash` a `/auth/confirm`, que al terminar ofrece abrir la app). `config.toml` ya tiene `otp_length = 6` y `otp_expiry = 3600` en `[auth.email]`: se conservan y la vigencia del código queda documentada; la espera del reenvío respeta `max_frequency`.
   - **Avisos (D51):** tipos `company_approved` y `company_rejected` (enum en su propia migración); `review_company` ("Same as …, except …") notifica a los usuarios de la empresa, con el motivo en el rechazo; copy y destino del aviso en web y app.
   - **RFC repetido (D50-5):** `register_company` ya lo rechaza; el bloque asegura un código de error estable y su traducción al campo "RFC" (hoy llega como error general tras confirmar).
+  - **Invitación del operador (D50-2):** hoy `invitations` solo guarda `invitee_name` y `invitation_preview` no devuelve teléfono. S1 agrega el teléfono opcional del invitado (columna en `invitations`, parámetro en `create_invitation` y campo en `invitation_preview`, solo para quien trae el token), normalizado con `normalize_mx_phone`, con pgTAP; el formulario de invitar lo captura en S2.
   - **INE del hombre-camión (D50-4):** si se puede reutilizar el archivo de `legal_representative_id` como `operator_official_id` del propio operador con una RPC `security definer` que valide dueño, empresa y tipo, y sin abrir rutas de Storage, se construye con pgTAP; si no, se explica en el PR y se queda la nota actual.
-  - **Auditoría de D48 (solo lectura + pgTAP):** lista de RPC y políticas que usan las pantallas de `/cliente` y `/transportista`, con una prueba por cada una de que una empresa `pending_review` o `rejected` **no** publica, oferta, recibe recomendaciones ni asigna, y de que una cuenta sin empresa no lee ni escribe nada de otra. Lo que falte se cierra aquí.
+  - **Auditoría de D48 (solo lectura + pgTAP):** lista de RPC y políticas que usan las pantallas de `/cliente` y `/transportista`, con una prueba por cada una de que una empresa que no está `approved` (`pending_review`, `rejected`, `expired` o `suspended`) **no** publica, oferta, recibe recomendaciones ni asigna, y de que una cuenta sin empresa no lee ni escribe nada de otra. Lo que falte se cierra aquí.
 - **Fuera de alcance:** pantallas (S2, S3); cambiar `companies`; SMS; CAPTCHA.
-- **Tests:** pgTAP de los avisos, de la auditoría y de la RPC de la INE si se construye; Vitest de esquemas y lógica; suite 18 y `security_matrix` actualizadas.
+- **Tests:** pgTAP de los avisos, de la auditoría, del teléfono de la invitación y de la RPC de la INE si se construye; Vitest de esquemas y lógica; suite 18 (`supabase/tests/database/18_security_audit.test.sql`) y `supabase/seed-tests/security_matrix.test.sql` actualizadas.
 - **Aceptación:** `supabase db reset` y `supabase test db` en verde; el correo local (Mailpit) muestra código y enlace; aprobar y rechazar una empresa deja el aviso.
 - **Paso para Mateo:** las plantillas de correo y `otp_length` de producción se cambian en el panel de Supabase (el despliegue no las publica); S1 deja el texto exacto en [release.md](release.md).
 
@@ -90,12 +91,13 @@ Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pu
   - **"Completa tu cuenta":** aviso fijo en el panel (kit Fulmis) con el avance y el siguiente pendiente, mientras falte algo o la empresa esté en revisión o rechazada. `/cuenta-en-revision` pasa a ser esa lista (misma ruta, pasos 1–4 de §0.2) con los datos fiscales como paso 1 (el formulario de `/completar-registro`, con el contacto prellenado de la cuenta y el RFC repetido en su campo). `/completar-registro` redirige ahí.
   - **Acciones bloqueadas:** "Publicar" (cliente) y ofertar o asignar (transportista) se muestran deshabilitadas con el motivo y el enlace al pendiente; el error de la RPC se traduce igual si se llega por otro camino. El cliente puede guardar la carga como borrador.
   - **Flota antes de aprobar:** `/transportista/empresa` y `/transportista/flota` abren con la empresa registrada sin aprobar.
-  - **Coordinador (D50-3):** al volver de confirmar el correo con una invitación pendiente, `joinCompany` corre solo; "Unirme" queda para quien ya tenía sesión.
+  - **Coordinador (D50-3):** al volver de confirmar el correo con una invitación pendiente, `joinCompany` corre solo; "Unirme" queda para quien ya tenía sesión. Hoy el token de la invitación viaja en el `next` del enlace de confirmación (`redirect_to` en `/auth/confirm`); al confirmar con el **código** no hay enlace, así que `/verificar-correo` conserva ese `next` (validado con `safeNextPath`) y, tras `verifyOtp`, sigue a la invitación igual que el enlace.
+  - **Invitar a un operador (D50-2):** el formulario de `/transportista/flota/operadores/invitar` suma el teléfono opcional que S1 agrega a la invitación.
   - Avisos de D51 en la campana y su destino.
 - **Fuera de alcance:** la app (S3); el panel de marca; cambiar el flujo del admin.
 - **Tests:** Vitest de `homeFor`/`resolveRoute` por perfil × (sin empresa, en revisión, rechazada, aprobada) y de la traducción de errores a pendientes.
 - **Aceptación:** un cliente nuevo crea su cuenta con 5 campos, confirma con el código, entra a `/cliente`, captura sus datos fiscales, guarda un borrador y no puede publicarlo hasta que el admin aprueba; un Gerente arma su flota antes de la aprobación; reenviar funciona.
-- **E2E:** todos los specs que registran una cuenta (`profiles`, `shipper-journey`, `invitations`, `manager-company`, `coordinator-operators`, `cargo-insurance`); uno nuevo para código, reenvío y panel en revisión.
+- **E2E** (`e2e/tests/`, `pnpm --filter @transport/e2e e2e`): los specs que registran o confirman una cuenta (`sign-up-steps`, `onboarding-steps`, `shipper-journey`, `invitations`) y los que dependen de adónde entra cada perfil o una empresa sin aprobar (al menos `profiles`, `manager-company`, `coordinator-operators`, `cargo-insurance`); uno nuevo para código, reenvío y panel en revisión, y la invitación de coordinador confirmada con código.
 
 #### S3 · App: lo mismo, más recuperar la contraseña (D42-E1, D15-E3, D49, D50)
 
@@ -105,18 +107,18 @@ Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pu
   - `CheckEmail`: código de 6 dígitos, "Reenviar correo" con espera y "Cambiar correo". `auth/callback.tsx` se conserva para enlaces viejos y, si falla, lleva a teclear el código. El inicio de sesión sin confirmar lleva a esa pantalla.
   - **"¿Olvidaste tu contraseña?" (D49):** correo → código → contraseña nueva; con la nota para el operador que solo tiene teléfono.
   - Área `company_setup`: el Gerente sin empresa entra a las pestañas con "Completa tu cuenta" (la tarjeta de `home.tsx`) en lugar de quedar en `company.tsx`; `company.tsx` es el paso 1, con el contacto prellenado y el RFC repetido en su campo. `(carrier)/onboarding.tsx` muestra los pasos de §0.2.
-  - **Operador (D50-2):** `OperatorRedeem` prellena nombre y teléfono de la invitación (si `invitation_preview` no expone el teléfono, S1 lo agrega para el portador del token y se dice en el PR).
+  - **Operador (D50-2):** `OperatorRedeem` prellena nombre y teléfono de la invitación (el teléfono llega por el campo que S1 agrega a `invitation_preview`; las invitaciones anteriores no lo traen y el campo queda vacío). El formulario de invitar de la app (`components/company-sections.tsx`) también captura el teléfono opcional.
   - **Coordinador (D50-3):** al confirmar con el token guardado, se une solo.
   - Avisos de D51 (push y lista).
 - **Fuera de alcance:** el cliente en la app (D06-E1); biometría (Seguimiento).
 - **Tests:** Vitest de `lib/routing.ts` por perfil y estado, y de la lógica nueva.
 - **Aceptación:** en el simulador de iPhone: alta con 5 campos, confirmación con el código abierto en otro dispositivo, recuperación de contraseña completa, operador con datos prellenados.
-- **E2E:** Maestro `08-operator-invite`, `09-manager-company`, `12-operator-phone`, `13-owner-operator-offer`, `20-terms-acceptance`, el subflujo `sign-in` y uno nuevo de recuperar contraseña.
+- **E2E:** Maestro (`apps/mobile/.maestro/`) `08-operator-invite`, `09-manager-company`, `12-operator-phone`, `13-owner-operator-offer`, `20-terms-acceptance`, `24-carrier-sign-up-steps`, `25-carrier-sign-up-confirm`, los subflujos `sign-in`, `fill-new-password` y `fill-new-password-sheet`, y uno nuevo de recuperar contraseña.
 
 #### S4 · Cierre
 
 - **Objetivo:** comprobar el recorrido completo y dejarlo documentado.
-- **Alcance:** `pnpm e2e` y `pnpm e2e:mobile` completos; capturas del recorrido de cada perfil en web (1440 y 390 px) e iPhone pequeño y grande, claro y oscuro; conteo real de pantallas y campos contra §0.2; actualizar [producto-v1.md](producto-v1.md), [demo-local.md](demo-local.md) y [seguridad.md](seguridad.md) (qué ve una empresa sin aprobar); nota en [plan-registro.md](plan-registro.md) de lo que D42-E1 reemplaza.
+- **Alcance:** `pnpm --filter @transport/e2e e2e` y `pnpm e2e:mobile` completos; capturas del recorrido de cada perfil en web (1440 y 390 px) e iPhone pequeño y grande, claro y oscuro; conteo real de pantallas y campos contra §0.2; actualizar [producto-v1.md](producto-v1.md), [demo-local.md](demo-local.md) y [seguridad.md](seguridad.md) (qué ve una empresa sin aprobar); nota en [plan-registro.md](plan-registro.md) de lo que D42-E1 reemplaza.
 - **Fuera de alcance:** funciones nuevas.
 - **Aceptación:** todo en verde y el conteo publicado en el PR.
 

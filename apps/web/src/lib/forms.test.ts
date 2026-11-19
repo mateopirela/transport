@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   authErrorField,
   authErrorKey,
+  authErrorKeyField,
   authErrorMessage,
   authFailureState,
   isAuthErrorKey,
@@ -75,6 +76,22 @@ describe('auth error keys', () => {
   it('maps codes to copy keys', () => {
     expect(authErrorKey({ code: '23505' })).toBe('rfcTaken');
     expect(authErrorKey(undefined)).toBe('generic');
+  });
+
+  it('puts a repeated RFC on its field, by the stable detail of register_company (D50-5)', () => {
+    const error = {
+      code: '23505',
+      message: 'rfc already registered (companies_rfc_key)',
+      details: 'rfc_taken',
+    };
+    expect(authErrorKey(error)).toBe('rfcTaken');
+    expect(authErrorField(error)).toBe('rfc');
+    expect(authErrorKeyField('rfcTaken')).toBe('rfc');
+    expect(authErrorKeyField('generic')).toBeNull();
+    expect(authFailureState(error, { rfc: 'TNO850101AB1' })).toEqual({
+      fieldErrors: { rfc: authErrors.rfcTaken },
+      values: { rfc: 'TNO850101AB1' },
+    });
   });
 
   it('accepts only known keys from untrusted input', () => {

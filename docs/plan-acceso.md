@@ -80,6 +80,14 @@ Para no chocar en S-B: S1 deja en `packages/shared` los esquemas y la lógica pu
 - **Tests:** pgTAP de los avisos, de la auditoría, del teléfono de la invitación y de la RPC de la INE si se construye; Vitest de esquemas y lógica; suite 18 (`supabase/tests/database/18_security_audit.test.sql`) y `supabase/seed-tests/security_matrix.test.sql` actualizadas.
 - **Aceptación:** `supabase db reset` y `supabase test db` en verde; el correo local (Mailpit) muestra código y enlace; aprobar y rechazar una empresa deja el aviso.
 - **Paso para Mateo:** las plantillas de correo y `otp_length` de producción se cambian en el panel de Supabase (el despliegue no las publica); S1 deja el texto exacto en [release.md](release.md).
+- **Lo que S1 dejó (para S2 y S3),** todo exportado por `@transport/shared`:
+  - Esquemas (`schemas/access.ts`): `accountSignUpSchema` (web) y `carrierAccountSignUpSchema` (app), `invitedAccountSchema` (coordinador), `operatorAccountFormSchema`, `setPasswordSchema` (restablecer y acceso del operador), `emailCodeSchema` / `emailCodeField` (6 dígitos), `emailOnlySchema`, `inviteePhoneField` y `accountSignUpMetadata` (los metadatos del alta, sin `pending_company`; el tipo viaja como pista en `pending_company_kind`, que lee `pendingCompanyKindOf`). Los esquemas del registro por pasos siguen en `schemas/auth.ts` y `schemas/redeem.ts` hasta que cada app deje de usarlos.
+  - Lógica: `accountChecklist` y `accountBlock` (`account-checklist.ts`: la lista "Completa tu cuenta", su avance y el motivo de cada acción bloqueada), `isCompanyNotApprovedError` (el error de las RPC), `companyContactFromAccount` (D50-1), `resendWaitSeconds` / `canResend` / `isEmailRateLimitError` (`resend-cooldown.ts`, 60 s) e `isRfcTakenError` (`registration-errors.ts`).
+  - Copy (`copy/access.ts`): `emailCodeCopy`, `emailConfirmedCopy`, `accountChecklistCopy` y `accountBlockCopy`; los avisos, en `copy/notifications.ts`.
+  - Backend: `create_invitation(…, p_invitee_phone)` e `invitation_preview().invitee_phone`; `register_company` con el detalle `rfc_taken`; avisos `company_approved` / `company_rejected`. `auth.resend({ type: 'signup', email })` necesita el mismo `emailRedirectTo` del alta para que el enlace del reenvío conserve el `next` de una invitación.
+  - Web: `/correo-confirmado` (termina ahí el enlace de una cuenta creada en la app) y el RFC repetido en su campo en `/completar-registro`. La campana ya lleva los avisos a `/cliente`, `/transportista` o `/cuenta-en-revision`; el push, a `/onboarding`.
+  - **INE del hombre-camión (D50-4): no se construyó** (ver [seguridad.md](seguridad.md)); se queda la nota actual.
+  - **Auditoría de D48:** sin huecos; la lista de lo que sigue bloqueado y la suite 71 están en [seguridad.md](seguridad.md). S2 puede quitar `HOME_ONLY` por estado.
 
 #### S2 · Web: entrar en un paso y panel en revisión (D42-E1, D48, D15-E3, D50)
 

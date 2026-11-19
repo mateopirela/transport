@@ -129,4 +129,32 @@ describe('notification email', () => {
     expect(notificationWebPath('admin', data)).toBe('/admin/flete');
     expect(notificationWebPath('admin', { tripId: LOAD })).toBe('/admin');
   });
+
+  it('links the review of the company to the panel or to "Completa tu cuenta" (S1, D51)', () => {
+    const data = { companyId: SITE_ID, companyName: 'Fletes' };
+    expect(notificationWebPath('shipper', data, 'company_approved')).toBe('/cliente');
+    expect(notificationWebPath('manager', data, 'company_approved')).toBe('/transportista');
+    expect(notificationWebPath('coordinator', data, 'company_approved')).toBe('/transportista');
+    for (const role of ['shipper', 'manager', 'coordinator'] as const) {
+      expect(notificationWebPath(role, data, 'company_rejected')).toBe('/cuenta-en-revision');
+    }
+    // Never sent to them, and nothing to open if it were.
+    for (const role of ['admin', 'operator', null] as const) {
+      expect(notificationWebPath(role, data, 'company_approved')).toBeNull();
+      expect(notificationWebPath(role, data, 'company_rejected')).toBeNull();
+    }
+  });
+
+  it("escapes the reason of a rejection in the email (it is the admin's free text)", () => {
+    const email = notificationEmail(
+      'company_rejected',
+      { companyName: 'Fletes <b>', reason: '<script>alert(1)</script>' },
+      { role: 'manager', siteUrl: SITE },
+    );
+    expect(email.subject).toBe('Tu cuenta necesita cambios · ' + email.subject.split(' · ')[1]);
+    expect(email.html).not.toContain('<script>');
+    expect(email.html).toContain('&lt;script&gt;');
+    expect(email.html).toContain(`${SITE}/cuenta-en-revision`);
+    expect(email.text).toContain('Motivo: <script>alert(1)</script>');
+  });
 });

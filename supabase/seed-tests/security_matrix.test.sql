@@ -617,7 +617,9 @@ insert into tests.rpc_calls values
   ('create_invitation', $$ (select count(*) from public.create_invitation('operator', '{}', tests.val('corredor_operator_without_account'))) $$),
   ('create_invitation', $$ (select count(*) from public.create_invitation('coordinator',
        array[tests.val('corredor_unit'), tests.val('regional_unit')])) $$),
-  ('create_invitation', $$ (select count(*) from public.create_invitation('operator', array[tests.val('corredor_unit')])) $$),
+  -- S1 (D50-2): with the invitee's name and phone, which only the unit's staff may set.
+  ('create_invitation', $$ (select count(*) from public.create_invitation('operator', array[tests.val('corredor_unit')],
+       null, 'Operador Invitado', 168, '81 2222 3333')) $$),
   ('create_invitation', $$ (select count(*) from public.create_invitation('operator_access_reset', '{}', tests.val('operator'))) $$),
   ('revoke_invitation', $$ public.revoke_invitation(tests.val('link_invitation')) $$),
   ('accept_coordinator_invitation', $$ public.accept_coordinator_invitation(rpad('b24coordinatorlink', 43, '0')) $$),

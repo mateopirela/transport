@@ -1279,6 +1279,7 @@ export interface Database {
           expires_at: string;
           id: string;
           invitee_name: string | null;
+          invitee_phone: string | null;
           kind: Database['public']['Enums']['invitation_kind'];
           operator_id: string | null;
           revoked_at: string | null;
@@ -1295,6 +1296,7 @@ export interface Database {
           expires_at: string;
           id?: string;
           invitee_name?: string | null;
+          invitee_phone?: string | null;
           kind: Database['public']['Enums']['invitation_kind'];
           operator_id?: string | null;
           revoked_at?: string | null;
@@ -1310,6 +1312,7 @@ export interface Database {
           expires_at?: string;
           id?: string;
           invitee_name?: string | null;
+          invitee_phone?: string | null;
           kind?: Database['public']['Enums']['invitation_kind'];
           operator_id?: string | null;
           revoked_at?: string | null;
@@ -4588,6 +4591,7 @@ export interface Database {
         Args: {
           p_business_unit_ids: string[];
           p_invitee_name?: string;
+          p_invitee_phone?: string;
           p_kind: Database['public']['Enums']['invitation_kind'];
           p_operator_id?: string;
           p_valid_for_hours?: number;
@@ -4762,6 +4766,7 @@ export interface Database {
           company_legal_name: string;
           expires_at: string;
           invitee_name: string;
+          invitee_phone: string;
           inviter_name: string;
           kind: Database['public']['Enums']['invitation_kind'];
         }[];
@@ -5660,7 +5665,9 @@ export interface Database {
         | 'brokered_load_contracted'
         | 'quick_pay_requested'
         | 'quick_pay_approved'
-        | 'quick_pay_rejected';
+        | 'quick_pay_rejected'
+        | 'company_approved'
+        | 'company_rejected';
       offer_side: 'shipper' | 'carrier';
       offer_status: 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn' | 'expired';
       product_event_name: 'recommendations_viewed' | 'recommendation_opened' | 'offer_submitted';
@@ -5971,6 +5978,8 @@ export const Constants = {
         'quick_pay_requested',
         'quick_pay_approved',
         'quick_pay_rejected',
+        'company_approved',
+        'company_rejected',
       ],
       offer_side: ['shipper', 'carrier'],
       offer_status: ['pending', 'accepted', 'rejected', 'countered', 'withdrawn', 'expired'],

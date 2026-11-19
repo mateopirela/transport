@@ -46,6 +46,15 @@ describe('pushTarget', () => {
     });
   });
 
+  it('opens the steps of the account for the review of the company (S1, D51)', () => {
+    for (const type of ['company_approved', 'company_rejected']) {
+      const data = { type, companyId: tripId, notificationId: tripId };
+      expect(pushTarget(data, 'carrier')).toEqual({ pathname: '/onboarding' });
+      expect(pushTarget(data, 'operator')).toBeNull();
+      expect(pushTarget(data, 'unsupported')).toBeNull();
+    }
+  });
+
   it('opens Cobranza for a freight notice of the carrier staff, nothing for others (I3)', () => {
     const data = { ledgerId: tripId, tripId };
     expect(pushTarget(data, 'carrier')).toEqual({ pathname: '/collections' });

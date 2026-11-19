@@ -134,6 +134,49 @@ Tres piezas: segundo factor para los administradores, bloqueo temporal por cuent
 3. **Duración de la sesión** (plan Pro o superior): Authentication → Sessions → *Time-box user sessions* `720h` (30 días) e *Inactivity timeout* `168h` (7 días: corta solo cuentas abandonadas; los 30 minutos del admin los aplica la web).
 4. **CAPTCHA** (opcional, necesita cuenta en hCaptcha o Turnstile): no se activó.
 
+## Acceso sin fricción (S1, D42-E1, D48, D15-E3, D50, D51)
+
+S1 es la base de la ola S ([plan-acceso.md](plan-acceso.md)): no abre ninguna pantalla, pero deja probado que S2 puede abrir el panel de la web a una empresa sin aprobar (o a una cuenta sin empresa) sin que la base de datos regale nada. Migraciones `20261119000000_company_review_notification_types.sql` y `20261119000100_access_base.sql`; suites 70 y 71, la 18 (inventario, sin cambios: no hay función nueva) y la matriz (`create_invitation` con teléfono); Vitest en `packages/shared` (`schemas/access.test.ts`, `account-checklist.test.ts`, `resend-cooldown.test.ts`, `registration-errors.test.ts`); Playwright en `e2e/tests/access-base.spec.ts`.
+
+### Auditoría de D48: qué ve y qué hace una empresa sin aprobar
+
+**Regla:** D48 abre pantallas, no permisos. La aprobación se sigue exigiendo en Postgres con `lock_company_approved` (bloquea la fila de la empresa: no se puede suspender entre la revisión y el `commit`) e `is_company_approved`. Se revisaron las 71 RPC no administrativas que llama la web (las de `/cliente`, `/transportista` y el acceso; se listan con `grep -rhoE "\.rpc\('[a-z_]+'" apps/web/src`) y las políticas de las tablas y buckets que leen sus páginas (`pg_policies`). **No se encontró ningún hueco: S1 no cambia ninguna de estas RPC ni políticas.**
+
+Sigue bloqueado para una empresa que no está `approved` (`pending_review`, `rejected`, `expired` o `suspended`); la suite 71 tiene **una prueba por acción y por estado**:
+
+| Lado | Acción | Dónde se exige | Respuesta |
+| --- | --- | --- | --- |
+| Cliente | Publicar una carga | `publish_load` | `42501 company is not approved` |
+| Cliente | Cambiar una carga publicada | `update_load` | igual |
+| Cliente | Enviar una carga a Transport (intermediada) y aceptar su precio | `request_brokered_load`, `approve_brokered_quote` | igual |
+| Cliente | Aceptar o contraofertar | `accept_offer`, `counter_offer` (`lock_offer_for_response`; `apply_offer_acceptance` exige las **dos** empresas aprobadas) | igual |
+| Transportista | Ver cargas publicadas | política `loads_select` | cero filas |
+| Transportista | Ofertar, aceptar o contraofertar | `make_offer`, `accept_offer`, `counter_offer` | `42501 company is not approved` |
+| Transportista | Asignar un viaje | `assign_trip` | igual |
+| Transportista | Recomendaciones | `match_candidates`; `match_pairs` (de ahí salen los avisos `load_match` y las cargas de regreso de `check_backhaul`) solo toma unidades de empresas aprobadas | `42501`; ningún aviso |
+| Transportista | Compartir una carga con el equipo | `create_share_link('load_internal')`; un enlace de antes abre con `canOffer = false` | `42501 load not found` |
+| Ambos | Cambiar el estado de su empresa | `companies.status` no está en los permisos de columna | `42501` |
+
+Lo que **sí** puede hacer, a propósito (D48: lo que no compromete a nadie): el cliente crea y edita cargas en borrador (`create_load`, `update_load` sobre `draft`); el Gerente, el hombre-camión y sus coordinadores arman la flota (unidades de negocio, camiones, operadores, invitaciones, documentos y la disponibilidad de un camión, que no se recomienda a nadie mientras la empresa no esté aprobada). Todo lo demás que leen esas páginas es de su propia empresa por RLS; lo que depende de un viaje (seguimiento, documentos del viaje, chat, flete, pago rápido) no existe para una empresa que nunca contrató.
+
+**Empresa que deja de estar aprobada con algo en curso** (suspendida, vencida): sus cargas publicadas siguen visibles para los transportistas aprobados y pueden recibir ofertas, pero nadie puede aceptarlas ni contraofertarlas hasta que vuelva a estar aprobada; un viaje ya contratado sigue su curso (el operador registra estados), pero no se puede asignar. Es el comportamiento de antes de S1; no depende de D48.
+
+**Cuenta sin empresa** (cliente, Gerente o Coordinador que confirmó su correo y aún no captura datos fiscales o no acepta su invitación): lee su propio perfil y los catálogos que lee cualquier cuenta (requisitos de documentos y de viaje, licencias, ajustes públicos, planes y carreteras), y nada de ninguna empresa. La suite 71 recorre **todas** las tablas y vistas de `public` con esa cuenta y prueba que no crea ni publica cargas, no oferta, no asigna, no invita, no sube documentos, no registra camiones u operadores en otra empresa y no cambia ninguna empresa. Lo único que puede escribir es su propia empresa, con `register_company`.
+
+### Lo que S1 sí cambia
+
+- **Avisos de la revisión (D51).** `review_company` ("Same as G2, except …") deja `company_approved` o `company_rejected` (con el motivo) al cliente, los Gerentes y los Coordinadores de la empresa. Nunca al operador, a otra empresa ni al admin que decidió; una suspensión no avisa. El motivo es texto libre del admin: se guarda en `data.reason`, solo lo lee su destinatario (RLS de `notifications`) y el correo lo escapa. No viaja en el push (`pushData` solo manda ids).
+- **RFC repetido (D50-5).** `register_company` responde `23505` con el detalle `rfc_taken` en lugar de la violación cruda del índice. Solo una cuenta con sesión y **sin** empresa llega a esa comprobación (una con empresa recibe antes `user already belongs to a company`), así que la respuesta no permite sondear RFC sin sesión ni más de lo que ya permitía el índice único. La web y la app lo traducen al campo "RFC".
+- **Teléfono del operador invitado (D50-2).** `invitations.invitee_phone` (E.164, solo en enlaces `operator`; restricción `invitations_invitee_phone_format`). Lo escribe `create_invitation` (misma autorización de antes: Gerente o Coordinador de esa unidad de negocio) y lo devuelve `invitation_preview` a quien trae el token, igual que el nombre. La columna **no** tiene permiso de lectura para ningún rol de la API (los clientes leen `invitations` por columnas): ni el equipo que lo capturó lo lee de la tabla. `invitation_preview` sigue siendo una de las tres únicas funciones que ejecuta `anon` y sigue respondiendo lo mismo a un token desconocido, usado, revocado o vencido. El teléfono lo ve quien tenga el enlace: es el mismo riesgo que el nombre del invitado, y el enlace es de un solo uso y vence. Las dos funciones se recrean con otra firma (`drop` + `create`), con sus mismos permisos.
+- **Sin RPC anónimas nuevas.** Nada permite saber sin sesión si un correo, un teléfono o un RFC existe. La lista cerrada de la suite 18 no cambió.
+- **Confirmación con código (D15-E3).** Las plantillas muestran `{{ .Token }}` (6 dígitos, una hora) además del enlace, que ahora es siempre el de la web (`/auth/confirm` con `token_hash`). Un código de 6 dígitos tiene un millón de valores: lo cubren los límites de Supabase Auth por IP (`token_verifications`: 30 cada 5 minutos), la vigencia de una hora y que un correo nuevo invalida el anterior. Supabase responde lo mismo a un código equivocado y a uno vencido (`otp_expired`), y lo mismo a un reenvío para un correo que existe y para uno que no.
+- **`/auth/confirm` y `/correo-confirmado`.** Cuando el `redirect_to` del enlace es exactamente `transport://auth/callback` (una cuenta creada en la app), la ruta termina en `/correo-confirmado`, que ofrece abrir la app. Ese valor se **compara**, nunca se sigue: la redirección sale de una constante y de `safeNextPath`, así que no hay redirección abierta. Abrir el enlace deja una sesión web en ese navegador, igual que el enlace de un registro web; el enlace sirve una sola vez.
+- **INE del hombre-camión (D50-4): no se construyó.** Un archivo pertenece a un solo documento (`documents_storage_path_key`) y su ruta nombra a su dueño (`{empresa}/{owner_type}/{owner_id}/…`, que revisan `submit_document` y las políticas de Storage de la carpeta del operador). Usar el archivo de la empresa como identificación del operador exigiría quitar las dos invariantes o una copia privilegiada en Storage. Se queda la nota "Puede ser la misma INE…" y él la sube dos veces.
+
+### Paso para Mateo (panel de Supabase de producción)
+
+Plantillas de confirmación y recuperación con el código, `otp_length = 6` y el límite de correos del SMTP: el texto exacto está en [release.md §3.6](release.md#36-plantillas-de-correo-con-código-s1-d15-e3). Hasta entonces producción manda solo el enlace y todo sigue funcionando.
+
 ## Dependencias
 
 `pnpm audit` corre en CI (job `audit`) y falla con cualquier aviso alto o crítico que no esté en la lista revisada (`auditConfig.ignoreGhsas` en `pnpm-workspace.yaml`).

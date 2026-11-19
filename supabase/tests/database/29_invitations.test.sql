@@ -161,7 +161,7 @@ select ok(
   has_function_privilege('anon', 'public.invitation_preview(text)', 'execute')
   and has_function_privilege('authenticated', 'public.invitation_preview(text)', 'execute')
   and not has_function_privilege('authenticated', 'public.redeem_operator_invitation_service(text, uuid, text, text, text)', 'execute')
-  and not has_function_privilege('anon', 'public.create_invitation(public.invitation_kind, uuid[], uuid, text, integer)', 'execute')
+  and not has_function_privilege('anon', 'public.create_invitation(public.invitation_kind, uuid[], uuid, text, integer, text)', 'execute')
   and not has_function_privilege('anon', 'public.accept_coordinator_invitation(text)', 'execute'),
   'the preview is public; redeeming is for the service role; the rest for signed-in users'
 );

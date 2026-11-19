@@ -226,6 +226,18 @@ describe('notificationHref', () => {
     expect(notificationHref('quick_pay_rejected', data)).toBeNull();
   });
 
+  it('opens the panel for an approval and "Completa tu cuenta" for a rejection (S1, D51)', () => {
+    const data = { companyId: LOAD, companyName: 'Fletes', reason: 'x' };
+    expect(notificationHref('company_approved', data)).toBe('/cliente');
+    expect(notificationHref('company_approved', data, 'transportista')).toBe('/transportista');
+    expect(notificationHref('company_rejected', data)).toBe('/cuenta-en-revision');
+    expect(notificationHref('company_rejected', data, 'transportista')).toBe('/cuenta-en-revision');
+    // The data is not used for the link: nothing in it can change where it goes.
+    expect(notificationHref('company_rejected', { companyId: '../admin' })).toBe(
+      '/cuenta-en-revision',
+    );
+  });
+
   it('handles every notification type in both areas', () => {
     for (const type of NOTIFICATION_TYPES) {
       expect(() => notificationHref(type, {})).not.toThrow();

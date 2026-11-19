@@ -58,6 +58,15 @@ export const SHARE_PATHS = {
 /** The URL scheme of the mobile app (app.config.ts). */
 export const APP_SCHEME = 'transport';
 
+/**
+ * The deep link the app gives Supabase Auth as `emailRedirectTo` at sign-up
+ * (`Linking.createURL('/auth/callback')` in a build with the scheme above).
+ * The confirmation template sends every link to the web (S1, D15-E3), which
+ * recognizes an app sign-up by this value and offers to open the app; the
+ * app still opens it to exchange a PKCE code of an older link.
+ */
+export const APP_AUTH_CALLBACK = `${APP_SCHEME}://auth/callback`;
+
 /** Relative web path of a link. */
 export function sharePath(kind: ShareLinkKind, token: string): string {
   const base = kind === 'load_internal' ? SHARE_PATHS.internal : SHARE_PATHS.public;

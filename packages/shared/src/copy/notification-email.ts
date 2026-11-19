@@ -29,6 +29,12 @@ export const PUSH_ONLY_NOTIFICATION_TYPES: readonly NotificationType[] = [
   'chat_message',
 ];
 
+/**
+ * "Completa tu cuenta" on the web (apps/web/src/lib/routing.ts,
+ * `paths.review`): the state of the account's review and what is missing.
+ */
+export const ACCOUNT_REVIEW_PATH = '/cuenta-en-revision';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 function uuid(data: unknown, key: string): string | null {
@@ -50,6 +56,13 @@ export function notificationWebPath(
   data: unknown,
   type?: NotificationType,
 ): string | null {
+  // The review of the company (S1, D51): "Completa tu cuenta", where a
+  // rejection shows its reason and what to fix; an approved account, its panel.
+  if (type === 'company_approved' || type === 'company_rejected') {
+    if (role !== 'shipper' && role !== 'manager' && role !== 'coordinator') return null;
+    if (type === 'company_rejected') return ACCOUNT_REVIEW_PATH;
+    return role === 'shipper' ? '/cliente' : '/transportista';
+  }
   // The freight ledger (I3): the admin's reconciliation, the carrier's
   // "Cobranza" and the client's "Cartera".
   const freight = uuid(data, 'ledgerId') !== null;

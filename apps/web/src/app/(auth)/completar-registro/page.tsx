@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { SignOutButton } from '@/components/app-shell';
 import { AuthCard } from '@/components/auth-card';
 import { CompleteCompanyForm } from '@/components/auth-forms';
-import { isAuthErrorKey } from '@/lib/auth-errors';
+import { authErrorKeyField, isAuthErrorKey } from '@/lib/auth-errors';
 import { pendingCompany } from '@/lib/auth/company';
 import { paths } from '@/lib/routing';
 import { requireAccess } from '@/lib/session';
@@ -37,6 +37,9 @@ export default async function CompleteCompanyPage({
   } else {
     values.contactName = viewer.fullName ?? '';
   }
+  // The reason goes on its field when it has one (D50-5: a repeated RFC).
+  const reason = isAuthErrorKey(error) ? error : null;
+  const field = reason ? authErrorKeyField(reason) : null;
   return (
     <AuthCard
       title={c.title}
@@ -46,7 +49,12 @@ export default async function CompleteCompanyPage({
     >
       <CompleteCompanyForm
         kinds={kinds}
-        initial={{ values, error: isAuthErrorKey(error) ? authErrors[error] : undefined }}
+        initial={{
+          values,
+          ...(reason && field
+            ? { fieldErrors: { [field]: authErrors[reason] } }
+            : { error: reason ? authErrors[reason] : undefined }),
+        }}
       />
     </AuthCard>
   );

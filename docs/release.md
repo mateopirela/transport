@@ -34,7 +34,7 @@ Orden dentro de un despliegue: **migraciones → funciones → web**. Si una mig
 2. **Auth** (Dashboard → Authentication):
    - _Site URL_: la URL pública de la web del entorno.
    - _Redirect URLs_: `https://<web>/**` y `transport://auth/callback` (app móvil).
-   - Plantillas de correo: copiar las de `supabase/templates/` (confirmación y recuperación, en español).
+   - Plantillas de correo: copiar las de `supabase/templates/` (confirmación y recuperación, en español). Desde S1 traen el código de 6 dígitos: ver [3.6](#36-plantillas-de-correo-con-código-s1-d15-e3).
    - SMTP propio con el proveedor de email (Resend) y el dominio verificado.
 3. **Secretos de Edge Functions** (Dashboard → Edge Functions → Secrets): `NOTIFICATIONS_DISPATCH_SECRET`, `GOOGLE_ROUTES_API_KEY`, `ROAD_DISTANCE_FACTOR`, `MATCHING_WEIGHTS` (opcional), `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, `SITE_URL`, `EXPO_ACCESS_TOKEN` (opcional), `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `LOG_LEVEL`. Significado de cada una en [.env.example](../.env.example).
 4. Después del primer despliegue, guardar en **Vault** la URL de la función y el secreto para el cron de notificaciones (SQL Editor):
@@ -92,6 +92,26 @@ Con Xcode 27 / el SDK de iOS 27, UIKit cierra al abrir cualquier app que no adop
 - `Info.plist` declara `UIApplicationSceneManifest` con una sola escena (`UIApplicationSupportsMultipleScenes = false`) cuyo delegado es `EXExpoAppSceneDelegate`.
 
 El plugin es idempotente y **falla con un error claro** si el `AppDelegate` generado deja de tener la forma esperada o si el `Info.plist` ya trae otro manifiesto de escenas. Eso indica que Expo cambió su plantilla (por ejemplo, porque ya adopta escenas de fábrica): revisar la plantilla nueva y quitar o ajustar el plugin; sus pruebas están en `with-ios-scene-lifecycle.test.ts`. Comprobación manual: `npx expo prebuild --clean -p ios`, `npx expo run:ios` en un simulador con iOS 27 y verificar que la app llega a la pantalla de inicio de sesión.
+
+### 3.6 Plantillas de correo con código (S1, D15-E3)
+
+El despliegue **no** publica las plantillas ni la configuración de Auth: en un proyecto alojado viven en el panel de Supabase. Mientras no se cambien, producción sigue enviando el correo anterior (solo el enlace) y todo funciona igual, porque la web y la app aceptan **código y enlace**; el código y el reenvío con código empiezan a servir cuando Mateo haga estos pasos, en `transport-staging` y luego en `transport-prod`:
+
+1. **Authentication → Emails → Templates → Confirm signup.** Asunto: `Confirma tu correo`. Cuerpo: pegar completo [`supabase/templates/confirmation.html`](../supabase/templates/confirmation.html). Lo que debe quedar:
+   - el código: `{{ .Token }}`;
+   - un solo enlace, el de la web, para cualquier dispositivo (ya no hay uno distinto para la app):
+     ```text
+     {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&redirect_to={{ .RedirectTo }}
+     ```
+2. **Authentication → Emails → Templates → Reset password.** Asunto: `Recupera tu contraseña`. Cuerpo: pegar completo [`supabase/templates/recovery.html`](../supabase/templates/recovery.html). Lleva `{{ .Token }}` y el enlace:
+   ```text
+   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/restablecer
+   ```
+3. **Authentication → Sign In / Providers → Email:** _Email OTP Length_ = `6` (las pantallas piden exactamente 6 dígitos) y _Email OTP Expiration_ = `3600` segundos (el correo dice "vencen en una hora"). _Confirm email_ sigue activo.
+4. **Authentication → Rate Limits:** el reenvío espera 60 s entre correos en la pantalla (`RESEND_COOLDOWN_SECONDS`), igual que el mínimo de Supabase por usuario. El tope por hora es el del SMTP (Resend): con el SMTP propio, subir _Rate limit for sending emails_ a lo que permita el plan (el valor por defecto sin SMTP propio, 2 por hora, no alcanza para reenviar).
+5. **Authentication → URL Configuration:** _Redirect URLs_ conserva `transport://auth/callback`. El correo ya no abre ese enlace, pero la app lo sigue mandando como `emailRedirectTo` y con él `/auth/confirm` sabe que la cuenta se creó en la app y termina en `/correo-confirmado` ("Abrir la app").
+
+Comprobación: crear una cuenta de prueba en staging, ver el correo con el código y el botón, confirmar con el código desde otro dispositivo y, con otra cuenta, con el enlace.
 
 ## 4. Liberar una versión
 

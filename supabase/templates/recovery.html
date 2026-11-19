@@ -2,7 +2,22 @@
 <html lang="es-MX">
   <body style="font-family: Arial, sans-serif; color: #131f33">
     <h2>Recupera tu contraseña</h2>
-    <p>Recibimos una solicitud para cambiar la contraseña de tu cuenta.</p>
+    <p>
+      Recibimos una solicitud para cambiar la contraseña de tu cuenta. Si la pediste desde la app,
+      escribe este código ahí:
+    </p>
+    <p
+      style="
+        font-family: 'Courier New', monospace;
+        font-size: 32px;
+        font-weight: bold;
+        letter-spacing: 6px;
+        margin: 16px 0;
+      "
+    >
+      {{ .Token }}
+    </p>
+    <p>O abre este enlace para crear una contraseña nueva en la web:</p>
     <p>
       <a
         href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/restablecer"
@@ -16,6 +31,9 @@
         >Crear una nueva contraseña</a
       >
     </p>
-    <p>El enlace vence en una hora. Si no pediste el cambio, ignora este mensaje.</p>
+    <p>
+      El código y el enlace vencen en una hora. Si no pediste el cambio, ignora este mensaje: tu
+      contraseña sigue igual.
+    </p>
   </body>
 </html>

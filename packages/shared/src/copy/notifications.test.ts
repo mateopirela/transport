@@ -214,4 +214,28 @@ describe('notification content', () => {
       'Fulmis rechazó tu pago rápido del viaje.',
     );
   });
+
+  it("tells the company of the admin's decision, with the reason of a rejection (S1, D51)", () => {
+    const company = { companyId: 'c0', companyName: 'Fletes del Norte SA de CV' };
+    expect(notificationContent('company_approved', company)).toEqual({
+      title: 'Tu cuenta fue aprobada',
+      body: 'Aprobamos Fletes del Norte SA de CV. Ya puedes operar en la plataforma.',
+    });
+    expect(
+      notificationContent('company_rejected', {
+        ...company,
+        reason: ' La constancia no coincide. ',
+      }),
+    ).toEqual({
+      title: 'Tu cuenta necesita cambios',
+      body: 'No pudimos aprobar Fletes del Norte SA de CV. Motivo: La constancia no coincide. Corrige lo necesario y vuelve a enviarla a revisión.',
+    });
+    // Without the data (an older row, or a malformed one) the text still reads.
+    expect(notificationContent('company_approved', {}).body).toBe(
+      'Aprobamos tu empresa. Ya puedes operar en la plataforma.',
+    );
+    expect(notificationContent('company_rejected', { reason: 7 }).body).toBe(
+      'No pudimos aprobar tu empresa. Corrige lo necesario y vuelve a enviarla a revisión.',
+    );
+  });
 });

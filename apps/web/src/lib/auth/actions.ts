@@ -20,7 +20,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { isIP } from 'node:net';
 
-import { authErrorMessage, authFailureState } from '../auth-errors';
+import { authErrorKeyField, authErrorMessage, authFailureState } from '../auth-errors';
 import { siteUrl } from '../env';
 import { formEntries, invalidForm, refillValues, type FormState } from '../forms';
 import {
@@ -172,7 +172,14 @@ export async function completeCompany(_prev: FormState, formData: FormData): Pro
   if (!supabase) return notConfigured;
 
   const { error } = await registerCompany(supabase, parsed.data);
-  if (error) return { error: authErrors[error], values: refillValues(entries) };
+  if (error) {
+    // A repeated RFC goes on its field (D50-5); the rest, on the whole form.
+    const field = authErrorKeyField(error);
+    const values = refillValues(entries);
+    return field
+      ? { fieldErrors: { [field]: authErrors[error] }, values }
+      : { error: authErrors[error], values };
+  }
   return redirectHome(supabase);
 }
 

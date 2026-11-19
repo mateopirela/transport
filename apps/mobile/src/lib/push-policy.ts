@@ -36,7 +36,8 @@ export type PushTarget =
   | { pathname: '/trip/[id]'; params: { id: string; chat?: string } }
   | { pathname: '/load/[id]'; params: { id: string } }
   | { pathname: '/vehicle/[id]'; params: { id: string } }
-  | { pathname: '/collections' };
+  | { pathname: '/collections' }
+  | { pathname: '/onboarding' };
 
 /**
  * Where a tapped notification leads (notify_trip_event puts the `tripId` in
@@ -62,6 +63,12 @@ export function pushTarget(data: unknown, area: string): PushTarget | null {
   // "Cobranza" (carrier staff only; the operator sees no money).
   if (typeof ids.ledgerId === 'string' && UUID.test(ids.ledgerId)) {
     return area === 'carrier' ? { pathname: '/collections' } : null;
+  }
+  // The review of the company (S1, D51): the steps of the account, where an
+  // approval shows as done and a rejection says what to fix. Carrier staff
+  // only: the operator gets no such notice.
+  if (ids.type === 'company_approved' || ids.type === 'company_rejected') {
+    return area === 'carrier' ? { pathname: '/onboarding' } : null;
   }
   // A message of the chat with the shipper: the carrier staff's trip, on the
   // shipper's tab, or the load with its negotiation. Never the operator (D28).

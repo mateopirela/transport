@@ -53,6 +53,10 @@ function documentName(data: unknown): string {
   return text(data, 'requirementName') ?? 'tu documento';
 }
 
+function companyName(data: unknown): string {
+  return text(data, 'companyName') ?? 'tu empresa';
+}
+
 function tripStep(data: unknown): string | undefined {
   const event = text(data, 'eventType');
   if (event && Object.hasOwn(tripEventTypeLabels, event)) {
@@ -290,6 +294,20 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         title: 'Tu carga tiene transportista',
         body: `${PLATFORM_NAME} consiguió el transportista de tu carga${route(data)}. El viaje ya está creado.`,
       };
+    // S1 (D51): the admin's decision on the company, to its staff; a
+    // rejection carries the reason the admin wrote.
+    case 'company_approved':
+      return {
+        title: 'Tu cuenta fue aprobada',
+        body: `Aprobamos ${companyName(data)}. Ya puedes operar en la plataforma.`,
+      };
+    case 'company_rejected': {
+      const reason = text(data, 'reason');
+      return {
+        title: 'Tu cuenta necesita cambios',
+        body: `No pudimos aprobar ${companyName(data)}.${reason ? ` Motivo: ${reason}` : ''} Corrige lo necesario y vuelve a enviarla a revisión.`,
+      };
+    }
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');
       const since =

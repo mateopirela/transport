@@ -1,4 +1,5 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
+import { APP_AUTH_CALLBACK } from '@transport/shared';
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
@@ -34,8 +35,14 @@ export async function GET(request: NextRequest) {
   const tokenHash = params.get('token_hash');
   const type = params.get('type') as EmailOtpType | null;
   const code = params.get('code');
+  // An account created in the app (its `emailRedirectTo` is the app's
+  // callback): the link confirms the email here, on whatever device opens
+  // it, and ends on a page that offers the app (S1, D15-E3). Compared as a
+  // whole, never followed: the redirect stays on this site.
+  const fromApp = params.get('redirect_to') === APP_AUTH_CALLBACK;
   const next =
-    safeNextPath(params.get('next') ?? nextFromRedirect(params.get('redirect_to'))) ?? paths.home;
+    safeNextPath(params.get('next') ?? nextFromRedirect(params.get('redirect_to'))) ??
+    (fromApp ? paths.emailConfirmed : paths.home);
 
   const supabase = await createClient();
   let ok = false;

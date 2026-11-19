@@ -76,6 +76,25 @@ function expiry(data: unknown): string {
   return days === 1 ? 'vence mañana' : `vence en ${days} días`;
 }
 
+/**
+ * Title and body of the push of a notification. A push shows on the lock
+ * screen and travels through Expo, so it never carries the free text an admin
+ * wrote when rejecting a company (S1, D51): the reason stays in the inbox and
+ * in the email, which only the recipient reads.
+ */
+export function pushNotificationContent(
+  type: NotificationType,
+  data: unknown,
+): NotificationContent {
+  if (type === 'company_rejected') {
+    return {
+      title: 'Tu cuenta necesita cambios',
+      body: `No pudimos aprobar ${companyName(data)}. Abre la app para ver el motivo y volver a enviarla a revisión.`,
+    };
+  }
+  return notificationContent(type, data);
+}
+
 /** Title and body of a notification, from its type and its `data`. */
 export function notificationContent(type: NotificationType, data: unknown): NotificationContent {
   switch (type) {

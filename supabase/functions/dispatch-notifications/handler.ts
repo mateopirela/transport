@@ -24,7 +24,7 @@
 // Without EMAIL_PROVIDER_API_KEY or EMAIL_FROM, email is simulated: logged
 // (without the address) and not sent.
 import {
-  notificationContent,
+  pushNotificationContent,
   type NotificationContent,
 } from '../../../packages/shared/src/copy/notifications.ts';
 import {
@@ -340,7 +340,11 @@ export async function dispatchBatch(
   rows: ClaimedNotification[],
   deps: Dependencies,
 ): Promise<{ results: DispatchResult[]; invalidTokens: string[]; summary: BatchSummary }> {
-  const contents = new Map(rows.map((row) => [row.id, notificationContent(row.type, row.data)]));
+  // The push text, not the inbox text: a push never carries an admin's free
+  // text (pushNotificationContent). The email builds its own from the row.
+  const contents = new Map(
+    rows.map((row) => [row.id, pushNotificationContent(row.type, row.data)]),
+  );
   const [{ outcomes, invalidTokens }, emails] = await Promise.all([
     sendPushes(rows, contents, deps),
     mapLimit(rows, EMAIL_CONCURRENCY, (row) => sendEmail(row, deps)),

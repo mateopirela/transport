@@ -106,6 +106,7 @@ create function tests.set_status(p_status public.verification_status)
 returns void
 language sql
 security definer
+set search_path = ''
 as $$
   update public.companies
   set status = p_status,
@@ -119,6 +120,7 @@ returns integer
 language sql
 stable
 security definer
+set search_path = ''
 as $$
   select count(*)::int from public.notifications n
   where n.user_id = p_user and n.type = 'load_match' and n.data ->> 'loadId' = p_load::text;

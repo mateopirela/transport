@@ -117,12 +117,14 @@ returns uuid
 language sql
 stable
 security definer
+set search_path = ''
 as $$ select id from public.companies where rfc = p_rfc $$;
 create function tests.unit(p_rfc text)
 returns uuid
 language sql
 stable
 security definer
+set search_path = ''
 as $$ select id from public.business_units where company_id = tests.company(p_rfc) and archived_at is null $$;
 grant execute on all functions in schema tests to anon, authenticated;
 

@@ -53,6 +53,10 @@ function documentName(data: unknown): string {
   return text(data, 'requirementName') ?? 'tu documento';
 }
 
+function companyName(data: unknown): string {
+  return text(data, 'companyName') ?? 'tu empresa';
+}
+
 function tripStep(data: unknown): string | undefined {
   const event = text(data, 'eventType');
   if (event && Object.hasOwn(tripEventTypeLabels, event)) {
@@ -70,6 +74,25 @@ function expiry(data: unknown): string {
   if (days === undefined) return 'vence pronto';
   if (days === 0) return 'vence hoy';
   return days === 1 ? 'vence mañana' : `vence en ${days} días`;
+}
+
+/**
+ * Title and body of the push of a notification. A push shows on the lock
+ * screen and travels through Expo, so it never carries the free text an admin
+ * wrote when rejecting a company (S1, D51): the reason stays in the inbox and
+ * in the email, which only the recipient reads.
+ */
+export function pushNotificationContent(
+  type: NotificationType,
+  data: unknown,
+): NotificationContent {
+  if (type === 'company_rejected') {
+    return {
+      title: 'Tu cuenta necesita cambios',
+      body: `No pudimos aprobar ${companyName(data)}. Abre la app para ver el motivo y volver a enviarla a revisión.`,
+    };
+  }
+  return notificationContent(type, data);
 }
 
 /** Title and body of a notification, from its type and its `data`. */
@@ -290,6 +313,20 @@ export function notificationContent(type: NotificationType, data: unknown): Noti
         title: 'Tu carga tiene transportista',
         body: `${PLATFORM_NAME} consiguió el transportista de tu carga${route(data)}. El viaje ya está creado.`,
       };
+    // S1 (D51): the admin's decision on the company, to its staff; a
+    // rejection carries the reason the admin wrote.
+    case 'company_approved':
+      return {
+        title: 'Tu cuenta fue aprobada',
+        body: `Aprobamos ${companyName(data)}. Ya puedes operar en la plataforma.`,
+      };
+    case 'company_rejected': {
+      const reason = text(data, 'reason');
+      return {
+        title: 'Tu cuenta necesita cambios',
+        body: `No pudimos aprobar ${companyName(data)}.${reason ? ` Motivo: ${reason}` : ''} Corrige lo necesario y vuelve a enviarla a revisión.`,
+      };
+    }
     case 'trip_location_stale': {
       const hours = count(data, 'hoursWithoutLocation');
       const since =

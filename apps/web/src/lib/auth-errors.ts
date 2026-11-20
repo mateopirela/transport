@@ -2,12 +2,18 @@ import {
   accessSecurityCopy,
   authErrors,
   isAccountLockedError,
+  isRfcTakenError,
   LOGIN_LOCKOUT,
+  RFC_TAKEN_FIELD,
 } from '@transport/shared';
 
 import { refillValues, type FormState } from './forms';
 
 export type AuthErrorKey = keyof typeof authErrors;
+
+/** What is read of a Supabase Auth or PostgREST error (`details`: an RPC's DETAIL). */
+export type AuthLikeError =
+  { code?: string | null; message?: string | null; details?: string | null } | null | undefined;
 
 /** Error codes of Supabase Auth (`AuthError.code`) and Postgres (`PostgrestError.code`). */
 const KEYS: Record<string, AuthErrorKey> = {
@@ -37,9 +43,9 @@ const MESSAGES: [RegExp, AuthErrorKey][] = [
 ];
 
 /** Copy key for an auth or RPC error. Unknown errors get the generic message. */
-export function authErrorKey(
-  error: { code?: string | null; message?: string | null } | null | undefined,
-): AuthErrorKey {
+export function authErrorKey(error: AuthLikeError): AuthErrorKey {
+  // register_company's stable answer to a repeated RFC (S1, D50-5).
+  if (isRfcTakenError(error)) return 'rfcTaken';
   const code = error?.code;
   const key = code && Object.hasOwn(KEYS, code) ? KEYS[code] : undefined;
   if (key) return key;
@@ -48,9 +54,7 @@ export function authErrorKey(
 }
 
 /** Spanish message for an auth or RPC error. */
-export function authErrorMessage(
-  error: { code?: string | null; message?: string | null } | null | undefined,
-): string {
+export function authErrorMessage(error: AuthLikeError): string {
   // The lock of the account after failed attempts (R5, D46) comes as
   // `invalid_credentials` with the hook's own message.
   if (isAccountLockedError(error)) {
@@ -68,12 +72,16 @@ const ERROR_FIELDS: Partial<Record<AuthErrorKey, string>> = {
   phoneTaken: 'phone',
   weakPassword: 'password',
   samePassword: 'password',
+  rfcTaken: RFC_TAKEN_FIELD,
 };
 
+/** The field the error of a key belongs to, or null when it is about the whole form. */
+export function authErrorKeyField(key: AuthErrorKey): string | null {
+  return ERROR_FIELDS[key] ?? null;
+}
+
 /** The field an auth error belongs to, or null when it is about the whole form. */
-export function authErrorField(
-  error: { code?: string | null; message?: string | null } | null | undefined,
-): string | null {
+export function authErrorField(error: AuthLikeError): string | null {
   if (isAccountLockedError(error)) return null;
   return ERROR_FIELDS[authErrorKey(error)] ?? null;
 }
@@ -83,10 +91,7 @@ export function authErrorField(
  * when it has one, on the whole form otherwise, and the typed values back
  * (never the passwords).
  */
-export function authFailureState(
-  error: { code?: string | null; message?: string | null } | null | undefined,
-  entries: Record<string, string>,
-): FormState {
+export function authFailureState(error: AuthLikeError, entries: Record<string, string>): FormState {
   const message = authErrorMessage(error);
   const field = authErrorField(error);
   const values = refillValues(entries);

@@ -123,6 +123,12 @@ export function notificationHref(
         const tripId = id(data, 'tripId');
         return tripId && `${carrierTripPath(tripId)}#${BACKHAUL_SECTION_ID}`;
       }
+      // S1 (D51): the review of the company. An approval, the panel; a
+      // rejection, "Completa tu cuenta", with the reason and what to fix.
+      case 'company_approved':
+        return paths.carrier;
+      case 'company_rejected':
+        return paths.review;
       // The location reminder is for the operator (B09); the shared documents,
       // for the shipper (G6). I6: brokered loads are the client's and the
       // admin's; the carrier negotiates them as any other load (offers above).
@@ -188,6 +194,11 @@ export function notificationHref(
     }
     case 'brokered_load_requested':
       return null;
+    // S1 (D51): the review of the company, as for the carrier.
+    case 'company_approved':
+      return paths.shipper;
+    case 'company_rejected':
+      return paths.review;
     // Carrier-only (matching), operator-only (location reminder, B09; taken
     // off a trip, F2). The internal trip chat is the carrier's only (H1, D28).
     // I4: the quick pay is between the carrier and Fulmis (I.0.3).

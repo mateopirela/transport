@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { NOTIFICATION_TYPES } from '../enums';
-import { notificationContent } from './notifications';
+import { notificationContent, pushNotificationContent } from './notifications';
 
 const ROUTE = { loadId: 'l1', originCity: 'Monterrey', destinationCity: 'Guadalajara' };
 
@@ -212,6 +212,51 @@ describe('notification content', () => {
     );
     expect(notificationContent('quick_pay_rejected', {}).body).toBe(
       'Fulmis rechazó tu pago rápido del viaje.',
+    );
+  });
+
+  it("tells the company of the admin's decision, with the reason of a rejection (S1, D51)", () => {
+    const company = { companyId: 'c0', companyName: 'Fletes del Norte SA de CV' };
+    expect(notificationContent('company_approved', company)).toEqual({
+      title: 'Tu cuenta fue aprobada',
+      body: 'Aprobamos Fletes del Norte SA de CV. Ya puedes operar en la plataforma.',
+    });
+    expect(
+      notificationContent('company_rejected', {
+        ...company,
+        reason: ' La constancia no coincide. ',
+      }),
+    ).toEqual({
+      title: 'Tu cuenta necesita cambios',
+      body: 'No pudimos aprobar Fletes del Norte SA de CV. Motivo: La constancia no coincide. Corrige lo necesario y vuelve a enviarla a revisión.',
+    });
+    // Without the data (an older row, or a malformed one) the text still reads.
+    expect(notificationContent('company_approved', {}).body).toBe(
+      'Aprobamos tu empresa. Ya puedes operar en la plataforma.',
+    );
+    expect(notificationContent('company_rejected', { reason: 7 }).body).toBe(
+      'No pudimos aprobar tu empresa. Corrige lo necesario y vuelve a enviarla a revisión.',
+    );
+  });
+
+  it("keeps the admin's reason out of the push of a rejection (S1, D51)", () => {
+    const data = {
+      companyId: 'c0',
+      companyName: 'Fletes del Norte SA de CV',
+      reason: 'La constancia no coincide.',
+    };
+    const push = pushNotificationContent('company_rejected', data);
+    expect(push).toEqual({
+      title: 'Tu cuenta necesita cambios',
+      body: 'No pudimos aprobar Fletes del Norte SA de CV. Abre la app para ver el motivo y volver a enviarla a revisión.',
+    });
+    expect(`${push.title} ${push.body}`).not.toContain('constancia');
+    // Every other type reads the same in the push and in the inbox.
+    expect(pushNotificationContent('company_approved', data)).toEqual(
+      notificationContent('company_approved', data),
+    );
+    expect(pushNotificationContent('offer_received', { amountMxn: 1000 })).toEqual(
+      notificationContent('offer_received', { amountMxn: 1000 }),
     );
   });
 });

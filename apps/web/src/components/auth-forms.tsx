@@ -296,6 +296,11 @@ function StateField({ state }: { state: FormState }) {
   return (
     <FieldFrame label={f.fiscalState} htmlFor={id} error={error}>
       <Select
+        // Remounted with the value the server sent back: after an action React
+        // resets a <select> to its first option before the new defaultValue
+        // applies, and the chosen state would be lost with any server error
+        // (a repeated RFC, D50-5).
+        key={state.values?.fiscalState ?? ''}
         id={id}
         name="fiscalState"
         defaultValue={state.values?.fiscalState ?? ''}

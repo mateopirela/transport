@@ -18,6 +18,11 @@ export const paths = {
   signUp: '/registro',
   forgotPassword: '/recuperar',
   checkEmail: '/verificar-correo',
+  /**
+   * Where the confirmation link of an account created in the app ends (S1,
+   * D15-E3): the email is confirmed on any device and the page offers the app.
+   */
+  emailConfirmed: '/correo-confirmado',
   resetPassword: '/restablecer',
   completeCompany: '/completar-registro',
   /** A signed-in account accepts the current version of the terms (I1). */

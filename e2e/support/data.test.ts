@@ -1,7 +1,14 @@
 import { isValidRfc } from '@transport/shared';
 import { describe, expect, it } from 'vitest';
 
-import { confirmationPath, hoursFromNow, testMoralRfc, toDateInput, toDateTimeLocal } from './data';
+import {
+  confirmationPath,
+  emailCode,
+  hoursFromNow,
+  testMoralRfc,
+  toDateInput,
+  toDateTimeLocal,
+} from './data';
 
 describe('testMoralRfc', () => {
   it('builds valid RFCs of a persona moral', () => {
@@ -62,6 +69,20 @@ describe('confirmationPath', () => {
 
   it('returns null without a confirmation link', () => {
     expect(confirmationPath('<a href="https://example.com">Hola</a>')).toBeNull();
+  });
+});
+
+describe('emailCode', () => {
+  it('finds the six digits the template shows in their own paragraph', () => {
+    const html = '<h2>Confirma tu correo</h2><p style="font-size: 32px">\n      012345\n    </p>';
+    expect(emailCode(html)).toBe('012345');
+  });
+
+  it('is not fooled by the digits of the link or of a style', () => {
+    const html =
+      '<p style="color: #131f33">x</p><a href="http://127.0.0.1:3000/auth/confirm?token_hash=123456789012&amp;type=email">Confirmar</a>';
+    expect(emailCode(html)).toBeNull();
+    expect(emailCode('<p>1234567</p><p>12345</p>')).toBeNull();
   });
 });
 

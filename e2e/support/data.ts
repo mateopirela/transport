@@ -59,6 +59,15 @@ export function confirmationPath(body: string): string | null {
   return `/auth/confirm?token_hash=${tokenHash}&type=${type}${redirect}`;
 }
 
+/**
+ * The six-digit code of a confirmation or recovery email (S1, D15-E3): the
+ * template shows it alone in its own paragraph, so it is the only run of
+ * exactly six digits between two tags. Null when the email has none.
+ */
+export function emailCode(html: string): string | null {
+  return />\s*(\d{6})\s*</u.exec(html)?.[1] ?? null;
+}
+
 function decodeEntities(value: string): string {
   return value.replace(/&amp;/gu, '&').replace(/&#43;/gu, '+').replace(/&#34;/gu, '"');
 }

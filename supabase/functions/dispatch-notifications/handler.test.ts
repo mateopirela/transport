@@ -456,6 +456,37 @@ Deno.test('push data carries ids only, never free text', () => {
   );
 });
 
+Deno.test(
+  "a rejected company: the admin's reason goes in the email, never in the push (S1)",
+  async () => {
+    const REASON = 'La constancia no coincide con el RFC.';
+    const { deps, of } = setup({
+      batches: [
+        [
+          row('n1', {
+            type: 'company_rejected',
+            role: 'manager',
+            email: 'gema@t.test',
+            push_tokens: [TOKEN_A],
+            data: { companyId: 'c0', companyName: 'Fletes del Norte', reason: REASON },
+          }),
+        ],
+      ],
+    });
+    await handleDispatch(post(), deps);
+    const [push] = of(EXPO_PUSH_URL)[0]!.body as { title: string; body: string; data: unknown }[];
+    assert.equal(push!.title, 'Tu cuenta necesita cambios');
+    assert.equal(JSON.stringify(push).includes('constancia'), false);
+    assert.deepEqual(push!.data, {
+      companyId: 'c0',
+      notificationId: 'n1',
+      type: 'company_rejected',
+    });
+    const email = of(RESEND_URL)[0]!.body as Record<string, unknown>;
+    assert.equal(String(email.html).includes(REASON), true);
+  },
+);
+
 Deno.test('emails the carrier staff with a link to the carrier web (G10a)', async () => {
   const negotiationId = '1c7b9f1f-8a54-4a7f-8e3b-4a2f3e5d6c7b';
   const coordinator = row('n1', {

@@ -1,10 +1,12 @@
-import { isAccountLockedError, type MobileErrorKey } from '@transport/shared';
+import { isAccountLockedError, isRfcTakenError, type MobileErrorKey } from '@transport/shared';
 
 /** The fields we read from Supabase Auth and PostgREST errors. */
 export interface ErrorLike {
   name?: string;
   code?: string;
   message?: string;
+  /** PostgREST's `details`: the DETAIL of an error an RPC raised. */
+  details?: string;
   status?: number;
 }
 
@@ -37,6 +39,7 @@ function asErrorLike(error: unknown): ErrorLike {
     name: typeof e.name === 'string' ? e.name : undefined,
     code: typeof e.code === 'string' ? e.code : undefined,
     message: typeof e.message === 'string' ? e.message : undefined,
+    details: typeof e.details === 'string' ? e.details : undefined,
     status: typeof e.status === 'number' ? e.status : undefined,
   };
 }
@@ -47,7 +50,7 @@ function asErrorLike(error: unknown): ErrorLike {
  * shown to the user.
  */
 export function toErrorKey(error: unknown): MobileErrorKey {
-  const { name, code, message = '', status } = asErrorLike(error);
+  const { name, code, message = '', details, status } = asErrorLike(error);
   const text = message.toLowerCase();
 
   if (name === 'EdgeFunctionError') {
@@ -73,7 +76,7 @@ export function toErrorKey(error: unknown): MobileErrorKey {
   if (text.includes('email not confirmed')) return 'emailNotConfirmedForInvitation';
   if (text.includes('already belongs to a company')) return 'alreadyInCompany';
   if (text.includes('invalid phone') || text.includes('phone is required')) return 'phoneInvalid';
-  if (code === '23505' && text.includes('companies_rfc_key')) return 'rfcTaken';
+  if (isRfcTakenError({ code, message, details })) return 'rfcTaken';
   if (text.includes('fiscal') || text.includes('legalrepresentativename') || code === '23514') {
     return 'missingFiscalData';
   }

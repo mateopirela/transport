@@ -163,6 +163,10 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # B11: the web app receives auth email links at /auth/confirm.
 # B17: the mobile app receives them at transport://auth/callback (PKCE).
+# S1 (D15-E3): the confirmation template sends every link to the web's
+# /auth/confirm (it works on any device); the app's callback stays allowed
+# because it is still the app's `emailRedirectTo`, which tells /auth/confirm
+# the account was created in the app.
 additional_redirect_urls = ["https://127.0.0.1:3000", "http://127.0.0.1:3000/**", "http://localhost:3000/**", "transport://auth/callback"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
@@ -232,10 +236,16 @@ enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
+# S1 (D15-E3): "Reenviar correo" waits RESEND_COOLDOWN_SECONDS (60 s, packages/shared/src/resend-cooldown.ts)
+# between sends, which is never shorter than this value here (1 s, so the E2E can resend) nor than the
+# hosted default (60 s).
 max_frequency = "1s"
 # Number of characters used in the email OTP.
+# S1 (D15-E3): the confirmation and recovery emails show this code ({{ .Token }}) next to the link;
+# the web and the app accept either. Six digits (EMAIL_CODE_LENGTH in packages/shared).
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
+# The code and the link of an email last one hour (EMAIL_CODE_VALID_MINUTES); a new email replaces both.
 otp_expiry = 3600
 
 # Use a production-ready SMTP server
@@ -249,6 +259,8 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # B11: Spanish templates whose links go to the web app's /auth/confirm (token hash flow).
+# S1 (D15-E3): both also show the six-digit code. The hosted project does not read these files:
+# its templates are pasted in the dashboard (docs/release.md, "Plantillas de correo").
 # B17: sign-ups from the mobile app (redirect transport://auth/callback) get the
 # standard verify link instead, which redirects to the app with a PKCE code.
 [auth.email.template.confirmation]

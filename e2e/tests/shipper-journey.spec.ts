@@ -5,6 +5,7 @@ import {
   authCopy,
   clientTripsCopy,
   loadsCopy,
+  notificationContent,
   offersCopy,
   onboardingCopy,
   onboardingStepsCopy,
@@ -145,6 +146,13 @@ test('a new shipper signs up, gets verified, contracts a carrier and follows the
     await signInOnWeb(admin, 'admin');
     await approveCompany(admin, shipper.legalName);
     await adminContext.close();
+  });
+
+  await test.step('the shipper is told of the approval (S1, D51)', async () => {
+    const notice = notificationContent('company_approved', { companyName: shipper.legalName });
+    await page.goto('/cliente/notificaciones');
+    await expect(page.getByText(notice.title).first()).toBeVisible();
+    await expect(page.getByText(notice.body).first()).toBeVisible();
   });
 
   let loadId = '';
